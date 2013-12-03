@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 )
 
 func main() {
@@ -12,18 +11,31 @@ func main() {
 		return
 	}
 
-	api := NewBlueBox(config.BlueBox)
+	jobChan := make(chan Job, 2)
 
-	jobChan := make(chan Job, 1)
+	worker1 := NewWorker("go-worker-1", NewBlueBox(config.BlueBox), jobChan)
+	worker2 := NewWorker("go-worker-2", NewBlueBox(config.BlueBox), jobChan)
 
-	worker := NewWorker("go-worker-1", api, jobChan)
-
-	job := Job{
-		Id: 1,
+	jobChan <- Job{
+		Id:          1,
+		BuildScript: []byte("echo This is build 1"),
 	}
-	job.BuildScript, _ = ioutil.ReadFile("build.sh")
-	jobChan <- job
+	jobChan <- Job{
+		Id:          2,
+		BuildScript: []byte("echo This is build 2"),
+	}
 	close(jobChan)
 
-	worker.Start()
+	doneChan := make(chan bool)
+	go func() {
+		worker1.Start()
+		doneChan <- true
+	}()
+	go func() {
+		worker2.Start()
+		doneChan <- true
+	}()
+
+	<-doneChan
+	<-doneChan
 }
