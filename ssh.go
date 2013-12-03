@@ -31,19 +31,13 @@ func NewSSHConnection(server VMCloudServer) (*SSHConnection, error) {
 	return &SSHConnection{client: client}, err
 }
 
-func (c *SSHConnection) Start(cmd string) (chan []byte, chan bool, error) {
+func (c *SSHConnection) Start(cmd string) (chan []byte, error) {
 	session, outputChan, err := c.sessionWithOutput()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	closeChan := make(chan bool)
-	go func() {
-		<-closeChan
-		session.Close()
-	}()
-
-	return outputChan, closeChan, session.Start(cmd)
+	return outputChan, session.Start(cmd)
 }
 
 func (c *SSHConnection) Run(cmd string) error {
@@ -67,7 +61,10 @@ func (c *SSHConnection) sessionWithOutput() (*ssh.Session, chan []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	copyChan(outputChan, stdout)
+	go func() {
+		copyChan(outputChan, stdout, nil)
+		session.Close()
+	}()
 
 	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
 
@@ -94,25 +91,21 @@ func (c *SSHConnection) UploadFile(path string, content []byte) error {
 	return session.Run(fmt.Sprintf("cat > %s", path))
 }
 
-func copyChan(outputChan chan []byte, reader io.Reader) chan error {
-	errChan := make(chan error, 1)
-
-	go func() {
-		for {
-			bytes := make([]byte, 2048)
-			n, err := reader.Read(bytes)
-			if n > 0 {
-				outputChan <- bytes[0:n]
-			}
-			if err != nil {
-				close(outputChan)
-				errChan <- err
-				return
-			}
+func copyChan(outputChan chan []byte, reader io.Reader, errChan chan error) {
+	for {
+		bytes := make([]byte, 2048)
+		n, err := reader.Read(bytes)
+		if n > 0 {
+			outputChan <- bytes[0:n]
 		}
-	}()
-
-	return errChan
+		if err != nil {
+			close(outputChan)
+			if errChan != nil {
+				errChan <- err
+			}
+			return
+		}
+	}
 }
 
 func (c *SSHConnection) Close() {
