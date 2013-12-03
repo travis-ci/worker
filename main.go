@@ -17,14 +17,15 @@ func main() {
 	api := NewBlueBox(config.BlueBox)
 
 	startTime := time.Now()
-	server, err := api.Start("debug-henrikhodne-go-go-go")
+	hostname := fmt.Sprintf("testing-worker-go-%d-%d", os.Getpid(), startTime.Unix())
+	server, err := api.Start(hostname)
 	if err != nil {
 		fmt.Printf("Create Error: %v\n", err)
 		os.Exit(1)
 	}
 	defer server.Destroy()
 
-	fmt.Println("Booting server…")
+	fmt.Printf("Booting server %s…\n", hostname)
 
 	// Wait until ready
 	doneChan, cancelChan := waitFor(func() bool {
