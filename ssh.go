@@ -86,7 +86,10 @@ func (c *SSHConnection) UploadFile(path string, content []byte) error {
 		return err
 	}
 
-	go io.Copy(stdin, bytes.NewReader(content))
+	go func() {
+		io.Copy(stdin, bytes.NewReader(content))
+		stdin.Close()
+	}()
 
 	return session.Run(fmt.Sprintf("cat > %s", path))
 }
