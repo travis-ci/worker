@@ -1,0 +1,18 @@
+language: ruby
+before_script: cp config/worker.example.yml config/worker.yml
+script: bin/rspec spec
+bundler_args: --deployment --binstubs
+services:
+  - rabbitmq
+rvm:
+  - jruby-19mode
+  - jruby-head
+env:
+  - JRUBY_OPTS="--server -Xcext.enabled=false -Xcompile.invokedynamic=false"
+jdk:
+  - openjdk7
+  - openjdk6
+  - oraclejdk7
+matrix:
+  allow_failures:
+    - rvm: jruby-head

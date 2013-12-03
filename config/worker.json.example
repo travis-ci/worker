@@ -1,0 +1,9 @@
+{
+    "bluebox": {
+        "customer_id": "12345",
+        "api_key": "abcdef",
+        "location_id": "abcdef",
+        "image_id": "abcdef",
+        "product_id": "abcdef"
+    }
+}
