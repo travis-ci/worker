@@ -15,6 +15,7 @@ type Worker struct {
 	jobChan    chan Job
 	currentJob Job
 	once       sync.Once
+	logger     *log.Logger
 }
 
 type Job struct {
@@ -27,45 +28,48 @@ func NewWorker(name string, api VMCloudAPI, jobChan chan Job) *Worker {
 		Name:    name,
 		api:     api,
 		jobChan: jobChan,
+		logger:  log.New(os.Stdout, fmt.Sprintf("%s: ", name), log.Ldate|log.Ltime),
 	}
 }
 
 func (w *Worker) Start() {
 	w.once.Do(func() {
+		w.logger.Println("Starting worker")
 		for job := range w.jobChan {
 			w.currentJob = job
 			w.run()
 		}
+		w.logger.Println("Shutting down worker")
 	})
 }
 
 func (w *Worker) run() {
 	server, err := w.bootServer()
 	if err != nil {
-		log.Printf("Booting a VM failed with the following errors: %v\n", err)
+		w.logger.Printf("Booting a VM failed with the following errors: %v\n", err)
 		return
 	}
 	defer server.Destroy()
 
-	log.Println("Opening SSH connection")
+	w.logger.Println("Opening SSH connection")
 	ssh, err := NewSSHConnection(server)
 	if err != nil {
-		log.Printf("Couldn't connect to SSH: %v\n", err)
+		w.logger.Printf("Couldn't connect to SSH: %v\n", err)
 		return
 	}
 	defer ssh.Close()
 
-	log.Println("Uploading build script")
+	w.logger.Println("Uploading build script")
 	err = w.uploadScript(ssh)
 	if err != nil {
-		log.Printf("Couldn't upload script to SSH: %v\n", err)
+		w.logger.Printf("Couldn't upload script to SSH: %v\n", err)
 		return
 	}
 
-	log.Println("Running the build")
+	w.logger.Println("Running the build")
 	outputChan, err := w.runScript(ssh)
 	if err != nil {
-		log.Printf("Failed to run build script: %v\n", err)
+		w.logger.Printf("Failed to run build script: %v\n", err)
 		return
 	}
 
@@ -73,14 +77,14 @@ func (w *Worker) run() {
 		select {
 		case bytes, ok := <-outputChan:
 			if !ok {
-				log.Println("Build finished.")
+				w.logger.Println("Build finished.")
 				return
 			}
 			if bytes != nil {
 				fmt.Printf("%s", bytes)
 			}
 		case <-time.After(10 * time.Second):
-			log.Println("No log output after 10 seconds, stopping build")
+			w.logger.Println("No log output after 10 seconds, stopping build")
 			return
 		}
 	}
@@ -89,7 +93,7 @@ func (w *Worker) run() {
 func (w *Worker) bootServer() (VMCloudServer, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-worker-go-%d-%s-%d", os.Getpid(), w.Name, w.currentJob.Id)
-	log.Printf("Booting %s\n", hostname)
+	w.logger.Printf("Booting %s\n", hostname)
 	server, err := w.api.Start(hostname)
 	if err != nil {
 		return nil, err
@@ -102,7 +106,7 @@ func (w *Worker) bootServer() (VMCloudServer, error) {
 
 	select {
 	case <-doneChan:
-		log.Printf("VM provisioned in %.2f seconds\n", time.Now().Sub(startTime).Seconds())
+		w.logger.Printf("VM provisioned in %.2f seconds\n", time.Now().Sub(startTime).Seconds())
 	case <-time.After(4 * time.Minute):
 		cancelChan <- true
 		return nil, errors.New("VM could not boot within 4 minutes")
