@@ -6,15 +6,15 @@ import (
 )
 
 type WorkerConfig struct {
-	BlueBox BlueBoxConfig `json:"bluebox"`
+	BlueBox BlueBoxConfig
 }
 
 type BlueBoxConfig struct {
-	CustomerId string `json:"customer_id"`
-	ApiKey     string `json:"api_key"`
-	LocationId string `json:"location_id"`
-	TemplateId string `json:"image_id"`
-	ProductId  string `json:"product_id"`
+	CustomerId string
+	ApiKey     string
+	LocationId string
+	TemplateId string
+	ProductId  string
 }
 
 func ConfigFromFile(fileName string) (c WorkerConfig, err error) {
