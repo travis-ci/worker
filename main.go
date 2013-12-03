@@ -61,7 +61,7 @@ func main() {
 	}
 
 	err = ssh.Run("chmod +x ~/build.sh")
-	if  err != nil {
+	if err != nil {
 		fmt.Printf("Couldn't set build script as executable: %v\n", err)
 	}
 
@@ -75,16 +75,17 @@ func main() {
 
 	for {
 		select {
-		case bytes, open := <-outputChan:
-			if !open {
+		case bytes, ok := <-outputChan:
+			if !ok {
 				fmt.Println("Done, shutting down.")
+				return
 			}
 			if bytes != nil {
 				fmt.Printf(">> %s\n", bytes)
 			}
-		case <-time.After(10 * time.Minute):
-			fmt.Printf("!! No log output after 10 minutes, stopping build")
-			break
+		case <-time.After(10 * time.Second):
+			fmt.Println("!! No log output after 10 seconds, stopping build")
+			return
 		}
 	}
 }

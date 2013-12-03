@@ -11,7 +11,7 @@ import (
 func waitFor(done func() bool, interval time.Duration) (doneChan chan bool, cancelChan chan bool) {
 	doneChan = make(chan bool)
 	cancelChan = make(chan bool)
-	
+
 	go func() {
 		for !done() {
 			time.Sleep(interval)
