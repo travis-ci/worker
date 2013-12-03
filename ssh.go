@@ -105,8 +105,9 @@ func copyChan(outputChan chan []byte, reader io.Reader) chan error {
 				outputChan <- bytes[0:n]
 			}
 			if err != nil {
+				close(outputChan)
 				errChan <- err
-				break
+				return
 			}
 		}
 	}()
