@@ -65,10 +65,13 @@ func main() {
 		fmt.Printf("Couldn't set build script as executable: %v\n", err)
 	}
 
-	outputChan, err := ssh.Start("~/build.sh")
+	fmt.Println("Running build script.")
+
+	outputChan, closeChan, err := ssh.Start("~/build.sh")
 	if err != nil {
 		fmt.Printf("Failed to run build script: %v\n", err)
 	}
+	defer func() { closeChan <- true }()
 
 	for {
 		select {

@@ -31,18 +31,23 @@ func NewSSHConnection(server VMCloudServer) (*SSHConnection, error) {
 	return &SSHConnection{client: client}, err
 }
 
-func (c *SSHConnection) Start(cmd string) (chan []byte, error) {
+func (c *SSHConnection) Start(cmd string) (chan []byte, chan bool, error) {
 	session, outputChan, err := c.sessionWithOutput()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer session.Close()
 
-	return outputChan, session.Start(cmd)
+	closeChan := make(chan bool)
+	go func() {
+		<-closeChan
+		session.Close()
+	}()
+
+	return outputChan, closeChan, session.Start(cmd)
 }
 
-func (c *SSHConnection) Run(cmd string) (error) {
-	session, _, err := c.sessionWithOutput()
+func (c *SSHConnection) Run(cmd string) error {
+	session, err := c.client.NewSession()
 	if err != nil {
 		return err
 	}
