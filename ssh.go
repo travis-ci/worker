@@ -67,12 +67,7 @@ func (c *SSHConnection) sessionWithOutput() (*ssh.Session, chan []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	stderr, err := session.StderrPipe()
-	if err != nil {
-		return nil, nil, err
-	}
 	copyChan(outputChan, stdout)
-	copyChan(outputChan, stderr)
 
 	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
 
