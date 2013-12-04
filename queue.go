@@ -108,6 +108,16 @@ func (q *JobQueue) PayloadChannel() chan Payload {
 	return q.payloadChannel
 }
 
+func (q *JobQueue) publish(p Payload) error {
+	body, _ := json.Marshal(p)
+	msg := amqp.Publishing{
+		Type:        "test",
+		ContentType: "application/json",
+		Body:        body,
+	}
+	return q.channel.Publish("", p.Queue, false, false, msg)
+}
+
 // Shutdown closes the AMQP channel and the PayloadChannel
 func (q *JobQueue) Shutdown() error {
 	if err := q.channel.Close(); err != nil {
