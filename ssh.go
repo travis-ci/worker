@@ -22,7 +22,7 @@ func (pw singlePassword) Password(user string) (string, error) {
 
 // NewSSHConnection creates an SSH connection using the connection information
 // for the given server.
-func NewSSHConnection(server VMCloudServer) (*SSHConnection, error) {
+func NewSSHConnection(server VM) (*SSHConnection, error) {
 	sshInfo := server.SSHInfo()
 	sshConfig := &ssh.ClientConfig{
 		User: sshInfo.Username,

@@ -16,24 +16,24 @@ const (
 
 // A Worker runs a job.
 type Worker struct {
-	Name     string
-	api      VMCloudAPI
-	reporter *Reporter
-	payload  Payload
-	once     sync.Once
-	logger   *log.Logger
+	Name       string
+	vmProvider VMProvider
+	reporter   *Reporter
+	payload    Payload
+	once       sync.Once
+	logger     *log.Logger
 }
 
 // NewWorker creates a new worker with the given parameters. The worker assumes
 // ownership of the given API, payload and reporter and they should not be
 // reused for other workers.
-func NewWorker(name string, api VMCloudAPI, payload Payload, reporter *Reporter) *Worker {
+func NewWorker(name string, VMProvider VMProvider, payload Payload, reporter *Reporter) *Worker {
 	return &Worker{
-		Name:     name,
-		api:      api,
-		payload:  payload,
-		logger:   log.New(os.Stdout, fmt.Sprintf("%s: ", name), log.Ldate|log.Ltime),
-		reporter: reporter,
+		Name:       name,
+		vmProvider: VMProvider,
+		payload:    payload,
+		logger:     log.New(os.Stdout, fmt.Sprintf("%s: ", name), log.Ldate|log.Ltime),
+		reporter:   reporter,
 	}
 }
 
@@ -110,11 +110,11 @@ func (w *Worker) jobID() int64 {
 	return w.payload.Job.ID
 }
 
-func (w *Worker) bootServer() (VMCloudServer, error) {
+func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-worker-go-%d-%s", os.Getpid(), w.Name)
 	w.logger.Printf("Booting %s\n", hostname)
-	server, err := w.api.Start(hostname)
+	server, err := w.vmProvider.Start(hostname)
 	if err != nil {
 		return nil, err
 	}

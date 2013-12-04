@@ -11,15 +11,15 @@ type blueboxAPI struct {
 	config BlueBoxConfig
 }
 
-// NewBlueBox creates a VMCloudAPI that talks to the Blue Box blocks API.
-func NewBlueBox(config BlueBoxConfig) VMCloudAPI {
+// NewBlueBox creates a VMProvider that talks to the Blue Box blocks API.
+func NewBlueBox(config BlueBoxConfig) VMProvider {
 	return &blueboxAPI{
 		client: goblueboxapi.NewClient(config.CustomerID, config.APIKey),
 		config: config,
 	}
 }
 
-func (a *blueboxAPI) Start(hostname string) (VMCloudServer, error) {
+func (a *blueboxAPI) Start(hostname string) (VM, error) {
 	params := goblueboxapi.BlockParams{
 		Product:  a.config.ProductID,
 		Template: a.config.TemplateID,
@@ -39,7 +39,7 @@ type blueboxServer struct {
 	password string
 }
 
-func (s *blueboxServer) SSHInfo() VMCloudSSHInfo {
+func (s *blueboxServer) SSHInfo() VMSSHInfo {
 	ipString := ""
 	for _, address := range s.block.Ips {
 		ip := net.ParseIP(address.Address)
@@ -49,7 +49,7 @@ func (s *blueboxServer) SSHInfo() VMCloudSSHInfo {
 		}
 	}
 
-	return VMCloudSSHInfo{
+	return VMSSHInfo{
 		Addr:     fmt.Sprintf("%s:22", ipString),
 		Username: "travis",
 		Password: s.password,

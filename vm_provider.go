@@ -1,15 +1,15 @@
 package main
 
-// A VMCloudAPI talks to the API for a VM provider.
-type VMCloudAPI interface {
+// A VMProvider talks to the API for a VM provider.
+type VMProvider interface {
 	// Start starts a server with the given hostname.
-	Start(hostname string) (VMCloudServer, error)
+	Start(hostname string) (VM, error)
 }
 
-// A VMCloudServer represents a single VM instance.
-type VMCloudServer interface {
+// A VM represents a single VM instance.
+type VM interface {
 	// SSHInfo returns the information necessary for connecting to the server.
-	SSHInfo() VMCloudSSHInfo
+	SSHInfo() VMSSHInfo
 	// Destroy shuts down the VM (usually in a 'disconnect-the-power' sense)
 	Destroy() error
 	// Refresh downloads the latest information about the VM from the API.
@@ -19,9 +19,9 @@ type VMCloudServer interface {
 	Ready() bool
 }
 
-// VMCloudSSHInfo contains the necessary information for connecting to the
+// VMSSHInfo contains the necessary information for connecting to the
 // server using SSH.
-type VMCloudSSHInfo struct {
+type VMSSHInfo struct {
 	Addr     string
 	Username string
 	Password string
