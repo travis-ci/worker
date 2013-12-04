@@ -7,6 +7,7 @@ import (
 
 type WorkerConfig struct {
 	BlueBox BlueBoxConfig
+	AMQP    AMQPConfig
 }
 
 type BlueBoxConfig struct {
@@ -15,6 +16,11 @@ type BlueBoxConfig struct {
 	LocationId string
 	TemplateId string
 	ProductId  string
+}
+
+type AMQPConfig struct {
+	URL   string
+	Queue string
 }
 
 func ConfigFromFile(fileName string) (c WorkerConfig, err error) {

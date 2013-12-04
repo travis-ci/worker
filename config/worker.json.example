@@ -5,5 +5,9 @@
         "locationId": "abcdef",
         "templateId": "abcdef",
         "productId": "abcdef"
+    },
+    "amqp": {
+        "url": "amqp://localhost:5672/",
+        "queue": "builds.linux"
     }
 }

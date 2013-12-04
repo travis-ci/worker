@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/streadway/amqp"
+	"log"
 )
 
 func main() {
@@ -11,24 +13,31 @@ func main() {
 		return
 	}
 
-	jobChan := make(chan Job, 3)
+	amqpConn, err := amqp.Dial(config.AMQP.URL)
+	if err != nil {
+		fmt.Printf("Error connecting to AMQP: %v\n", err)
+		return
+	}
+	defer amqpConn.Close()
 
-	worker1 := NewWorker("go-worker-1", NewBlueBox(config.BlueBox), jobChan)
-	worker2 := NewWorker("go-worker-2", NewBlueBox(config.BlueBox), jobChan)
-
-	jobChan <- Job{
-		Id:          1,
-		BuildScript: []byte("echo This is job 1"),
+	queue1, err := NewQueue(amqpConn, config.AMQP.Queue)
+	if err != nil {
+		fmt.Printf("Couldn't create queue1: %v\n", err)
 	}
-	jobChan <- Job{
-		Id:          2,
-		BuildScript: []byte("echo This is job 2"),
+	queue2, err := NewQueue(amqpConn, config.AMQP.Queue)
+	if err != nil {
+		fmt.Printf("Couldn't create queue2: %v\n", err)
 	}
-	jobChan <- Job{
-		Id:          3,
-		BuildScript: []byte("echo This is job 3"),
+	reporter1, err := NewReporter(amqpConn)
+	if err != nil {
+		fmt.Printf("Couldn't create reporter1: %v\n", err)
 	}
-	close(jobChan)
+	reporter2, err := NewReporter(amqpConn)
+	if err != nil {
+		fmt.Printf("Couldn't create reporter2: %v\n", err)
+	}
+	worker1 := NewWorker("go-worker-1", NewBlueBox(config.BlueBox), queue1, reporter1)
+	worker2 := NewWorker("go-worker-2", NewBlueBox(config.BlueBox), queue2, reporter2)
 
 	doneChan := make(chan bool)
 	go func() {
