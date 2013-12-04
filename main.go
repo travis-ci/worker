@@ -47,7 +47,7 @@ func main() {
 				return
 			}
 			log.Printf("Starting job slug:%s id:%d\n", payload.Repository.Slug, payload.Job.Id)
-			reporter, err := NewReporter(amqpConn)
+			reporter, err := NewReporter(amqpConn, payload.Job.Id)
 			if err != nil {
 				log.Printf("Couldn't create reporter: %v\n", err)
 				payload.Nack()

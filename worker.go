@@ -29,6 +29,8 @@ func NewWorker(name string, api VMCloudAPI, payload Payload, reporter *Reporter)
 }
 
 func (w *Worker) Run() bool {
+	defer w.reporter.Close()
+
 	server, err := w.bootServer()
 	if err != nil {
 		w.logger.Printf("Booting a VM failed with the following errors: %v\n", err)
@@ -36,7 +38,7 @@ func (w *Worker) Run() bool {
 	}
 	defer server.Destroy()
 
-	w.reporter.SendLog(w.jobId(), fmt.Sprintf("Using worker: %s\n\n", w.Name))
+	w.reporter.SendLog(fmt.Sprintf("Using worker: %s\n\n", w.Name))
 
 	w.logger.Println("Opening SSH connection")
 	ssh, err := NewSSHConnection(server)
@@ -53,7 +55,7 @@ func (w *Worker) Run() bool {
 		return false
 	}
 
-	err = w.reporter.NotifyJobStarted(w.jobId())
+	err = w.reporter.NotifyJobStarted()
 	if err != nil {
 		w.logger.Printf("Couldn't notify about job start: %v\n", err)
 		return false
@@ -70,7 +72,7 @@ func (w *Worker) Run() bool {
 		select {
 		case bytes, ok := <-outputChan:
 			if bytes != nil {
-				err := w.reporter.SendLog(w.jobId(), string(bytes))
+				err := w.reporter.SendLog(string(bytes))
 				if err != nil {
 					w.logger.Printf("An error occurred while sending a log part: %v", err)
 				}
@@ -85,8 +87,8 @@ func (w *Worker) Run() bool {
 				case 1:
 					state = "failed"
 				}
-				w.reporter.SendFinal(w.jobId())
-				err := w.reporter.NotifyJobFinished(w.jobId(), state)
+				w.reporter.SendFinal()
+				err := w.reporter.NotifyJobFinished(state)
 				if err != nil {
 					w.logger.Printf("Couldn't send job:finished message: %v\n", err)
 				}
@@ -94,9 +96,9 @@ func (w *Worker) Run() bool {
 			}
 		case <-time.After(10 * time.Second):
 			w.logger.Println("No log output after 10 seconds, stopping build")
-			w.reporter.SendLog(w.jobId(), "\n\nYour build didn't produce any output in the last 10 seconds, stopping the job.\n")
-			w.reporter.SendFinal(w.jobId())
-			w.reporter.NotifyJobFinished(w.jobId(), "errored")
+			w.reporter.SendLog("\n\nYour build didn't produce any output in the last 10 seconds, stopping the job.\n")
+			w.reporter.SendFinal()
+			w.reporter.NotifyJobFinished("errored")
 			return false
 		}
 	}

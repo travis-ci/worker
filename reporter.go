@@ -3,17 +3,17 @@ package main
 import (
 	"encoding/json"
 	"github.com/streadway/amqp"
-	"sync"
 	"time"
 )
 
 type Reporter struct {
 	channel        *amqp.Channel
-	logsPartNumber int64
-	numberMutex    *sync.Mutex
+	numberSequence chan int
+	done           chan bool
+	jobId          int64
 }
 
-func NewReporter(conn *amqp.Connection) (*Reporter, error) {
+func NewReporter(conn *amqp.Connection, jobId int64) (*Reporter, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -24,34 +24,52 @@ func NewReporter(conn *amqp.Connection) (*Reporter, error) {
 		return nil, err
 	}
 
-	return &Reporter{channel: channel, numberMutex: new(sync.Mutex)}, nil
+	done := make(chan bool)
+	sequence := make(chan int)
+	go func() {
+		var number int = 1
+		for {
+			select {
+			case <-done:
+				close(sequence)
+				return
+			case sequence <- number:
+				number++
+			}
+		}
+	}()
+
+	return &Reporter{
+		channel:        channel,
+		jobId:          jobId,
+		done:           done,
+		numberSequence: sequence,
+	}, nil
 }
 
 type logPart struct {
 	Id     int64  `json:"id"`
 	Log    string `json:"log"`
-	Number int64  `json:"number"`
+	Number int    `json:"number"`
 	Final  bool   `json:"final,omitempty"`
 }
 
-func (r *Reporter) SendLog(jobId int64, output string) error {
-	part := logPart{
-		Id:     jobId,
+func (r *Reporter) SendLog(output string) error {
+	return r.publishLogPart(logPart{
+		Id:     r.jobId,
 		Log:    output,
 		Number: r.nextPartNumber(),
 		Final:  false,
-	}
-	return r.publishLogPart(part)
+	})
 }
 
-func (r *Reporter) SendFinal(jobId int64) error {
-	part := logPart{
-		Id:     jobId,
+func (r *Reporter) SendFinal() error {
+	return r.publishLogPart(logPart{
+		Id:     r.jobId,
 		Log:    "",
 		Number: r.nextPartNumber(),
 		Final:  true,
-	}
-	return r.publishLogPart(part)
+	})
 }
 
 type jobReporterPayload struct {
@@ -61,12 +79,12 @@ type jobReporterPayload struct {
 	FinishedAt string `json:"finished_at,omitempty"`
 }
 
-func (r *Reporter) NotifyJobStarted(jobId int64) error {
-	return r.notify("job:test:start", jobReporterPayload{Id: jobId, State: "started", StartedAt: currentJsonTime()})
+func (r *Reporter) NotifyJobStarted() error {
+	return r.notify("job:test:start", jobReporterPayload{Id: r.jobId, State: "started", StartedAt: currentJsonTime()})
 }
 
-func (r *Reporter) NotifyJobFinished(jobId int64, state string) error {
-	return r.notify("job:test:finish", jobReporterPayload{Id: jobId, State: state, FinishedAt: currentJsonTime()})
+func (r *Reporter) NotifyJobFinished(state string) error {
+	return r.notify("job:test:finish", jobReporterPayload{Id: r.jobId, State: state, FinishedAt: currentJsonTime()})
 }
 
 func (r *Reporter) notify(event string, payload jobReporterPayload) error {
@@ -105,11 +123,8 @@ func (r *Reporter) Close() error {
 	return r.channel.Close()
 }
 
-func (r *Reporter) nextPartNumber() int64 {
-	r.numberMutex.Lock()
-	defer r.numberMutex.Unlock()
-	r.logsPartNumber += 1
-	return r.logsPartNumber
+func (r *Reporter) nextPartNumber() int {
+	return <-r.numberSequence
 }
 
 func currentJsonTime() string {
