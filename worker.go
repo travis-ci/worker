@@ -62,6 +62,11 @@ func (w *Worker) Start() {
 	})
 }
 
+func (w *Worker) Stop() {
+	w.stopChan <- true
+	<-w.doneChan
+}
+
 func (w *Worker) run() bool {
 	w.reporter.NotifyJobStarted(w.currentPayload.Job.Id)
 	server, err := w.bootServer()

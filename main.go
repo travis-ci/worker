@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/streadway/amqp"
 	"log"
+	"os"
+	"os/signal"
 )
 
 func main() {
@@ -47,6 +49,15 @@ func main() {
 	go func() {
 		worker2.Start()
 		doneChan <- true
+	}()
+
+	sigtermChan := make(chan os.Signal, 1)
+	signal.Notify(sigtermChan, os.Interrupt)
+	go func() {
+		<-sigtermChan
+		log.Println("Got SIGTERM, shutting down workers gracefully")
+		worker1.Stop()
+		worker2.Stop()
 	}()
 
 	<-doneChan
