@@ -5,6 +5,7 @@ import (
 	"code.google.com/p/go.crypto/ssh"
 	"fmt"
 	"io"
+	"log"
 )
 
 // An SSHConnection manages an SSH connection to a server.
@@ -35,8 +36,9 @@ func NewSSHConnection(server VM) (*SSHConnection, error) {
 }
 
 // Start starts the given command and returns as soon as the command has
-// started. It does not wait for the command to finish. The returned channels
-// send the stdout of the command and the exit code.
+// started. It does not wait for the command to finish. The returned channel
+// will send the exit code and then close when the command is finished. If the
+// exit code sent is -1 then there was an error running the build.
 func (c *SSHConnection) Start(cmd string, output io.WriteCloser) (<-chan int, error) {
 	session, err := c.createSession()
 	if err != nil {
@@ -57,8 +59,14 @@ func (c *SSHConnection) Start(cmd string, output io.WriteCloser) (<-chan int, er
 		} else {
 			switch err := err.(type) {
 			case *ssh.ExitError:
-				exitCodeChan <- err.ExitStatus()
+				if err.ExitStatus() != 0 {
+					exitCodeChan <- err.ExitStatus()
+				} else {
+					log.Printf("SSHConnection.Start: An error occurred while running the command: %v\n", err)
+					exitCodeChan <- -1
+				}
 			default:
+				log.Printf("SSHConnection.Start: An error occurred while running the command: %v\n", err)
 				exitCodeChan <- -1
 			}
 		}
