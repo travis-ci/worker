@@ -46,7 +46,7 @@ func main() {
 				queue.Shutdown()
 				return
 			}
-			log.Printf("Starting job slug:%s id:%d\n", payload.Repository.Slug, payload.Job.ID)
+
 			reporter, err := NewReporter(amqpConn, payload.Job.ID)
 			if err != nil {
 				log.Printf("Couldn't create reporter: %v\n", err)

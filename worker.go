@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	logOutputTimeout = 10 * time.Minute
+	vmBootTimeout    = 4 * time.Minute
+)
+
 // A Worker runs a job.
 type Worker struct {
 	Name     string
@@ -35,6 +40,7 @@ func NewWorker(name string, api VMCloudAPI, payload Payload, reporter *Reporter)
 // Run actually runs the job. It returns whether the job should be requeued or
 // not. The worker should be discarded after this method has finished.
 func (w *Worker) Run() bool {
+	w.logger.Printf("Starting job slug:%s id:%d\n", w.payload.Repository.Slug, w.payload.Job.ID)
 	defer w.reporter.Close()
 
 	server, err := w.bootServer()
@@ -44,12 +50,14 @@ func (w *Worker) Run() bool {
 	}
 	defer server.Destroy()
 
-	w.reporter.SendLog(fmt.Sprintf("Using worker: %s\n\n", w.Name))
+	fmt.Fprintf(w.reporter.Log, "Using worker: %s\n\n", w.Name)
+	defer w.reporter.Log.Close()
 
 	w.logger.Println("Opening SSH connection")
 	ssh, err := NewSSHConnection(server)
 	if err != nil {
 		w.logger.Printf("Couldn't connect to SSH: %v\n", err)
+		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
 		return false
 	}
 	defer ssh.Close()
@@ -58,6 +66,7 @@ func (w *Worker) Run() bool {
 	err = w.uploadScript(ssh)
 	if err != nil {
 		w.logger.Printf("Couldn't upload script to SSH: %v\n", err)
+		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
 		return false
 	}
 
@@ -71,6 +80,7 @@ func (w *Worker) Run() bool {
 	exitCodeChan, err := w.runScript(ssh)
 	if err != nil {
 		w.logger.Printf("Failed to run build script: %v\n", err)
+		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
 		return false
 	}
 
@@ -82,16 +92,17 @@ func (w *Worker) Run() bool {
 			w.reporter.NotifyJobFinished("passed")
 		case 1:
 			w.reporter.NotifyJobFinished("failed")
-		case 2:
+		default:
 			w.reporter.NotifyJobFinished("errored")
+		case -1:
+			fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
+			return false
 		}
 		return true
-	case <-time.After(10 * time.Second):
-		w.logger.Println("No log output after 10 seconds, stopping build")
-		w.reporter.SendLog("\n\nYour build didn't produce any output in the last 10 seconds, stopping the job.\n")
-		w.reporter.SendFinal()
+	case <-time.After(logOutputTimeout):
+		fmt.Fprintf(w.reporter.Log, "\n\nNo output has been received in the last %.0f minutes, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", logOutputTimeout.Minutes())
 		w.reporter.NotifyJobFinished("errored")
-		return false
+		return true
 	}
 }
 
@@ -116,7 +127,7 @@ func (w *Worker) bootServer() (VMCloudServer, error) {
 	select {
 	case <-doneChan:
 		w.logger.Printf("VM provisioned in %.2f seconds\n", time.Now().Sub(startTime).Seconds())
-	case <-time.After(4 * time.Minute):
+	case <-time.After(vmBootTimeout):
 		cancelChan <- true
 		return nil, errors.New("VM could not boot within 4 minutes")
 	}
@@ -125,17 +136,12 @@ func (w *Worker) bootServer() (VMCloudServer, error) {
 }
 
 func (w *Worker) uploadScript(ssh *SSHConnection) error {
-	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("echo This is build id %d", w.jobID())))
+	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("#!/bin/bash --login\n\necho This is build id %d\necho Now sleeping to test timeout\nsleep 15", w.jobID())))
 	if err != nil {
 		return err
 	}
 
-	err = ssh.Run("chmod +x ~/build.sh")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ssh.Run("chmod +x ~/build.sh")
 }
 
 func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {

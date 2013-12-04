@@ -51,7 +51,6 @@ func (c *SSHConnection) Start(cmd string, output io.WriteCloser) (<-chan int, er
 	exitCodeChan := make(chan int, 1)
 	go func() {
 		err := session.Wait()
-		output.Close()
 		session.Close()
 		if err == nil {
 			exitCodeChan <- 0
@@ -60,7 +59,7 @@ func (c *SSHConnection) Start(cmd string, output io.WriteCloser) (<-chan int, er
 			case *ssh.ExitError:
 				exitCodeChan <- err.ExitStatus()
 			default:
-				exitCodeChan <- 200
+				exitCodeChan <- -1
 			}
 		}
 		close(exitCodeChan)

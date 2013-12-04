@@ -86,25 +86,19 @@ type logPart struct {
 	Final  bool   `json:"final,omitempty"`
 }
 
-// SendLog sends a portion of a the log. The log parts will be put together in
-// the same order they were sent to SendLog.
-func (r *Reporter) SendLog(output string) error {
-	return r.publishLogPart(logPart{
-		ID:     r.jobID,
-		Log:    output,
-		Number: r.nextPartNumber(),
-		Final:  false,
-	})
-}
+func (r *Reporter) publishLogPart(part logPart) error {
+	data, err := json.Marshal(part)
+	if err != nil {
+		return err
+	}
 
-// SendFinal sends a notice that all log parts have been sent.
-func (r *Reporter) SendFinal() error {
-	return r.publishLogPart(logPart{
-		ID:     r.jobID,
-		Log:    "",
-		Number: r.nextPartNumber(),
-		Final:  true,
-	})
+	msg := amqp.Publishing{
+		Type:      "job:test:log",
+		Timestamp: time.Now(),
+		Body:      data,
+	}
+
+	return r.channel.Publish("reporting", "reporting.jobs.logs", false, false, msg)
 }
 
 type jobReporterPayload struct {
@@ -141,21 +135,6 @@ func (r *Reporter) notify(event string, payload jobReporterPayload) error {
 	}
 
 	return r.channel.Publish("reporting", "reporting.jobs.builds", false, false, msg)
-}
-
-func (r *Reporter) publishLogPart(part logPart) error {
-	data, err := json.Marshal(part)
-	if err != nil {
-		return err
-	}
-
-	msg := amqp.Publishing{
-		Type:      "job:test:log",
-		Timestamp: time.Now(),
-		Body:      data,
-	}
-
-	return r.channel.Publish("reporting", "reporting.jobs.logs", false, false, msg)
 }
 
 // Close closes the reporter. This should be called after the job has finished.
