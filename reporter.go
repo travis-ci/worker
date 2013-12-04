@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/streadway/amqp"
+	"io"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type Reporter struct {
 	numberSequence chan int
 	done           chan bool
 	jobID          int64
+	Log            io.WriteCloser
 }
 
 // NewReporter creates a new reporter for the given job ID. The reporter is only
@@ -43,12 +45,38 @@ func NewReporter(conn *amqp.Connection, jobID int64) (*Reporter, error) {
 		}
 	}()
 
-	return &Reporter{
+	reporter := &Reporter{
 		channel:        channel,
 		jobID:          jobID,
 		done:           done,
 		numberSequence: sequence,
-	}, nil
+	}
+	reporter.Log = &writeCloseWrapper{reporter}
+
+	return reporter, nil
+}
+
+type writeCloseWrapper struct {
+	reporter *Reporter
+}
+
+func (w *writeCloseWrapper) Write(p []byte) (n int, err error) {
+	str := string(p)
+	return len(str), w.reporter.publishLogPart(logPart{
+		ID:     w.reporter.jobID,
+		Log:    str,
+		Number: w.reporter.nextPartNumber(),
+		Final:  false,
+	})
+}
+
+func (w *writeCloseWrapper) Close() error {
+	return w.reporter.publishLogPart(logPart{
+		ID:     w.reporter.jobID,
+		Log:    "",
+		Number: w.reporter.nextPartNumber(),
+		Final:  true,
+	})
 }
 
 type logPart struct {

@@ -68,45 +68,30 @@ func (w *Worker) Run() bool {
 	}
 
 	w.logger.Println("Running the build")
-	outputChan, exitCodeChan, err := w.runScript(ssh)
+	exitCodeChan, err := w.runScript(ssh)
 	if err != nil {
 		w.logger.Printf("Failed to run build script: %v\n", err)
 		return false
 	}
 
-	for {
-		select {
-		case bytes, ok := <-outputChan:
-			if bytes != nil {
-				err := w.reporter.SendLog(string(bytes))
-				if err != nil {
-					w.logger.Printf("An error occurred while sending a log part: %v", err)
-				}
-			}
-			if !ok {
-				w.logger.Println("Build finished.")
-				exitCode := <-exitCodeChan
-				state := "errored"
-				switch exitCode {
-				case 0:
-					state = "passed"
-				case 1:
-					state = "failed"
-				}
-				w.reporter.SendFinal()
-				err := w.reporter.NotifyJobFinished(state)
-				if err != nil {
-					w.logger.Printf("Couldn't send job:finished message: %v\n", err)
-				}
-				return true
-			}
-		case <-time.After(10 * time.Second):
-			w.logger.Println("No log output after 10 seconds, stopping build")
-			w.reporter.SendLog("\n\nYour build didn't produce any output in the last 10 seconds, stopping the job.\n")
-			w.reporter.SendFinal()
+	select {
+	case exitCode := <-exitCodeChan:
+		w.logger.Println("Build finished.")
+		switch exitCode {
+		case 0:
+			w.reporter.NotifyJobFinished("passed")
+		case 1:
+			w.reporter.NotifyJobFinished("failed")
+		case 2:
 			w.reporter.NotifyJobFinished("errored")
-			return false
 		}
+		return true
+	case <-time.After(10 * time.Second):
+		w.logger.Println("No log output after 10 seconds, stopping build")
+		w.reporter.SendLog("\n\nYour build didn't produce any output in the last 10 seconds, stopping the job.\n")
+		w.reporter.SendFinal()
+		w.reporter.NotifyJobFinished("errored")
+		return false
 	}
 }
 
@@ -153,6 +138,6 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 	return nil
 }
 
-func (w *Worker) runScript(ssh *SSHConnection) (<-chan []byte, chan int, error) {
-	return ssh.Start("~/build.sh")
+func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
+	return ssh.Start("~/build.sh", w.reporter.Log)
 }
