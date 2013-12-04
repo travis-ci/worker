@@ -11,6 +11,7 @@ type JobQueue struct {
 	channel        *amqp.Channel
 	queue          amqp.Queue
 	payloadChannel chan Payload
+	doneChannel    chan error
 }
 
 type Payload struct {
@@ -55,11 +56,16 @@ func (p Payload) Nack() error {
 	return p.delivery.Nack(false, true)
 }
 
-func NewQueue(conn *amqp.Connection, name string) (*JobQueue, error) {
+func NewQueue(conn *amqp.Connection, name string, size int) (*JobQueue, error) {
 	var err error
-	queue := &JobQueue{conn: conn}
+	queue := &JobQueue{conn: conn, doneChannel: make(chan error)}
 
 	queue.channel, err = queue.conn.Channel()
+	if err != nil {
+		return nil, err
+	}
+
+	err = queue.channel.Qos(size, 0, false)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +88,7 @@ func NewQueue(conn *amqp.Connection, name string) (*JobQueue, error) {
 	if err != nil {
 		return nil, err
 	}
-	go handle(deliveries, queue.payloadChannel)
+	go handle(deliveries, queue.payloadChannel, queue.doneChannel)
 
 	return queue, nil
 }
@@ -92,17 +98,18 @@ func (q *JobQueue) PayloadChannel() chan Payload {
 }
 
 func (q *JobQueue) Shutdown() error {
-	if err := q.conn.Close(); err != nil {
+	if err := q.channel.Close(); err != nil {
 		return err
 	}
 
-	return nil
+	return <-q.doneChannel
 }
 
-func handle(deliveries <-chan amqp.Delivery, payloads chan Payload) {
+func handle(deliveries <-chan amqp.Delivery, payloads chan Payload, done chan error) {
 	for d := range deliveries {
 		payloads <- deliveryToPayload(d)
 	}
+	done <- nil
 }
 
 func deliveryToPayload(delivery amqp.Delivery) Payload {

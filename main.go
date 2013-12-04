@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 )
 
 func main() {
@@ -22,44 +23,48 @@ func main() {
 	}
 	defer amqpConn.Close()
 
-	queue1, err := NewQueue(amqpConn, config.AMQP.Queue)
+	queue, err := NewQueue(amqpConn, config.AMQP.Queue, 10)
 	if err != nil {
-		fmt.Printf("Couldn't create queue1: %v\n", err)
+		fmt.Printf("Couldn't create queue: %v\n", err)
 	}
-	queue2, err := NewQueue(amqpConn, config.AMQP.Queue)
-	if err != nil {
-		fmt.Printf("Couldn't create queue2: %v\n", err)
-	}
-	reporter1, err := NewReporter(amqpConn)
-	if err != nil {
-		fmt.Printf("Couldn't create reporter1: %v\n", err)
-	}
-	reporter2, err := NewReporter(amqpConn)
-	if err != nil {
-		fmt.Printf("Couldn't create reporter2: %v\n", err)
-	}
-	worker1 := NewWorker("go-worker-1", NewBlueBox(config.BlueBox), queue1, reporter1)
-	worker2 := NewWorker("go-worker-2", NewBlueBox(config.BlueBox), queue2, reporter2)
-
-	doneChan := make(chan bool)
-	go func() {
-		worker1.Start()
-		doneChan <- true
-	}()
-	go func() {
-		worker2.Start()
-		doneChan <- true
-	}()
 
 	sigtermChan := make(chan os.Signal, 1)
 	signal.Notify(sigtermChan, os.Interrupt)
-	go func() {
-		<-sigtermChan
-		log.Println("Got SIGTERM, shutting down workers gracefully")
-		worker1.Stop()
-		worker2.Stop()
-	}()
 
-	<-doneChan
-	<-doneChan
+	var wg sync.WaitGroup
+
+	for {
+		select {
+		case <-sigtermChan:
+			log.Println("Got SIGTERM, shutting down workers gracefully")
+			queue.Shutdown()
+			wg.Wait()
+			return
+		case payload, ok := <-queue.PayloadChannel():
+			if !ok {
+				log.Printf("AMQP channel closed, stopping worker")
+				queue.Shutdown()
+				return
+			}
+			log.Printf("Starting job slug:%s id:%d\n", payload.Repository.Slug, payload.Job.Id)
+			reporter, err := NewReporter(amqpConn)
+			if err != nil {
+				log.Printf("Couldn't create reporter: %v\n", err)
+				payload.Nack()
+				break
+			}
+
+			worker := NewWorker(fmt.Sprintf("worker-%d", payload.Job.Id), NewBlueBox(config.BlueBox), payload, reporter)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				if worker.Run() {
+					payload.Ack()
+				} else {
+					payload.Nack()
+				}
+			}()
+		}
+	}
 }

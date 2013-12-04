@@ -10,71 +10,33 @@ import (
 )
 
 type Worker struct {
-	Name           string
-	api            VMCloudAPI
-	jobQueue       *JobQueue
-	reporter       *Reporter
-	currentPayload Payload
-	once           sync.Once
-	logger         *log.Logger
-	stopChan       chan bool
-	doneChan       chan bool
+	Name     string
+	api      VMCloudAPI
+	reporter *Reporter
+	payload  Payload
+	once     sync.Once
+	logger   *log.Logger
 }
 
-func NewWorker(name string, api VMCloudAPI, jobQueue *JobQueue, reporter *Reporter) *Worker {
+func NewWorker(name string, api VMCloudAPI, payload Payload, reporter *Reporter) *Worker {
 	return &Worker{
 		Name:     name,
 		api:      api,
-		jobQueue: jobQueue,
-		stopChan: make(chan bool),
-		doneChan: make(chan bool, 1),
+		payload:  payload,
 		logger:   log.New(os.Stdout, fmt.Sprintf("%s: ", name), log.Ldate|log.Ltime),
 		reporter: reporter,
 	}
 }
 
-func (w *Worker) Start() {
-	w.once.Do(func() {
-		w.logger.Println("Starting worker")
-		for {
-			select {
-			case payload, ok := <-w.jobQueue.PayloadChannel():
-				if !ok {
-					w.logger.Println("AMQP channel closed, stopping worker")
-					w.jobQueue.Shutdown()
-					w.doneChan <- true
-					return
-				}
-				w.logger.Printf("Starting job slug:%s id:%d", payload.Repository.Slug, payload.Job.Id)
-				w.currentPayload = payload
-				if w.run() {
-					payload.Ack()
-				} else {
-					payload.Nack()
-				}
-			case <-w.stopChan:
-				w.logger.Println("Stopping worker")
-				w.jobQueue.Shutdown()
-				w.doneChan <- true
-				return
-			}
-		}
-	})
-}
-
-func (w *Worker) Stop() {
-	w.stopChan <- true
-	<-w.doneChan
-}
-
-func (w *Worker) run() bool {
-	w.reporter.NotifyJobStarted(w.currentPayload.Job.Id)
+func (w *Worker) Run() bool {
 	server, err := w.bootServer()
 	if err != nil {
 		w.logger.Printf("Booting a VM failed with the following errors: %v\n", err)
 		return false
 	}
 	defer server.Destroy()
+
+	w.reporter.SendLog(w.jobId(), fmt.Sprintf("Using worker: %s\n\n", w.Name))
 
 	w.logger.Println("Opening SSH connection")
 	ssh, err := NewSSHConnection(server)
@@ -91,6 +53,12 @@ func (w *Worker) run() bool {
 		return false
 	}
 
+	err = w.reporter.NotifyJobStarted(w.jobId())
+	if err != nil {
+		w.logger.Printf("Couldn't notify about job start: %v\n", err)
+		return false
+	}
+
 	w.logger.Println("Running the build")
 	outputChan, exitCodeChan, err := w.runScript(ssh)
 	if err != nil {
@@ -102,7 +70,10 @@ func (w *Worker) run() bool {
 		select {
 		case bytes, ok := <-outputChan:
 			if bytes != nil {
-				w.reporter.SendLog(w.currentPayload.Job.Id, string(bytes))
+				err := w.reporter.SendLog(w.jobId(), string(bytes))
+				if err != nil {
+					w.logger.Printf("An error occurred while sending a log part: %v", err)
+				}
 			}
 			if !ok {
 				w.logger.Println("Build finished.")
@@ -114,23 +85,30 @@ func (w *Worker) run() bool {
 				case 1:
 					state = "failed"
 				}
-				w.reporter.SendFinal(w.currentPayload.Job.Id)
-				w.reporter.NotifyJobFinished(w.currentPayload.Job.Id, state)
+				w.reporter.SendFinal(w.jobId())
+				err := w.reporter.NotifyJobFinished(w.jobId(), state)
+				if err != nil {
+					w.logger.Printf("Couldn't send job:finished message: %v\n", err)
+				}
 				return true
 			}
 		case <-time.After(10 * time.Second):
 			w.logger.Println("No log output after 10 seconds, stopping build")
-			w.reporter.SendLog(w.currentPayload.Job.Id, "\n\nYour build didn't produce any output in the last 10 seconds, stopping the job.\n")
-			w.reporter.SendFinal(w.currentPayload.Job.Id)
-			w.reporter.NotifyJobFinished(w.currentPayload.Job.Id, "errored")
+			w.reporter.SendLog(w.jobId(), "\n\nYour build didn't produce any output in the last 10 seconds, stopping the job.\n")
+			w.reporter.SendFinal(w.jobId())
+			w.reporter.NotifyJobFinished(w.jobId(), "errored")
 			return false
 		}
 	}
 }
 
+func (w *Worker) jobId() int64 {
+	return w.payload.Job.Id
+}
+
 func (w *Worker) bootServer() (VMCloudServer, error) {
 	startTime := time.Now()
-	hostname := fmt.Sprintf("testing-worker-go-%d-%s-%d", os.Getpid(), w.Name, w.currentPayload.Job.Id)
+	hostname := fmt.Sprintf("testing-worker-go-%d-%s", os.Getpid(), w.Name)
 	w.logger.Printf("Booting %s\n", hostname)
 	server, err := w.api.Start(hostname)
 	if err != nil {
@@ -154,7 +132,7 @@ func (w *Worker) bootServer() (VMCloudServer, error) {
 }
 
 func (w *Worker) uploadScript(ssh *SSHConnection) error {
-	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("echo This is build id %d", w.currentPayload.Job.Id)))
+	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("echo This is build id %d", w.jobId())))
 	if err != nil {
 		return err
 	}
@@ -167,6 +145,6 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 	return nil
 }
 
-func (w *Worker) runScript(ssh *SSHConnection) (chan []byte, chan int, error) {
+func (w *Worker) runScript(ssh *SSHConnection) (<-chan []byte, chan int, error) {
 	return ssh.Start("~/build.sh")
 }

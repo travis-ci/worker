@@ -31,7 +31,7 @@ func NewSSHConnection(server VMCloudServer) (*SSHConnection, error) {
 	return &SSHConnection{client: client}, err
 }
 
-func (c *SSHConnection) Start(cmd string) (chan []byte, chan int, error) {
+func (c *SSHConnection) Start(cmd string) (<-chan []byte, chan int, error) {
 	session, outputChan, err := c.sessionWithOutput()
 	if err != nil {
 		return nil, nil, err
@@ -68,7 +68,7 @@ func (c *SSHConnection) Run(cmd string) error {
 	return session.Run(cmd)
 }
 
-func (c *SSHConnection) sessionWithOutput() (*ssh.Session, chan []byte, error) {
+func (c *SSHConnection) sessionWithOutput() (*ssh.Session, <-chan []byte, error) {
 	session, err := c.client.NewSession()
 	if err != nil {
 		return nil, nil, err
