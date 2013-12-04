@@ -6,6 +6,7 @@ import (
 	"log"
 )
 
+// A JobQueue pulls jobs off an AMQP queue.
 type JobQueue struct {
 	conn           *amqp.Connection
 	channel        *amqp.Channel
@@ -14,6 +15,7 @@ type JobQueue struct {
 	doneChannel    chan error
 }
 
+// A Payload holds the information necessary to run the job.
 type Payload struct {
 	Job        JobPayload
 	Build      BuildPayload `json:"source"`
@@ -24,8 +26,9 @@ type Payload struct {
 	delivery amqp.Delivery
 }
 
+// A JobPayload holds the information specific to the job.
 type JobPayload struct {
-	Id               int64
+	ID               int64
 	Number           string
 	Commit           string
 	CommitRange      string `json:"commit_range"`
@@ -35,27 +38,34 @@ type JobPayload struct {
 	SecureEnvEnabled bool `json:"secure_env_enabled"`
 }
 
+// A BuildPayload holds the information specific to the build.
 type BuildPayload struct {
-	Id     int64
+	ID     int64
 	Number string
 }
 
+// A RepositoryPayload holds the information specific to the repository.
 type RepositoryPayload struct {
-	Id        int64
+	ID        int64
 	Slug      string
-	GitHubId  int64  `json:"github_id"`
+	GitHubID  int64  `json:"github_id"`
 	SourceURL string `json:"source_url"`
 	APIURL    string `json:"api_url"`
 }
 
+// Ack notifies the queue that the job finished successfully.
 func (p Payload) Ack() error {
 	return p.delivery.Ack(false)
 }
 
+// Nack notifies the queue that the job errored and needs to be requeued.
 func (p Payload) Nack() error {
 	return p.delivery.Nack(false, true)
 }
 
+// NewQueue creates a new JobQueue. The name is the name of the queue to
+// subscribe to, and the size is the number of jobs that can be fetched at once
+// before having to Ack.
 func NewQueue(conn *amqp.Connection, name string, size int) (*JobQueue, error) {
 	var err error
 	queue := &JobQueue{conn: conn, doneChannel: make(chan error)}
@@ -93,10 +103,12 @@ func NewQueue(conn *amqp.Connection, name string, size int) (*JobQueue, error) {
 	return queue, nil
 }
 
+// PayloadChannel returns a channel which Payloads can be read off of.
 func (q *JobQueue) PayloadChannel() chan Payload {
 	return q.payloadChannel
 }
 
+// Shutdown closes the AMQP channel and the PayloadChannel
 func (q *JobQueue) Shutdown() error {
 	if err := q.channel.Close(); err != nil {
 		return err
@@ -109,6 +121,7 @@ func handle(deliveries <-chan amqp.Delivery, payloads chan Payload, done chan er
 	for d := range deliveries {
 		payloads <- deliveryToPayload(d)
 	}
+	close(payloads)
 	done <- nil
 }
 

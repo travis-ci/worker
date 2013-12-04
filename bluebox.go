@@ -6,22 +6,24 @@ import (
 	"net"
 )
 
-type blueboxApi struct {
+type blueboxAPI struct {
 	client *goblueboxapi.Client
 	config BlueBoxConfig
 }
 
-type blueboxServer struct {
-	client   *goblueboxapi.Client
-	block    *goblueboxapi.Block
-	password string
+// NewBlueBox creates a VMCloudAPI that talks to the Blue Box blocks API.
+func NewBlueBox(config BlueBoxConfig) VMCloudAPI {
+	return &blueboxAPI{
+		client: goblueboxapi.NewClient(config.CustomerID, config.APIKey),
+		config: config,
+	}
 }
 
-func (a *blueboxApi) Start(hostname string) (VMCloudServer, error) {
+func (a *blueboxAPI) Start(hostname string) (VMCloudServer, error) {
 	params := goblueboxapi.BlockParams{
-		Product:  a.config.ProductId,
-		Template: a.config.TemplateId,
-		Location: a.config.LocationId,
+		Product:  a.config.ProductID,
+		Template: a.config.TemplateID,
+		Location: a.config.LocationID,
 		Hostname: hostname,
 		Username: "travis",
 		Password: generatePassword(),
@@ -29,6 +31,12 @@ func (a *blueboxApi) Start(hostname string) (VMCloudServer, error) {
 	block, err := a.client.Blocks.Create(params)
 
 	return &blueboxServer{a.client, block, params.Password}, err
+}
+
+type blueboxServer struct {
+	client   *goblueboxapi.Client
+	block    *goblueboxapi.Block
+	password string
 }
 
 func (s *blueboxServer) SSHInfo() VMCloudSSHInfo {
@@ -59,11 +67,4 @@ func (s *blueboxServer) Refresh() (err error) {
 
 func (s *blueboxServer) Ready() bool {
 	return s.block.Status == "running"
-}
-
-func NewBlueBox(config BlueBoxConfig) VMCloudAPI {
-	return &blueboxApi{
-		client: goblueboxapi.NewClient(config.CustomerId, config.ApiKey),
-		config: config,
-	}
 }

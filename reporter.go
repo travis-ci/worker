@@ -6,14 +6,18 @@ import (
 	"time"
 )
 
+// A Reporter is used to report back to the rest of the Travis CI system about
+// the job.
 type Reporter struct {
 	channel        *amqp.Channel
 	numberSequence chan int
 	done           chan bool
-	jobId          int64
+	jobID          int64
 }
 
-func NewReporter(conn *amqp.Connection, jobId int64) (*Reporter, error) {
+// NewReporter creates a new reporter for the given job ID. The reporter is only
+// meant to be used for a single job.
+func NewReporter(conn *amqp.Connection, jobID int64) (*Reporter, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -27,7 +31,7 @@ func NewReporter(conn *amqp.Connection, jobId int64) (*Reporter, error) {
 	done := make(chan bool)
 	sequence := make(chan int)
 	go func() {
-		var number int = 1
+		number := 1
 		for {
 			select {
 			case <-done:
@@ -41,31 +45,34 @@ func NewReporter(conn *amqp.Connection, jobId int64) (*Reporter, error) {
 
 	return &Reporter{
 		channel:        channel,
-		jobId:          jobId,
+		jobID:          jobID,
 		done:           done,
 		numberSequence: sequence,
 	}, nil
 }
 
 type logPart struct {
-	Id     int64  `json:"id"`
+	ID     int64  `json:"id"`
 	Log    string `json:"log"`
 	Number int    `json:"number"`
 	Final  bool   `json:"final,omitempty"`
 }
 
+// SendLog sends a portion of a the log. The log parts will be put together in
+// the same order they were sent to SendLog.
 func (r *Reporter) SendLog(output string) error {
 	return r.publishLogPart(logPart{
-		Id:     r.jobId,
+		ID:     r.jobID,
 		Log:    output,
 		Number: r.nextPartNumber(),
 		Final:  false,
 	})
 }
 
+// SendFinal sends a notice that all log parts have been sent.
 func (r *Reporter) SendFinal() error {
 	return r.publishLogPart(logPart{
-		Id:     r.jobId,
+		ID:     r.jobID,
 		Log:    "",
 		Number: r.nextPartNumber(),
 		Final:  true,
@@ -73,18 +80,22 @@ func (r *Reporter) SendFinal() error {
 }
 
 type jobReporterPayload struct {
-	Id         int64  `json:"id"`
+	ID         int64  `json:"id"`
 	State      string `json:"state"`
 	StartedAt  string `json:"started_at,omitempty"`
 	FinishedAt string `json:"finished_at,omitempty"`
 }
 
+// NotifyJobStarted notifies that the job has started and starts the duration
+// timer for the job.
 func (r *Reporter) NotifyJobStarted() error {
-	return r.notify("job:test:start", jobReporterPayload{Id: r.jobId, State: "started", StartedAt: currentJsonTime()})
+	return r.notify("job:test:start", jobReporterPayload{ID: r.jobID, State: "started", StartedAt: currentJSONTime()})
 }
 
+// NotifyJobFinished notifies that the job finished with the given state and
+// stops the duration timer.
 func (r *Reporter) NotifyJobFinished(state string) error {
-	return r.notify("job:test:finish", jobReporterPayload{Id: r.jobId, State: state, FinishedAt: currentJsonTime()})
+	return r.notify("job:test:finish", jobReporterPayload{ID: r.jobID, State: state, FinishedAt: currentJSONTime()})
 }
 
 func (r *Reporter) notify(event string, payload jobReporterPayload) error {
@@ -119,6 +130,7 @@ func (r *Reporter) publishLogPart(part logPart) error {
 	return r.channel.Publish("reporting", "reporting.jobs.logs", false, false, msg)
 }
 
+// Close closes the reporter. This should be called after the job has finished.
 func (r *Reporter) Close() error {
 	return r.channel.Close()
 }
@@ -127,6 +139,6 @@ func (r *Reporter) nextPartNumber() int {
 	return <-r.numberSequence
 }
 
-func currentJsonTime() string {
+func currentJSONTime() string {
 	return time.Now().UTC().Format("2006-01-02T15:04:05Z")
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// A Worker runs a job.
 type Worker struct {
 	Name     string
 	api      VMCloudAPI
@@ -18,6 +19,9 @@ type Worker struct {
 	logger   *log.Logger
 }
 
+// NewWorker creates a new worker with the given parameters. The worker assumes
+// ownership of the given API, payload and reporter and they should not be
+// reused for other workers.
 func NewWorker(name string, api VMCloudAPI, payload Payload, reporter *Reporter) *Worker {
 	return &Worker{
 		Name:     name,
@@ -28,6 +32,8 @@ func NewWorker(name string, api VMCloudAPI, payload Payload, reporter *Reporter)
 	}
 }
 
+// Run actually runs the job. It returns whether the job should be requeued or
+// not. The worker should be discarded after this method has finished.
 func (w *Worker) Run() bool {
 	defer w.reporter.Close()
 
@@ -104,8 +110,8 @@ func (w *Worker) Run() bool {
 	}
 }
 
-func (w *Worker) jobId() int64 {
-	return w.payload.Job.Id
+func (w *Worker) jobID() int64 {
+	return w.payload.Job.ID
 }
 
 func (w *Worker) bootServer() (VMCloudServer, error) {
@@ -134,7 +140,7 @@ func (w *Worker) bootServer() (VMCloudServer, error) {
 }
 
 func (w *Worker) uploadScript(ssh *SSHConnection) error {
-	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("echo This is build id %d", w.jobId())))
+	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("echo This is build id %d", w.jobID())))
 	if err != nil {
 		return err
 	}

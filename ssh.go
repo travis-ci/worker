@@ -7,6 +7,7 @@ import (
 	"io"
 )
 
+// An SSHConnection manages an SSH connection to a server.
 type SSHConnection struct {
 	client *ssh.ClientConn
 }
@@ -19,6 +20,8 @@ func (pw singlePassword) Password(user string) (string, error) {
 	return pw.password, nil
 }
 
+// NewSSHConnection creates an SSH connection using the connection information
+// for the given server.
 func NewSSHConnection(server VMCloudServer) (*SSHConnection, error) {
 	sshInfo := server.SSHInfo()
 	sshConfig := &ssh.ClientConfig{
@@ -31,6 +34,9 @@ func NewSSHConnection(server VMCloudServer) (*SSHConnection, error) {
 	return &SSHConnection{client: client}, err
 }
 
+// Start starts the given command and returns as soon as the command has
+// started. It does not wait for the command to finish. The returned channels
+// send the stdout of the command and the exit code.
 func (c *SSHConnection) Start(cmd string) (<-chan []byte, chan int, error) {
 	session, outputChan, err := c.sessionWithOutput()
 	if err != nil {
@@ -58,6 +64,8 @@ func (c *SSHConnection) Start(cmd string) (<-chan []byte, chan int, error) {
 	return outputChan, exitCodeChan, err
 }
 
+// Run runs a command and blocks until the command has finished. An error is
+// returned if the command exited with a non-zero command.
 func (c *SSHConnection) Run(cmd string) error {
 	session, err := c.client.NewSession()
 	if err != nil {
@@ -89,6 +97,8 @@ func (c *SSHConnection) sessionWithOutput() (*ssh.Session, <-chan []byte, error)
 	return session, outputChan, err
 }
 
+// UploadFile uploads the given content to the file on the remote server given
+// by the path.
 func (c *SSHConnection) UploadFile(path string, content []byte) error {
 	session, err := c.client.NewSession()
 	if err != nil {
@@ -126,6 +136,7 @@ func copyChan(outputChan chan []byte, reader io.Reader, errChan chan error) {
 	}
 }
 
+// Close closes the SSH connection.
 func (c *SSHConnection) Close() {
 	c.client.Close()
 }

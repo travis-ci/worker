@@ -46,15 +46,15 @@ func main() {
 				queue.Shutdown()
 				return
 			}
-			log.Printf("Starting job slug:%s id:%d\n", payload.Repository.Slug, payload.Job.Id)
-			reporter, err := NewReporter(amqpConn, payload.Job.Id)
+			log.Printf("Starting job slug:%s id:%d\n", payload.Repository.Slug, payload.Job.ID)
+			reporter, err := NewReporter(amqpConn, payload.Job.ID)
 			if err != nil {
 				log.Printf("Couldn't create reporter: %v\n", err)
 				payload.Nack()
 				break
 			}
 
-			worker := NewWorker(fmt.Sprintf("worker-%d", payload.Job.Id), NewBlueBox(config.BlueBox), payload, reporter)
+			worker := NewWorker(fmt.Sprintf("worker-%d", payload.Job.ID), NewBlueBox(config.BlueBox), payload, reporter)
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
