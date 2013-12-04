@@ -11,18 +11,22 @@ func main() {
 		return
 	}
 
-	jobChan := make(chan Job, 2)
+	jobChan := make(chan Job, 3)
 
 	worker1 := NewWorker("go-worker-1", NewBlueBox(config.BlueBox), jobChan)
 	worker2 := NewWorker("go-worker-2", NewBlueBox(config.BlueBox), jobChan)
 
 	jobChan <- Job{
 		Id:          1,
-		BuildScript: []byte("echo This is build 1"),
+		BuildScript: []byte("echo This is job 1"),
 	}
 	jobChan <- Job{
 		Id:          2,
-		BuildScript: []byte("echo This is build 2"),
+		BuildScript: []byte("echo This is job 2"),
+	}
+	jobChan <- Job{
+		Id:          3,
+		BuildScript: []byte("echo This is job 3"),
 	}
 	close(jobChan)
 
