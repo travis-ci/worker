@@ -39,6 +39,7 @@ func (r *Reporter) SendLog(jobId int64, output string) error {
 		Id:     jobId,
 		Log:    output,
 		Number: r.nextPartNumber(),
+		Final:  false,
 	}
 	return r.publishLogPart(part)
 }

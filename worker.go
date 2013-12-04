@@ -92,7 +92,7 @@ func (w *Worker) run() bool {
 	}
 
 	w.logger.Println("Running the build")
-	outputChan, err := w.runScript(ssh)
+	outputChan, exitCodeChan, err := w.runScript(ssh)
 	if err != nil {
 		w.logger.Printf("Failed to run build script: %v\n", err)
 		return false
@@ -101,14 +101,22 @@ func (w *Worker) run() bool {
 	for {
 		select {
 		case bytes, ok := <-outputChan:
-			if !ok {
-				w.logger.Println("Build finished.")
-				w.reporter.SendFinal(w.currentPayload.Job.Id)
-				w.reporter.NotifyJobFinished(w.currentPayload.Job.Id, "passed")
-				return true
-			}
 			if bytes != nil {
 				w.reporter.SendLog(w.currentPayload.Job.Id, string(bytes))
+			}
+			if !ok {
+				w.logger.Println("Build finished.")
+				exitCode := <-exitCodeChan
+				state := "errored"
+				switch exitCode {
+				case 0:
+					state = "passed"
+				case 1:
+					state = "failed"
+				}
+				w.reporter.SendFinal(w.currentPayload.Job.Id)
+				w.reporter.NotifyJobFinished(w.currentPayload.Job.Id, state)
+				return true
 			}
 		case <-time.After(10 * time.Second):
 			w.logger.Println("No log output after 10 seconds, stopping build")
@@ -159,6 +167,6 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 	return nil
 }
 
-func (w *Worker) runScript(ssh *SSHConnection) (chan []byte, error) {
+func (w *Worker) runScript(ssh *SSHConnection) (chan []byte, chan int, error) {
 	return ssh.Start("~/build.sh")
 }
