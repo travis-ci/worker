@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -114,23 +113,12 @@ func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-worker-go-%d-%s", os.Getpid(), w.Name)
 	w.logger.Printf("Booting %s\n", hostname)
-	server, err := w.vmProvider.Start(hostname)
+	server, err := w.vmProvider.Start(hostname, vmBootTimeout)
 	if err != nil {
 		return nil, err
 	}
 
-	doneChan, cancelChan := waitFor(func() bool {
-		server.Refresh()
-		return server.Ready()
-	}, 3*time.Second)
-
-	select {
-	case <-doneChan:
-		w.logger.Printf("VM provisioned in %.2f seconds\n", time.Now().Sub(startTime).Seconds())
-	case <-time.After(vmBootTimeout):
-		cancelChan <- true
-		return nil, errors.New("VM could not boot within 4 minutes")
-	}
+	w.logger.Printf("VM provisioned in %.2f seconds\n", time.Now().Sub(startTime).Seconds())
 
 	return server, nil
 }

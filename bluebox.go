@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/henrikhodne/goblueboxapi"
 	"net"
+	"time"
 )
 
 type blueboxAPI struct {
@@ -19,7 +20,7 @@ func NewBlueBox(config BlueBoxConfig) VMProvider {
 	}
 }
 
-func (a *blueboxAPI) Start(hostname string) (VM, error) {
+func (a *blueboxAPI) Start(hostname string, bootTimeout time.Duration) (VM, error) {
 	params := goblueboxapi.BlockParams{
 		Product:  a.config.ProductID,
 		Template: a.config.TemplateID,
@@ -29,8 +30,22 @@ func (a *blueboxAPI) Start(hostname string) (VM, error) {
 		Password: generatePassword(),
 	}
 	block, err := a.client.Blocks.Create(params)
+	if err != nil {
+		return nil, err
+	}
 
-	return &blueboxServer{a.client, block, params.Password}, err
+	doneChan, cancelChan := waitFor(func() bool {
+		block, err = a.client.Blocks.Get(block.ID)
+		return block.Status == "running"
+	}, 3*time.Second)
+
+	select {
+	case <-doneChan:
+		return &blueboxServer{a.client, block, params.Password}, nil
+	case <-time.After(bootTimeout):
+		cancelChan <- true
+		return nil, fmt.Errorf("VM could not boot within %s", bootTimeout)
+	}
 }
 
 type blueboxServer struct {
