@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"time"
@@ -46,7 +47,7 @@ func NewReporter(mb MessageBroker, jobID int64) (*Reporter, error) {
 }
 
 func (r *Reporter) Write(p []byte) (n int, err error) {
-	str := string(p)
+	str := string(bytes.Replace(p, []byte{0}, []byte{}, -1))
 	return len(str), r.publishLogPart(logPart{
 		ID:     r.jobID,
 		Log:    str,
