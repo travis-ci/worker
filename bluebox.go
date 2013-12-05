@@ -41,7 +41,7 @@ type blueboxServer struct {
 
 func (s *blueboxServer) SSHInfo() VMSSHInfo {
 	ipString := ""
-	for _, address := range s.block.Ips {
+	for _, address := range s.block.IPs {
 		ip := net.ParseIP(address.Address)
 		if ip.To4() != nil {
 			ipString = ip.String()
@@ -57,11 +57,11 @@ func (s *blueboxServer) SSHInfo() VMSSHInfo {
 }
 
 func (s *blueboxServer) Destroy() error {
-	return s.client.Blocks.Destroy(s.block.Id)
+	return s.client.Blocks.Destroy(s.block.ID)
 }
 
 func (s *blueboxServer) Refresh() (err error) {
-	s.block, err = s.client.Blocks.Get(s.block.Id)
+	s.block, err = s.client.Blocks.Get(s.block.ID)
 	return
 }
 
