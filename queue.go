@@ -53,14 +53,14 @@ type RepositoryPayload struct {
 	APIURL    string `json:"api_url"`
 }
 
-// Ack notifies the queue that the job finished successfully.
-func (p Payload) Ack() error {
-	return p.delivery.Ack(false)
-}
-
-// Nack notifies the queue that the job errored and needs to be requeued.
-func (p Payload) Nack() error {
-	return p.delivery.Nack(false, true)
+// Finish notifies the queue that the job finished. If the passed bool is true,
+// the job will be requeued.
+func (p Payload) Finish(requeue bool) error {
+	if requeue {
+		return p.delivery.Nack(false, true)
+	} else {
+		return p.delivery.Ack(false)
+	}
 }
 
 // NewQueue creates a new JobQueue. The name is the name of the queue to

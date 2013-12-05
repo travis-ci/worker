@@ -50,7 +50,7 @@ func main() {
 			reporter, err := NewReporter(amqpConn, payload.Job.ID)
 			if err != nil {
 				log.Printf("Couldn't create reporter: %v\n", err)
-				payload.Nack()
+				payload.Finish(true)
 				break
 			}
 
@@ -59,11 +59,7 @@ func main() {
 			go func() {
 				defer wg.Done()
 
-				if worker.Run() {
-					payload.Ack()
-				} else {
-					payload.Nack()
-				}
+				payload.Finish(!worker.Run())
 			}()
 		}
 	}
