@@ -18,4 +18,11 @@ func TestReporter_Write(t *testing.T) {
 	if lp.Log != "foobar" {
 		t.Error("NUL byte was not stripped")
 	}
+
+	r.Write([]byte{})
+	select {
+	case <-mb.(*TestMessageBroker).queues["reporting.jobs.logs"]:
+		t.Error("zero-length slice should not be written")
+	default:
+	}
 }
