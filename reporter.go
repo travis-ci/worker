@@ -19,7 +19,12 @@ type Reporter struct {
 
 // NewReporter creates a new reporter for the given job ID. The reporter is only
 // meant to be used for a single job.
-func NewReporter(conn *amqp.Connection, jobID int64) (*Reporter, error) {
+func NewReporter(config AMQPConfig, jobID int64) (*Reporter, error) {
+	conn, err := amqp.Dial(config.URL)
+	if err != nil {
+		return nil, err
+	}
+
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err

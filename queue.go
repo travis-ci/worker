@@ -58,17 +58,21 @@ type RepositoryPayload struct {
 func (p Payload) Finish(requeue bool) error {
 	if requeue {
 		return p.delivery.Nack(false, true)
-	} else {
-		return p.delivery.Ack(false)
 	}
+
+	return p.delivery.Ack(false)
 }
 
 // NewQueue creates a new JobQueue. The name is the name of the queue to
 // subscribe to, and the size is the number of jobs that can be fetched at once
 // before having to Ack.
-func NewQueue(conn *amqp.Connection, name string, size int) (*JobQueue, error) {
-	var err error
-	queue := &JobQueue{conn: conn, doneChannel: make(chan error)}
+func NewQueue(config AMQPConfig, size int) (*JobQueue, error) {
+	connection, err := amqp.Dial(config.URL)
+	if err != nil {
+		return nil, err
+	}
+
+	queue := &JobQueue{conn: connection, doneChannel: make(chan error)}
 
 	queue.channel, err = queue.conn.Channel()
 	if err != nil {
@@ -81,12 +85,12 @@ func NewQueue(conn *amqp.Connection, name string, size int) (*JobQueue, error) {
 	}
 
 	queue.queue, err = queue.channel.QueueDeclare(
-		name,  // name of the queue
-		true,  // durable
-		false, // delete when unused
-		false, // exclusive
-		false, // nowait
-		nil,   // arguments
+		config.Queue, // name of the queue
+		true,         // durable
+		false,        // delete when unused
+		false,        // exclusive
+		false,        // nowait
+		nil,          // arguments
 	)
 	if err != nil {
 		return nil, err
@@ -94,7 +98,7 @@ func NewQueue(conn *amqp.Connection, name string, size int) (*JobQueue, error) {
 
 	queue.payloadChannel = make(chan Payload)
 
-	deliveries, err := queue.channel.Consume(name, generatePassword(), false, false, false, false, nil)
+	deliveries, err := queue.channel.Consume(config.Queue, generatePassword(), false, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +127,7 @@ func (q *JobQueue) Shutdown() error {
 	if err := q.channel.Close(); err != nil {
 		return err
 	}
+	defer q.conn.Close()
 
 	return <-q.doneChannel
 }
