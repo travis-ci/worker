@@ -2,10 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"os/signal"
-	"sync"
 )
 
 func main() {
@@ -15,43 +11,14 @@ func main() {
 		return
 	}
 
-	queue, err := NewQueue(config.AMQP, 10)
+	mb, err := NewMessageBroker(config.AMQP.URL)
 	if err != nil {
-		fmt.Printf("Couldn't create queue: %v\n", err)
+		fmt.Printf("Couldn't create message broker: %v\n", err)
+		return
 	}
 
-	sigtermChan := make(chan os.Signal, 1)
-	signal.Notify(sigtermChan, os.Interrupt)
-
-	var wg sync.WaitGroup
-
-	for {
-		select {
-		case <-sigtermChan:
-			log.Println("Got SIGTERM, shutting down workers gracefully")
-			queue.Shutdown()
-			wg.Wait()
-			return
-		case payload, ok := <-queue.PayloadChannel():
-			if !ok {
-				log.Printf("Job channel closed, stopping worker")
-				queue.Shutdown()
-				return
-			}
-
-			reporter, err := NewReporter(config.AMQP, payload.Job.ID)
-			if err != nil {
-				log.Printf("Couldn't create reporter: %v\n", err)
-				payload.Finish(true)
-				break
-			}
-
-			worker := NewWorker(fmt.Sprintf("worker-%d", payload.Job.ID), NewBlueBox(config.BlueBox), payload, reporter)
-			wg.Add(1)
-			go func() {
-				payload.Finish(!worker.Run())
-				wg.Done()
-			}()
-		}
-	}
+	queue := NewQueue(mb, config.AMQP.Queue, 10)
+	queue.Subscribe(func(jobProcessorNum int) JobPayloadProcessor {
+		return NewWorker(fmt.Sprintf("worker-%d", jobProcessorNum), NewBlueBox(config.BlueBox), mb)
+	})
 }

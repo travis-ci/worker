@@ -39,7 +39,7 @@ func NewSSHConnection(server VM) (*SSHConnection, error) {
 // started. It does not wait for the command to finish. The returned channel
 // will send the exit code and then close when the command is finished. If the
 // exit code sent is -1 then there was an error running the build.
-func (c *SSHConnection) Start(cmd string, output io.WriteCloser) (<-chan int, error) {
+func (c *SSHConnection) Start(cmd string, output io.Writer) (<-chan int, error) {
 	session, err := c.createSession()
 	if err != nil {
 		return nil, err

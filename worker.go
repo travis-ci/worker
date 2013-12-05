@@ -4,48 +4,52 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"time"
 )
 
 const (
-	logOutputTimeout = 10 * time.Minute
-	vmBootTimeout    = 4 * time.Minute
+	jobHardTimeout = 60 * time.Minute
+	vmBootTimeout  = 4 * time.Minute
 )
 
 // A Worker runs a job.
 type Worker struct {
 	Name       string
 	vmProvider VMProvider
-	reporter   *Reporter
-	payload    Payload
-	once       sync.Once
+	mb         MessageBroker
 	logger     *log.Logger
+	payload    Payload
+	reporter   *Reporter
 }
 
 // NewWorker creates a new worker with the given parameters. The worker assumes
 // ownership of the given API, payload and reporter and they should not be
 // reused for other workers.
-func NewWorker(name string, VMProvider VMProvider, payload Payload, reporter *Reporter) *Worker {
+func NewWorker(name string, VMProvider VMProvider, mb MessageBroker) *Worker {
 	return &Worker{
 		Name:       name,
 		vmProvider: VMProvider,
-		payload:    payload,
+		mb:         mb,
 		logger:     log.New(os.Stdout, fmt.Sprintf("%s: ", name), log.Ldate|log.Ltime),
-		reporter:   reporter,
 	}
 }
 
-// Run actually runs the job. It returns whether the job should be requeued or
-// not. The worker should be discarded after this method has finished.
-func (w *Worker) Run() bool {
+// Process actually runs the job. It returns an error if an error occurred that
+// should cause the job to be requeued.
+func (w *Worker) Process(payload Payload) error {
+	var err error
+	w.payload = payload
+	w.reporter, err = NewReporter(w.mb, payload.Job.ID)
+	if err != nil {
+		return err
+	}
+
 	w.logger.Printf("Starting job slug:%s id:%d\n", w.payload.Repository.Slug, w.payload.Job.ID)
-	defer w.reporter.Close()
 
 	server, err := w.bootServer()
 	if err != nil {
 		w.logger.Printf("Booting a VM failed with the following errors: %v\n", err)
-		return false
+		return err
 	}
 	defer server.Destroy()
 
@@ -57,7 +61,7 @@ func (w *Worker) Run() bool {
 	if err != nil {
 		w.logger.Printf("Couldn't connect to SSH: %v\n", err)
 		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
-		return false
+		return err
 	}
 	defer ssh.Close()
 
@@ -66,13 +70,13 @@ func (w *Worker) Run() bool {
 	if err != nil {
 		w.logger.Printf("Couldn't upload script to SSH: %v\n", err)
 		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
-		return false
+		return err
 	}
 
 	err = w.reporter.NotifyJobStarted()
 	if err != nil {
 		w.logger.Printf("Couldn't notify about job start: %v\n", err)
-		return false
+		return err
 	}
 
 	w.logger.Println("Running the build")
@@ -80,7 +84,7 @@ func (w *Worker) Run() bool {
 	if err != nil {
 		w.logger.Printf("Failed to run build script: %v\n", err)
 		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
-		return false
+		return err
 	}
 
 	select {
@@ -95,13 +99,13 @@ func (w *Worker) Run() bool {
 			w.reporter.NotifyJobFinished("errored")
 		case -1:
 			fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
-			return false
+			return err
 		}
-		return true
-	case <-time.After(logOutputTimeout):
-		fmt.Fprintf(w.reporter.Log, "\n\nNo output has been received in the last %.0f minutes, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", logOutputTimeout.Minutes())
+		return nil
+	case <-time.After(jobHardTimeout):
+		fmt.Fprintf(w.reporter.Log, "\n\nWe're sorry but your test run exceeded %.0f minutes.\n\nOne possible solution is to split up your test run.", jobHardTimeout.Minutes())
 		w.reporter.NotifyJobFinished("errored")
-		return true
+		return nil
 	}
 }
 
@@ -124,7 +128,7 @@ func (w *Worker) bootServer() (VM, error) {
 }
 
 func (w *Worker) uploadScript(ssh *SSHConnection) error {
-	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("#!/bin/bash --login\n\necho This is build id %d\necho Now sleeping to test timeout\nsleep 15", w.jobID())))
+	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("#!/bin/bash --login\n\necho This is build id %d\nfor i in {1..200}; do echo -n \"$i \"; sleep 1; done", w.jobID())))
 	if err != nil {
 		return err
 	}

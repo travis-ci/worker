@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/streadway/amqp"
 	"io"
 	"time"
 )
@@ -10,7 +9,7 @@ import (
 // A Reporter is used to report back to the rest of the Travis CI system about
 // the job.
 type Reporter struct {
-	channel        *amqp.Channel
+	mb             MessageBroker
 	numberSequence chan int
 	done           chan bool
 	jobID          int64
@@ -19,22 +18,7 @@ type Reporter struct {
 
 // NewReporter creates a new reporter for the given job ID. The reporter is only
 // meant to be used for a single job.
-func NewReporter(config AMQPConfig, jobID int64) (*Reporter, error) {
-	conn, err := amqp.Dial(config.URL)
-	if err != nil {
-		return nil, err
-	}
-
-	channel, err := conn.Channel()
-	if err != nil {
-		return nil, err
-	}
-
-	err = channel.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
+func NewReporter(mb MessageBroker, jobID int64) (*Reporter, error) {
 	done := make(chan bool)
 	sequence := make(chan int)
 	go func() {
@@ -51,35 +35,31 @@ func NewReporter(config AMQPConfig, jobID int64) (*Reporter, error) {
 	}()
 
 	reporter := &Reporter{
-		channel:        channel,
+		mb:             mb,
 		jobID:          jobID,
 		done:           done,
 		numberSequence: sequence,
 	}
-	reporter.Log = &writeCloseWrapper{reporter}
+	reporter.Log = NewCoalesceWriteCloser(reporter)
 
 	return reporter, nil
 }
 
-type writeCloseWrapper struct {
-	reporter *Reporter
-}
-
-func (w *writeCloseWrapper) Write(p []byte) (n int, err error) {
+func (r *Reporter) Write(p []byte) (n int, err error) {
 	str := string(p)
-	return len(str), w.reporter.publishLogPart(logPart{
-		ID:     w.reporter.jobID,
+	return len(str), r.publishLogPart(logPart{
+		ID:     r.jobID,
 		Log:    str,
-		Number: w.reporter.nextPartNumber(),
+		Number: r.nextPartNumber(),
 		Final:  false,
 	})
 }
 
-func (w *writeCloseWrapper) Close() error {
-	return w.reporter.publishLogPart(logPart{
-		ID:     w.reporter.jobID,
+func (r *Reporter) Close() error {
+	return r.publishLogPart(logPart{
+		ID:     r.jobID,
 		Log:    "",
-		Number: w.reporter.nextPartNumber(),
+		Number: r.nextPartNumber(),
 		Final:  true,
 	})
 }
@@ -97,13 +77,7 @@ func (r *Reporter) publishLogPart(part logPart) error {
 		return err
 	}
 
-	msg := amqp.Publishing{
-		Type:      "job:test:log",
-		Timestamp: time.Now(),
-		Body:      data,
-	}
-
-	return r.channel.Publish("reporting", "reporting.jobs.logs", false, false, msg)
+	return r.mb.Publish("reporting", "reporting.jobs.logs", "job:test:log", data)
 }
 
 type jobReporterPayload struct {
@@ -131,20 +105,7 @@ func (r *Reporter) notify(event string, payload jobReporterPayload) error {
 		return err
 	}
 
-	msg := amqp.Publishing{
-		Type:         event,
-		Timestamp:    time.Now(),
-		ContentType:  "application/json",
-		Body:         data,
-		DeliveryMode: amqp.Transient,
-	}
-
-	return r.channel.Publish("reporting", "reporting.jobs.builds", false, false, msg)
-}
-
-// Close closes the reporter. This should be called after the job has finished.
-func (r *Reporter) Close() error {
-	return r.channel.Close()
+	return r.mb.Publish("reporting", "reporting.jobs.builds", event, data)
 }
 
 func (r *Reporter) nextPartNumber() int {
