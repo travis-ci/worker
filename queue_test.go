@@ -13,14 +13,7 @@ func TestQueue(t *testing.T) {
 		url = "amqp://"
 	}
 
-	amqpConn, err := amqp.Dial(url)
-	if err != nil {
-		t.Errorf("Failed to connect to integration AMQP server: %s", err)
-		return
-	}
-	defer amqpConn.Close()
-
-	q, err := NewQueue(amqpConn, "builds.linux", 1)
+	q, err := NewQueue(AMQPConfig{URL: url, Queue: "builds.linux"}, 1)
 	if err != nil {
 		t.Errorf("Failed to create queue: %s", err)
 		return
