@@ -115,7 +115,7 @@ func (w *Worker) jobID() int64 {
 
 func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
-	hostname := fmt.Sprintf("testing-worker-go-%d-%s", os.Getpid(), w.Name)
+	hostname := fmt.Sprintf("testing-worker-go-%d-%s-%d", os.Getpid(), w.Name, w.jobID())
 	w.logger.Printf("Booting %s\n", hostname)
 	server, err := w.vmProvider.Start(hostname, vmBootTimeout)
 	if err != nil {
