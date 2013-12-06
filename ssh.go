@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 )
 
 // An SSHConnection manages an SSH connection to a server.
 type SSHConnection struct {
 	client *ssh.ClientConn
+	logger *log.Logger
 }
 
 type singlePassword struct {
@@ -23,7 +25,7 @@ func (pw singlePassword) Password(user string) (string, error) {
 
 // NewSSHConnection creates an SSH connection using the connection information
 // for the given server.
-func NewSSHConnection(server VM) (*SSHConnection, error) {
+func NewSSHConnection(server VM, logPrefix string) (*SSHConnection, error) {
 	sshInfo := server.SSHInfo()
 	sshConfig := &ssh.ClientConfig{
 		User: sshInfo.Username,
@@ -32,7 +34,8 @@ func NewSSHConnection(server VM) (*SSHConnection, error) {
 		},
 	}
 	client, err := ssh.Dial("tcp", sshInfo.Addr, sshConfig)
-	return &SSHConnection{client: client}, err
+	logger := log.New(os.Stdout, fmt.Sprintf("%s-ssh: ", logPrefix), log.Ldate|log.Ltime)
+	return &SSHConnection{client: client, logger: logger}, err
 }
 
 // Start starts the given command and returns as soon as the command has
@@ -52,9 +55,8 @@ func (c *SSHConnection) Start(cmd string, output io.Writer) (<-chan int, error) 
 
 	exitCodeChan := make(chan int, 1)
 	go func() {
+		defer session.Close()
 		err := session.Wait()
-		closeErr := session.Close()
-		log.Printf("SSHConnection.Start: An error occurred while closing the session: %v\n", closeErr)
 		if err == nil {
 			exitCodeChan <- 0
 		} else {
@@ -63,11 +65,11 @@ func (c *SSHConnection) Start(cmd string, output io.Writer) (<-chan int, error) 
 				if err.ExitStatus() != 0 {
 					exitCodeChan <- err.ExitStatus()
 				} else {
-					log.Printf("SSHConnection.Start: An error occurred while running the command: %v\n", err)
+					c.logger.Printf("SSHConnection.Start: An error occurred while running the command: %v\n", err)
 					exitCodeChan <- -1
 				}
 			default:
-				log.Printf("SSHConnection.Start: An error occurred while running the command: %v\n", err)
+				c.logger.Printf("SSHConnection.Start: An I/O error occurred: %v\n", err)
 				exitCodeChan <- -1
 			}
 		}

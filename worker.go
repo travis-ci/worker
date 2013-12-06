@@ -57,7 +57,7 @@ func (w *Worker) Process(payload Payload) error {
 	defer w.reporter.Log.Close()
 
 	w.logger.Println("Opening SSH connection")
-	ssh, err := NewSSHConnection(server)
+	ssh, err := NewSSHConnection(server, w.Name)
 	if err != nil {
 		w.logger.Printf("Couldn't connect to SSH: %v\n", err)
 		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
