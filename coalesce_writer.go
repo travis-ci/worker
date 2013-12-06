@@ -10,7 +10,18 @@ type CoalesceWriteCloser struct {
 	wc     io.WriteCloser
 	buf    *bufio.Writer
 	cancel chan bool
+	write  chan writeReq
 	err    error
+}
+
+type writeRes struct {
+	n   int
+	err error
+}
+
+type writeReq struct {
+	buf []byte
+	res chan writeRes
 }
 
 func NewCoalesceWriteCloser(wc io.WriteCloser) *CoalesceWriteCloser {
@@ -18,6 +29,7 @@ func NewCoalesceWriteCloser(wc io.WriteCloser) *CoalesceWriteCloser {
 		wc:     wc,
 		buf:    bufio.NewWriterSize(wc, 9216),
 		cancel: make(chan bool),
+		write:  make(chan writeReq),
 	}
 
 	go func() {
@@ -26,9 +38,16 @@ func NewCoalesceWriteCloser(wc io.WriteCloser) *CoalesceWriteCloser {
 			select {
 			case <-c.cancel:
 				ticker.Stop()
-				break
+				return
+			case wreq := <-c.write:
+				n, err := c.buf.Write(wreq.buf)
+				wreq.res <- writeRes{n, err}
 			case <-ticker.C:
 				c.err = c.buf.Flush()
+				if c.err != nil {
+					ticker.Stop()
+					return
+				}
 			}
 		}
 	}()
@@ -41,7 +60,10 @@ func (c *CoalesceWriteCloser) Write(p []byte) (int, error) {
 		return 0, c.err
 	}
 
-	return c.buf.Write(p)
+	wreq := writeReq{p, make(chan writeRes)}
+	c.write <- wreq
+	wres := <-wreq.res
+	return wres.n, wres.err
 }
 
 func (c *CoalesceWriteCloser) Close() error {
