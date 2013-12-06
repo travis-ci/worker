@@ -53,7 +53,8 @@ func (c *SSHConnection) Start(cmd string, output io.Writer) (<-chan int, error) 
 	exitCodeChan := make(chan int, 1)
 	go func() {
 		err := session.Wait()
-		session.Close()
+		closeErr := session.Close()
+		log.Printf("SSHConnection.Start: An error occurred while closing the session: %v\n", closeErr)
 		if err == nil {
 			exitCodeChan <- 0
 		} else {
