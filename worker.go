@@ -99,7 +99,7 @@ func (w *Worker) Process(payload Payload) error {
 			w.reporter.NotifyJobFinished("errored")
 		case -1:
 			fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
-			return err
+			return fmt.Errorf("an error occurred with the SSH connection")
 		}
 		return nil
 	case <-time.After(jobHardTimeout):
