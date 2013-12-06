@@ -49,10 +49,10 @@ func NewReporter(mb MessageBroker, jobID int64) (*Reporter, error) {
 func (r *Reporter) Write(p []byte) (n int, err error) {
 	str := string(bytes.Replace(p, []byte{0}, []byte{}, -1))
 	if len(str) == 0 {
-		return 0, nil
+		return len(p), nil
 	}
 
-	return len(str), r.publishLogPart(logPart{
+	return len(p), r.publishLogPart(logPart{
 		ID:     r.jobID,
 		Log:    str,
 		Number: r.nextPartNumber(),

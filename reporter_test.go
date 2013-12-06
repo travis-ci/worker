@@ -10,7 +10,11 @@ func TestReporter_Write(t *testing.T) {
 	mb.DeclareQueue("reporting.jobs.logs")
 
 	r, _ := NewReporter(mb, 1)
-	r.Write([]byte("foo\x00bar"))
+	n, _ := r.Write([]byte("foo\x00bar"))
+
+	if n != 7 {
+		t.Errorf("Write() didn't write all bytes")
+	}
 
 	var lp logPart
 	json.Unmarshal(<-mb.(*TestMessageBroker).queues["reporting.jobs.logs"], &lp)
