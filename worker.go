@@ -7,13 +7,6 @@ import (
 	"time"
 )
 
-const (
-	jobHardTimeout       = 60 * time.Minute
-	vmBootTimeout        = 4 * time.Minute
-	logInactivityTimeout = 10 * time.Minute
-	logSizeLimit         = 4 * 1024 * 1024 // 4 MiB
-)
-
 // A Worker runs a job.
 type Worker struct {
 	Name       string
@@ -24,17 +17,21 @@ type Worker struct {
 	reporter   *Reporter
 	tw         *TimeoutWriter
 	lw         *LimitWriter
+	timeouts   TimeoutsConfig
+	logLimits  LogLimitsConfig
 }
 
 // NewWorker creates a new worker with the given parameters. The worker assumes
 // ownership of the given API, payload and reporter and they should not be
 // reused for other workers.
-func NewWorker(name string, VMProvider VMProvider, mb MessageBroker) *Worker {
+func NewWorker(name string, VMProvider VMProvider, mb MessageBroker, timeouts TimeoutsConfig, logLimits LogLimitsConfig) *Worker {
 	return &Worker{
 		Name:       name,
 		vmProvider: VMProvider,
 		mb:         mb,
 		logger:     log.New(os.Stdout, fmt.Sprintf("%s: ", name), log.Ldate|log.Ltime),
+		timeouts:   timeouts,
+		logLimits:  logLimits,
 	}
 }
 
@@ -109,13 +106,13 @@ func (w *Worker) Process(payload Payload) error {
 		}
 		return nil
 	case <-w.tw.Timeout:
-		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, logInactivityTimeout.Minutes())
+		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, w.timeouts.LogInactivity/60)
 		return nil
 	case <-w.lw.LimitReached:
-		fmt.Fprintf(w.reporter.Log, logTooLongMessage, logSizeLimit/1024/1024)
+		fmt.Fprintf(w.reporter.Log, logTooLongMessage, w.logLimits.MaxLogLength/1024/1024)
 		return nil
-	case <-time.After(jobHardTimeout):
-		fmt.Fprintf(w.reporter.Log, noLogOutputMessage, jobHardTimeout.Minutes())
+	case <-time.After(time.Duration(w.timeouts.HardLimit) * time.Second):
+		fmt.Fprintf(w.reporter.Log, noLogOutputMessage, w.timeouts.HardLimit/60)
 		w.reporter.NotifyJobFinished("errored")
 		return nil
 	}
@@ -129,7 +126,7 @@ func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-worker-go-%d-%s-%d", os.Getpid(), w.Name, w.jobID())
 	w.logger.Printf("Booting %s\n", hostname)
-	server, err := w.vmProvider.Start(hostname, vmBootTimeout)
+	server, err := w.vmProvider.Start(hostname, time.Duration(w.timeouts.VMBoot)*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +146,7 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 }
 
 func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
-	w.tw = NewTimeoutWriter(w.reporter.Log, logInactivityTimeout)
-	w.lw = NewLimitWriter(w.tw, logSizeLimit)
+	w.tw = NewTimeoutWriter(w.reporter.Log, time.Duration(w.timeouts.LogInactivity)*time.Second)
+	w.lw = NewLimitWriter(w.tw, w.logLimits.MaxLogLength)
 	return ssh.Start("~/build.sh", w.lw)
 }

@@ -7,8 +7,10 @@ import (
 
 // WorkerConfig holds the configuration for travis-worker.
 type WorkerConfig struct {
-	BlueBox BlueBoxConfig
-	AMQP    AMQPConfig
+	BlueBox   BlueBoxConfig
+	AMQP      AMQPConfig
+	Timeouts  TimeoutsConfig
+	LogLimits LogLimitsConfig
 }
 
 // BlueBoxConfig holds the configuration relevant to connecting to the Blue Box
@@ -26,6 +28,23 @@ type BlueBoxConfig struct {
 type AMQPConfig struct {
 	URL   string
 	Queue string
+}
+
+// TimeoutsConfig holds the different timeouts that can occur. All timeouts are
+// given in seconds.
+type TimeoutsConfig struct {
+	HardLimit     int
+	VMBoot        int
+	LogInactivity int
+}
+
+type LogLimitsConfig struct {
+	// The maximum log length, given in bytes
+	MaxLogLength int64
+
+	// The maximum length of all log chunks being sent back to RabbitMQ, in
+	// bytes
+	LogChunkSize int
 }
 
 // ConfigFromFile opens the named JSON configuration file and parses the

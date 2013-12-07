@@ -19,6 +19,6 @@ func main() {
 
 	queue := NewQueue(mb, config.AMQP.Queue, 10)
 	queue.Subscribe(func(jobProcessorNum int) JobPayloadProcessor {
-		return NewWorker(fmt.Sprintf("worker-%d", jobProcessorNum), NewBlueBox(config.BlueBox), mb)
+		return NewWorker(fmt.Sprintf("worker-%d", jobProcessorNum), NewBlueBox(config.BlueBox), mb, config.Timeouts, config.LogLimits)
 	})
 }
