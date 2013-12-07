@@ -81,3 +81,33 @@ func (c *CoalesceWriteCloser) Close() error {
 
 	return c.wc.Close()
 }
+
+type TimeoutWriter struct {
+	Timeout <-chan time.Time
+	timer   *time.Timer
+	w       io.WriteCloser
+	d       time.Duration
+}
+
+func NewTimeoutWriter(w io.WriteCloser, d time.Duration) *TimeoutWriter {
+	timer := time.NewTimer(d)
+
+	return &TimeoutWriter{
+		Timeout: timer.C,
+		timer:   timer,
+		w:       w,
+		d:       d,
+	}
+}
+
+func (tw *TimeoutWriter) Write(p []byte) (int, error) {
+	tw.timer.Reset(tw.d)
+
+	return tw.w.Write(p)
+}
+
+func (tw *TimeoutWriter) Close() error {
+	tw.timer.Stop()
+
+	return tw.w.Close()
+}

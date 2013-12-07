@@ -8,8 +8,9 @@ import (
 )
 
 const (
-	jobHardTimeout = 60 * time.Minute
-	vmBootTimeout  = 4 * time.Minute
+	jobHardTimeout       = 60 * time.Minute
+	vmBootTimeout        = 4 * time.Minute
+	logInactivityTimeout = 10 * time.Minute
 )
 
 // A Worker runs a job.
@@ -20,6 +21,7 @@ type Worker struct {
 	logger     *log.Logger
 	payload    Payload
 	reporter   *Reporter
+	tw         *TimeoutWriter
 }
 
 // NewWorker creates a new worker with the given parameters. The worker assumes
@@ -37,6 +39,8 @@ func NewWorker(name string, VMProvider VMProvider, mb MessageBroker) *Worker {
 // Process actually runs the job. It returns an error if an error occurred that
 // should cause the job to be requeued.
 func (w *Worker) Process(payload Payload) error {
+	defer w.logger.Println("Finishing job")
+
 	var err error
 	w.payload = payload
 	w.reporter, err = NewReporter(w.mb, payload.Job.ID)
@@ -102,6 +106,15 @@ func (w *Worker) Process(payload Payload) error {
 			return fmt.Errorf("an error occurred with the SSH connection")
 		}
 		return nil
+	case <-w.tw.Timeout:
+		fmt.Fprintf(w.reporter.Log, `
+
+No output has been received in the last %.0f minutes, this potentially indicates a stalled build or something wrong with the build itself.
+
+The build has been terminated.
+
+`, logInactivityTimeout.Minutes())
+		return nil
 	case <-time.After(jobHardTimeout):
 		fmt.Fprintf(w.reporter.Log, "\n\nWe're sorry but your test run exceeded %.0f minutes.\n\nOne possible solution is to split up your test run.", jobHardTimeout.Minutes())
 		w.reporter.NotifyJobFinished("errored")
@@ -137,5 +150,6 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 }
 
 func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
-	return ssh.Start("~/build.sh", w.reporter.Log)
+	w.tw = NewTimeoutWriter(w.reporter.Log, logInactivityTimeout)
+	return ssh.Start("~/build.sh", w.tw)
 }

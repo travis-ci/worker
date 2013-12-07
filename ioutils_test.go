@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"testing"
+	"time"
 )
 
 type testWriter struct {
@@ -37,5 +38,21 @@ func TestCoalesceWriteCloser(t *testing.T) {
 
 	if !tw.closed {
 		t.Error("expected Close() to propagate")
+	}
+}
+
+func TestTimeoutWriter(t *testing.T) {
+	buf := new(bytes.Buffer)
+	tw := NewTimeoutWriter(buf, 2*time.Millisecond)
+	fmt.Fprint(tw, "hello world")
+	timedout := new(bool)
+	go func() {
+		<-tw.Timeout
+		*timedout = true
+	}()
+	time.Sleep(5 * time.Millisecond)
+
+	if !*timedout {
+		t.Errorf("expected TimeoutWriter to send a timeout")
 	}
 }
