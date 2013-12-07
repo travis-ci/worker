@@ -66,7 +66,7 @@ func (w *Worker) Process(payload Payload) error {
 	ssh, err := NewSSHConnection(server, w.Name)
 	if err != nil {
 		w.logger.Printf("Couldn't connect to SSH: %v\n", err)
-		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
+		fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
 		return err
 	}
 	defer ssh.Close()
@@ -75,7 +75,7 @@ func (w *Worker) Process(payload Payload) error {
 	err = w.uploadScript(ssh)
 	if err != nil {
 		w.logger.Printf("Couldn't upload script to SSH: %v\n", err)
-		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
+		fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
 		return err
 	}
 
@@ -89,7 +89,7 @@ func (w *Worker) Process(payload Payload) error {
 	exitCodeChan, err := w.runScript(ssh)
 	if err != nil {
 		w.logger.Printf("Failed to run build script: %v\n", err)
-		fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
+		fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
 		return err
 	}
 
@@ -104,30 +104,18 @@ func (w *Worker) Process(payload Payload) error {
 		default:
 			w.reporter.NotifyJobFinished("errored")
 		case -1:
-			fmt.Fprintf(w.reporter.Log, "We're sorry, but there was an error with the connection to the VM.\n\nYour job will be requeued shortly.")
+			fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
 			return fmt.Errorf("an error occurred with the SSH connection")
 		}
 		return nil
 	case <-w.tw.Timeout:
-		fmt.Fprintf(w.reporter.Log, `
-
-No output has been received in the last %.0f minutes, this potentially indicates a stalled build or something wrong with the build itself.
-
-The build has been terminated.
-
-`, logInactivityTimeout.Minutes())
+		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, logInactivityTimeout.Minutes())
 		return nil
 	case <-w.lw.LimitReached:
-		fmt.Fprintf(w.reporter.Log, `
-
-The log length has exceeded the limit of %.d MiB (this usually means that the test suite is raising the same exception over and over).
-
-The build has been terminated.
-
-`, logSizeLimit/1024/1024)
+		fmt.Fprintf(w.reporter.Log, logTooLongMessage, logSizeLimit/1024/1024)
 		return nil
 	case <-time.After(jobHardTimeout):
-		fmt.Fprintf(w.reporter.Log, "\n\nWe're sorry but your test run exceeded %.0f minutes.\n\nOne possible solution is to split up your test run.", jobHardTimeout.Minutes())
+		fmt.Fprintf(w.reporter.Log, noLogOutputMessage, jobHardTimeout.Minutes())
 		w.reporter.NotifyJobFinished("errored")
 		return nil
 	}
