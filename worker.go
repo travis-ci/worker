@@ -106,13 +106,13 @@ func (w *Worker) Process(payload Payload) error {
 		}
 		return nil
 	case <-w.tw.Timeout:
-		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, w.timeouts.LogInactivity/60)
+		fmt.Fprintf(w.reporter.Log, noLogOutputMessage, w.timeouts.LogInactivity/60)
 		return nil
 	case <-w.lw.LimitReached:
 		fmt.Fprintf(w.reporter.Log, logTooLongMessage, w.logLimits.MaxLogLength/1024/1024)
 		return nil
 	case <-time.After(time.Duration(w.timeouts.HardLimit) * time.Second):
-		fmt.Fprintf(w.reporter.Log, noLogOutputMessage, w.timeouts.HardLimit/60)
+		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, w.timeouts.HardLimit/60)
 		w.reporter.NotifyJobFinished("errored")
 		return nil
 	}
