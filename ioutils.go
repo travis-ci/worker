@@ -111,3 +111,46 @@ func (tw *TimeoutWriter) Close() error {
 
 	return tw.w.Close()
 }
+
+type addReq struct {
+	added int
+	done  chan bool
+}
+
+type LimitWriter struct {
+	w            io.WriteCloser
+	n            int64
+	LimitReached chan bool
+	add          chan addReq
+}
+
+func NewLimitWriter(w io.WriteCloser, n int64) *LimitWriter {
+	lw := &LimitWriter{w, n, make(chan bool, 1), make(chan addReq)}
+
+	go func() {
+		var n int64 = 0
+		for {
+			add := <-lw.add
+			n += int64(add.added)
+			if n > lw.n {
+				lw.LimitReached <- true
+				add.done <- true
+				return
+			}
+			add.done <- true
+		}
+	}()
+
+	return lw
+}
+
+func (lw *LimitWriter) Write(p []byte) (int, error) {
+	done := make(chan bool)
+	lw.add <- addReq{len(p), done}
+	<-done
+	return lw.w.Write(p)
+}
+
+func (lw *LimitWriter) Close() error {
+	return lw.w.Close()
+}

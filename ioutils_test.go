@@ -42,8 +42,8 @@ func TestCoalesceWriteCloser(t *testing.T) {
 }
 
 func TestTimeoutWriter(t *testing.T) {
-	buf := new(bytes.Buffer)
-	tw := NewTimeoutWriter(buf, 2*time.Millisecond)
+	testWriter := &testWriter{written: make([][]byte, 0)}
+	tw := NewTimeoutWriter(testWriter, 2*time.Millisecond)
 	fmt.Fprint(tw, "hello world")
 	timedout := new(bool)
 	go func() {
@@ -54,5 +54,34 @@ func TestTimeoutWriter(t *testing.T) {
 
 	if !*timedout {
 		t.Errorf("expected TimeoutWriter to send a timeout")
+	}
+}
+
+func TestLimitWriter(t *testing.T) {
+	tw := &testWriter{written: make([][]byte, 0)}
+	lw := NewLimitWriter(tw, 10)
+	fmt.Fprintf(lw, "0123456789")
+
+	limitReached := false
+	select {
+	case <-lw.LimitReached:
+		limitReached = true
+	default:
+	}
+
+	if limitReached {
+		t.Error("expected limit to not have been reached after writing n bytes")
+	}
+
+	fmt.Fprintf(lw, "a")
+
+	select {
+	case <-lw.LimitReached:
+		limitReached = true
+	default:
+	}
+
+	if !limitReached {
+		t.Error("expected limit to have been reached after writing n+1 bytes")
 	}
 }

@@ -11,6 +11,7 @@ const (
 	jobHardTimeout       = 60 * time.Minute
 	vmBootTimeout        = 4 * time.Minute
 	logInactivityTimeout = 10 * time.Minute
+	logSizeLimit         = 4 * 1024 * 1024 // 4 MiB
 )
 
 // A Worker runs a job.
@@ -22,6 +23,7 @@ type Worker struct {
 	payload    Payload
 	reporter   *Reporter
 	tw         *TimeoutWriter
+	lw         *LimitWriter
 }
 
 // NewWorker creates a new worker with the given parameters. The worker assumes
@@ -115,6 +117,15 @@ The build has been terminated.
 
 `, logInactivityTimeout.Minutes())
 		return nil
+	case <-w.lw.LimitReached:
+		fmt.Fprintf(w.reporter.Log, `
+
+The log length has exceeded the limit of %.d MiB (this usually means that the test suite is raising the same exception over and over).
+
+The build has been terminated.
+
+`, logSizeLimit/1024/1024)
+		return nil
 	case <-time.After(jobHardTimeout):
 		fmt.Fprintf(w.reporter.Log, "\n\nWe're sorry but your test run exceeded %.0f minutes.\n\nOne possible solution is to split up your test run.", jobHardTimeout.Minutes())
 		w.reporter.NotifyJobFinished("errored")
@@ -151,5 +162,6 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 
 func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
 	w.tw = NewTimeoutWriter(w.reporter.Log, logInactivityTimeout)
-	return ssh.Start("~/build.sh", w.tw)
+	w.lw = NewLimitWriter(w.tw, logSizeLimit)
+	return ssh.Start("~/build.sh", w.lw)
 }
