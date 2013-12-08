@@ -1,0 +1,19 @@
+{
+	"ImportPath": "github.com/henrikhodne/travis-worker-go",
+	"GoVersion": "go1.2",
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go.crypto/ssh",
+			"Comment": "null-185",
+			"Rev": "6478cc9340cbbe6c04511280c5007722269108e9"
+		},
+		{
+			"ImportPath": "github.com/henrikhodne/goblueboxapi",
+			"Rev": "357ca173f775f4b8850f86cb8c0b7c9121fd392c"
+		},
+		{
+			"ImportPath": "github.com/streadway/amqp",
+			"Rev": "5b53117be9a4a40ce08937e858be5c4a0ca7bf48"
+		}
+	]
+}
