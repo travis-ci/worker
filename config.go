@@ -7,6 +7,7 @@ import (
 
 // WorkerConfig holds the configuration for travis-worker.
 type WorkerConfig struct {
+	Name        string
 	WorkerCount int
 	BlueBox     BlueBoxConfig
 	AMQP        AMQPConfig

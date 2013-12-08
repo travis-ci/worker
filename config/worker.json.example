@@ -1,4 +1,5 @@
 {
+    "name": "worker-dev",
     "workerCount": 1,
     "blueBox": {
         "customerId": "12345",
