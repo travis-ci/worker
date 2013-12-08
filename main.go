@@ -2,23 +2,26 @@ package main
 
 import (
 	"fmt"
+	"os"
 )
 
 func main() {
+	logger := NewLogger(os.Stdout).Set("pid", os.Getpid())
+
 	config, err := ConfigFromFile("config/worker.json")
 	if err != nil {
-		fmt.Printf("Error reading config: %v\n", err)
+		logger.Errorf("error reading config: %v", err)
 		return
 	}
 
 	mb, err := NewMessageBroker(config.AMQP.URL)
 	if err != nil {
-		fmt.Printf("Couldn't create message broker: %v\n", err)
+		logger.Errorf("couldn't create message broker: %v", err)
 		return
 	}
 
-	queue := NewQueue(mb, config.AMQP.Queue, 10)
+	queue := NewQueue(mb, config.AMQP.Queue, 1)
 	queue.Subscribe(func(jobProcessorNum int) JobPayloadProcessor {
-		return NewWorker(fmt.Sprintf("worker-%d", jobProcessorNum), NewBlueBox(config.BlueBox), mb, config.Timeouts, config.LogLimits)
+		return NewWorker(fmt.Sprintf("worker-%d", jobProcessorNum), NewBlueBox(config.BlueBox), mb, logger, config.Timeouts, config.LogLimits)
 	})
 }

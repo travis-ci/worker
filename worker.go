@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 )
@@ -12,7 +11,7 @@ type Worker struct {
 	Name       string
 	vmProvider VMProvider
 	mb         MessageBroker
-	logger     *log.Logger
+	logger     *Logger
 	payload    Payload
 	reporter   *Reporter
 	tw         *TimeoutWriter
@@ -24,34 +23,34 @@ type Worker struct {
 // NewWorker creates a new worker with the given parameters. The worker assumes
 // ownership of the given API, payload and reporter and they should not be
 // reused for other workers.
-func NewWorker(name string, VMProvider VMProvider, mb MessageBroker, timeouts TimeoutsConfig, logLimits LogLimitsConfig) *Worker {
+func NewWorker(name string, VMProvider VMProvider, mb MessageBroker, logger *Logger, timeouts TimeoutsConfig, logLimits LogLimitsConfig) *Worker {
 	return &Worker{
 		Name:       name,
 		vmProvider: VMProvider,
 		mb:         mb,
-		logger:     log.New(os.Stdout, fmt.Sprintf("%s: ", name), log.Ldate|log.Ltime),
 		timeouts:   timeouts,
 		logLimits:  logLimits,
+		logger:     logger,
 	}
 }
 
 // Process actually runs the job. It returns an error if an error occurred that
 // should cause the job to be requeued.
 func (w *Worker) Process(payload Payload) error {
-	defer w.logger.Println("Finishing job")
+	w.payload = payload
+	w.logger = w.logger.Set("slug", w.payload.Repository.Slug).Set("job_id", w.jobID())
+	w.logger.Info("starting job")
+	defer w.logger.Info("finishing job")
 
 	var err error
-	w.payload = payload
-	w.reporter, err = NewReporter(w.mb, payload.Job.ID)
+	w.reporter, err = NewReporter(w.mb, w.jobID())
 	if err != nil {
 		return err
 	}
 
-	w.logger.Printf("Starting job slug:%s id:%d\n", w.payload.Repository.Slug, w.payload.Job.ID)
-
 	server, err := w.bootServer()
 	if err != nil {
-		w.logger.Printf("Booting a VM failed with the following errors: %v\n", err)
+		w.logger.Errorf("booting a VM failed with the following error: %v", err)
 		return err
 	}
 	defer server.Destroy()
@@ -59,40 +58,40 @@ func (w *Worker) Process(payload Payload) error {
 	fmt.Fprintf(w.reporter.Log, "Using worker: %s\n\n", w.Name)
 	defer w.reporter.Log.Close()
 
-	w.logger.Println("Opening SSH connection")
+	w.logger.Info("opening SSH connection")
 	ssh, err := NewSSHConnection(server, w.Name)
 	if err != nil {
-		w.logger.Printf("Couldn't connect to SSH: %v\n", err)
+		w.logger.Errorf("couldn't connect to SSH: %v", err)
 		w.connectionError()
 		return err
 	}
 	defer ssh.Close()
 
-	w.logger.Println("Uploading build script")
+	w.logger.Info("uploading build script")
 	err = w.uploadScript(ssh)
 	if err != nil {
-		w.logger.Printf("Couldn't upload script to SSH: %v\n", err)
+		w.logger.Errorf("couldn't upload script: %v")
 		w.connectionError()
 		return err
 	}
 
 	err = w.reporter.NotifyJobStarted()
 	if err != nil {
-		w.logger.Printf("Couldn't notify about job start: %v\n", err)
+		w.logger.Errorf("couldn't notify about job starting: %v", err)
 		return err
 	}
 
-	w.logger.Println("Running the build")
+	w.logger.Info("running the job")
 	exitCodeChan, err := w.runScript(ssh)
 	if err != nil {
-		w.logger.Printf("Failed to run build script: %v\n", err)
+		w.logger.Errorf("failed to run build script: %v", err)
 		w.connectionError()
 		return err
 	}
 
 	select {
 	case exitCode := <-exitCodeChan:
-		w.logger.Println("Build finished.")
+		w.logger.Info("job finished")
 		switch exitCode {
 		case 0:
 			w.finishWithState("passed")
@@ -106,12 +105,15 @@ func (w *Worker) Process(payload Payload) error {
 		}
 		return nil
 	case <-w.tw.Timeout:
+		w.logger.Info("job timed out due to log inactivity")
 		fmt.Fprintf(w.reporter.Log, noLogOutputMessage, w.timeouts.LogInactivity/60)
 		return nil
 	case <-w.lw.LimitReached:
+		w.logger.Info("job stopped due to log limit being reached")
 		fmt.Fprintf(w.reporter.Log, logTooLongMessage, w.logLimits.MaxLogLength/1024/1024)
 		return nil
 	case <-time.After(time.Duration(w.timeouts.HardLimit) * time.Second):
+		w.logger.Info("job timed out due to hard timeout")
 		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, w.timeouts.HardLimit/60)
 		w.finishWithState("errored")
 		return nil
@@ -125,13 +127,13 @@ func (w *Worker) jobID() int64 {
 func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-worker-go-%d-%s-%d", os.Getpid(), w.Name, w.jobID())
-	w.logger.Printf("Booting %s\n", hostname)
+	w.logger.Infof("booting %s", hostname)
 	server, err := w.vmProvider.Start(hostname, time.Duration(w.timeouts.VMBoot)*time.Second)
 	if err != nil {
 		return nil, err
 	}
 
-	w.logger.Printf("VM provisioned in %.2f seconds\n", time.Now().Sub(startTime).Seconds())
+	w.logger.Infof("VM provisioned in %.2f seconds", time.Now().Sub(startTime).Seconds())
 
 	return server, nil
 }

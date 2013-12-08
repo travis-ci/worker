@@ -14,6 +14,7 @@ type Reporter struct {
 	numberSequence chan int
 	done           chan bool
 	jobID          int64
+	logger         *Logger
 	Log            io.WriteCloser
 }
 
