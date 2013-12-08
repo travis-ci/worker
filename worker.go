@@ -63,7 +63,7 @@ func (w *Worker) Process(payload Payload) error {
 	ssh, err := NewSSHConnection(server, w.Name)
 	if err != nil {
 		w.logger.Printf("Couldn't connect to SSH: %v\n", err)
-		fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
+		w.connectionError()
 		return err
 	}
 	defer ssh.Close()
@@ -72,7 +72,7 @@ func (w *Worker) Process(payload Payload) error {
 	err = w.uploadScript(ssh)
 	if err != nil {
 		w.logger.Printf("Couldn't upload script to SSH: %v\n", err)
-		fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
+		w.connectionError()
 		return err
 	}
 
@@ -86,7 +86,7 @@ func (w *Worker) Process(payload Payload) error {
 	exitCodeChan, err := w.runScript(ssh)
 	if err != nil {
 		w.logger.Printf("Failed to run build script: %v\n", err)
-		fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
+		w.connectionError()
 		return err
 	}
 
@@ -95,13 +95,13 @@ func (w *Worker) Process(payload Payload) error {
 		w.logger.Println("Build finished.")
 		switch exitCode {
 		case 0:
-			w.reporter.NotifyJobFinished("passed")
+			w.finishWithState("passed")
 		case 1:
-			w.reporter.NotifyJobFinished("failed")
+			w.finishWithState("failed")
 		default:
-			w.reporter.NotifyJobFinished("errored")
+			w.finishWithState("errored")
 		case -1:
-			fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
+			w.connectionError()
 			return fmt.Errorf("an error occurred with the SSH connection")
 		}
 		return nil
@@ -113,7 +113,7 @@ func (w *Worker) Process(payload Payload) error {
 		return nil
 	case <-time.After(time.Duration(w.timeouts.HardLimit) * time.Second):
 		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, w.timeouts.HardLimit/60)
-		w.reporter.NotifyJobFinished("errored")
+		w.finishWithState("errored")
 		return nil
 	}
 }
@@ -149,4 +149,13 @@ func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
 	w.tw = NewTimeoutWriter(w.reporter.Log, time.Duration(w.timeouts.LogInactivity)*time.Second)
 	w.lw = NewLimitWriter(w.tw, w.logLimits.MaxLogLength)
 	return ssh.Start("~/build.sh", w.lw)
+}
+
+func (w *Worker) connectionError() {
+	fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
+	w.finishWithState("errored")
+}
+
+func (w *Worker) finishWithState(state string) {
+	w.reporter.NotifyJobFinished(state)
 }
