@@ -39,8 +39,7 @@ func NewWorker(name string, VMProvider VMProvider, mb MessageBroker, logger *Log
 func (w *Worker) Process(payload Payload) error {
 	w.payload = payload
 	w.logger = w.logger.Set("slug", w.payload.Repository.Slug).Set("job_id", w.jobID())
-	w.logger.Info("starting job")
-	defer w.logger.Info("finishing job")
+	w.logger.Info("starting the job")
 
 	var err error
 	w.reporter, err = NewReporter(w.mb, w.jobID())
@@ -51,14 +50,15 @@ func (w *Worker) Process(payload Payload) error {
 	server, err := w.bootServer()
 	if err != nil {
 		w.logger.Errorf("booting a VM failed with the following error: %v", err)
+		w.vmCreationError()
 		return err
 	}
 	defer server.Destroy()
+	defer w.logger.Info("destroying the VM")
 
-	fmt.Fprintf(w.reporter.Log, "Using worker: %s\n\n", w.Name)
 	defer w.reporter.Log.Close()
 
-	w.logger.Info("opening SSH connection")
+	w.logger.Info("opening an SSH connection")
 	ssh, err := NewSSHConnection(server, w.Name)
 	if err != nil {
 		w.logger.Errorf("couldn't connect to SSH: %v", err)
@@ -66,6 +66,7 @@ func (w *Worker) Process(payload Payload) error {
 		return err
 	}
 	defer ssh.Close()
+	defer w.logger.Info("closing the SSH connection")
 
 	w.logger.Info("uploading build script")
 	err = w.uploadScript(ssh)
@@ -91,7 +92,6 @@ func (w *Worker) Process(payload Payload) error {
 
 	select {
 	case exitCode := <-exitCodeChan:
-		w.logger.Info("job finished")
 		switch exitCode {
 		case 0:
 			w.finishWithState("passed")
@@ -153,11 +153,19 @@ func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
 	return ssh.Start("~/build.sh", w.lw)
 }
 
+func (w *Worker) vmCreationError() {
+	fmt.Fprintf(w.reporter.Log, vmCreationErrorMessage)
+	w.logger.Infof("requeuing job due to vm creation error")
+	w.reporter.NotifyJobReset()
+}
+
 func (w *Worker) connectionError() {
 	fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
-	w.finishWithState("errored")
+	w.logger.Infof("requeuing job due to ssh connection error")
+	w.reporter.NotifyJobReset()
 }
 
 func (w *Worker) finishWithState(state string) {
+	w.logger.Infof("job %s", state)
 	w.reporter.NotifyJobFinished(state)
 }

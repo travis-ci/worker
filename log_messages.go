@@ -29,4 +29,12 @@ We're sorry, but there was an error with the connection to the VM.
 Your job will be requeued shortly.
 
 `
+
+	vmCreationErrorMessage = `
+
+We're sorry, but there was an error starting a new VM.
+
+Your job will be requeued shortly.
+
+`
 )

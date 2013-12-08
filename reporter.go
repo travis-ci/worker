@@ -105,6 +105,13 @@ func (r *Reporter) NotifyJobFinished(state string) error {
 	return r.notify("job:test:finish", jobReporterPayload{ID: r.jobID, State: state, FinishedAt: currentJSONTime()})
 }
 
+// NotifyJobReset notifies that the job should be reset and requeued, and
+// stops the duration timer.
+func (r *Reporter) NotifyJobReset() error {
+	return r.notify("job:test:reset", jobReporterPayload{ID: r.jobID, State: "reset", FinishedAt: currentJSONTime()})
+}
+
+
 func (r *Reporter) notify(event string, payload jobReporterPayload) error {
 	data, err := json.Marshal(payload)
 	if err != nil {

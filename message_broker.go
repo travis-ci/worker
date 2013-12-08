@@ -76,12 +76,8 @@ func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, f func(
 			defer wg.Done()
 
 			for message := range messages {
-				err := f().Process(message.Body)
-				if err == nil {
-					message.Ack(false)
-				} else {
-					message.Nack(true, false)
-				}
+				f().Process(message.Body)
+				message.Ack(false)
 			}
 		}()
 	}
