@@ -40,6 +40,7 @@ func (w *Worker) Process(payload Payload) error {
 	w.payload = payload
 	w.logger = w.logger.Set("slug", w.payload.Repository.Slug).Set("job_id", w.jobID())
 	w.logger.Info("starting the job")
+	defer w.logger.Info("job finished")
 
 	var err error
 	w.reporter, err = NewReporter(w.mb, w.jobID())
@@ -68,7 +69,7 @@ func (w *Worker) Process(payload Payload) error {
 	defer ssh.Close()
 	defer w.logger.Info("closing the SSH connection")
 
-	w.logger.Info("uploading build script")
+	w.logger.Info("uploading the build.sh script")
 	err = w.uploadScript(ssh)
 	if err != nil {
 		w.logger.Errorf("couldn't upload script: %v")
@@ -127,7 +128,7 @@ func (w *Worker) jobID() int64 {
 func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-%s-pid-%d-job-%d", w.Name, os.Getpid(), w.jobID())
-	w.logger.Infof("booting %s", hostname)
+	w.logger.Infof("booting VM with hostname %s", hostname)
 	server, err := w.vmProvider.Start(hostname, time.Duration(w.timeouts.VMBoot)*time.Second)
 	if err != nil {
 		return nil, err
@@ -155,17 +156,17 @@ func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
 
 func (w *Worker) vmCreationError() {
 	fmt.Fprintf(w.reporter.Log, vmCreationErrorMessage)
-	w.logger.Infof("requeuing job due to vm creation error")
+	w.logger.Infof("requeuing job due to VM creation error")
 	w.reporter.NotifyJobReset()
 }
 
 func (w *Worker) connectionError() {
 	fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
-	w.logger.Infof("requeuing job due to ssh connection error")
+	w.logger.Infof("requeuing job due to SSH connection error")
 	w.reporter.NotifyJobReset()
 }
 
 func (w *Worker) finishWithState(state string) {
-	w.logger.Infof("job %s", state)
+	w.logger.Infof("job completed with state:%s", state)
 	w.reporter.NotifyJobFinished(state)
 }
