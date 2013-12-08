@@ -62,9 +62,9 @@ func NewQueue(mb MessageBroker, queueName string, subCount int) *JobQueue {
 	return &JobQueue{mb, queueName, subCount}
 }
 
-func (q *JobQueue) Subscribe(f func(int) JobPayloadProcessor) error {
-	return q.mb.Subscribe(q.queueName, q.subCount, func(processorNum int) MessageProcessor {
-		return &jobPayloadMessageProcessor{f(processorNum)}
+func (q *JobQueue) Subscribe(f func() JobPayloadProcessor) error {
+	return q.mb.Subscribe(q.queueName, q.subCount, func() MessageProcessor {
+		return &jobPayloadMessageProcessor{f()}
 	})
 }
 

@@ -33,7 +33,7 @@ func TestQueue(t *testing.T) {
 	mb.Publish("", "builds.linux", "test", []byte(`{"job":{"id":12345,"number":"1"}}`))
 	mb.Close()
 
-	q.Subscribe(func(int) JobPayloadProcessor {
+	q.Subscribe(func() JobPayloadProcessor {
 		return &testMessageProcessor{t}
 	})
 }

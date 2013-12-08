@@ -9,7 +9,7 @@ import (
 
 type MessageBroker interface {
 	DeclareQueue(string) error
-	Subscribe(string, int, func(int) MessageProcessor) error
+	Subscribe(string, int, func() MessageProcessor) error
 	Publish(string, string, string, []byte) error
 	Close() error
 }
@@ -52,7 +52,7 @@ func (mb *RabbitMessageBroker) Publish(exchange, routingKey, msgType string, mes
 	return ch.Publish(exchange, routingKey, false, false, msg)
 }
 
-func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, f func(int) MessageProcessor) error {
+func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, f func() MessageProcessor) error {
 	ch, err := mb.conn.Channel()
 	if err != nil {
 		return err
@@ -72,18 +72,18 @@ func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, f func(
 	var wg sync.WaitGroup
 	wg.Add(subCount)
 	for i := 0; i < subCount; i++ {
-		go func(messageProcessorNum int) {
+		go func() {
 			defer wg.Done()
 
 			for message := range messages {
-				err := f(messageProcessorNum).Process(message.Body)
+				err := f().Process(message.Body)
 				if err == nil {
 					message.Ack(false)
 				} else {
 					message.Nack(true, false)
 				}
 			}
-		}(i)
+		}()
 	}
 	wg.Wait()
 
@@ -118,19 +118,19 @@ func (mb *TestMessageBroker) DeclareQueue(queueName string) error {
 	return nil
 }
 
-func (mb *TestMessageBroker) Subscribe(queueName string, subCount int, f func(int) MessageProcessor) error {
+func (mb *TestMessageBroker) Subscribe(queueName string, subCount int, f func() MessageProcessor) error {
 	var wg sync.WaitGroup
 	wg.Add(subCount)
 	for i := 0; i < subCount; i++ {
-		go func(messageProcessorNum int) {
+		go func() {
 			defer wg.Done()
 
-			processor := f(messageProcessorNum)
+			processor := f()
 
 			for body := range mb.queues[queueName] {
 				processor.Process(body)
 			}
-		}(i)
+		}()
 	}
 	wg.Wait()
 
