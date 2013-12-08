@@ -1,4 +1,5 @@
 {
+    "workerCount": 1,
     "blueBox": {
         "customerId": "12345",
         "apiKey": "abcdef",
