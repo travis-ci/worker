@@ -7,17 +7,21 @@ import (
 func main() {
 	logger := NewLogger(os.Stdout).Set("pid", os.Getpid())
 
+	logger.Info("About to start the worker")
+
 	config, err := ConfigFromFile("config/worker.json")
 	if err != nil {
-		logger.Errorf("error reading config: %v", err)
+		logger.Errorf("Error reading config: %v", err)
 		return
 	}
 
 	mb, err := NewMessageBroker(config.AMQP.URL)
 	if err != nil {
-		logger.Errorf("couldn't create message broker: %v", err)
+		logger.Errorf("Couldn't create message broker: %v", err)
 		return
 	}
+
+	logger.Infof("Starting %d worker job processors", config.WorkerCount)
 
 	queue := NewQueue(mb, config.AMQP.Queue, config.WorkerCount)
 	queue.Subscribe(func() JobPayloadProcessor {
