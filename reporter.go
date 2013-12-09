@@ -111,7 +111,6 @@ func (r *Reporter) NotifyJobReset() error {
 	return r.notify("job:test:reset", jobReporterPayload{ID: r.jobID, State: "reset", FinishedAt: currentJSONTime()})
 }
 
-
 func (r *Reporter) notify(event string, payload jobReporterPayload) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
