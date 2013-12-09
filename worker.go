@@ -76,6 +76,7 @@ func (w *Worker) Process(payload Payload) error {
 		w.connectionError()
 		return err
 	}
+	defer w.removeScript(ssh)
 
 	err = w.reporter.NotifyJobStarted()
 	if err != nil {
@@ -151,6 +152,10 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 	}
 
 	return ssh.Run("chmod +x ~/build.sh")
+}
+
+func (w *Worker) removeScript(ssh *SSHConnection) error {
+	return ssh.Run("rm ~/build.sh")
 }
 
 func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
