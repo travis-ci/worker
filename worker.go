@@ -140,7 +140,12 @@ func (w *Worker) bootServer() (VM, error) {
 }
 
 func (w *Worker) uploadScript(ssh *SSHConnection) error {
-	err := ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("#!/bin/bash --login\n\necho This is build id %d\nfor i in {1..200}; do echo -n \"$i \"; sleep 1; done", w.jobID())))
+	err := ssh.Run("test ! -f ~/build.sh")
+	if err != nil {
+		return err
+	}
+
+	err = ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("#!/bin/bash --login\n\necho This is build id %d\nfor i in {1..200}; do echo -n \"$i \"; sleep 1; done", w.jobID())))
 	if err != nil {
 		return err
 	}
