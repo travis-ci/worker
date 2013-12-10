@@ -8,16 +8,17 @@ import (
 
 // A Worker runs a job.
 type Worker struct {
-	Name       string
-	vmProvider VMProvider
-	mb         MessageBroker
-	logger     *Logger
-	payload    Payload
-	reporter   *Reporter
-	tw         *TimeoutWriter
-	lw         *LimitWriter
-	timeouts   TimeoutsConfig
-	logLimits  LogLimitsConfig
+	Name         string
+	vmProvider   VMProvider
+	mb           MessageBroker
+	logger       *Logger
+	payload      Payload
+	stateUpdater *StateUpdater
+	jobLog       *LogWriter
+	tw           *TimeoutWriter
+	lw           *LimitWriter
+	timeouts     TimeoutsConfig
+	logLimits    LogLimitsConfig
 }
 
 // NewWorker creates a new worker with the given parameters. The worker assumes
@@ -42,12 +43,10 @@ func (w *Worker) Process(payload Payload) error {
 	w.logger.Info("starting the job")
 	defer w.logger.Info("job finished")
 
-	var err error
-	w.reporter, err = NewReporter(w.mb, w.jobID())
-	if err != nil {
-		return err
-	}
+	w.stateUpdater = NewStateUpdater(w.mb, w.jobID())
+	w.jobLog = NewLogWriter(w.mb, w.jobID())
 
+	var err error
 	server, err := w.bootServer()
 	if err != nil {
 		w.logger.Errorf("booting a VM failed with the following error: %v", err)
@@ -57,7 +56,7 @@ func (w *Worker) Process(payload Payload) error {
 	defer server.Destroy()
 	defer w.logger.Info("destroying the VM")
 
-	defer w.reporter.Log.Close()
+	defer w.jobLog.Close()
 
 	w.logger.Info("opening an SSH connection")
 	ssh, err := NewSSHConnection(server, w.Name)
@@ -78,7 +77,7 @@ func (w *Worker) Process(payload Payload) error {
 	}
 	defer w.removeScript(ssh)
 
-	err = w.reporter.NotifyJobStarted()
+	err = w.stateUpdater.Start()
 	if err != nil {
 		w.logger.Errorf("couldn't notify about job starting: %v", err)
 		return err
@@ -108,15 +107,15 @@ func (w *Worker) Process(payload Payload) error {
 		return nil
 	case <-w.tw.Timeout:
 		w.logger.Info("job timed out due to log inactivity")
-		fmt.Fprintf(w.reporter.Log, noLogOutputMessage, w.timeouts.LogInactivity/60)
+		fmt.Fprintf(w.jobLog, noLogOutputMessage, w.timeouts.LogInactivity/60)
 		return nil
 	case <-w.lw.LimitReached:
 		w.logger.Info("job stopped due to log limit being reached")
-		fmt.Fprintf(w.reporter.Log, logTooLongMessage, w.logLimits.MaxLogLength/1024/1024)
+		fmt.Fprintf(w.jobLog, logTooLongMessage, w.logLimits.MaxLogLength/1024/1024)
 		return nil
 	case <-time.After(time.Duration(w.timeouts.HardLimit) * time.Second):
 		w.logger.Info("job timed out due to hard timeout")
-		fmt.Fprintf(w.reporter.Log, stalledBuildMessage, w.timeouts.HardLimit/60)
+		fmt.Fprintf(w.jobLog, stalledBuildMessage, w.timeouts.HardLimit/60)
 		w.finishWithState("errored")
 		return nil
 	}
@@ -160,24 +159,24 @@ func (w *Worker) removeScript(ssh *SSHConnection) error {
 
 func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
 	fmt.Fprintf(w.reporter.Log, "Using: %s\n\n", w.Name)
-	w.tw = NewTimeoutWriter(w.reporter.Log, time.Duration(w.timeouts.LogInactivity)*time.Second)
+	w.tw = NewTimeoutWriter(w.jobLog, time.Duration(w.timeouts.LogInactivity)*time.Second)
 	w.lw = NewLimitWriter(w.tw, w.logLimits.MaxLogLength)
 	return ssh.Start("~/build.sh", w.lw)
 }
 
 func (w *Worker) vmCreationError() {
-	fmt.Fprintf(w.reporter.Log, vmCreationErrorMessage)
+	fmt.Fprintf(w.jobLog, vmCreationErrorMessage)
 	w.logger.Infof("requeuing job due to VM creation error")
-	w.reporter.NotifyJobReset()
+	w.stateUpdater.Reset()
 }
 
 func (w *Worker) connectionError() {
-	fmt.Fprintf(w.reporter.Log, connectionErrorMessage)
+	fmt.Fprintf(w.jobLog, connectionErrorMessage)
 	w.logger.Infof("requeuing job due to SSH connection error")
-	w.reporter.NotifyJobReset()
+	w.stateUpdater.Reset()
 }
 
 func (w *Worker) finishWithState(state string) {
 	w.logger.Infof("job completed with state:%s", state)
-	w.reporter.NotifyJobFinished(state)
+	w.stateUpdater.Finish(state)
 }

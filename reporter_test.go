@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-func TestReporter_Write(t *testing.T) {
+func TestLogWriter_Write(t *testing.T) {
 	mb := NewTestMessageBroker()
 	mb.DeclareQueue("reporting.jobs.logs")
 
-	r, _ := NewReporter(mb, 1)
+	r := NewLogWriter(mb, 1)
 	n, _ := r.Write([]byte("foo\x00bar"))
 
 	if n != 7 {
