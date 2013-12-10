@@ -39,7 +39,7 @@ func TestRabbitMessageBroker(t *testing.T) {
 		return
 	}
 
-	err = mb.Subscribe("test-queue", 1, func() MessageProcessor {
+	err = mb.Subscribe("test-queue", 1, make(chan bool), func() MessageProcessor {
 		return &testProcessor{mb, t}
 	})
 	if err != nil {

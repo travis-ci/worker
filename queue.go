@@ -62,8 +62,8 @@ func NewQueue(mb MessageBroker, queueName string, subCount int) *JobQueue {
 	return &JobQueue{mb, queueName, subCount}
 }
 
-func (q *JobQueue) Subscribe(f func() JobPayloadProcessor) error {
-	return q.mb.Subscribe(q.queueName, q.subCount, func() MessageProcessor {
+func (q *JobQueue) Subscribe(gracefulQuitChan chan bool, f func() JobPayloadProcessor) error {
+	return q.mb.Subscribe(q.queueName, q.subCount, gracefulQuitChan, func() MessageProcessor {
 		return &jobPayloadMessageProcessor{f()}
 	})
 }

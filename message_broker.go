@@ -9,7 +9,7 @@ import (
 
 type MessageBroker interface {
 	DeclareQueue(string) error
-	Subscribe(string, int, func() MessageProcessor) error
+	Subscribe(string, int, chan bool, func() MessageProcessor) error
 	Publish(string, string, string, []byte) error
 	Close() error
 }
@@ -52,7 +52,12 @@ func (mb *RabbitMessageBroker) Publish(exchange, routingKey, msgType string, mes
 	return ch.Publish(exchange, routingKey, false, false, msg)
 }
 
-func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, f func() MessageProcessor) error {
+// Subscribe will start pulling messages off the given queue and process up to
+// subCount messages concurrently by passing them to the given function.
+//
+// When the passed gracefulQuitChan is closed, the subscribers shut down after
+// finishing the message it is currently processing.
+func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, gracefulQuitChan chan bool, f func() MessageProcessor) error {
 	ch, err := mb.conn.Channel()
 	if err != nil {
 		return err
@@ -75,9 +80,18 @@ func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, f func(
 		go func() {
 			defer wg.Done()
 
-			for message := range messages {
-				f().Process(message.Body)
-				message.Ack(false)
+			for {
+				select {
+				case <-gracefulQuitChan:
+					return
+				case message, ok := <-messages:
+					if !ok {
+						return
+					}
+
+					f().Process(message.Body)
+					message.Ack(false)
+				}
 			}
 		}()
 	}
@@ -114,7 +128,7 @@ func (mb *TestMessageBroker) DeclareQueue(queueName string) error {
 	return nil
 }
 
-func (mb *TestMessageBroker) Subscribe(queueName string, subCount int, f func() MessageProcessor) error {
+func (mb *TestMessageBroker) Subscribe(queueName string, subCount int, gracefulQuitChan chan bool, f func() MessageProcessor) error {
 	var wg sync.WaitGroup
 	wg.Add(subCount)
 	for i := 0; i < subCount; i++ {

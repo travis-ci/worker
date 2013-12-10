@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -25,10 +27,20 @@ func main() {
 		return
 	}
 
+	sigint := make(chan os.Signal, 1)
+	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT)
+	gracefulQuit := make(chan bool)
+
+	go func() {
+		<-sigint
+		logger.Info("got SIGTERM, shutting down gracefully")
+		close(gracefulQuit)
+	}()
+
 	logger.Infof("starting %d worker job processors", config.WorkerCount)
 
 	queue := NewQueue(mb, config.AMQP.Queue, config.WorkerCount)
-	queue.Subscribe(func() JobPayloadProcessor {
+	queue.Subscribe(gracefulQuit, func() JobPayloadProcessor {
 		return NewWorker(config.Name, NewBlueBox(config.BlueBox), mb, logger, config.Timeouts, config.LogLimits)
 	})
 }
