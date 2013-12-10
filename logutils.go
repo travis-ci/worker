@@ -6,6 +6,7 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // A Logger contains the information required to log messages to an io.Writer.
@@ -23,11 +24,12 @@ import (
 // where the log call was made from.
 type Logger struct {
 	io.Writer
-	prefix string
+	timestampFormat string
+	prefix          string
 }
 
-func NewLogger(w io.Writer) *Logger {
-	return &Logger{w, ""}
+func NewLogger(w io.Writer, timestampFormat string) *Logger {
+	return &Logger{w, timestampFormat, ""}
 }
 
 // Set adds a new key=value pair to the output of the returned Logger
@@ -37,7 +39,7 @@ func (l *Logger) Set(key string, value interface{}) *Logger {
 		newPrefix = newPrefix[1:]
 	}
 
-	return &Logger{l.Writer, newPrefix}
+	return &Logger{l.Writer, l.timestampFormat, newPrefix}
 }
 
 func (l *Logger) Info(message string) error {
@@ -70,7 +72,7 @@ func (l *Logger) writeLevel(level, message string) error {
 }
 
 func (l *Logger) flush() error {
-	_, err := l.Write([]byte(l.prefix + "\n"))
+	_, err := l.Write([]byte(time.Now().Format(l.timestampFormat) + l.prefix + "\n"))
 	return err
 }
 

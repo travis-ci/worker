@@ -5,7 +5,7 @@ import (
 )
 
 func main() {
-	logger := NewLogger(os.Stdout).Set("pid", os.Getpid())
+	logger := NewLogger(os.Stdout, "").Set("pid", os.Getpid())
 
 	logger.Info("loading worker config")
 
@@ -14,6 +14,8 @@ func main() {
 		logger.Errorf("error reading config: %v", err)
 		return
 	}
+
+	logger = NewLogger(os.Stdout, config.LogTimestamp).Set("pid", os.Getpid())
 
 	logger.Info("connecting to rabbitmq")
 

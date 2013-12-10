@@ -7,12 +7,13 @@ import (
 
 // WorkerConfig holds the configuration for travis-worker.
 type WorkerConfig struct {
-	Name        string
-	WorkerCount int
-	BlueBox     BlueBoxConfig
-	AMQP        AMQPConfig
-	Timeouts    TimeoutsConfig
-	LogLimits   LogLimitsConfig
+	Name         string
+	WorkerCount  int
+	LogTimestamp string
+	BlueBox      BlueBoxConfig
+	AMQP         AMQPConfig
+	Timeouts     TimeoutsConfig
+	LogLimits    LogLimitsConfig
 }
 
 // BlueBoxConfig holds the configuration relevant to connecting to the Blue Box
