@@ -128,7 +128,7 @@ func NewLimitWriter(w io.WriteCloser, n int64) *LimitWriter {
 	lw := &LimitWriter{w, n, make(chan bool, 1), make(chan addReq)}
 
 	go func() {
-		var n int64 = 0
+		var n int64
 		for {
 			add := <-lw.add
 			n += int64(add.added)

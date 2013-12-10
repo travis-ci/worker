@@ -71,7 +71,7 @@ func (w *Worker) Process(payload Payload) error {
 	w.logger.Info("uploading the build.sh script")
 	err = w.uploadScript(ssh)
 	if err != nil {
-		w.logger.Errorf("couldn't upload script: %v")
+		w.logger.Errorf("couldn't upload script: %v", err)
 		w.connectionError()
 		return err
 	}
