@@ -41,6 +41,6 @@ func main() {
 
 	queue := NewQueue(mb, config.AMQP.Queue, config.WorkerCount)
 	queue.Subscribe(gracefulQuit, func() JobPayloadProcessor {
-		return NewWorker(config.Name, NewBlueBox(config.BlueBox), mb, logger, config.Timeouts, config.LogLimits)
+		return NewWorker(mb, logger, config)
 	})
 }

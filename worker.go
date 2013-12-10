@@ -21,17 +21,15 @@ type Worker struct {
 	logLimits    LogLimitsConfig
 }
 
-// NewWorker creates a new worker with the given parameters. The worker assumes
-// ownership of the given API, payload and reporter and they should not be
-// reused for other workers.
-func NewWorker(name string, VMProvider VMProvider, mb MessageBroker, logger *Logger, timeouts TimeoutsConfig, logLimits LogLimitsConfig) *Worker {
+// NewWorker returns a new worker that can process a single job payload.
+func NewWorker(mb MessageBroker, logger *Logger, config WorkerConfig) *Worker {
 	return &Worker{
-		Name:       name,
-		vmProvider: VMProvider,
 		mb:         mb,
-		timeouts:   timeouts,
-		logLimits:  logLimits,
 		logger:     logger,
+		vmProvider: NewBlueBox(config.BlueBox),
+		Name:       config.Name,
+		timeouts:   config.Timeouts,
+		logLimits:  config.LogLimits,
 	}
 }
 
