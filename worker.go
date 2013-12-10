@@ -158,7 +158,7 @@ func (w *Worker) removeScript(ssh *SSHConnection) error {
 }
 
 func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
-	fmt.Fprintf(w.reporter.Log, "Using: %s\n\n", w.Name)
+	fmt.Fprintf(w.jobLog, "Using: %s\n\n", w.Name)
 	w.tw = NewTimeoutWriter(w.jobLog, time.Duration(w.timeouts.LogInactivity)*time.Second)
 	w.lw = NewLimitWriter(w.tw, w.logLimits.MaxLogLength)
 	return ssh.Start("~/build.sh", w.lw)
