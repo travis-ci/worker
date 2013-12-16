@@ -76,9 +76,7 @@ func (w *Worker) Process(payload Payload) error {
 
 	select {
 	case <-w.Cancel:
-		w.logger.Info("cancelling job")
-		fmt.Fprint(w.jobLog, cancelledJobMessage)
-		w.finishWithState("canceled")
+		w.markJobAsCancelled()
 		return nil
 	default:
 	}
@@ -131,9 +129,7 @@ func (w *Worker) Process(payload Payload) error {
 		}
 		return nil
 	case <-w.Cancel:
-		w.logger.Info("cancelling job")
-		fmt.Fprint(w.jobLog, cancelledJobMessage)
-		w.finishWithState("canceled")
+		w.markJobAsCancelled()
 		return nil
 	case <-w.tw.Timeout:
 		w.logger.Info("job timed out due to log inactivity")
@@ -209,4 +205,10 @@ func (w *Worker) connectionError() {
 func (w *Worker) finishWithState(state string) {
 	w.logger.Infof("job completed with state:%s", state)
 	w.stateUpdater.Finish(state)
+}
+
+func (w *Worker) markJobAsCancelled() {
+	w.logger.Info("cancelling job")
+	fmt.Fprint(w.jobLog, cancelledJobMessage)
+	w.finishWithState("canceled")
 }
