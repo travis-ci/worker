@@ -125,6 +125,7 @@ func NewSSHConnection(server VM, logPrefix string) (*SSHConnection, error) {
 		if err == nil {
 			break
 		}
+		time.Sleep(2 * time.Second)
 	}
 
 	logger := log.New(os.Stdout, fmt.Sprintf("%s-ssh: ", logPrefix), log.Ldate|log.Ltime)
