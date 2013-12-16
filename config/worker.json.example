@@ -8,7 +8,8 @@
         "apiKey": "abcdef",
         "locationId": "abcdef",
         "templateId": "abcdef",
-        "productId": "abcdef"
+        "productId": "abcdef",
+        "ipv6Only": false
     },
     "amqp": {
         "url": "amqp://localhost:5672/",

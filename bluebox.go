@@ -28,6 +28,7 @@ func (a *blueboxAPI) Start(hostname string, bootTimeout time.Duration) (VM, erro
 		Hostname: hostname,
 		Username: "travis",
 		Password: generatePassword(),
+		IPv6Only: a.config.IPv6Only,
 	}
 	block, err := a.client.Blocks.Create(params)
 	if err != nil {
@@ -55,7 +56,7 @@ type blueboxServer struct {
 }
 
 func (s *blueboxServer) SSHInfo() VMSSHInfo {
-	ipString := ""
+	ipString := s.block.IPs[0].Address
 	for _, address := range s.block.IPs {
 		ip := net.ParseIP(address.Address)
 		if ip.To4() != nil {

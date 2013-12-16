@@ -26,6 +26,7 @@ type BlueBoxConfig struct {
 	LocationID string
 	TemplateID string
 	ProductID  string
+	IPv6Only   bool
 }
 
 // SauceLabsConfig holds the configuration relevant to connecting to the Sauce
