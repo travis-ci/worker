@@ -1,17 +1,22 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 )
 
 func main() {
+	var configFile string
+	flag.StringVar(&configFile, "configFile", "config/worker.json", "the path to the config file to use")
+	flag.Parse()
+
 	logger := NewLogger(os.Stdout, "").Set("pid", os.Getpid())
 
 	logger.Info("loading worker config")
 
-	config, err := ConfigFromFile("config/worker.json")
+	config, err := ConfigFromFile(configFile)
 	if err != nil {
 		logger.Errorf("error reading config: %v", err)
 		return

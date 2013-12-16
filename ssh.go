@@ -47,7 +47,7 @@ func newSingleKeyring(path, passphrase string) (*singleKeyring, error) {
 
 func (sk *singleKeyring) Key(i int) (ssh.PublicKey, error) {
 	if i != 0 {
-		return nil, fmt.Errorf("no public key at index %d", i)
+		return nil, nil
 	}
 
 	return sk.signer.PublicKey(), nil
