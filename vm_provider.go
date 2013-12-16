@@ -20,9 +20,13 @@ type VM interface {
 }
 
 // VMSSHInfo contains the necessary information for connecting to the
-// server using SSH.
+// server using SSH. Either a password or an SSH key and passphrase should be
+// provided. In the case that both are provided, then the SSH key will be
+// used for authentication.
 type VMSSHInfo struct {
-	Addr     string
-	Username string
-	Password string
+	Addr             string
+	Username         string
+	Password         string
+	SSHKeyPath       string
+	SSHKeyPassphrase string
 }

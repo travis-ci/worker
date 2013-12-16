@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"code.google.com/p/go.crypto/ssh"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 )
@@ -23,15 +27,84 @@ func (pw singlePassword) Password(user string) (string, error) {
 	return pw.password, nil
 }
 
+type singleKeyring struct {
+	signer ssh.Signer
+}
+
+func newSingleKeyring(path, passphrase string) (*singleKeyring, error) {
+	privateKey, err := parseSSHKey(path, passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	signer, err := ssh.NewSignerFromKey(privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return &singleKeyring{signer: signer}, nil
+}
+
+func (sk *singleKeyring) Key(i int) (ssh.PublicKey, error) {
+	if i != 0 {
+		return nil, fmt.Errorf("no public key at index %d", i)
+	}
+
+	return sk.signer.PublicKey(), nil
+}
+
+func (sk *singleKeyring) Sign(i int, rand io.Reader, data []byte) ([]byte, error) {
+	if i != 0 {
+		return nil, fmt.Errorf("unknown key %d", i)
+	}
+
+	return sk.signer.Sign(rand, data)
+}
+
+func parseSSHKey(path, passphrase string) (*rsa.PrivateKey, error) {
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	block, _ := pem.Decode(file)
+
+	der, err := x509.DecryptPEMBlock(block, []byte(passphrase))
+	if err != nil {
+		return nil, err
+	}
+
+	return x509.ParsePKCS1PrivateKey(der)
+}
+
+func clientAuthFromSSHInfo(info VMSSHInfo) (auths []ssh.ClientAuth, err error) {
+	if info.SSHKeyPath != "" {
+		keyring, err := newSingleKeyring(info.SSHKeyPath, info.SSHKeyPassphrase)
+		if err != nil {
+			return nil, err
+		}
+
+		auths = append(auths, ssh.ClientAuthKeyring(keyring))
+	}
+	if info.Password != "" {
+		auths = append(auths, ssh.ClientAuthPassword(singlePassword{info.Password}))
+	}
+
+	return
+}
+
 // NewSSHConnection creates an SSH connection using the connection information
 // for the given server.
 func NewSSHConnection(server VM, logPrefix string) (*SSHConnection, error) {
 	sshInfo := server.SSHInfo()
+	auths, err := clientAuthFromSSHInfo(sshInfo)
+	if err != nil {
+		return nil, err
+	}
+
 	sshConfig := &ssh.ClientConfig{
 		User: sshInfo.Username,
-		Auth: []ssh.ClientAuth{
-			ssh.ClientAuthPassword(singlePassword{sshInfo.Password}),
-		},
+		Auth: auths,
 	}
 	client, err := ssh.Dial("tcp", sshInfo.Addr, sshConfig)
 	logger := log.New(os.Stdout, fmt.Sprintf("%s-ssh: ", logPrefix), log.Ldate|log.Ltime)
