@@ -100,20 +100,33 @@ func clientAuthFromSSHInfo(info VMSSHInfo) (auths []ssh.ClientAuth, err error) {
 func NewSSHConnection(server VM, logPrefix string) (*SSHConnection, error) {
 	sshInfo := server.SSHInfo()
 
-	conn, err := net.DialTimeout("tcp", sshInfo.Addr, 5*time.Second)
-	if err != nil {
-		return nil, err
+	dial := func(info VMSSHInfo) (*ssh.ClientConn, error) {
+		conn, err := net.DialTimeout("tcp", sshInfo.Addr, 5*time.Second)
+		if err != nil {
+			return nil, err
+		}
+
+		auths, err := clientAuthFromSSHInfo(sshInfo)
+		if err != nil {
+			return nil, err
+		}
+		sshConfig := &ssh.ClientConfig{
+			User: sshInfo.Username,
+			Auth: auths,
+		}
+
+		return ssh.Client(conn, sshConfig)
 	}
 
-	auths, err := clientAuthFromSSHInfo(sshInfo)
-	if err != nil {
-		return nil, err
+	var client *ssh.ClientConn
+	var err error
+	for i := 0; i < 3; i++ {
+		client, err = dial(sshInfo)
+		if err == nil {
+			break
+		}
 	}
-	sshConfig := &ssh.ClientConfig{
-		User: sshInfo.Username,
-		Auth: auths,
-	}
-	client, err := ssh.Client(conn, sshConfig)
+
 	logger := log.New(os.Stdout, fmt.Sprintf("%s-ssh: ", logPrefix), log.Ldate|log.Ltime)
 	return &SSHConnection{client: client, logger: logger}, err
 }
