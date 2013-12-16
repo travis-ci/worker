@@ -10,7 +10,9 @@ type WorkerConfig struct {
 	Name         string
 	WorkerCount  int
 	LogTimestamp string
+	Provider     string
 	BlueBox      BlueBoxConfig
+	SauceLabs    SauceLabsConfig
 	AMQP         AMQPConfig
 	Timeouts     TimeoutsConfig
 	LogLimits    LogLimitsConfig
@@ -24,6 +26,14 @@ type BlueBoxConfig struct {
 	LocationID string
 	TemplateID string
 	ProductID  string
+}
+
+// SauceLabsConfig holds the configuration relevant to connecting to the Sauce
+// Labs Mac VM API.
+type SauceLabsConfig struct {
+	Endpoint         string
+	SSHKeyPath       string
+	SSHKeyPassphrase string
 }
 
 // AMQPConfig holds the configuration values relevant to communicating with the

@@ -23,10 +23,21 @@ type Worker struct {
 
 // NewWorker returns a new worker that can process a single job payload.
 func NewWorker(mb MessageBroker, logger *Logger, config WorkerConfig) *Worker {
+	var provider VMProvider
+	switch config.Provider {
+	case "blueBox":
+		provider = NewBlueBox(config.BlueBox)
+	case "sauceLabs":
+		provider = NewSauceLabs(config.SauceLabs)
+	default:
+		logger.Errorf("NewWorker: unknown provider: %s", config.Provider)
+		return nil
+	}
+
 	return &Worker{
 		mb:         mb,
 		logger:     logger,
-		vmProvider: NewBlueBox(config.BlueBox),
+		vmProvider: provider,
 		Name:       config.Name,
 		timeouts:   config.Timeouts,
 		logLimits:  config.LogLimits,
