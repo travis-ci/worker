@@ -10,7 +10,9 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
+	"time"
 )
 
 // An SSHConnection manages an SSH connection to a server.
@@ -97,16 +99,21 @@ func clientAuthFromSSHInfo(info VMSSHInfo) (auths []ssh.ClientAuth, err error) {
 // for the given server.
 func NewSSHConnection(server VM, logPrefix string) (*SSHConnection, error) {
 	sshInfo := server.SSHInfo()
-	auths, err := clientAuthFromSSHInfo(sshInfo)
+
+	conn, err := net.DialTimeout("tcp", sshInfo.Addr, 5*time.Second)
 	if err != nil {
 		return nil, err
 	}
 
+	auths, err := clientAuthFromSSHInfo(sshInfo)
+	if err != nil {
+		return nil, err
+	}
 	sshConfig := &ssh.ClientConfig{
 		User: sshInfo.Username,
 		Auth: auths,
 	}
-	client, err := ssh.Dial("tcp", sshInfo.Addr, sshConfig)
+	client, err := ssh.Client(conn, sshConfig)
 	logger := log.New(os.Stdout, fmt.Sprintf("%s-ssh: ", logPrefix), log.Ldate|log.Ltime)
 	return &SSHConnection{client: client, logger: logger}, err
 }
