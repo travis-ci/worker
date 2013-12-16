@@ -9,6 +9,7 @@ import (
 // A Worker runs a job.
 type Worker struct {
 	Name         string
+	Cancel       chan bool
 	vmProvider   VMProvider
 	mb           MessageBroker
 	logger       *Logger
@@ -19,10 +20,11 @@ type Worker struct {
 	lw           *LimitWriter
 	timeouts     TimeoutsConfig
 	logLimits    LogLimitsConfig
+	dispatcher   *Dispatcher
 }
 
 // NewWorker returns a new worker that can process a single job payload.
-func NewWorker(mb MessageBroker, logger *Logger, config WorkerConfig) *Worker {
+func NewWorker(mb MessageBroker, dispatcher *Dispatcher, logger *Logger, config WorkerConfig) *Worker {
 	var provider VMProvider
 	switch config.Provider {
 	case "blueBox":
@@ -39,8 +41,10 @@ func NewWorker(mb MessageBroker, logger *Logger, config WorkerConfig) *Worker {
 		logger:     logger,
 		vmProvider: provider,
 		Name:       config.Name,
+		Cancel:     make(chan bool, 1),
 		timeouts:   config.Timeouts,
 		logLimits:  config.LogLimits,
+		dispatcher: dispatcher,
 	}
 }
 
@@ -51,6 +55,9 @@ func (w *Worker) Process(payload Payload) error {
 	w.logger = w.logger.Set("slug", w.payload.Repository.Slug).Set("job_id", w.jobID())
 	w.logger.Info("starting the job")
 	defer w.logger.Info("job finished")
+
+	w.dispatcher.Register(w, w.jobID())
+	defer w.dispatcher.Deregister(w.jobID())
 
 	w.stateUpdater = NewStateUpdater(w.mb, w.jobID())
 	w.jobLog = NewLogWriter(w.mb, w.jobID())
@@ -66,6 +73,15 @@ func (w *Worker) Process(payload Payload) error {
 	defer w.logger.Info("destroying the VM")
 
 	defer w.jobLog.Close()
+
+	select {
+	case <-w.Cancel:
+		w.logger.Info("cancelling job")
+		fmt.Fprint(w.jobLog, cancelledJobMessage)
+		w.finishWithState("canceled")
+		return nil
+	default:
+	}
 
 	w.logger.Info("opening an SSH connection")
 	ssh, err := NewSSHConnection(server, w.Name)
@@ -113,6 +129,11 @@ func (w *Worker) Process(payload Payload) error {
 			w.connectionError()
 			return fmt.Errorf("an error occurred with the SSH connection")
 		}
+		return nil
+	case <-w.Cancel:
+		w.logger.Info("cancelling job")
+		fmt.Fprint(w.jobLog, cancelledJobMessage)
+		w.finishWithState("canceled")
 		return nil
 	case <-w.tw.Timeout:
 		w.logger.Info("job timed out due to log inactivity")

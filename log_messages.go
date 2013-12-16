@@ -37,4 +37,9 @@ We're sorry, but there was an error starting a new VM.
 Your job will be requeued shortly.
 
 `
+	cancelledJobMessage = `
+
+Done: Job Cancelled
+
+`
 )

@@ -10,6 +10,7 @@ import (
 type MessageBroker interface {
 	DeclareQueue(string) error
 	Subscribe(string, int, chan bool, func() MessageProcessor) error
+	SubscribeFanout(string, func() MessageProcessor) error
 	Publish(string, string, string, []byte) error
 	Close() error
 }
@@ -100,6 +101,46 @@ func (mb *RabbitMessageBroker) Subscribe(queueName string, subCount int, gracefu
 	return nil
 }
 
+func (mb *RabbitMessageBroker) SubscribeFanout(exchange string, f func() MessageProcessor) error {
+	ch, err := mb.conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	err = ch.Qos(1, 0, false)
+	if err != nil {
+		return err
+	}
+
+	err = ch.ExchangeDeclare(exchange, "fanout", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	queue, err := ch.QueueDeclare("", false, false, true, false, nil)
+	if err != nil {
+		return err
+	}
+
+	err = ch.QueueBind(queue.Name, "", exchange, false, nil)
+	if err != nil {
+		return err
+	}
+
+	messages, err := ch.Consume(queue.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	for message := range messages {
+		f().Process(message.Body)
+		message.Ack(false)
+	}
+
+	return nil
+}
+
 func (mb *RabbitMessageBroker) Close() error {
 	return mb.conn.Close()
 }
@@ -145,6 +186,10 @@ func (mb *TestMessageBroker) Subscribe(queueName string, subCount int, gracefulQ
 	wg.Wait()
 
 	return nil
+}
+
+func (mb *TestMessageBroker) SubscribeFanout(exchange string, f func() MessageProcessor) error {
+	return fmt.Errorf("TestMessageBroker.SubscribeFanout needs to be implemented")
 }
 
 func (mb *TestMessageBroker) Publish(exchange, routingKey, msgType string, msg []byte) error {

@@ -32,6 +32,8 @@ func main() {
 		return
 	}
 
+	dispatcher := NewDispatcher(mb, logger)
+
 	sigint := make(chan os.Signal, 1)
 	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT)
 	gracefulQuit := make(chan bool)
@@ -46,6 +48,6 @@ func main() {
 
 	queue := NewQueue(mb, config.AMQP.Queue, config.WorkerCount)
 	queue.Subscribe(gracefulQuit, func() JobPayloadProcessor {
-		return NewWorker(mb, logger, config)
+		return NewWorker(mb, dispatcher, logger, config)
 	})
 }
