@@ -27,7 +27,7 @@ func NewSauceLabs(config SauceLabsConfig) VMProvider {
 }
 
 func (a *saucelabsAPI) Start(hostname string, bootTimeout time.Duration) (VM, error) {
-	instance, err := a.client.StartInstance("ichef-travis-osx8-latest", hostname)
+	instance, err := a.client.StartInstance(a.config.ImageName, hostname)
 	if err != nil {
 		return nil, err
 	}

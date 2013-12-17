@@ -36,6 +36,7 @@ type SauceLabsConfig struct {
 	Endpoint         string
 	SSHKeyPath       string
 	SSHKeyPassphrase string
+	ImageName        string
 }
 
 // AMQPConfig holds the configuration values relevant to communicating with the
