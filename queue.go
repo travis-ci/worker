@@ -38,6 +38,11 @@ type JobPayload struct {
 	Ref              string
 	State            string
 	SecureEnvEnabled bool `json:"secure_env_enabled"`
+	Config           JobConfig
+}
+
+type JobConfig struct {
+	Language string
 }
 
 // A BuildPayload holds the information specific to the build.

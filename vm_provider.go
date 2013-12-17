@@ -9,7 +9,7 @@ import (
 type VMProvider interface {
 	// Start starts a server with the given hostname. It will block until the VM
 	// is booted and ready to be SSHed into.
-	Start(hostname string, bootTimeout time.Duration) (VM, error)
+	Start(hostname, language string, bootTimeout time.Duration) (VM, error)
 }
 
 // A VM represents a single VM instance.

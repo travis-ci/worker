@@ -25,7 +25,6 @@ type BlueBoxConfig struct {
 	CustomerID string
 	APIKey     string
 	LocationID string
-	TemplateID string
 	ProductID  string
 	IPv6Only   bool
 }

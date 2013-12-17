@@ -4,8 +4,18 @@ import (
 	"fmt"
 	"github.com/henrikhodne/goblueboxapi"
 	"net"
+	"regexp"
+	"strings"
 	"time"
 )
+
+var (
+	templateRegexp *regexp.Regexp
+)
+
+func init() {
+	templateRegexp = regexp.MustCompile(`travis-([\w-]+)-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}`)
+}
 
 type blueboxAPI struct {
 	client *goblueboxapi.Client
@@ -20,10 +30,10 @@ func NewBlueBox(config BlueBoxConfig) VMProvider {
 	}
 }
 
-func (a *blueboxAPI) Start(hostname string, bootTimeout time.Duration) (VM, error) {
+func (a *blueboxAPI) Start(hostname, language string, bootTimeout time.Duration) (VM, error) {
 	params := goblueboxapi.BlockParams{
 		Product:  a.config.ProductID,
-		Template: a.config.TemplateID,
+		Template: a.templateIDForLanguage(language),
 		Location: a.config.LocationID,
 		Hostname: hostname,
 		Username: "travis",
@@ -47,6 +57,40 @@ func (a *blueboxAPI) Start(hostname string, bootTimeout time.Duration) (VM, erro
 		cancelChan <- true
 		return nil, BootTimeoutError(bootTimeout)
 	}
+}
+
+func (a *blueboxAPI) templateIDForLanguage(language string) string {
+	latestTemplates := a.latestTemplates()
+	if templateID, ok := latestTemplates[language]; ok {
+		return templateID
+	}
+
+	return latestTemplates["ruby"]
+}
+
+func (a *blueboxAPI) latestTemplates() map[string]string {
+	latestTemplates := make(map[string]goblueboxapi.Template)
+	latestTemplateIDs := make(map[string]string)
+
+	templates, err := a.client.Templates.List()
+	if err != nil {
+		fmt.Printf("error trying to get templates: %s\n", err)
+		return nil
+	}
+
+	for _, t := range templates {
+		if t.Public || !strings.HasPrefix(t.Description, "travis-") {
+			continue
+		}
+
+		language := templateRegexp.FindStringSubmatch(t.Description)[1]
+		if _, ok := latestTemplates[language]; !ok || t.Created.After(latestTemplates[language].Created) {
+			latestTemplates[language] = t
+			latestTemplateIDs[language] = t.ID
+		}
+	}
+
+	return latestTemplateIDs
 }
 
 type blueboxServer struct {

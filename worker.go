@@ -159,7 +159,7 @@ func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-%s-pid-%d-job-%d", w.Name, os.Getpid(), w.jobID())
 	w.logger.Infof("booting VM with hostname %s", hostname)
-	server, err := w.vmProvider.Start(hostname, time.Duration(w.timeouts.VMBoot)*time.Second)
+	server, err := w.vmProvider.Start(hostname, w.payload.Job.Config.Language, time.Duration(w.timeouts.VMBoot)*time.Second)
 	if err != nil {
 		switch err.(type) {
 		case BootTimeoutError:

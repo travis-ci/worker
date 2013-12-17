@@ -26,7 +26,7 @@ func NewSauceLabs(config SauceLabsConfig) VMProvider {
 	}
 }
 
-func (a *saucelabsAPI) Start(hostname string, bootTimeout time.Duration) (VM, error) {
+func (a *saucelabsAPI) Start(hostname, language string, bootTimeout time.Duration) (VM, error) {
 	instance, err := a.client.StartInstance(a.config.ImageName, hostname)
 	if err != nil {
 		return nil, err
