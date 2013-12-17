@@ -1,0 +1,18 @@
+language: go
+
+go:
+  - 1.2
+  - tip
+matrix:
+  allow_failures:
+    - go: tip
+
+install:
+  - export PATH=$PATH:$HOME/gopath/bin
+  - go get -v github.com/kr/godep
+  - godep get
+  - godep go build -v
+script:
+  - godep go test -i
+  - godep go test
+  - test -z "$(go fmt)"

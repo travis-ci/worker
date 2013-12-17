@@ -18,7 +18,8 @@ type Client struct {
 	CustomerID string
 	APIKey     string
 
-	Blocks *BlocksService
+	Blocks    *BlocksService
+	Templates *TemplatesService
 }
 
 // NewClient creates a Client with the given customer ID and API key and the
@@ -35,6 +36,7 @@ func NewClient(customerID, apiKey string) *Client {
 	}
 
 	c.Blocks = &BlocksService{client: c}
+	c.Templates = &TemplatesService{client: c}
 
 	return c
 }

@@ -111,7 +111,10 @@ func TestBlocksService_Create(t *testing.T) {
 	mux.HandleFunc("/api/blocks.json", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, "POST")
 
-		if r.FormValue("product") != "the-product" || r.FormValue("template") != "the-template" || r.FormValue("password") != "the-password" {
+		if r.FormValue("product") != "the-product" ||
+			r.FormValue("template") != "the-template" ||
+			r.FormValue("password") != "the-password" ||
+			r.FormValue("ipv6_only") != "true" {
 			t.Error("Blocks.Create() expected to send params, but didn't")
 		}
 
@@ -122,6 +125,7 @@ func TestBlocksService_Create(t *testing.T) {
 		Product:  "the-product",
 		Template: "the-template",
 		Password: "the-password",
+		IPv6Only: true,
 	}
 
 	block, err := client.Blocks.Create(params)

@@ -36,6 +36,7 @@ type BlockParams struct {
 	Hostname     string
 	Username     string
 	Location     string
+	IPv6Only     bool
 }
 
 func (p BlockParams) validates() error {
@@ -77,6 +78,9 @@ func (p BlockParams) toValues() url.Values {
 	}
 	if p.Location != "" {
 		v.Set("location", p.Location)
+	}
+	if p.IPv6Only {
+		v.Set("ipv6_only", "true")
 	}
 
 	return v
