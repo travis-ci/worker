@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -29,4 +30,12 @@ type VMSSHInfo struct {
 	Password         string
 	SSHKeyPath       string
 	SSHKeyPassphrase string
+}
+
+// A BootTimeoutError is returned by the VMProvider's Start method if the VM did
+// not finish booting within the duration given to the Start method.
+type BootTimeoutError time.Duration
+
+func (e BootTimeoutError) Error() string {
+	return fmt.Sprintf("VM could not boot within %s", e)
 }

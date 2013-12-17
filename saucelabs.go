@@ -45,7 +45,7 @@ func (a *saucelabsAPI) Start(hostname string, bootTimeout time.Duration) (VM, er
 		return &saucelabsServer{a, instance}, nil
 	case <-time.After(bootTimeout):
 		cancelChan <- true
-		return nil, fmt.Errorf("VM could not boot within %s", bootTimeout)
+		return nil, BootTimeoutError(bootTimeout)
 	}
 }
 

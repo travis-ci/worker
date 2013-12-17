@@ -21,10 +21,12 @@ type Worker struct {
 	timeouts     TimeoutsConfig
 	logLimits    LogLimitsConfig
 	dispatcher   *Dispatcher
+	metrics      Metrics
+	config       WorkerConfig
 }
 
 // NewWorker returns a new worker that can process a single job payload.
-func NewWorker(mb MessageBroker, dispatcher *Dispatcher, logger *Logger, config WorkerConfig) *Worker {
+func NewWorker(mb MessageBroker, dispatcher *Dispatcher, metrics Metrics, logger *Logger, config WorkerConfig) *Worker {
 	var provider VMProvider
 	switch config.Provider {
 	case "blueBox":
@@ -45,6 +47,8 @@ func NewWorker(mb MessageBroker, dispatcher *Dispatcher, logger *Logger, config 
 		timeouts:   config.Timeouts,
 		logLimits:  config.LogLimits,
 		dispatcher: dispatcher,
+		metrics:    metrics,
+		config:     config,
 	}
 }
 
@@ -157,10 +161,18 @@ func (w *Worker) bootServer() (VM, error) {
 	w.logger.Infof("booting VM with hostname %s", hostname)
 	server, err := w.vmProvider.Start(hostname, time.Duration(w.timeouts.VMBoot)*time.Second)
 	if err != nil {
+		switch err.(type) {
+		case BootTimeoutError:
+			w.metrics.MarkBootTimeout(w.metricsProvider())
+		default:
+			w.metrics.MarkBootError(w.metricsProvider())
+		}
 		return nil, err
 	}
 
-	w.logger.Infof("VM provisioned in %.2f seconds", time.Now().Sub(startTime).Seconds())
+	bootDuration := time.Now().Sub(startTime)
+	w.logger.Infof("VM provisioned in %.2f seconds", bootDuration.Seconds())
+	w.metrics.BootTimer(w.metricsProvider(), bootDuration)
 
 	return server, nil
 }
@@ -193,12 +205,17 @@ func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
 func (w *Worker) vmCreationError() {
 	fmt.Fprintf(w.jobLog, vmCreationErrorMessage)
 	w.logger.Infof("requeuing job due to VM creation error")
-	w.stateUpdater.Reset()
+	w.requeueJob()
 }
 
 func (w *Worker) connectionError() {
 	fmt.Fprintf(w.jobLog, connectionErrorMessage)
 	w.logger.Infof("requeuing job due to SSH connection error")
+	w.requeueJob()
+}
+
+func (w *Worker) requeueJob() {
+	w.metrics.MarkJobRequeued()
 	w.stateUpdater.Reset()
 }
 
@@ -211,4 +228,14 @@ func (w *Worker) markJobAsCancelled() {
 	w.logger.Info("cancelling job")
 	fmt.Fprint(w.jobLog, cancelledJobMessage)
 	w.finishWithState("canceled")
+}
+
+func (w *Worker) metricsProvider() string {
+	switch w.config.Provider {
+	case "blueBox":
+		return "bluebox"
+	case "sauceLabs":
+		return "saucelabs"
+	}
+	return ""
 }

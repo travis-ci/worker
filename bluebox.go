@@ -45,7 +45,7 @@ func (a *blueboxAPI) Start(hostname string, bootTimeout time.Duration) (VM, erro
 		return &blueboxServer{a.client, block, params.Password}, nil
 	case <-time.After(bootTimeout):
 		cancelChan <- true
-		return nil, fmt.Errorf("VM could not boot within %s", bootTimeout)
+		return nil, BootTimeoutError(bootTimeout)
 	}
 }
 

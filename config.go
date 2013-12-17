@@ -16,6 +16,7 @@ type WorkerConfig struct {
 	AMQP         AMQPConfig
 	Timeouts     TimeoutsConfig
 	LogLimits    LogLimitsConfig
+	Librato      LibratoConfig
 }
 
 // BlueBoxConfig holds the configuration relevant to connecting to the Blue Box
@@ -59,6 +60,11 @@ type LogLimitsConfig struct {
 	// The maximum length of all log chunks being sent back to RabbitMQ, in
 	// bytes
 	LogChunkSize int
+}
+
+type LibratoConfig struct {
+	Email string
+	Token string
 }
 
 // ConfigFromFile opens the named JSON configuration file and parses the

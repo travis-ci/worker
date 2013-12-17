@@ -23,5 +23,9 @@
     "logLimits": {
         "maxLogLength": 4194304,
         "logChunkSize": 9216
+    },
+    "librato": {
+        "email": "doe@example.com",
+        "token": "foo-bar-baz"
     }
 }
