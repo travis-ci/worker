@@ -183,7 +183,7 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 		return err
 	}
 
-	err = ssh.UploadFile("~/build.sh", []byte(fmt.Sprintf("#!/bin/bash --login\n\necho This is build id %d\nfor i in {1..200}; do echo -n \"$i \"; sleep 1; done", w.jobID())))
+	err = ssh.UploadFile("~/build.sh", []byte(w.payload.Script))
 	if err != nil {
 		return err
 	}

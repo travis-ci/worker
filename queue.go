@@ -26,6 +26,7 @@ type Payload struct {
 	Repository RepositoryPayload
 	Queue      string
 	UUID       string
+	Script     string
 }
 
 // A JobPayload holds the information specific to the job.
