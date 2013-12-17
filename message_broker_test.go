@@ -10,14 +10,14 @@ type testProcessor struct {
 	t  *testing.T
 }
 
-func (p *testProcessor) Process(message []byte) error {
+func (p *testProcessor) Process(message []byte) {
 	if !bytes.Equal(message, []byte("hello, world")) {
 		p.t.Errorf("wrong message, got = '%s', want 'hello, world'", message)
 	}
 
 	p.mb.Close()
 
-	return nil
+	return
 }
 
 func TestRabbitMessageBroker(t *testing.T) {

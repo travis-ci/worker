@@ -52,9 +52,8 @@ func NewWorker(mb MessageBroker, dispatcher *Dispatcher, metrics Metrics, logger
 	}
 }
 
-// Process actually runs the job. It returns an error if an error occurred that
-// should cause the job to be requeued.
-func (w *Worker) Process(payload Payload) error {
+// Process actually runs the job.
+func (w *Worker) Process(payload Payload) {
 	w.payload = payload
 	w.logger = w.logger.Set("slug", w.payload.Repository.Slug).Set("job_id", w.jobID())
 	w.logger.Info("starting the job")
@@ -71,7 +70,7 @@ func (w *Worker) Process(payload Payload) error {
 	if err != nil {
 		w.logger.Errorf("booting a VM failed with the following error: %v", err)
 		w.vmCreationError()
-		return err
+		return
 	}
 	defer server.Destroy()
 	defer w.logger.Info("destroying the VM")
@@ -81,7 +80,7 @@ func (w *Worker) Process(payload Payload) error {
 	select {
 	case <-w.Cancel:
 		w.markJobAsCancelled()
-		return nil
+		return
 	default:
 	}
 
@@ -90,7 +89,7 @@ func (w *Worker) Process(payload Payload) error {
 	if err != nil {
 		w.logger.Errorf("couldn't connect to SSH: %v", err)
 		w.connectionError()
-		return err
+		return
 	}
 	defer ssh.Close()
 	defer w.logger.Info("closing the SSH connection")
@@ -100,14 +99,14 @@ func (w *Worker) Process(payload Payload) error {
 	if err != nil {
 		w.logger.Errorf("couldn't upload script: %v", err)
 		w.connectionError()
-		return err
+		return
 	}
 	defer w.removeScript(ssh)
 
 	err = w.stateUpdater.Start()
 	if err != nil {
 		w.logger.Errorf("couldn't notify about job starting: %v", err)
-		return err
+		return
 	}
 
 	w.logger.Info("running the job")
@@ -115,7 +114,7 @@ func (w *Worker) Process(payload Payload) error {
 	if err != nil {
 		w.logger.Errorf("failed to run build script: %v", err)
 		w.connectionError()
-		return err
+		return
 	}
 
 	select {
@@ -129,25 +128,24 @@ func (w *Worker) Process(payload Payload) error {
 			w.finishWithState("errored")
 		case -1:
 			w.connectionError()
-			return fmt.Errorf("an error occurred with the SSH connection")
 		}
-		return nil
+		return
 	case <-w.Cancel:
 		w.markJobAsCancelled()
-		return nil
+		return
 	case <-w.tw.Timeout:
 		w.logger.Info("job timed out due to log inactivity")
 		fmt.Fprintf(w.jobLog, noLogOutputMessage, w.timeouts.LogInactivity/60)
-		return nil
+		return
 	case <-w.lw.LimitReached:
 		w.logger.Info("job stopped due to log limit being reached")
 		fmt.Fprintf(w.jobLog, logTooLongMessage, w.logLimits.MaxLogLength/1024/1024)
-		return nil
+		return
 	case <-time.After(time.Duration(w.timeouts.HardLimit) * time.Second):
 		w.logger.Info("job timed out due to hard timeout")
 		fmt.Fprintf(w.jobLog, stalledBuildMessage, w.timeouts.HardLimit/60)
 		w.finishWithState("errored")
-		return nil
+		return
 	}
 }
 

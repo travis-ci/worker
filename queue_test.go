@@ -9,7 +9,7 @@ type testMessageProcessor struct {
 	t *testing.T
 }
 
-func (p *testMessageProcessor) Process(payload Payload) error {
+func (p *testMessageProcessor) Process(payload Payload) {
 	want := Payload{
 		Job: JobPayload{
 			ID:     12345,
@@ -21,7 +21,7 @@ func (p *testMessageProcessor) Process(payload Payload) error {
 		p.t.Errorf("got payload %+v, want %+v", payload, want)
 	}
 
-	return nil
+	return
 }
 
 func TestQueue(t *testing.T) {

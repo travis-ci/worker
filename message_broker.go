@@ -16,7 +16,7 @@ type MessageBroker interface {
 }
 
 type MessageProcessor interface {
-	Process(message []byte) error
+	Process(message []byte)
 }
 
 type RabbitMessageBroker struct {

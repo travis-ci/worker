@@ -12,7 +12,7 @@ type JobQueue struct {
 }
 
 type JobPayloadProcessor interface {
-	Process(payload Payload) error
+	Process(payload Payload)
 }
 
 type jobPayloadMessageProcessor struct {
@@ -74,8 +74,9 @@ func (q *JobQueue) Subscribe(gracefulQuitChan chan bool, f func() JobPayloadProc
 	})
 }
 
-func (mp *jobPayloadMessageProcessor) Process(message []byte) error {
+func (mp *jobPayloadMessageProcessor) Process(message []byte) {
 	var payload Payload
 	json.Unmarshal(message, &payload)
-	return mp.payloadProcessor.Process(payload)
+	mp.payloadProcessor.Process(payload)
+	return
 }

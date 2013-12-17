@@ -52,11 +52,11 @@ func (d *Dispatcher) Deregister(jobID int64) {
 	delete(d.workers, jobID)
 }
 
-func (d *Dispatcher) Process(payload []byte) error {
+func (d *Dispatcher) Process(payload []byte) {
 	var command dispatchedCommand
 	err := json.Unmarshal(payload, &command)
 	if err != nil {
-		return err
+		return
 	}
 
 	switch command.CommandType {
@@ -68,7 +68,7 @@ func (d *Dispatcher) Process(payload []byte) error {
 		d.logger.Warnf("type:%s not recognized", command.CommandType)
 	}
 
-	return nil
+	return
 }
 
 func (d *Dispatcher) handleCancel(payload []byte) {
