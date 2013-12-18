@@ -100,7 +100,7 @@ func (c WorkerConfig) Validate() (errors []error) {
 		}
 	case "sauceLabs":
 		if c.SauceLabs == (SauceLabsConfig{}) {
-			errors = append(errors, fmt.Errorf("config: blueBox config must be specified when provider is blueBox"))
+			errors = append(errors, fmt.Errorf("config: sauceLabs config must be specified when provider is sauceLabs"))
 		} else {
 			errors = append(errors, c.validateSauceLabs()...)
 		}
