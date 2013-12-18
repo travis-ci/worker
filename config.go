@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -78,5 +79,76 @@ func ConfigFromFile(fileName string) (c WorkerConfig, err error) {
 
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&c)
+	return
+}
+
+// Validate checks the config it is run on and returns any errors (such as
+// missing fields).
+func (c WorkerConfig) Validate() (errors []error) {
+	if c.Name == "" {
+		errors = append(errors, fmt.Errorf("config: name is required"))
+	}
+	if c.WorkerCount == 0 {
+		errors = append(errors, fmt.Errorf("config: workerCount must be at least 1"))
+	}
+	switch c.Provider {
+	case "blueBox":
+		if c.BlueBox == (BlueBoxConfig{}) {
+			errors = append(errors, fmt.Errorf("config: blueBox config must be specified when provider is blueBox"))
+		} else {
+			errors = append(errors, c.validateBlueBox()...)
+		}
+	case "sauceLabs":
+		if c.SauceLabs == (SauceLabsConfig{}) {
+			errors = append(errors, fmt.Errorf("config: blueBox config must be specified when provider is blueBox"))
+		} else {
+			errors = append(errors, c.validateSauceLabs()...)
+		}
+	case "":
+		errors = append(errors, fmt.Errorf("config: provider is required"))
+	default:
+		errors = append(errors, fmt.Errorf("config: unknown provider %s", c.Provider))
+	}
+	if c.AMQP.URL == "" {
+		errors = append(errors, fmt.Errorf("config: AMQP URL is required"))
+	}
+	if c.AMQP.Queue == "" {
+		errors = append(errors, fmt.Errorf("config: AMQP queue is required"))
+	}
+
+	return
+}
+
+func (c WorkerConfig) validateBlueBox() (errors []error) {
+	if c.BlueBox.CustomerID == "" {
+		errors = append(errors, fmt.Errorf("config: blueBox: customer ID is required"))
+	}
+	if c.BlueBox.APIKey == "" {
+		errors = append(errors, fmt.Errorf("config: blueBox: API key is required"))
+	}
+	if c.BlueBox.LocationID == "" {
+		errors = append(errors, fmt.Errorf("config: blueBox: location ID is required"))
+	}
+	if c.BlueBox.ProductID == "" {
+		errors = append(errors, fmt.Errorf("config: blueBox: product ID is required"))
+	}
+
+	return
+}
+
+func (c WorkerConfig) validateSauceLabs() (errors []error) {
+	if c.SauceLabs.Endpoint == "" {
+		errors = append(errors, fmt.Errorf("config: sauceLabs: endpoint is required"))
+	}
+	if c.SauceLabs.SSHKeyPath == "" {
+		errors = append(errors, fmt.Errorf("config: sauceLabs: SSH key path is required"))
+	}
+	if c.SauceLabs.SSHKeyPassphrase == "" {
+		errors = append(errors, fmt.Errorf("config: sauceLabs: SSH key passphrase is required"))
+	}
+	if c.SauceLabs.ImageName == "" {
+		errors = append(errors, fmt.Errorf("config: sauceLabs: image name is required"))
+	}
+
 	return
 }

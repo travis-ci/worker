@@ -21,6 +21,13 @@ func main() {
 		logger.Errorf("error reading config: %v", err)
 		return
 	}
+	if errs := config.Validate(); len(errs) != 0 {
+		logger.Errorf("config not valid")
+		for _, err := range errs {
+			logger.Error(err.Error())
+		}
+		return
+	}
 
 	logger = NewLogger(os.Stdout, config.LogTimestamp).Set("pid", os.Getpid())
 
