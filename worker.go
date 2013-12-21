@@ -85,7 +85,7 @@ func (w *Worker) Process(payload Payload) {
 	}
 
 	w.logger.Info("opening an SSH connection")
-	ssh, err := NewSSHConnection(server, w.Name)
+	ssh, err := NewSSHConnection(server, w.logger)
 	if err != nil {
 		w.logger.Errorf("couldn't connect to SSH: %v", err)
 		w.connectionError()

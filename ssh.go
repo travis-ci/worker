@@ -9,16 +9,14 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
-	"os"
 	"time"
 )
 
 // An SSHConnection manages an SSH connection to a server.
 type SSHConnection struct {
 	client *ssh.ClientConn
-	logger *log.Logger
+	logger *Logger
 }
 
 type singlePassword struct {
@@ -97,7 +95,7 @@ func clientAuthFromSSHInfo(info VMSSHInfo) (auths []ssh.ClientAuth, err error) {
 
 // NewSSHConnection creates an SSH connection using the connection information
 // for the given server.
-func NewSSHConnection(server VM, logPrefix string) (*SSHConnection, error) {
+func NewSSHConnection(server VM, logger *Logger) (*SSHConnection, error) {
 	sshInfo := server.SSHInfo()
 
 	dial := func(info VMSSHInfo) (*ssh.ClientConn, error) {
@@ -128,7 +126,6 @@ func NewSSHConnection(server VM, logPrefix string) (*SSHConnection, error) {
 		time.Sleep(2 * time.Second)
 	}
 
-	logger := log.New(os.Stdout, fmt.Sprintf("%s-ssh: ", logPrefix), log.Ldate|log.Ltime)
 	return &SSHConnection{client: client, logger: logger}, err
 }
 
@@ -159,11 +156,11 @@ func (c *SSHConnection) Start(cmd string, output io.Writer) (<-chan int, error) 
 				if err.ExitStatus() != 0 {
 					exitCodeChan <- err.ExitStatus()
 				} else {
-					c.logger.Printf("SSHConnection.Start: An error occurred while running the command: %v\n", err)
+					c.logger.Errorf("SSHConnection.Start: An error occurred while running the command: %v", err)
 					exitCodeChan <- -1
 				}
 			default:
-				c.logger.Printf("SSHConnection.Start: An I/O error occurred: %v\n", err)
+				c.logger.Errorf("SSHConnection.Start: An I/O error occurred: %v", err)
 				exitCodeChan <- -1
 			}
 		}
