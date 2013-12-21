@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"sync"
 	"time"
 )
 
@@ -57,9 +58,10 @@ func currentJSONTime() string {
 // A LogWriter acts as an io.WriteCloser that forwards its writes to
 // travis-logs.
 type LogWriter struct {
-	mb                    MessageBroker
-	jobID                 int64
-	logPartNumberSequence chan int
+	mb                 MessageBroker
+	jobID              int64
+	logPartNumber      int
+	logPartNumberMutex sync.Mutex
 }
 
 type logPart struct {
@@ -72,16 +74,10 @@ type logPart struct {
 // NewLogWriter returns a new LogWriter that writes to the log for the job with
 // the given job ID.
 func NewLogWriter(mb MessageBroker, jobID int64) *LogWriter {
-	sequence := make(chan int)
-	go func() {
-		number := 1
-		for {
-			sequence <- number
-			number++
-		}
-	}()
-
-	return &LogWriter{mb, jobID, sequence}
+	return &LogWriter{
+		mb:    mb,
+		jobID: jobID,
+	}
 }
 
 func (lw *LogWriter) Write(p []byte) (n int, err error) {
@@ -116,5 +112,9 @@ func (lw *LogWriter) publishLogPart(part logPart) error {
 }
 
 func (lw *LogWriter) nextPartNumber() int {
-	return <-lw.logPartNumberSequence
+	lw.logPartNumberMutex.Lock()
+	defer lw.logPartNumberMutex.Unlock()
+
+	lw.logPartNumber++
+	return lw.logPartNumber
 }
