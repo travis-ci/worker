@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"io"
+	"sync"
 	"time"
 )
 
@@ -119,35 +120,31 @@ type addReq struct {
 
 type LimitWriter struct {
 	w            io.WriteCloser
-	n            int64
+	limit        int64
+	current      int64
+	currentMutex sync.Mutex
 	LimitReached chan bool
 	add          chan addReq
 }
 
-func NewLimitWriter(w io.WriteCloser, n int64) *LimitWriter {
-	lw := &LimitWriter{w, n, make(chan bool, 1), make(chan addReq)}
-
-	go func() {
-		var n int64
-		for {
-			add := <-lw.add
-			n += int64(add.added)
-			if n > lw.n {
-				lw.LimitReached <- true
-				add.done <- true
-				return
-			}
-			add.done <- true
-		}
-	}()
-
-	return lw
+func NewLimitWriter(w io.WriteCloser, limit int64) *LimitWriter {
+	return &LimitWriter{
+		w:            w,
+		limit:        limit,
+		LimitReached: make(chan bool, 1),
+		add:          make(chan addReq),
+	}
 }
 
 func (lw *LimitWriter) Write(p []byte) (int, error) {
-	done := make(chan bool)
-	lw.add <- addReq{len(p), done}
-	<-done
+	lw.currentMutex.Lock()
+	defer lw.currentMutex.Unlock()
+
+	lw.current += int64(len(p))
+	if lw.current > lw.limit {
+		lw.LimitReached <- true
+	}
+
 	return lw.w.Write(p)
 }
 
