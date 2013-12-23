@@ -45,14 +45,12 @@ func TestTimeoutWriter(t *testing.T) {
 	testWriter := &testWriter{written: make([][]byte, 0)}
 	tw := NewTimeoutWriter(testWriter, 2*time.Millisecond)
 	fmt.Fprint(tw, "hello world")
-	timedout := new(bool)
-	go func() {
-		<-tw.Timeout
-		*timedout = true
-	}()
 	time.Sleep(5 * time.Millisecond)
 
-	if !*timedout {
+	select {
+	case <-tw.Timeout:
+		// pass
+	default:
 		t.Errorf("expected TimeoutWriter to send a timeout")
 	}
 }
