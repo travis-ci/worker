@@ -40,15 +40,15 @@ func NewCoalesceWriteCloser(wc io.WriteCloser) *CoalesceWriteCloser {
 			case <-c.cancel:
 				ticker.Stop()
 				return
-			case wreq := <-c.write:
-				n, err := c.buf.Write(wreq.buf)
-				wreq.res <- writeRes{n, err}
 			case <-ticker.C:
 				c.err = c.buf.Flush()
 				if c.err != nil {
 					ticker.Stop()
 					return
 				}
+			case wreq := <-c.write:
+				n, err := c.buf.Write(wreq.buf)
+				wreq.res <- writeRes{n, err}
 			}
 		}
 	}()
