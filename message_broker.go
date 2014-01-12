@@ -20,7 +20,8 @@ type MessageProcessor interface {
 }
 
 type RabbitMessageBroker struct {
-	conn *amqp.Connection
+	conn        *amqp.Connection
+	publishChan *amqp.Channel
 }
 
 type TestMessageBroker struct {
@@ -38,19 +39,13 @@ func (mb *RabbitMessageBroker) DeclareQueue(queueName string) error {
 }
 
 func (mb *RabbitMessageBroker) Publish(exchange, routingKey, msgType string, message []byte) error {
-	ch, err := mb.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer ch.Close()
-
 	msg := amqp.Publishing{
 		Type:      msgType,
 		Timestamp: time.Now(),
 		Body:      message,
 	}
 
-	return ch.Publish(exchange, routingKey, false, false, msg)
+	return mb.publishChan.Publish(exchange, routingKey, false, false, msg)
 }
 
 // Subscribe will start pulling messages off the given queue and process up to
@@ -142,6 +137,11 @@ func (mb *RabbitMessageBroker) SubscribeFanout(exchange string, f func() Message
 }
 
 func (mb *RabbitMessageBroker) Close() error {
+	err := mb.publishChan.Close()
+	if err != nil {
+		return err
+	}
+
 	return mb.conn.Close()
 }
 
@@ -155,7 +155,12 @@ func NewMessageBroker(url string) (MessageBroker, error) {
 		return nil, err
 	}
 
-	return &RabbitMessageBroker{conn}, nil
+	publishChan, err := conn.Channel()
+	if err != nil {
+		return nil, err
+	}
+
+	return &RabbitMessageBroker{conn, publishChan}, nil
 }
 
 func NewTestMessageBroker() MessageBroker {
