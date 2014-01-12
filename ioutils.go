@@ -11,7 +11,7 @@ type CoalesceWriteCloser struct {
 	wc     io.WriteCloser
 	buf    *bufio.Writer
 	cancel chan bool
-	write  chan writeReq
+	mutex  sync.Mutex
 	err    error
 }
 
@@ -30,26 +30,21 @@ func NewCoalesceWriteCloser(wc io.WriteCloser) *CoalesceWriteCloser {
 		wc:     wc,
 		buf:    bufio.NewWriterSize(wc, 9216),
 		cancel: make(chan bool),
-		write:  make(chan writeReq),
 	}
 
 	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond)
 		for {
 			select {
 			case <-c.cancel:
-				ticker.Stop()
 				return
-			case <-ticker.C:
-				c.err = c.buf.Flush()
-				if c.err != nil {
-					ticker.Stop()
-					return
-				}
-			case wreq := <-c.write:
-				n, err := c.buf.Write(wreq.buf)
-				wreq.res <- writeRes{n, err}
+			default:
 			}
+
+			c.err = c.flush()
+			if c.err != nil {
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
 		}
 	}()
 
@@ -61,10 +56,10 @@ func (c *CoalesceWriteCloser) Write(p []byte) (int, error) {
 		return 0, c.err
 	}
 
-	wreq := writeReq{p, make(chan writeRes)}
-	c.write <- wreq
-	wres := <-wreq.res
-	return wres.n, wres.err
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	return c.buf.Write(p)
 }
 
 func (c *CoalesceWriteCloser) Close() error {
@@ -74,13 +69,20 @@ func (c *CoalesceWriteCloser) Close() error {
 		return c.err
 	}
 
-	err := c.buf.Flush()
+	err := c.flush()
 	if err != nil {
 		c.wc.Close()
 		return err
 	}
 
 	return c.wc.Close()
+}
+
+func (c *CoalesceWriteCloser) flush() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	return c.buf.Flush()
 }
 
 type TimeoutWriter struct {
