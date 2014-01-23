@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"github.com/henrikhodne/travis-worker-go/ssh"
 )
 
 // A Worker runs a job.
@@ -85,23 +86,23 @@ func (w *Worker) Process(payload Payload) {
 	}
 
 	w.logger.Info("opening an SSH connection")
-	ssh, err := NewSSHConnection(server, w.logger)
+	sshConn, err := w.openSSHConn(server)
 	if err != nil {
 		w.logger.Errorf("couldn't connect to SSH: %v", err)
 		w.connectionError()
 		return
 	}
-	defer ssh.Close()
+	defer sshConn.Close()
 	defer w.logger.Info("closing the SSH connection")
 
 	w.logger.Info("uploading the build.sh script")
-	err = w.uploadScript(ssh)
+	err = w.uploadScript(sshConn)
 	if err != nil {
 		w.logger.Errorf("couldn't upload script: %v", err)
 		w.connectionError()
 		return
 	}
-	defer w.removeScript(ssh)
+	defer w.removeScript(sshConn)
 
 	err = w.stateUpdater.Start()
 	if err != nil {
@@ -110,7 +111,7 @@ func (w *Worker) Process(payload Payload) {
 	}
 
 	w.logger.Info("running the job")
-	exitCodeChan, err := w.runScript(ssh)
+	exitCodeChan, err := w.runScript(sshConn)
 	if err != nil {
 		w.logger.Errorf("failed to run build script: %v", err)
 		w.connectionError()
@@ -175,7 +176,7 @@ func (w *Worker) bootServer() (VM, error) {
 	return server, nil
 }
 
-func (w *Worker) uploadScript(ssh *SSHConnection) error {
+func (w *Worker) uploadScript(ssh *ssh.Connection) error {
 	err := ssh.Run("test ! -f ~/build.sh")
 	if err != nil {
 		return err
@@ -189,11 +190,11 @@ func (w *Worker) uploadScript(ssh *SSHConnection) error {
 	return ssh.Run("chmod +x ~/build.sh")
 }
 
-func (w *Worker) removeScript(ssh *SSHConnection) error {
+func (w *Worker) removeScript(ssh *ssh.Connection) error {
 	return ssh.Run("rm ~/build.sh")
 }
 
-func (w *Worker) runScript(ssh *SSHConnection) (<-chan int, error) {
+func (w *Worker) runScript(ssh *ssh.Connection) (<-chan int, error) {
 	fmt.Fprintf(w.jobLog, "Using: %s\n\n", w.Name)
 	cw := NewCoalesceWriteCloser(w.jobLog)
 	w.tw = NewTimeoutWriter(cw, time.Duration(w.timeouts.LogInactivity)*time.Second)
@@ -237,4 +238,23 @@ func (w *Worker) metricsProvider() string {
 		return "saucelabs"
 	}
 	return ""
+}
+
+func (w *Worker) openSSHConn(server VM) (*ssh.Connection, error) {
+	sshInfo := server.SSHInfo()
+
+	var auths []ssh.AuthenticationMethod
+	if sshInfo.SSHKeyPath != "" {
+		keyAuth, err := ssh.SSHKeyAuthentication(sshInfo.SSHKeyPath, sshInfo.SSHKeyPassphrase)
+		if err != nil {
+			return nil, err
+		}
+
+		auths = append(auths, keyAuth)
+	}
+	if sshInfo.Password != "" {
+		auths = append(auths, ssh.PasswordAuthentication(sshInfo.Password))
+	}
+
+	return ssh.NewConnection(sshInfo.Addr, sshInfo.Username, auths)
 }
