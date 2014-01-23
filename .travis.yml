@@ -1,18 +1,13 @@
-language: ruby
-before_script: cp config/worker.example.yml config/worker.yml
-script: bin/rspec spec
-bundler_args: --deployment --binstubs
+language: go
+before_script: cp config/worker.example.json config/worker.json
+script:
+  - go test ./...
+  - go test -race ./...
 services:
   - rabbitmq
-rvm:
-  - jruby-19mode
-  - jruby-head
-env:
-  - JRUBY_OPTS="--server -Xcext.enabled=false -Xcompile.invokedynamic=false"
-jdk:
-  - openjdk7
-  - openjdk6
-  - oraclejdk7
+go:
+  - 1.2
+  - tip
 matrix:
   allow_failures:
-    - rvm: jruby-head
+    - go: tip
