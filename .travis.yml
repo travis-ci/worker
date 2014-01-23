@@ -3,7 +3,7 @@ before_install:
   - go get github.com/kr/godep
   - export PATH=$HOME/gopath/bin:$PATH
   - export GOPATH=$(godep path):$GOPATH
-before_script: cp config/worker.example.json config/worker.json
+before_script: cp config/worker.json.example config/worker.json
 script:
   - godep go test ./...
   - godep go test -race ./...
