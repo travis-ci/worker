@@ -1,8 +1,12 @@
 language: go
+before_install:
+  - go get github.com/kr/godep
+  - export PATH=$HOME/gopath/bin:$PATH
+  - export GOPATH=$(godep path):$GOPATH
 before_script: cp config/worker.example.json config/worker.json
 script:
-  - go test ./...
-  - go test -race ./...
+  - godep go test ./...
+  - godep go test -race ./...
 services:
   - rabbitmq
 go:
