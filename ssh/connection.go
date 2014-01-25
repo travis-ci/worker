@@ -9,10 +9,14 @@ import (
 	"time"
 )
 
+// Connection represents a connection to an SSH server.
 type Connection struct {
 	client *ssh.ClientConn
 }
 
+// NewConnection opens a new connection to an SSH server with the given address
+// and authenticates as the user with the given username and authentication
+// methods. The connection is then returned.
 func NewConnection(addr, user string, auths []AuthenticationMethod) (*Connection, error) {
 	dial := func(addr string) (*ssh.ClientConn, error) {
 		conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
@@ -39,6 +43,9 @@ func NewConnection(addr, user string, auths []AuthenticationMethod) (*Connection
 	return &Connection{client: client}, err
 }
 
+// Start runs the given command, streaming stdout and stderr to the given
+// io.Writer. The exit code is sent to the returned channel, or -1 if an error
+// occurred while running the command.
 func (c *Connection) Start(cmd string, output io.Writer) (<-chan int, error) {
 	session, err := c.createSession()
 	if err != nil {
@@ -74,6 +81,8 @@ func (c *Connection) Start(cmd string, output io.Writer) (<-chan int, error) {
 	return exitCodeChan, err
 }
 
+// Run runs the given command on the server. An error is returned if the
+// command didn't complete successfully (returned exit code 0).
 func (c *Connection) Run(cmd string) error {
 	session, err := c.createSession()
 	if err != nil {
@@ -84,6 +93,8 @@ func (c *Connection) Run(cmd string) error {
 	return session.Run(cmd)
 }
 
+// UploadFile uploads a file with the given content to the given path on the
+// server. The 'cat' command must be available on the server.
 func (c *Connection) UploadFile(path string, content []byte) error {
 	session, err := c.client.NewSession()
 	if err != nil {
@@ -104,6 +115,7 @@ func (c *Connection) UploadFile(path string, content []byte) error {
 	return session.Run(fmt.Sprintf("cat > %s", path))
 }
 
+// Close closes the connection.
 func (c *Connection) Close() error {
 	return c.client.Close()
 }

@@ -10,6 +10,8 @@ import (
 	"io/ioutil"
 )
 
+// AuthenticationMethod represents a method for authenticating as a user to an
+// SSH server.
 type AuthenticationMethod ssh.ClientAuth
 
 // PasswordAuthentication creates an authentication method using the provided
