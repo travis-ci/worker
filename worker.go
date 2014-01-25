@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/henrikhodne/travis-worker-go/ssh"
 	"os"
 	"time"
-	"github.com/henrikhodne/travis-worker-go/ssh"
 )
 
 // A Worker runs a job.
