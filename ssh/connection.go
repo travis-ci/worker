@@ -5,35 +5,25 @@ import (
 	"code.google.com/p/go.crypto/ssh"
 	"fmt"
 	"io"
-	"net"
 	"time"
 )
 
 // Connection represents a connection to an SSH server.
 type Connection struct {
-	client *ssh.ClientConn
+	client *ssh.Client
 }
 
 // NewConnection opens a new connection to an SSH server with the given address
 // and authenticates as the user with the given username and authentication
 // methods. The connection is then returned.
 func NewConnection(addr, user string, auths []AuthenticationMethod) (*Connection, error) {
-	dial := func(addr string) (*ssh.ClientConn, error) {
-		conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
-		if err != nil {
-			return nil, err
-		}
-
-		return ssh.Client(conn, &ssh.ClientConfig{
+	var client *ssh.Client
+	var err error
+	for i := 0; i < 3; i++ {
+		client, err = ssh.Dial("tcp", addr, &ssh.ClientConfig{
 			User: user,
 			Auth: toSSHClientAuths(auths),
 		})
-	}
-
-	var client *ssh.ClientConn
-	var err error
-	for i := 0; i < 3; i++ {
-		client, err = dial(addr)
 		if err == nil {
 			break
 		}

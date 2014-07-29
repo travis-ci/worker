@@ -33,6 +33,7 @@ func NewMetrics(source string, config LibratoConfig) Metrics {
 			config.Token,
 			source,
 			[]float64{0.5, 0.75, 0.95, 0.99, 0.999},
+			time.Second,
 		)
 	}
 
