@@ -158,7 +158,8 @@ func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-%s-pid-%d-job-%d", w.Name, os.Getpid(), w.jobID())
 	w.logger.Infof("booting VM with hostname %s", hostname)
-	server, err := w.vmProvider.Start(hostname, w.payload.Job.Config.Language, time.Duration(w.timeouts.VMBoot)*time.Second)
+
+	server, err := w.vmProvider.Start(hostname, w.payload.Config["language"].(string), time.Duration(w.timeouts.VMBoot)*time.Second)
 	if err != nil {
 		switch err.(type) {
 		case BootTimeoutError:
@@ -182,7 +183,12 @@ func (w *Worker) uploadScript(ssh *ssh.Connection) error {
 		return err
 	}
 
-	err = ssh.UploadFile("~/build.sh", []byte(w.payload.Script))
+	script, err := NewBuildScriptGenerator(w.config.BuildAPI.Endpoint, w.config.BuildAPI.ApiKey).GenerateForPayload(w.payload)
+	if err != nil {
+		return err
+	}
+
+	err = ssh.UploadFile("~/build.sh", script)
 	if err != nil {
 		return err
 	}

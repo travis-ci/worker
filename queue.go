@@ -21,41 +21,38 @@ type jobPayloadMessageProcessor struct {
 
 // A Payload holds the information necessary to run the job.
 type Payload struct {
-	Job        JobPayload
-	Build      BuildPayload `json:"source"`
-	Repository RepositoryPayload
-	Queue      string
-	UUID       string
-	Script     string
+	Type       string                 `json:"type"`
+	Job        JobPayload             `json:"job"`
+	BuildJob   JobPayload             `json:"build"`
+	Build      BuildPayload           `json:"source"`
+	Repository RepositoryPayload      `json:"repository"`
+	Queue      string                 `json:"queue"`
+	UUID       string                 `json:"uuid"`
+	Config     map[string]interface{} `json:"config"`
 }
 
 // A JobPayload holds the information specific to the job.
 type JobPayload struct {
-	ID               int64
-	Number           string
-	Commit           string
+	ID               int64  `json:"id"`
+	Number           string `json:"number"`
+	Commit           string `json:"commit"`
 	CommitRange      string `json:"commit_range"`
-	Branch           string
-	Ref              string
-	State            string
-	SecureEnvEnabled bool `json:"secure_env_enabled"`
-	Config           JobConfig
-}
-
-type JobConfig struct {
-	Language string
+	Branch           string `json:"branch"`
+	Ref              string `json:"ref"`
+	State            string `json:"state"`
+	SecureEnvEnabled bool   `json:"secure_env_enabled"`
 }
 
 // A BuildPayload holds the information specific to the build.
 type BuildPayload struct {
-	ID     int64
-	Number string
+	ID     int64  `json:"id"`
+	Number string `json:"number"`
 }
 
 // A RepositoryPayload holds the information specific to the repository.
 type RepositoryPayload struct {
-	ID        int64
-	Slug      string
+	ID        int64  `json:"id"`
+	Slug      string `json:"slug"`
 	GitHubID  int64  `json:"github_id"`
 	SourceURL string `json:"source_url"`
 	APIURL    string `json:"api_url"`

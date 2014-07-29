@@ -18,6 +18,7 @@ type WorkerConfig struct {
 	Timeouts     TimeoutsConfig
 	LogLimits    LogLimitsConfig
 	Librato      LibratoConfig
+	BuildAPI     BuildAPIConfig
 }
 
 // BlueBoxConfig holds the configuration relevant to connecting to the Blue Box
@@ -66,6 +67,11 @@ type LogLimitsConfig struct {
 type LibratoConfig struct {
 	Email string
 	Token string
+}
+
+type BuildAPIConfig struct {
+	Endpoint string
+	ApiKey   string
 }
 
 // ConfigFromFile opens the named JSON configuration file and parses the
