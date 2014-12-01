@@ -1,0 +1,18 @@
+#!/bin/bash
+set -o errexit
+
+usage() {
+  echo "Usage: $(basename $0) <env-var> <file> [heroku args]"
+}
+
+if [[ $# < 2 ]] ; then
+  usage
+  exit 1
+fi
+
+ENVVAR="$1"
+shift
+FILENAME="$1"
+shift
+
+exec hk set "$@" $ENVVAR="$(gzip < "$FILENAME" | base64)"

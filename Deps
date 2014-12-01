@@ -1,0 +1,30 @@
+{
+	"ImportPath": "github.com/travis-ci/worker",
+	"GoVersion": "go1.3.3",
+	"Packages": [
+		"./..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "code.google.com/p/go.crypto/ssh",
+			"Comment": "null-236",
+			"Rev": "69e2a90ed92d03812364aeb947b7068dc42e561e"
+		},
+		{
+			"ImportPath": "github.com/henrikhodne/goblueboxapi",
+			"Rev": "1619676d2f2e1f7bcceddd876a8c90fa75885f21"
+		},
+		{
+			"ImportPath": "github.com/henrikhodne/gotravismacapi",
+			"Rev": "460a9f341ad201c7da88823b82db5c0a30fbeb91"
+		},
+		{
+			"ImportPath": "github.com/rcrowley/go-metrics",
+			"Rev": "dee209f2455f101a5e4e593dea94872d2c62d85d"
+		},
+		{
+			"ImportPath": "github.com/streadway/amqp",
+			"Rev": "6f6c32de185ed6c6d05214c0c6abb1a74eaa0373"
+		}
+	]
+}

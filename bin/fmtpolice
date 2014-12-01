@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -e
+for f in $(git ls-files '*.go' | grep -v Deps) ; do
+  gofmt ${f} | if ! diff -u ${f} - ; then
+    echo fmtpolice:${f} ✗
+    exit 1
+  else
+    echo fmtpolice:${f} ✓
+  fi
+done
+
+echo
+echo ★★★★★ ALL HAPPY ★★★★★
