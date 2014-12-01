@@ -1,5 +1,6 @@
 PACKAGE := github.com/travis-ci/worker
 SUBPACKAGES := \
+	$(PACKAGE)/cmd/travis-worker \
 	$(PACKAGE)/lib
 
 VERSION_VAR := $(PACKAGE)/lib.VersionString

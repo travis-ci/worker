@@ -12,7 +12,7 @@ func assertContains(t *testing.T, str, substr string) {
 	}
 }
 
-func TestLogger_Set(t *testing.T) {
+func TestLoggerSet(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := NewLogger(buf, "")
 
@@ -24,7 +24,7 @@ func TestLogger_Set(t *testing.T) {
 	assertContains(t, buf.String(), "foo=bar")
 }
 
-func TestLogger_Info(t *testing.T) {
+func TestLoggerInfo(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := NewLogger(buf, "")
 
@@ -37,7 +37,7 @@ func TestLogger_Info(t *testing.T) {
 	assertContains(t, buf.String(), `message="hello world"`)
 }
 
-func TestLogger_Infof(t *testing.T) {
+func TestLoggerInfof(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := NewLogger(buf, "")
 
@@ -50,7 +50,7 @@ func TestLogger_Infof(t *testing.T) {
 	assertContains(t, buf.String(), `message="hello 1"`)
 }
 
-func TestLogger_Warn(t *testing.T) {
+func TestLoggerWarn(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := NewLogger(buf, "")
 
@@ -63,7 +63,7 @@ func TestLogger_Warn(t *testing.T) {
 	assertContains(t, buf.String(), `message="hello world"`)
 }
 
-func TestLogger_Warnf(t *testing.T) {
+func TestLoggerWarnf(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := NewLogger(buf, "")
 
@@ -76,7 +76,7 @@ func TestLogger_Warnf(t *testing.T) {
 	assertContains(t, buf.String(), `message="hello 1"`)
 }
 
-func TestLogger_Error(t *testing.T) {
+func TestLoggerError(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := NewLogger(buf, "")
 
@@ -89,7 +89,7 @@ func TestLogger_Error(t *testing.T) {
 	assertContains(t, buf.String(), `message="hello world"`)
 }
 
-func TestLogger_Errorf(t *testing.T) {
+func TestLoggerErrorf(t *testing.T) {
 	buf := new(bytes.Buffer)
 	log := NewLogger(buf, "")
 

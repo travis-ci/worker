@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+var (
+	punctRegex = regexp.MustCompile(`[&+/=\\]`)
+)
+
 func waitFor(done func() bool, interval time.Duration) (doneChan chan bool, cancelChan chan bool) {
 	doneChan = make(chan bool)
 	cancelChan = make(chan bool)
@@ -35,5 +39,5 @@ func generatePassword() string {
 	rand.Read(randomBytes)
 	hash := sha1.New().Sum(randomBytes)
 	str := base64.StdEncoding.EncodeToString(hash)
-	return regexp.MustCompile(`[&+/=\\]`).ReplaceAllLiteralString(str, "")[0:19]
+	return punctRegex.ReplaceAllLiteralString(str, "")[0:19]
 }

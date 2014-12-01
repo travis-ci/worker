@@ -30,7 +30,7 @@ func (bsg *BuildScriptGenerator) GenerateForPayload(payload Payload) ([]byte, er
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "text/plain")
-	request.Header.Set("User-Agent", "travis-worker")
+	request.Header.Set("User-Agent", fmt.Sprintf("travis-worker v=%v rev=%v d=%v", VersionString, RevisionString, GeneratedString))
 	request.Header.Set("Authorization", fmt.Sprintf("token %s", bsg.apiKey))
 
 	client := http.Client{}

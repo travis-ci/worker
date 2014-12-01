@@ -28,7 +28,7 @@ func (t *testWriter) Close() error {
 	return nil
 }
 
-func TestCoalesceWriteCloser_Write(t *testing.T) {
+func TestCoalesceWriteCloserWrite(t *testing.T) {
 	tw := &testWriter{written: make([][]byte, 0)}
 	cw := NewCoalesceWriteCloser(tw)
 
@@ -41,7 +41,7 @@ func TestCoalesceWriteCloser_Write(t *testing.T) {
 	}
 }
 
-func TestCoalesceWriteCloser_Close(t *testing.T) {
+func TestCoalesceWriteCloserClose(t *testing.T) {
 	tw := &testWriter{written: make([][]byte, 0)}
 	cw := NewCoalesceWriteCloser(tw)
 	cw.Close()
@@ -51,7 +51,7 @@ func TestCoalesceWriteCloser_Close(t *testing.T) {
 	}
 }
 
-func TestTimeoutWriter_Timeout(t *testing.T) {
+func TestTimeoutWriterTimeout(t *testing.T) {
 	testWriter := &testWriter{written: make([][]byte, 0)}
 	tw := NewTimeoutWriter(testWriter, 2*time.Millisecond)
 	fmt.Fprint(tw, "hello world")
@@ -65,7 +65,7 @@ func TestTimeoutWriter_Timeout(t *testing.T) {
 	}
 }
 
-func TestTimeoutWriter_Write(t *testing.T) {
+func TestTimeoutWriterWrite(t *testing.T) {
 	testWriter := &testWriter{written: make([][]byte, 0)}
 	tw := NewTimeoutWriter(testWriter, 2*time.Millisecond)
 	defer tw.Close()
@@ -77,7 +77,7 @@ func TestTimeoutWriter_Write(t *testing.T) {
 	}
 }
 
-func TestTimeoutWriter_Close(t *testing.T) {
+func TestTimeoutWriterClose(t *testing.T) {
 	testWriter := &testWriter{written: make([][]byte, 0)}
 	tw := NewTimeoutWriter(testWriter, 2*time.Millisecond)
 	tw.Close()
@@ -87,7 +87,7 @@ func TestTimeoutWriter_Close(t *testing.T) {
 	}
 }
 
-func TestLimitWriter_LimitReached(t *testing.T) {
+func TestLimitWriterLimitReached(t *testing.T) {
 	tw := &testWriter{written: make([][]byte, 0)}
 	lw := NewLimitWriter(tw, 10)
 	fmt.Fprintf(lw, "0123456789")
@@ -116,7 +116,7 @@ func TestLimitWriter_LimitReached(t *testing.T) {
 	}
 }
 
-func TestLimitWriter_Write(t *testing.T) {
+func TestLimitWriterWrite(t *testing.T) {
 	tw := &testWriter{written: make([][]byte, 0)}
 	lw := NewLimitWriter(tw, 10)
 	defer lw.Close()
@@ -128,7 +128,7 @@ func TestLimitWriter_Write(t *testing.T) {
 	}
 }
 
-func TestLimitWriter_Close(t *testing.T) {
+func TestLimitWriterClose(t *testing.T) {
 	tw := &testWriter{written: make([][]byte, 0)}
 	lw := NewLimitWriter(tw, 10)
 	lw.Close()

@@ -18,4 +18,4 @@ will have to be cleaned up manually.
 
 See LICENSE file.
 
-Copyright © 2013 Travis CI GmbH
+Copyright © 2014 Travis CI GmbH

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestLogWriter_Write(t *testing.T) {
+func TestLogWriterWrite(t *testing.T) {
 	mb := NewTestMessageBroker()
 	mb.DeclareQueue("reporting.jobs.logs")
 
