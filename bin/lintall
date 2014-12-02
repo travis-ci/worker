@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -e
+
+PACKAGE=${PACKAGE:-github.com/travis-ci/worker}
+
+golint "${PACKAGE}"
+for pkg in lib ; do
+  golint "${PACKAGE}/${pkg}"
+done

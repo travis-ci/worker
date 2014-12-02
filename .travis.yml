@@ -1,0 +1,24 @@
+language: go
+go:
+- 1.3.3
+sudo: false
+env:
+  global:
+  - PATH="$HOME/gopath/bin:$HOME/bin:$PATH"
+services:
+- rabbitmq
+before_install:
+- go get github.com/hamfist/deppy
+- go get github.com/golang/lint/golint
+- go get code.google.com/p/go.tools/cmd/cover
+- go install -a -race std
+install:
+- deppy restore
+before_script:
+- cp config/worker.json.example config/worker.json
+script:
+- make test
+- make test-race
+- make save
+- git diff --exit-code
+- git diff --cached --exit-code

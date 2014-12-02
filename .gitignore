@@ -22,3 +22,12 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+gin-bin
+*.log
+
+*.coverprofile
+coverage.html
+
+config.yml
+config/worker.json
