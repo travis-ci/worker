@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/travis-ci/worker/lib/ssh"
 )
 
@@ -14,7 +15,7 @@ type Worker struct {
 	Cancel       chan bool
 	vmProvider   VMProvider
 	mb           MessageBroker
-	logger       *Logger
+	logger       *logrus.Logger
 	payload      Payload
 	stateUpdater *StateUpdater
 	jobLog       *LogWriter
@@ -28,7 +29,7 @@ type Worker struct {
 }
 
 // NewWorker returns a new worker that can process a single job payload.
-func NewWorker(mb MessageBroker, dispatcher *Dispatcher, metrics Metrics, logger *Logger, config WorkerConfig) *Worker {
+func NewWorker(mb MessageBroker, dispatcher *Dispatcher, metrics Metrics, logger *logrus.Logger, config WorkerConfig) *Worker {
 	var provider VMProvider
 	switch config.Provider {
 	case "blueBox":
@@ -36,7 +37,7 @@ func NewWorker(mb MessageBroker, dispatcher *Dispatcher, metrics Metrics, logger
 	case "sauceLabs":
 		provider = NewSauceLabs(config.SauceLabs)
 	default:
-		logger.Errorf("NewWorker: unknown provider: %s", config.Provider)
+		logger.WithField("provider", config.Provider).Error("NewWorker: unknown provider")
 		return nil
 	}
 
@@ -57,9 +58,12 @@ func NewWorker(mb MessageBroker, dispatcher *Dispatcher, metrics Metrics, logger
 // Process actually runs the job.
 func (w *Worker) Process(payload Payload) {
 	w.payload = payload
-	w.logger = w.logger.Set("slug", w.payload.Repository.Slug).Set("job_id", w.jobID())
-	w.logger.Info("starting the job")
-	defer w.logger.Info("job finished")
+	log := w.logger.WithFields(logrus.Fields{
+		"slug":   w.payload.Repository.Slug,
+		"job_id": w.jobID(),
+	})
+	log.Info("starting the job")
+	defer log.Info("job finished")
 
 	w.dispatcher.Register(w, w.jobID())
 	defer w.dispatcher.Deregister(w.jobID())
@@ -70,12 +74,12 @@ func (w *Worker) Process(payload Payload) {
 	var err error
 	server, err := w.bootServer()
 	if err != nil {
-		w.logger.Errorf("booting a VM failed with the following error: %v", err)
+		log.WithField("err", err).Error("booting a VM failed")
 		w.vmCreationError()
 		return
 	}
 	defer server.Destroy()
-	defer w.logger.Info("destroying the VM")
+	defer log.Info("destroying the VM")
 
 	defer w.jobLog.Close()
 
@@ -86,20 +90,20 @@ func (w *Worker) Process(payload Payload) {
 	default:
 	}
 
-	w.logger.Info("opening an SSH connection")
+	log.Info("opening an SSH connection")
 	sshConn, err := w.openSSHConn(server)
 	if err != nil {
-		w.logger.Errorf("couldn't connect to SSH: %v", err)
+		log.WithField("err", err).Error("couldn't connect to SSH")
 		w.connectionError()
 		return
 	}
 	defer sshConn.Close()
-	defer w.logger.Info("closing the SSH connection")
+	defer log.Info("closing the SSH connection")
 
-	w.logger.Info("uploading the build.sh script")
+	log.Info("uploading the build.sh script")
 	err = w.uploadScript(sshConn)
 	if err != nil {
-		w.logger.Errorf("couldn't upload script: %v", err)
+		log.WithField("err", err).Error("couldn't upload script")
 		w.connectionError()
 		return
 	}
@@ -107,14 +111,14 @@ func (w *Worker) Process(payload Payload) {
 
 	err = w.stateUpdater.Start()
 	if err != nil {
-		w.logger.Errorf("couldn't notify about job starting: %v", err)
+		log.WithField("err", err).Error("couldn't notify about job starting")
 		return
 	}
 
-	w.logger.Info("running the job")
+	log.Info("running the job")
 	exitCodeChan, err := w.runScript(sshConn)
 	if err != nil {
-		w.logger.Errorf("failed to run build script: %v", err)
+		log.WithField("err", err).Error("failed to run build script")
 		w.connectionError()
 		return
 	}
@@ -136,15 +140,15 @@ func (w *Worker) Process(payload Payload) {
 		w.markJobAsCancelled()
 		return
 	case <-w.tw.Timeout:
-		w.logger.Info("job timed out due to log inactivity")
+		log.Info("job timed out due to log inactivity")
 		fmt.Fprintf(w.jobLog, noLogOutputMessage, w.timeouts.LogInactivity/60)
 		return
 	case <-w.lw.LimitReached:
-		w.logger.Info("job stopped due to log limit being reached")
+		log.Info("job stopped due to log limit being reached")
 		fmt.Fprintf(w.jobLog, logTooLongMessage, w.logLimits.MaxLogLength/1024/1024)
 		return
 	case <-time.After(time.Duration(w.timeouts.HardLimit) * time.Second):
-		w.logger.Info("job timed out due to hard timeout")
+		log.Info("job timed out due to hard timeout")
 		fmt.Fprintf(w.jobLog, stalledBuildMessage, w.timeouts.HardLimit/60)
 		w.finishWithState("errored")
 		return
@@ -158,7 +162,12 @@ func (w *Worker) jobID() int64 {
 func (w *Worker) bootServer() (VM, error) {
 	startTime := time.Now()
 	hostname := fmt.Sprintf("testing-%s-pid-%d-job-%d", w.Name, os.Getpid(), w.jobID())
-	w.logger.Infof("booting VM with hostname %s", hostname)
+	log := w.logger.WithFields(logrus.Fields{
+		"slug":   w.payload.Repository.Slug,
+		"job_id": w.jobID(),
+	})
+
+	log.WithField("hostname", hostname).Info("booting VM with hostname")
 
 	server, err := w.vmProvider.Start(hostname, w.payload.Config["language"].(string), time.Duration(w.timeouts.VMBoot)*time.Second)
 	if err != nil {
@@ -172,7 +181,7 @@ func (w *Worker) bootServer() (VM, error) {
 	}
 
 	bootDuration := time.Now().Sub(startTime)
-	w.logger.Infof("VM provisioned in %.2f seconds", bootDuration.Seconds())
+	log.WithField("seconds", bootDuration.Seconds()).Info("VM provisioned")
 	w.metrics.BootTimer(w.metricsProvider(), bootDuration)
 
 	return server, nil
@@ -211,13 +220,19 @@ func (w *Worker) runScript(ssh *ssh.Connection) (<-chan int, error) {
 
 func (w *Worker) vmCreationError() {
 	fmt.Fprintf(w.jobLog, vmCreationErrorMessage)
-	w.logger.Infof("requeuing job due to VM creation error")
+	w.logger.WithFields(logrus.Fields{
+		"slug":   w.payload.Repository.Slug,
+		"job_id": w.jobID(),
+	}).Info("requeuing job due to VM creation error")
 	w.requeueJob()
 }
 
 func (w *Worker) connectionError() {
 	fmt.Fprintf(w.jobLog, connectionErrorMessage)
-	w.logger.Infof("requeuing job due to SSH connection error")
+	w.logger.WithFields(logrus.Fields{
+		"slug":   w.payload.Repository.Slug,
+		"job_id": w.jobID(),
+	}).Info("requeuing job due to SSH connection error")
 	w.requeueJob()
 }
 
@@ -227,12 +242,18 @@ func (w *Worker) requeueJob() {
 }
 
 func (w *Worker) finishWithState(state string) {
-	w.logger.Infof("job completed with state:%s", state)
+	w.logger.WithFields(logrus.Fields{
+		"slug":   w.payload.Repository.Slug,
+		"job_id": w.jobID(),
+	}).Info("job completed with state:%s", state)
 	w.stateUpdater.Finish(state)
 }
 
 func (w *Worker) markJobAsCancelled() {
-	w.logger.Info("cancelling job")
+	w.logger.WithFields(logrus.Fields{
+		"slug":   w.payload.Repository.Slug,
+		"job_id": w.jobID(),
+	}).Info("cancelling job")
 	fmt.Fprint(w.jobLog, cancelledJobMessage)
 	w.finishWithState("canceled")
 }

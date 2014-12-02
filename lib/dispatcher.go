@@ -3,12 +3,14 @@ package lib
 import (
 	"encoding/json"
 	"sync"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type Dispatcher struct {
 	mb      MessageBroker
 	workers map[int64]*Worker
-	logger  *Logger
+	logger  *logrus.Logger
 	rwMutex sync.RWMutex
 }
 
@@ -21,7 +23,7 @@ type cancelCommand struct {
 	Source string `json:"source"`
 }
 
-func NewDispatcher(mb MessageBroker, logger *Logger) *Dispatcher {
+func NewDispatcher(mb MessageBroker, logger *logrus.Logger) *Dispatcher {
 	dispatcher := &Dispatcher{
 		mb:      mb,
 		workers: make(map[int64]*Worker),
@@ -65,7 +67,7 @@ func (d *Dispatcher) Process(payload []byte) {
 	case "":
 		d.logger.Warn("type not present")
 	default:
-		d.logger.Warnf("type:%s not recognized", command.CommandType)
+		d.logger.WithField("type", command.CommandType).Warn("type not recognized")
 	}
 
 	return
@@ -75,10 +77,16 @@ func (d *Dispatcher) handleCancel(payload []byte) {
 	var command cancelCommand
 	err := json.Unmarshal(payload, &command)
 	if err != nil {
-		d.logger.Set("command", "cancel").Error(err.Error())
+		d.logger.WithFields(logrus.Fields{
+			"command": "cancel",
+			"err":     err,
+		}).Error("")
 	}
 
-	d.logger.Infof("received cancel for job id:%d, source:%s", command.JobID, command.Source)
+	d.logger.WithFields(logrus.Fields{
+		"id":     command.JobID,
+		"source": command.Source,
+	}).Info("received cancel for job")
 
 	d.rwMutex.RLock()
 	defer d.rwMutex.RUnlock()
@@ -87,7 +95,9 @@ func (d *Dispatcher) handleCancel(payload []byte) {
 		return
 	}
 
-	d.logger.Infof("worker running job id:%d found, canceling now", command.JobID)
+	d.logger.WithFields(logrus.Fields{
+		"id": command.JobID,
+	}).Info("worker running job found, canceling now")
 
 	worker.Cancel <- true
 }

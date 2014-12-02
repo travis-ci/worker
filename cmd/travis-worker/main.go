@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/travis-ci/worker/lib"
 )
@@ -29,30 +30,27 @@ func main() {
 func runWorker(c *cli.Context) {
 	configFile := c.String("config-file")
 
-	logger := lib.NewLogger(os.Stdout, "").Set("pid", os.Getpid())
-
+	logger := logrus.New()
 	logger.Info("loading worker config")
 
 	config, err := lib.ConfigFromFile(configFile)
 	if err != nil {
-		logger.Errorf("error reading config: %v", err)
+		logger.WithField("err", err).Error("error reading config")
 		return
 	}
 	if errs := config.Validate(); len(errs) != 0 {
-		logger.Errorf("config not valid")
+		logger.Error("config not valid")
 		for _, err := range errs {
-			logger.Error(err.Error())
+			logger.WithField("err", err).Error("config error detail")
 		}
 		return
 	}
-
-	logger = lib.NewLogger(os.Stdout, config.LogTimestamp).Set("pid", os.Getpid())
 
 	logger.Info("connecting to rabbitmq")
 
 	mb, err := lib.NewMessageBroker(config.AMQP.URL)
 	if err != nil {
-		logger.Errorf("couldn't create a message broker: %v", err)
+		logger.WithField("err", err).Error("couldn't create a message broker")
 		return
 	}
 
@@ -69,7 +67,7 @@ func runWorker(c *cli.Context) {
 		close(gracefulQuit)
 	}()
 
-	logger.Infof("starting %d worker job processors", config.WorkerCount)
+	logger.WithField("worker_count", config.WorkerCount).Info("starting job processors")
 
 	queue := lib.NewQueue(mb, config.AMQP.Queue, config.WorkerCount)
 	queue.Subscribe(gracefulQuit, func() lib.JobPayloadProcessor {
