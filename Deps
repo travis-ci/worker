@@ -11,9 +11,14 @@
 			"Rev": "69e2a90ed92d03812364aeb947b7068dc42e561e"
 		},
 		{
+			"ImportPath": "github.com/Sirupsen/logrus",
+			"Comment": "v0.5.1",
+			"Rev": "736840a898fb560e3d93413410a4cb1371f42f71"
+		},
+		{
 			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "1.2.0-22-g687db20",
-			"Rev": "687db20fc379d1686465a28e9959707cd1acc990"
+			"Comment": "1.2.0-41-g1dce44d",
+			"Rev": "1dce44d78134e0d59d0648ffd7ff7e685daad555"
 		},
 		{
 			"ImportPath": "github.com/henrikhodne/goblueboxapi",
