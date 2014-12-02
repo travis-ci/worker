@@ -17,8 +17,8 @@
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "1.2.0-41-g1dce44d",
-			"Rev": "1dce44d78134e0d59d0648ffd7ff7e685daad555"
+			"Comment": "1.2.0-38-g9908e96",
+			"Rev": "9908e96513e5a94de37004098a3974a567f18111"
 		},
 		{
 			"ImportPath": "github.com/henrikhodne/goblueboxapi",
