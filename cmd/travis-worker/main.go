@@ -1,18 +1,33 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/codegangsta/cli"
 	"github.com/travis-ci/worker/lib"
 )
 
 func main() {
-	var configFile string
-	flag.StringVar(&configFile, "configFile", "config/worker.json", "the path to the config file to use")
-	flag.Parse()
+	app := cli.NewApp()
+	app.Usage = "Travis Worker daemon"
+	app.Version = lib.VersionString
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:   "c, config-file",
+			Value:  "config/worker.json",
+			Usage:  "the path to the config file to use",
+			EnvVar: "TRAVIS_WORKER_CONFIG_JSON",
+		},
+	}
+	app.Action = runWorker
+
+	app.Run(os.Args)
+}
+
+func runWorker(c *cli.Context) {
+	configFile := c.String("config-file")
 
 	logger := lib.NewLogger(os.Stdout, "").Set("pid", os.Getpid())
 
