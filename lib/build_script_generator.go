@@ -52,9 +52,9 @@ func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload JobPaylo
 	}
 
 	if resp.StatusCode >= 500 {
-		return nil, BuildScriptGeneratorError{error: fmt.Errorf("server error: %v", body), Recover: true}
+		return nil, BuildScriptGeneratorError{error: fmt.Errorf("server error: %q", string(body)), Recover: true}
 	} else if resp.StatusCode >= 400 {
-		return nil, BuildScriptGeneratorError{error: fmt.Errorf("client error: %v", body), Recover: false}
+		return nil, BuildScriptGeneratorError{error: fmt.Errorf("client error: %q", string(body)), Recover: false}
 	}
 
 	return body, nil
