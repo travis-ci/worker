@@ -81,6 +81,11 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 		return
 	}
 
+	err = channel.Qos(1, 0, false)
+	if err != nil {
+		return
+	}
+
 	deliveries, err := channel.Consume(q.queue, "build-job-consumer", false, false, false, false, nil)
 	if err != nil {
 		return
