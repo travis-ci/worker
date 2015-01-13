@@ -17,6 +17,9 @@ type ProcessorPool struct {
 	Provider  backend.Provider
 	Generator BuildScriptGenerator
 	Logger    *logrus.Entry
+
+	processorsLock sync.Mutex
+	processors     []*Processor
 }
 
 // Run starts up a number of processors and connects them to the given queue.
@@ -43,6 +46,16 @@ func (p *ProcessorPool) Run(poolSize uint16, queueName string) error {
 	return nil
 }
 
+// GracefulShutdown causes each processor in the pool to start its graceful
+// shutdown.
+func (p *ProcessorPool) GracefulShutdown() {
+	p.processorsLock.Lock()
+	for _, processor := range p.processors {
+		processor.GracefulShutdown()
+	}
+	p.processorsLock.Unlock()
+}
+
 func (p *ProcessorPool) processor(queue *JobQueue) {
 	buildJobChan, err := queue.Jobs()
 	if err != nil {
@@ -51,6 +64,10 @@ func (p *ProcessorPool) processor(queue *JobQueue) {
 	}
 
 	proc := NewProcessor(p.Context, buildJobChan, p.Provider, p.Generator, p.Logger)
+
+	p.processorsLock.Lock()
+	p.processors = append(p.processors, proc)
+	p.processorsLock.Unlock()
 
 	proc.Run()
 }

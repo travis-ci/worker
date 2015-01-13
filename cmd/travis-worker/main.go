@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
@@ -47,6 +48,14 @@ func runWorker(c *cli.Context) {
 		Generator: generator,
 		Logger:    logger,
 	}
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+	go func() {
+		<-signalChan
+		logger.Info("SIGTERM received, starting graceful shutdown")
+		pool.GracefulShutdown()
+	}()
 
 	pool.Run(config.PoolSize, "builds.test")
 
