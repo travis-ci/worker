@@ -1,76 +1,58 @@
 package main
 
 import (
+	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib"
+	"github.com/travis-ci/worker/lib/backend"
+	"golang.org/x/net/context"
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Usage = "Travis Worker daemon"
 	app.Version = lib.VersionString
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "c, config-file",
-			Value:  "config/worker.json",
-			Usage:  "the path to the config file to use",
-			EnvVar: "TRAVIS_WORKER_CONFIG_JSON",
-		},
-	}
 	app.Action = runWorker
 
 	app.Run(os.Args)
 }
 
 func runWorker(c *cli.Context) {
-	configFile := c.String("config-file")
+	logger := logrus.New().WithField("pid", os.Getpid())
 
-	logger := logrus.New()
-	logger.Info("loading worker config")
+	config := lib.EnvToConfig()
+	logger.WithField("config", fmt.Sprintf("%+v", config)).Info("read config")
 
-	config, err := lib.ConfigFromFile(configFile)
+	amqpConn, err := amqp.Dial(config.AmqpURI)
 	if err != nil {
-		logger.WithField("err", err).Error("error reading config")
-		return
-	}
-	if errs := config.Validate(); len(errs) != 0 {
-		logger.Error("config not valid")
-		for _, err := range errs {
-			logger.WithField("err", err).Error("config error detail")
-		}
+		logger.WithField("err", err).Error("couldn't connect to AMQP")
 		return
 	}
 
-	logger.Info("connecting to rabbitmq")
+	logger.Info("connected to AMQP")
 
-	mb, err := lib.NewMessageBroker(config.AMQP.URL)
+	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
+	provider := backend.NewProvider(config.ProviderName, config.ProviderConfig)
+
+	ctx := context.Background()
+
+	pool := &lib.ProcessorPool{
+		Context:   ctx,
+		Conn:      amqpConn,
+		Provider:  provider,
+		Generator: generator,
+		Logger:    logger,
+	}
+
+	pool.Run(config.PoolSize, "builds.test")
+
+	err = amqpConn.Close()
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't create a message broker")
+		logger.WithField("err", err).Error("couldn't close AMQP connection")
 		return
 	}
-
-	dispatcher := lib.NewDispatcher(mb, logger)
-	metrics := lib.NewMetrics(config.Name, config.Librato)
-
-	sigint := make(chan os.Signal, 1)
-	signal.Notify(sigint, syscall.SIGTERM, syscall.SIGINT)
-	gracefulQuit := make(chan bool)
-
-	go func() {
-		<-sigint
-		logger.Info("got SIGTERM, shutting down gracefully")
-		close(gracefulQuit)
-	}()
-
-	logger.WithField("worker_count", config.WorkerCount).Info("starting job processors")
-
-	queue := lib.NewQueue(mb, config.AMQP.Queue, config.WorkerCount)
-	queue.Subscribe(gracefulQuit, func() lib.JobPayloadProcessor {
-		return lib.NewWorker(mb, dispatcher, metrics, logger, config)
-	})
 }

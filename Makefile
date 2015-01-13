@@ -86,3 +86,4 @@ fmtpolice:
 .PHONY: lintall
 lintall:
 	./bin/lintall
+
