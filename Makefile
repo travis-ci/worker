@@ -1,7 +1,8 @@
 PACKAGE := github.com/travis-ci/worker
 SUBPACKAGES := \
 	$(PACKAGE)/cmd/travis-worker \
-	$(PACKAGE)/lib
+	$(PACKAGE)/lib \
+	$(PACKAGE)/lib/backend
 
 VERSION_VAR := $(PACKAGE)/lib.VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
@@ -25,7 +26,8 @@ PORT ?= 42151
 export PORT
 
 COVERPROFILES := \
-	lib-coverage.coverprofile
+	lib-coverage.coverprofile \
+	lib-backend-coverage.coverprofile
 
 %-coverage.coverprofile:
 	$(GO) test -covermode=count -coverprofile=$@ \
