@@ -17,7 +17,7 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	err := instance.UploadScript(ctx, script)
 	if err != nil {
-		loggerFromContext(ctx).WithField("err", err).Error("couldn't upload script")
+		LoggerFromContext(ctx).WithField("err", err).Error("couldn't upload script")
 		buildJob.Requeue()
 
 		return multistep.ActionHalt

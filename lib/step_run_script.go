@@ -16,14 +16,14 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	logWriter, err := buildJob.LogWriter()
 	if err != nil {
-		loggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
+		LoggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
 		buildJob.Requeue()
 		return multistep.ActionHalt
 	}
 
 	result, err := instance.RunScript(ctx, logWriter)
 	if err != nil {
-		loggerFromContext(ctx).WithField("err", err).WithField("completed", result.Completed).Error("couldn't run script")
+		LoggerFromContext(ctx).WithField("err", err).WithField("completed", result.Completed).Error("couldn't run script")
 
 		if !result.Completed {
 			buildJob.Requeue()

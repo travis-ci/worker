@@ -20,7 +20,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	instance, err := s.provider.Start(ctx)
 	if err != nil {
-		loggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
+		LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
 		buildJob.Requeue()
 
 		return multistep.ActionHalt
@@ -36,8 +36,8 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(context.Context)
 
 	if err := instance.Stop(ctx); err != nil {
-		loggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Error("couldn't stop instance")
+		LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Error("couldn't stop instance")
 	} else {
-		loggerFromContext(ctx).Info("stopped instance")
+		LoggerFromContext(ctx).Info("stopped instance")
 	}
 }

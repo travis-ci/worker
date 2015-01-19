@@ -30,8 +30,8 @@ func processorFromContext(ctx context.Context) (string, bool) {
 	return processor, ok
 }
 
-func loggerFromContext(ctx context.Context) *logrus.Entry {
-	entry := logrus.NewEntry(logrus.New())
+func LoggerFromContext(ctx context.Context) *logrus.Entry {
+	entry := logrus.NewEntry(logrus.New()).WithField("pid", os.Getpid())
 
 	if uuid, ok := uuidFromContext(ctx); ok {
 		entry = entry.WithField("uuid", uuid)
