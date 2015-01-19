@@ -50,10 +50,11 @@ func (p *ProcessorPool) Run(poolSize uint16, queueName string) error {
 // shutdown.
 func (p *ProcessorPool) GracefulShutdown() {
 	p.processorsLock.Lock()
+	defer p.processorsLock.Unlock()
+
 	for _, processor := range p.processors {
 		processor.GracefulShutdown()
 	}
-	p.processorsLock.Unlock()
 }
 
 func (p *ProcessorPool) processor(queue *JobQueue) {
