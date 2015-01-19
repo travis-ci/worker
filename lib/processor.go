@@ -63,7 +63,7 @@ func (p *Processor) Run() {
 		select {
 		case <-p.graceful:
 			p.logger.Info("processor is done, terminating")
-			break
+			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
 				return
