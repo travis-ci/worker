@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib"
@@ -23,10 +22,11 @@ func main() {
 }
 
 func runWorker(c *cli.Context) {
-	logger := logrus.New().WithField("pid", os.Getpid())
+	ctx := context.Background()
+	logger := lib.LoggerFromContext(ctx)
 
 	config := lib.EnvToConfig()
-	logger.WithField("config", fmt.Sprintf("%+v", config)).Info("read config")
+	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
 
 	amqpConn, err := amqp.Dial(config.AmqpURI)
 	if err != nil {
@@ -34,12 +34,10 @@ func runWorker(c *cli.Context) {
 		return
 	}
 
-	logger.Info("connected to AMQP")
+	logger.Debug("connected to AMQP")
 
 	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
 	provider := backend.NewProvider(config.ProviderName, config.ProviderConfig)
-
-	ctx := context.Background()
 
 	pool := &lib.ProcessorPool{
 		Context:   ctx,
@@ -61,7 +59,7 @@ func runWorker(c *cli.Context) {
 
 	err = amqpConn.Close()
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't close AMQP connection")
+		logger.WithField("err", err).Error("couldn't close AMQP connection cleanly")
 		return
 	}
 }
