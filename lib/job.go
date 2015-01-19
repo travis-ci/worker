@@ -28,5 +28,5 @@ type Job interface {
 	Requeue() error
 	Finish(FinishState) error
 
-	LogWriter() (io.Writer, error)
+	LogWriter() (io.WriteCloser, error)
 }

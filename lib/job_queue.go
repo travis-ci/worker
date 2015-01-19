@@ -2,9 +2,11 @@ package lib
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/streadway/amqp"
+	"golang.org/x/net/context"
 )
 
 // A JobQueue allows getting Jobs out of an AMQP queue.
@@ -14,6 +16,7 @@ type JobQueue struct {
 }
 
 type amqpJob struct {
+	conn     *amqp.Connection
 	delivery amqp.Delivery
 	payload  JobPayload
 }
@@ -40,10 +43,8 @@ func (j amqpJob) Finish(state FinishState) error {
 	return nil
 }
 
-func (j amqpJob) LogWriter() (io.Writer, error) {
-	panic("amqpBuildJob.LogWriter() unimplemented")
-
-	return nil, nil
+func (j amqpJob) LogWriter() (io.WriteCloser, error) {
+	return NewLogWriter(context.TODO(), j.conn, j.payload.Job.ID)
 }
 
 // NewJobQueue creates a JobQueue backed by the given AMQP connections and
@@ -97,7 +98,12 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 	go func() {
 		for delivery := range deliveries {
 			var buildJob amqpJob
-			json.Unmarshal(delivery.Body, &buildJob.payload)
+			err = json.Unmarshal(delivery.Body, &buildJob.payload)
+			if err != nil {
+				fmt.Printf("JSON parse error: %v\n", err)
+			}
+			fmt.Printf("read %v as %+v\n", string(delivery.Body), buildJob.payload)
+			buildJob.conn = q.conn
 			buildJob.delivery = delivery
 
 			buildJobChan <- buildJob
