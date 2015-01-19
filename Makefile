@@ -50,6 +50,10 @@ test: build fmtpolice test-deps coverage.html
 test-deps:
 	$(GO) test -i $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
 
+.PHONY: test-no-cover
+test-no-cover:
+	$(GO) test $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+
 .PHONY: test-race
 test-race:
 	$(GO) test -race $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
