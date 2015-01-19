@@ -23,19 +23,19 @@ func (j amqpJob) Payload() JobPayload {
 }
 
 func (j amqpJob) Error(err error) error {
-	panic("amqpBuildJob.Error() unimplemented")
+	fmt.Printf("amqpJob.Error(%v)\n", err)
 
 	return nil
 }
 
 func (j amqpJob) Requeue() error {
-	panic("amqpBuildJob.Requeue() unimplemented")
+	fmt.Printf("amqpJob.Requeue()\n")
 
 	return nil
 }
 
 func (j amqpJob) Finish(state FinishState) error {
-	panic("amqpBuildJob.Finish() unimplemented")
+	fmt.Printf("amqpJob.Finish(%v)\n", state)
 
 	return nil
 }
