@@ -4,7 +4,23 @@ import "io"
 
 // JobPayload is the payload we receive over RabbitMQ.
 type JobPayload struct {
-	UUID string `json:"uuid"`
+	Type       string            `json:"type"`
+	Job        JobJobPayload     `json:"job"`
+	Build      BuildPayload      `json:"source"`
+	Repository RepositoryPayload `json:"repository"`
+	UUID       string            `json:"uuid"`
+}
+
+type JobJobPayload struct {
+	ID uint64 `json:"id"`
+}
+
+type BuildPayload struct {
+	ID uint64 `json:"id"`
+}
+
+type RepositoryPayload struct {
+	ID uint64 `json:"id"`
 }
 
 // FinishState is the state that a job finished with (such as pass/fail/etc.).
