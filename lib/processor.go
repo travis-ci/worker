@@ -98,5 +98,7 @@ func (p *Processor) process(ctx context.Context, buildJob Job) {
 
 	runner := &multistep.BasicRunner{Steps: steps}
 
+	LoggerFromContext(p.ctx).Info("starting job")
 	runner.Run(state)
+	LoggerFromContext(p.ctx).Info("finished job")
 }
