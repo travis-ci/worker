@@ -79,11 +79,13 @@ func TestIntegration(t *testing.T) {
 
 	pool.Run(1, "builds.test")
 
-	delivery, ok, err := amqpChan.Get("reporting.jobs.logs", true)
+	deliveryChan, err := amqpChan.Consume("reporting.jobs.logs", "logs", true, false, false, false, nil)
 	if err != nil {
-		t.Fatalf("error getting log: %v", err)
+		t.Fatalf("error consuming to logs: %v")
 	}
-	if ok {
+
+	select {
+	case delivery := <-deliveryChan:
 		var part logPart
 		json.Unmarshal(delivery.Body, &part)
 		expectedPart := logPart{
@@ -97,15 +99,12 @@ func TestIntegration(t *testing.T) {
 		if !reflect.DeepEqual(part, expectedPart) {
 			t.Errorf("logPart = %+v, expected %+v", part, expectedPart)
 		}
-	} else {
-		t.Error("expected a log part, but didn't get one")
+	case <-time.After(500 * time.Microsecond):
+		t.Errorf("expected a log part, but didn't get one within the timeout")
 	}
 
-	delivery, ok, err = amqpChan.Get("reporting.jobs.logs", true)
-	if err != nil {
-		t.Fatalf("error getting log: %v", err)
-	}
-	if ok {
+	select {
+	case delivery := <-deliveryChan:
 		var part logPart
 		json.Unmarshal(delivery.Body, &part)
 		expectedPart := logPart{
@@ -119,7 +118,9 @@ func TestIntegration(t *testing.T) {
 		if !reflect.DeepEqual(part, expectedPart) {
 			t.Errorf("logPart = %+v, expected %+v", part, expectedPart)
 		}
-	} else {
-		t.Error("expected a final log part, but didn't get one")
+	case <-time.After(500 * time.Microsecond):
+		t.Errorf("expected a final log part, but didn't get one within the timeout")
 	}
+
+	amqpChan.Cancel("logs", false)
 }
