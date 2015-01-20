@@ -5,7 +5,6 @@ import (
 
 	"code.google.com/p/go-uuid/uuid"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/lib/backend"
 	"golang.org/x/net/context"
@@ -27,7 +26,6 @@ type Processor struct {
 	buildJobsChan <-chan Job
 	provider      backend.Provider
 	generator     BuildScriptGenerator
-	logger        *logrus.Entry
 
 	graceful  chan struct{}
 	terminate context.CancelFunc
@@ -36,7 +34,7 @@ type Processor struct {
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx context.Context, buildJobsChan <-chan Job, provider backend.Provider, generator BuildScriptGenerator, logger *logrus.Entry) *Processor {
+func NewProcessor(ctx context.Context, buildJobsChan <-chan Job, provider backend.Provider, generator BuildScriptGenerator) *Processor {
 	processorUUID := uuid.NewRandom()
 
 	ctx, cancel := context.WithCancel(contextFromProcessor(ctx, processorUUID.String()))
@@ -48,7 +46,6 @@ func NewProcessor(ctx context.Context, buildJobsChan <-chan Job, provider backen
 		buildJobsChan: buildJobsChan,
 		provider:      provider,
 		generator:     generator,
-		logger:        logger.WithField("processor", processorUUID.String()),
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -62,13 +59,13 @@ func (p *Processor) Run() {
 	for {
 		select {
 		case <-p.graceful:
-			p.logger.Info("processor is done, terminating")
+			LoggerFromContext(p.ctx).Info("processor is done, terminating")
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
 				return
 			}
-			p.process(p.ctx, buildJob)
+			p.process(contextFromJob(p.ctx, buildJob), buildJob)
 		}
 	}
 }
@@ -77,7 +74,7 @@ func (p *Processor) Run() {
 // processing, but not pick up any new jobs. This method will return
 // immediately, the processor is done when Run() returns.
 func (p *Processor) GracefulShutdown() {
-	p.logger.Info("processor initiating graceful shutdown")
+	LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
 	close(p.graceful)
 }
 
@@ -90,7 +87,6 @@ func (p *Processor) Terminate() {
 func (p *Processor) process(ctx context.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
 	state.Put("buildJob", buildJob)
-	state.Put("logger", p.logger)
 	state.Put("ctx", ctx)
 
 	steps := []multistep.Step{

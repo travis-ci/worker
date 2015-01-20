@@ -27,6 +27,10 @@ func contextFromComponent(ctx context.Context, component string) context.Context
 	return context.WithValue(ctx, componentKey, component)
 }
 
+func contextFromJob(ctx context.Context, job Job) context.Context {
+	return contextFromUUID(ctx, job.Payload().UUID)
+}
+
 func uuidFromContext(ctx context.Context) (string, bool) {
 	uuid, ok := ctx.Value(uuidKey).(string)
 	return uuid, ok

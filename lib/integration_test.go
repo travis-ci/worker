@@ -54,7 +54,6 @@ func TestIntegration(t *testing.T) {
 		Conn:      amqpConn,
 		Provider:  provider,
 		Generator: generator,
-		Logger:    LoggerFromContext(ctx),
 	}
 
 	go func() {

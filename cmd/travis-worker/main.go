@@ -34,7 +34,7 @@ func runWorker(c *cli.Context) {
 		return
 	}
 
-	logger.Debug("connected to AMQP")
+	lib.LoggerFromContext(ctx).Debug("connected to AMQP")
 
 	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
 	provider := backend.NewProvider(config.ProviderName, config.ProviderConfig)
@@ -44,7 +44,6 @@ func runWorker(c *cli.Context) {
 		Conn:      amqpConn,
 		Provider:  provider,
 		Generator: generator,
-		Logger:    logger,
 	}
 
 	signalChan := make(chan os.Signal, 1)

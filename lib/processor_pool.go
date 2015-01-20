@@ -3,7 +3,6 @@ package lib
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
 	"golang.org/x/net/context"
@@ -16,7 +15,6 @@ type ProcessorPool struct {
 	Conn      *amqp.Connection
 	Provider  backend.Provider
 	Generator BuildScriptGenerator
-	Logger    *logrus.Entry
 
 	processorsLock sync.Mutex
 	processors     []*Processor
@@ -64,7 +62,7 @@ func (p *ProcessorPool) processor(queue *JobQueue) {
 		return
 	}
 
-	proc := NewProcessor(p.Context, buildJobChan, p.Provider, p.Generator, p.Logger)
+	proc := NewProcessor(p.Context, buildJobChan, p.Provider, p.Generator)
 
 	p.processorsLock.Lock()
 	p.processors = append(p.processors, proc)
