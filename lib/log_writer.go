@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -55,6 +56,7 @@ type logPart struct {
 	Content string `json:"log"`
 	Number  int    `json:"number"`
 	UUID    string `json:"uuid"`
+	Final   bool   `json:"final"`
 }
 
 func NewLogWriter(ctx context.Context, conn *amqp.Connection, jobID uint64) (*LogWriter, error) {
@@ -83,16 +85,31 @@ func NewLogWriter(ctx context.Context, conn *amqp.Connection, jobID uint64) (*Lo
 }
 
 func (w *LogWriter) Write(p []byte) (int, error) {
+	if w.closed() {
+		return 0, fmt.Errorf("attempted write to closed log")
+	}
+
 	w.bufferMutex.Lock()
 	defer w.bufferMutex.Unlock()
 	return w.buffer.Write(p)
 }
 
 func (w *LogWriter) Close() error {
+	if w.closed() {
+		return nil
+	}
+
 	close(w.closeChan)
 	w.flush()
 
-	return nil
+	part := logPart{
+		JobID:  w.jobID,
+		Number: w.logPartNumber,
+		Final:  true,
+	}
+	w.logPartNumber++
+
+	return w.publishLogPart(part)
 }
 
 func (w *LogWriter) closed() bool {

@@ -25,7 +25,7 @@ type Instance interface {
 
 	// RunScript runs the build script that was uploaded with the
 	// UploadScript method.
-	RunScript(context.Context, io.Writer) (RunResult, error)
+	RunScript(context.Context, io.WriteCloser) (RunResult, error)
 	Stop(context.Context) error
 }
 

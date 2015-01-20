@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -29,7 +30,22 @@ func TestIntegration(t *testing.T) {
 
 	_, err = amqpChan.QueueDeclare("builds.test", true, false, false, false, nil)
 	if err != nil {
-		t.Fatalf("couldn't declare queue: %v", err)
+		t.Fatalf("couldn't declare builds queue: %v", err)
+	}
+
+	_, err = amqpChan.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+	if err != nil {
+		t.Fatalf("couldn't declare logs queue: %v", err)
+	}
+
+	_, err = amqpChan.QueuePurge("builds.test", false)
+	if err != nil {
+		t.Fatalf("couldn't purge builds queue: %v", err)
+	}
+
+	_, err = amqpChan.QueuePurge("reporting.jobs.logs", false)
+	if err != nil {
+		t.Fatalf("couldn't purge logs queue: %v", err)
 	}
 
 	err = amqpChan.Publish("", "builds.test", false, false, amqp.Publishing{
@@ -70,14 +86,40 @@ func TestIntegration(t *testing.T) {
 	if ok {
 		var part logPart
 		json.Unmarshal(delivery.Body, &part)
-		t.Logf("log part: %+v", string(delivery.Body))
-		if part.JobID != 3 {
-			t.Errorf("logPart.JobID = %d, expected %d", part.JobID, 3)
+		expectedPart := logPart{
+			JobID:   3,
+			Content: "Hello, testing log",
+			Number:  0,
+			UUID:    "fake-uuid",
+			Final:   false,
 		}
-		if part.Content != "Hello, testing log" {
-			t.Errorf("logPart.Content = %q, expected %q", part.Content, "Hello, testing log")
+
+		if !reflect.DeepEqual(part, expectedPart) {
+			t.Errorf("logPart = %+v, expected %+v", part, expectedPart)
 		}
 	} else {
 		t.Error("expected a log part, but didn't get one")
+	}
+
+	delivery, ok, err = amqpChan.Get("reporting.jobs.logs", true)
+	if err != nil {
+		t.Fatalf("error getting log: %v", err)
+	}
+	if ok {
+		var part logPart
+		json.Unmarshal(delivery.Body, &part)
+		expectedPart := logPart{
+			JobID:   3,
+			Content: "",
+			Number:  1,
+			UUID:    "fake-uuid",
+			Final:   true,
+		}
+
+		if !reflect.DeepEqual(part, expectedPart) {
+			t.Errorf("logPart = %+v, expected %+v", part, expectedPart)
+		}
+	} else {
+		t.Error("expected a final log part, but didn't get one")
 	}
 }
