@@ -39,6 +39,7 @@ func (j amqpJob) Requeue() error {
 
 func (j amqpJob) Finish(state FinishState) error {
 	fmt.Printf("amqpJob.Finish(%v)\n", state)
+	j.delivery.Ack(false)
 
 	return nil
 }

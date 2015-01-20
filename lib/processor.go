@@ -94,6 +94,7 @@ func (p *Processor) process(ctx context.Context, buildJob Job) {
 		&stepStartInstance{provider: p.provider},
 		&stepUploadScript{},
 		&stepRunScript{},
+		&stepUpdateState{},
 	}
 
 	runner := &multistep.BasicRunner{Steps: steps}
