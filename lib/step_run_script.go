@@ -14,7 +14,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	instance := state.Get("instance").(backend.Instance)
 
-	logWriter, err := buildJob.LogWriter()
+	logWriter, err := buildJob.LogWriter(ctx)
 	if err != nil {
 		LoggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
 		buildJob.Requeue()

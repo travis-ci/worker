@@ -1,6 +1,10 @@
 package lib
 
-import "io"
+import (
+	"io"
+
+	"golang.org/x/net/context"
+)
 
 // JobPayload is the payload we receive over RabbitMQ.
 type JobPayload struct {
@@ -44,5 +48,5 @@ type Job interface {
 	Requeue() error
 	Finish(FinishState) error
 
-	LogWriter() (io.WriteCloser, error)
+	LogWriter(context.Context) (io.WriteCloser, error)
 }

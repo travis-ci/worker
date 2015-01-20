@@ -43,8 +43,8 @@ func (j amqpJob) Finish(state FinishState) error {
 	return nil
 }
 
-func (j amqpJob) LogWriter() (io.WriteCloser, error) {
-	return NewLogWriter(context.TODO(), j.conn, j.payload.Job.ID)
+func (j amqpJob) LogWriter(ctx context.Context) (io.WriteCloser, error) {
+	return NewLogWriter(ctx, j.conn, j.payload.Job.ID)
 }
 
 // NewJobQueue creates a JobQueue backed by the given AMQP connections and
