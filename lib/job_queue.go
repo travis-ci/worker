@@ -102,7 +102,6 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
 			}
-			fmt.Printf("read %v as %+v\n", string(delivery.Body), buildJob.payload)
 			buildJob.conn = q.conn
 			buildJob.delivery = delivery
 
