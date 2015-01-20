@@ -24,7 +24,8 @@ type BuildPayload struct {
 }
 
 type RepositoryPayload struct {
-	ID uint64 `json:"id"`
+	ID   uint64 `json:"id"`
+	Slug string `json:"slug"`
 }
 
 // FinishState is the state that a job finished with (such as pass/fail/etc.).

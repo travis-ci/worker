@@ -81,7 +81,7 @@ func TestIntegration(t *testing.T) {
 
 	deliveryChan, err := amqpChan.Consume("reporting.jobs.logs", "logs", true, false, false, false, nil)
 	if err != nil {
-		t.Fatalf("error consuming to logs: %v")
+		t.Fatalf("error consuming to logs: %v", err)
 	}
 
 	select {
