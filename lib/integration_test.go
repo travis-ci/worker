@@ -99,7 +99,7 @@ func TestIntegration(t *testing.T) {
 		if !reflect.DeepEqual(part, expectedPart) {
 			t.Errorf("logPart = %+v, expected %+v", part, expectedPart)
 		}
-	case <-time.After(500 * time.Microsecond):
+	case <-time.After(time.Second):
 		t.Errorf("expected a log part, but didn't get one within the timeout")
 	}
 
@@ -118,7 +118,7 @@ func TestIntegration(t *testing.T) {
 		if !reflect.DeepEqual(part, expectedPart) {
 			t.Errorf("logPart = %+v, expected %+v", part, expectedPart)
 		}
-	case <-time.After(500 * time.Microsecond):
+	case <-time.After(time.Second):
 		t.Errorf("expected a final log part, but didn't get one within the timeout")
 	}
 
