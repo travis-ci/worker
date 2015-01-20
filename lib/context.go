@@ -13,6 +13,7 @@ const (
 	uuidKey contextKey = iota
 	processorKey
 	componentKey
+	jobIDKey
 )
 
 func contextFromUUID(ctx context.Context, uuid string) context.Context {
@@ -27,8 +28,12 @@ func contextFromComponent(ctx context.Context, component string) context.Context
 	return context.WithValue(ctx, componentKey, component)
 }
 
+func contextFromJobID(ctx context.Context, jobID uint64) context.Context {
+	return context.WithValue(ctx, jobIDKey, jobID)
+}
+
 func contextFromJob(ctx context.Context, job Job) context.Context {
-	return contextFromUUID(ctx, job.Payload().UUID)
+	return contextFromUUID(contextFromJobID(ctx, job.Payload().Job.ID), job.Payload().UUID)
 }
 
 func uuidFromContext(ctx context.Context) (string, bool) {
@@ -46,6 +51,11 @@ func componentFromContext(ctx context.Context) (string, bool) {
 	return component, ok
 }
 
+func jobIDFromContext(ctx context.Context) (uint64, bool) {
+	jobID, ok := ctx.Value(jobIDKey).(uint64)
+	return jobID, ok
+}
+
 func LoggerFromContext(ctx context.Context) *logrus.Entry {
 	entry := logrus.NewEntry(logrus.New()).WithField("pid", os.Getpid())
 
@@ -59,6 +69,10 @@ func LoggerFromContext(ctx context.Context) *logrus.Entry {
 
 	if component, ok := componentFromContext(ctx); ok {
 		entry = entry.WithField("component", component)
+	}
+
+	if jobID, ok := jobIDFromContext(ctx); ok {
+		entry = entry.WithField("job", jobID)
 	}
 
 	return entry
