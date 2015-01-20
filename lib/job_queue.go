@@ -98,7 +98,7 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 	go func() {
 		for delivery := range deliveries {
 			var buildJob amqpJob
-			err = json.Unmarshal(delivery.Body, &buildJob.payload)
+			err := json.Unmarshal(delivery.Body, &buildJob.payload)
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
 			}
