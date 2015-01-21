@@ -38,12 +38,22 @@ func TestIntegration(t *testing.T) {
 		t.Fatalf("couldn't declare logs queue: %v", err)
 	}
 
+	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
+		t.Fatalf("couldn't declare logs queue: %v", err)
+	}
+
 	_, err = amqpChan.QueuePurge("builds.test", false)
 	if err != nil {
 		t.Fatalf("couldn't purge builds queue: %v", err)
 	}
 
 	_, err = amqpChan.QueuePurge("reporting.jobs.logs", false)
+	if err != nil {
+		t.Fatalf("couldn't purge logs queue: %v", err)
+	}
+
+	_, err = amqpChan.QueuePurge("reporting.jobs.builds", false)
 	if err != nil {
 		t.Fatalf("couldn't purge logs queue: %v", err)
 	}
