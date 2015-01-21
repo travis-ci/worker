@@ -32,10 +32,23 @@ func (j amqpJob) Error(ctx context.Context, errMessage string) error {
 		return err
 	}
 
-	// TODO: We should make sure that this is the last log message sent.
-	_, err = fmt.Fprintf(log, "%s", errMessage)
-	if err != nil {
-		return err
+	logWriter, ok := log.(*LogWriter)
+	if ok {
+		_, err = logWriter.WriteAndClose([]byte(errMessage))
+		if err != nil {
+			return err
+		}
+	} else {
+		LoggerFromContext(ctx).Error("Log writer wasn't a LogWriter… We're doing Write+Close instead")
+		_, err = fmt.Fprintf(log, "%s", errMessage)
+		if err != nil {
+			return err
+		}
+
+		err = log.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	return j.Finish(FinishStateErrored)

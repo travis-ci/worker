@@ -112,6 +112,34 @@ func (w *LogWriter) Close() error {
 	return w.publishLogPart(part)
 }
 
+// WriteAndClose works like a Write followed by a Close, but ensures that no
+// other Writes are allowed in between.
+func (w *LogWriter) WriteAndClose(p []byte) (int, error) {
+	if w.closed() {
+		return 0, fmt.Errorf("log already closed")
+	}
+
+	close(w.closeChan)
+
+	w.bufferMutex.Lock()
+	n, err := w.buffer.Write(p)
+	w.bufferMutex.Unlock()
+	if err != nil {
+		return n, err
+	}
+
+	w.flush()
+
+	part := logPart{
+		JobID:  w.jobID,
+		Number: w.logPartNumber,
+		Final:  true,
+	}
+	w.logPartNumber++
+
+	return n, w.publishLogPart(part)
+}
+
 func (w *LogWriter) closed() bool {
 	select {
 	case <-w.closeChan:
