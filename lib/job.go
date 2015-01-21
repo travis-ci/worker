@@ -45,7 +45,7 @@ const (
 type Job interface {
 	Payload() JobPayload
 
-	Error(error) error
+	Error(context.Context, string) error
 	Requeue() error
 	Finish(FinishState) error
 

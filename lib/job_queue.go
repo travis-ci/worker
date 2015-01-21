@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/streadway/amqp"
 	"golang.org/x/net/context"
@@ -25,20 +26,87 @@ func (j amqpJob) Payload() JobPayload {
 	return j.payload
 }
 
-func (j amqpJob) Error(err error) error {
-	fmt.Printf("amqpJob.Error(%v)\n", err)
+func (j amqpJob) Error(ctx context.Context, errMessage string) error {
+	log, err := j.LogWriter(ctx)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	// TODO: We should make sure that this is the last log message sent.
+	_, err = fmt.Fprintf(log, "%s", errMessage)
+	if err != nil {
+		return err
+	}
+
+	return j.Finish(FinishStateErrored)
 }
 
 func (j amqpJob) Requeue() error {
-	fmt.Printf("amqpJob.Requeue()\n")
+	amqpChan, err := j.conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer amqpChan.Close()
+
+	body := map[string]interface{}{
+		"id":    j.Payload().Job.ID,
+		"state": "reset",
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Timestamp:    time.Now(),
+		Type:         "job:test:reset",
+		Body:         bodyBytes,
+	})
+
+	j.delivery.Ack(false)
 
 	return nil
 }
 
 func (j amqpJob) Finish(state FinishState) error {
-	fmt.Printf("amqpJob.Finish(%v)\n", state)
+	amqpChan, err := j.conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer amqpChan.Close()
+
+	body := map[string]interface{}{
+		"id":          j.Payload().Job.ID,
+		"state":       state,
+		"finished_at": time.Now().Format(time.RFC3339),
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Timestamp:    time.Now(),
+		Type:         "job:test:finish",
+		Body:         bodyBytes,
+	})
+
 	j.delivery.Ack(false)
 
 	return nil
