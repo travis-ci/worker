@@ -83,10 +83,36 @@ func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
 		return nil, err
 	}
 
-	return &DockerInstance{
-		client:    p.client,
-		container: container,
-	}, nil
+	containerReady := make(chan *docker.Container)
+	errChan := make(chan error)
+	go func(id string) {
+		for true {
+			container, err := p.client.InspectContainer(id)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			if container.State.Running {
+				containerReady <- container
+				return
+			}
+		}
+	}(container.ID)
+
+	select {
+	case container := <-containerReady:
+		return &DockerInstance{
+			client:    p.client,
+			provider:  p,
+			container: container,
+		}, nil
+	case err := <-errChan:
+		return nil, err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
 }
 
 func (p *DockerProvider) imageForLanguage(language string) (string, error) {
