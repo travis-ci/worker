@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 
 	"golang.org/x/net/context"
 )
@@ -39,8 +40,28 @@ func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload JobPaylo
 		return nil, err
 	}
 
+	var token string
+	u, err := url.Parse(g.URL)
+	if err != nil {
+		return nil, err
+	}
+	if u.User != nil {
+		token = u.User.Username()
+		u.User = nil
+	}
+
 	buf := bytes.NewBuffer(b)
-	resp, err := http.Post(g.URL, "application/json", buf)
+	req, err := http.NewRequest("POST", u.String(), buf)
+	if err != nil {
+		return nil, err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+	req.Header.Set("User-Agent", fmt.Sprintf("worker-go v=%v rev=%v d=%v", VersionString, RevisionString, GeneratedString))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
