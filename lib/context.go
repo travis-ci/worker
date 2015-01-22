@@ -67,7 +67,12 @@ func repositoryFromContext(ctx context.Context) (string, bool) {
 }
 
 func LoggerFromContext(ctx context.Context) *logrus.Entry {
-	entry := logrus.NewEntry(logrus.New()).WithField("pid", os.Getpid())
+	entry := logrus.NewEntry(&logrus.Logger{
+		Out:       os.Stderr,
+		Formatter: new(logrus.TextFormatter),
+		Hooks:     nil,
+		Level:     logrus.DebugLevel,
+	}).WithField("pid", os.Getpid())
 
 	if uuid, ok := uuidFromContext(ctx); ok {
 		entry = entry.WithField("uuid", uuid)
