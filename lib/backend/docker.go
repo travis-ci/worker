@@ -113,17 +113,20 @@ func (p *DockerProvider) checkoutCPUSets() (string, error) {
 	cpuSets := []int{}
 
 	for i, checkedOut := range p.cpuSets {
-		if len(cpuSets) > 2 {
-			break
-		}
 		if !checkedOut {
 			cpuSets = append(cpuSets, i)
+		}
+		if len(cpuSets) == 2 {
+			break
 		}
 	}
 
 	if len(cpuSets) != 2 {
 		return "", fmt.Errorf("not enough free CPUsets")
 	}
+
+	p.cpuSets[cpuSets[0]] = true
+	p.cpuSets[cpuSets[1]] = true
 
 	return fmt.Sprintf("%d,%d", cpuSets[0], cpuSets[1]), nil
 }
@@ -218,6 +221,8 @@ func (i *DockerInstance) RunScript(ctx context.Context, output io.WriteCloser) (
 }
 
 func (i *DockerInstance) Stop(ctx context.Context) error {
+	defer i.provider.checkinCPUSets(i.container.Config.CPUSet)
+
 	err := i.client.StopContainer(i.container.ID, 30)
 	if err != nil {
 		err2 := i.client.RemoveContainer(docker.RemoveContainerOptions{
