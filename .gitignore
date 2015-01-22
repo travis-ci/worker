@@ -29,5 +29,4 @@ gin-bin
 *.coverprofile
 coverage.html
 
-config.yml
-config/worker.json
+.env
