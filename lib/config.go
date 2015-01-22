@@ -13,6 +13,7 @@ type Config struct {
 	BuildAPIURI    string `env:"BUILD_API_URI"`
 	ProviderName   string `env:"PROVIDER_NAME"`
 	ProviderConfig string `env:"PROVIDER_CONFIG"`
+	QueueName      string `env:"QUEUE_NAME"`
 }
 
 // EnvToConfig creates a Config instance from the current environment variables

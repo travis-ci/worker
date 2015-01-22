@@ -58,7 +58,7 @@ func runWorker(c *cli.Context) {
 		pool.GracefulShutdown()
 	}()
 
-	pool.Run(config.PoolSize, "builds.test")
+	pool.Run(config.PoolSize, config.QueueName)
 
 	err = amqpConn.Close()
 	if err != nil {
