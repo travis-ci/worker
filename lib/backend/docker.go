@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"code.google.com/p/go-uuid/uuid"
+
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -55,7 +57,7 @@ func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
 			Image:    imageID,
 			Memory:   1024 * 1024 * 1024 * 4,
 			CPUSet:   cpuSets,
-			Hostname: "",
+			Hostname: fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
 		},
 	}
 
