@@ -5,8 +5,11 @@ import (
 	"io"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/fsouza/go-dockerclient"
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
@@ -19,6 +22,7 @@ type DockerProvider struct {
 
 type DockerInstance struct {
 	client    *docker.Client
+	provider  *DockerProvider
 	container *docker.Container
 }
 
@@ -135,12 +139,82 @@ func (p *DockerProvider) checkinCPUSets(sets string) {
 	p.cpuSets[cpu2] = false
 }
 
+func (i *DockerInstance) sshClient() (*ssh.Client, error) {
+	var err error
+	i.container, err = i.client.InspectContainer(i.container.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("networksettings: %+v\n", i.container.NetworkSettings)
+
+	time.Sleep(2 * time.Second)
+
+	return ssh.Dial("tcp", fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), &ssh.ClientConfig{
+		User: "travis",
+		Auth: []ssh.AuthMethod{
+			ssh.Password("travis"),
+		},
+	})
+}
+
 func (i *DockerInstance) UploadScript(ctx context.Context, script []byte) error {
+	client, err := i.sshClient()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	sftp, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftp.Close()
+
+	f, err := sftp.Create("build.sh")
+	if err != nil {
+		return err
+	}
+
+	if _, err := f.Write(script); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (i *DockerInstance) RunScript(ctx context.Context, output io.WriteCloser) (RunResult, error) {
-	return RunResult{}, nil
+	client, err := i.sshClient()
+	if err != nil {
+		return RunResult{Completed: false}, err
+	}
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return RunResult{Completed: false}, err
+	}
+	defer session.Close()
+
+	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
+	if err != nil {
+		return RunResult{Completed: false}, err
+	}
+
+	session.Stdout = output
+	session.Stderr = output
+
+	err = session.Run("bash ~/build.sh")
+	if err == nil {
+		return RunResult{Completed: true, ExitCode: 0}, nil
+	}
+
+	switch err := err.(type) {
+	case *ssh.ExitError:
+		return RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
+	default:
+		return RunResult{Completed: false}, err
+	}
 }
 
 func (i *DockerInstance) Stop(ctx context.Context) error {
