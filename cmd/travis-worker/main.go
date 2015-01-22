@@ -37,7 +37,11 @@ func runWorker(c *cli.Context) {
 	lib.LoggerFromContext(ctx).Debug("connected to AMQP")
 
 	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
-	provider := backend.NewProvider(config.ProviderName, config.ProviderConfig)
+	provider, err := backend.NewProvider(config.ProviderName, config.ProviderConfig)
+	if err != nil {
+		logger.Errorf("couldn't create provider: %v", err)
+		return
+	}
 
 	pool := &lib.ProcessorPool{
 		Context:   ctx,

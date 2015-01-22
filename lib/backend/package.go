@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"fmt"
 	"io"
 
 	"golang.org/x/net/context"
@@ -34,9 +35,11 @@ type RunResult struct {
 	Completed bool
 }
 
-func NewProvider(name, config string) Provider {
+func NewProvider(name, config string) (Provider, error) {
 	switch name {
+	case "docker":
+		return NewDockerProvider(config)
 	default:
-		return nil
+		return nil, fmt.Errorf("unknown provider: %s", name)
 	}
 }
