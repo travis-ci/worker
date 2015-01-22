@@ -40,10 +40,15 @@ func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
 		return nil, err
 	}
 
+	imageID, err := p.imageForLanguage("ruby")
+	if err != nil {
+		return nil, err
+	}
+
 	createOptions := docker.CreateContainerOptions{
 		Config: &docker.Config{
 			Cmd:      []string{"/sbin/init"},
-			Image:    "travis:ruby",
+			Image:    imageID,
 			Memory:   1024 * 1024 * 1024 * 4,
 			CPUSet:   cpuSets,
 			Hostname: "",
@@ -76,6 +81,25 @@ func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
 		client:    p.client,
 		container: container,
 	}, nil
+}
+
+func (p *DockerProvider) imageForLanguage(language string) (string, error) {
+	searchTag := "travis:" + language
+
+	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
+	if err != nil {
+		return "", err
+	}
+
+	for _, image := range images {
+		for _, tag := range image.RepoTags {
+			if tag == searchTag {
+				return image.ID, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no image found with language %s", language)
 }
 
 func (p *DockerProvider) checkoutCPUSets() (string, error) {
