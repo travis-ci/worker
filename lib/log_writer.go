@@ -70,6 +70,16 @@ func NewLogWriter(ctx context.Context, conn *amqp.Connection, jobID uint64) (*Lo
 		return nil, err
 	}
 
+	_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	writer := &LogWriter{
 		ctx:       contextFromComponent(ctx, "log_writer"),
 		amqpConn:  conn,
@@ -226,7 +236,7 @@ func (w *LogWriter) publishLogPart(part logPart) error {
 	})
 	w.amqpChanMutex.RUnlock()
 
-	return nil
+	return err
 }
 
 func (w *LogWriter) reopenChannel() error {
