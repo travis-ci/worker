@@ -28,7 +28,8 @@ script:
 - make save
 - git diff --exit-code
 - git diff --cached --exit-code
-- AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDE      R_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
+- AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
 - cd test
 - cabal sandbox init
+- cabal install -j
 - cabal run
