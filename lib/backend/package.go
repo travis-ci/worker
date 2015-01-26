@@ -39,6 +39,8 @@ func NewProvider(name, config string) (Provider, error) {
 	switch name {
 	case "docker":
 		return NewDockerProvider(config)
+	case "fake":
+		return NewFakeProvider([]byte("Hello to the logs")), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", name)
 	}

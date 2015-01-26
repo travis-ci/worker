@@ -1,13 +1,19 @@
-language: go
-go:
-- 1.4
+language: haskell
 sudo: false
 env:
   global:
+  - GOPATH="$HOME/gopath"
   - PATH="$HOME/gopath/bin:$HOME/bin:$PATH"
 services:
 - rabbitmq
 before_install:
+- curl -sL -o ~/gimme https://raw.githubusercontent.com/meatballhat/gimme/master/gimme
+- chmod +x ~/gimme
+- eval "$(~/gimme 1.4)"
+- mkdir -p "$HOME/gopath/src/github.com/travis-ci/worker"
+- rsync -az "${TRAVIS_BUILD_DIR}/" "$HOME/gopath/src/github.com/travis-ci/worker/"
+- export TRAVIS_BUILD_DIR="$HOME/gopath/src/github.com/travis-ci/worker"
+- cd "$HOME/gopath/src/github.com/travis-ci/worker"
 - go get github.com/hamfist/deppy
 - go get github.com/golang/lint/golint
 - go get golang.org/x/tools/cmd/cover
@@ -22,3 +28,7 @@ script:
 - make save
 - git diff --exit-code
 - git diff --cached --exit-code
+- AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDE      R_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
+- cd test
+- cabal sandbox init
+- cabal run
