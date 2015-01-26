@@ -9,7 +9,7 @@ services:
 before_install:
 - curl -sL -o ~/gimme https://raw.githubusercontent.com/meatballhat/gimme/master/gimme
 - chmod +x ~/gimme
-- eval "$(~/gimme 1.4)"
+- eval "$(~/gimme 1.4.1)"
 - mkdir -p "$HOME/gopath/src/github.com/travis-ci/worker"
 - rsync -az "${TRAVIS_BUILD_DIR}/" "$HOME/gopath/src/github.com/travis-ci/worker/"
 - export TRAVIS_BUILD_DIR="$HOME/gopath/src/github.com/travis-ci/worker"
