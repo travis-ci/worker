@@ -90,11 +90,11 @@ func (p *Processor) process(ctx context.Context, buildJob Job) {
 	state.Put("ctx", ctx)
 
 	steps := []multistep.Step{
+		&stepUpdateState{},
 		&stepGenerateScript{generator: p.generator},
 		&stepStartInstance{provider: p.provider},
 		&stepUploadScript{},
 		&stepRunScript{},
-		&stepUpdateState{},
 	}
 
 	runner := &multistep.BasicRunner{Steps: steps}
