@@ -61,6 +61,7 @@ const (
 type Job interface {
 	Payload() JobPayload
 
+	Started() error
 	Error(context.Context, string) error
 	Requeue() error
 	Finish(FinishState) error

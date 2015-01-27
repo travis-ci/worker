@@ -10,6 +10,14 @@ type stepUpdateState struct{}
 func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 
+	buildJob.Started()
+
+	return multistep.ActionContinue
+}
+
+func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
+	buildJob := state.Get("buildJob").(Job)
+
 	result := state.Get("scriptResult").(backend.RunResult)
 
 	switch result.ExitCode {
@@ -20,10 +28,4 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	default:
 		buildJob.Finish(FinishStateErrored)
 	}
-
-	return multistep.ActionContinue
-}
-
-func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
-	// Nothing to clean up
 }
