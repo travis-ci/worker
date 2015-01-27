@@ -13,5 +13,6 @@ executable worker-test
                        bytestring >=0.10 && <0.11,
                        hspec >=2.1 && <2.2,
                        json ==0.9,
-                       scotty >=0.9 && <0.10
+                       scotty >=0.9 && <0.10,
+                       text >=1.2 && <1.3
   default-language:    Haskell2010

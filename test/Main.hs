@@ -9,6 +9,7 @@ import Network.AMQP
 import Test.Hspec
 import Text.JSON
 import Web.Scotty
+import Data.Text
 import qualified Data.ByteString.Lazy.Char8 as BL
 
 resultToMaybe :: Result a -> Maybe a
@@ -17,6 +18,9 @@ resultToMaybe (Error _) = Nothing
 
 decodeFromMsg :: JSON a => Message -> Maybe a
 decodeFromMsg = resultToMaybe . decode . BL.unpack . msgBody
+
+decodeFromChan :: JSON a => Channel -> Text -> IO (Maybe a)
+decodeFromChan chan queue = fmap (>>= (decodeFromMsg . fst)) (getMsg chan NoAck queue)
 
 data LogPart = LogPart
   { lp_jobID :: Int
@@ -82,9 +86,10 @@ publishJob conn = do
   closeChannel chan
 
 buildScriptServer :: IO ()
-buildScriptServer = scotty 3000 $ do
-  post "/script" $ do
-    text "Hello, world"
+buildScriptServer = scotty 3000 $ post "/script" $ text "Hello, world"
+
+withChannel :: Connection -> (Channel -> IO ()) -> IO ()
+withChannel conn = bracket (openChannel conn) closeChannel
 
 main :: IO ()
 main = do
@@ -95,12 +100,10 @@ main = do
   publishJob conn
 
   hspec $ do
-    it "sends log messages" $ do
-      chan <- openChannel conn
-      mlog1 <- getMsg chan NoAck "reporting.jobs.logs"
-      mlog2 <- getMsg chan NoAck "reporting.jobs.logs"
+    it "sends log messages" $ withChannel conn $ \chan -> do
+      mlogs <- replicateM 2 $ decodeFromChan chan "reporting.jobs.logs"
 
-      let [logWithContent, logFinal] = sort $ fmap (fromJust . decodeFromMsg . fst) (catMaybes [mlog1, mlog2])
+      let [logWithContent, logFinal] = sort $ catMaybes mlogs
 
       lp_jobID logWithContent `shouldBe` 3
       lp_logContent logWithContent `shouldBe` "Hello to the logs"
@@ -114,17 +117,11 @@ main = do
 
       compare (lp_number logWithContent) (lp_number logFinal) `shouldBe` LT
 
-      closeChannel chan
-
-    it "sends state updates" $ do
-      chan <- openChannel conn
-
-      mstateUpdate <- getMsg chan NoAck "reporting.jobs.builds"
-      let stateUpdate = (fromJust . decodeFromMsg . fst . fromJust) mstateUpdate
+    it "sends state updates" $ withChannel conn $ \chan -> do
+      mstateUpdate <- decodeFromChan chan "reporting.jobs.builds"
+      let stateUpdate = fromJust mstateUpdate
 
       su_jobID stateUpdate `shouldBe` 3
       su_state stateUpdate `shouldBe` "passed"
-
-      closeChannel chan
 
   closeConnection conn
