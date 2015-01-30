@@ -23,6 +23,7 @@ type DockerProvider struct {
 	cpuSets      []bool
 
 	bootTimer    metrics.Timer
+	timeoutMeter metrics.Meter
 }
 
 type DockerInstance struct {
@@ -40,10 +41,14 @@ func NewDockerProvider(endpoint string) (*DockerProvider, error) {
 	bootTimer := metrics.NewTimer()
 	metrics.Register("worker.vm.provider.docker.boot", bootTimer)
 
+	timeoutMeter := metrics.NewMeter()
+	metrics.Register("worker.vm.provider.docker.boot.timeout", timeoutMeter)
+
 	return &DockerProvider{
 		client:       client,
 		cpuSets:      make([]bool, runtime.NumCPU()),
 		bootTimer:    bootTimer,
+		timeoutMeter: timeoutMeter,
 	}, nil
 }
 
@@ -120,6 +125,9 @@ func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
 	case err := <-errChan:
 		return nil, err
 	case <-ctx.Done():
+		if ctx.Err() == context.DeadlineExceeded {
+			p.timeoutMeter.Mark(1)
+		}
 		return nil, ctx.Err()
 	}
 
