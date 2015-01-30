@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/codegangsta/cli"
+	"github.com/rcrowley/go-metrics"
+	"github.com/rcrowley/go-metrics/librato"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib"
 	"github.com/travis-ci/worker/lib/backend"
@@ -27,6 +31,14 @@ func runWorker(c *cli.Context) {
 
 	config := lib.EnvToConfig()
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
+
+	if config.LibratoEmail != "" && config.LibratoToken != "" && config.LibratoSource != "" {
+		lib.LoggerFromContext(ctx).Info("starting librato metrics reporter")
+		go librato.Librato(metrics.DefaultRegistry, time.Minute, config.LibratoEmail, config.LibratoToken, config.LibratoSource, []float64{0.95}, time.Millisecond)
+	} else {
+		lib.LoggerFromContext(ctx).Info("starting logger metrics reporter")
+		go metrics.Log(metrics.DefaultRegistry, time.Minute, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+	}
 
 	amqpConn, err := amqp.Dial(config.AmqpURI)
 	if err != nil {

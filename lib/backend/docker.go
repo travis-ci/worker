@@ -11,6 +11,7 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pkg/sftp"
+	"github.com/rcrowley/go-metrics"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
@@ -20,6 +21,8 @@ type DockerProvider struct {
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
+
+	bootTimer    metrics.Timer
 }
 
 type DockerInstance struct {
@@ -34,9 +37,13 @@ func NewDockerProvider(endpoint string) (*DockerProvider, error) {
 		return nil, err
 	}
 
+	bootTimer := metrics.NewTimer()
+	metrics.Register("worker.vm.provider.docker.boot", bootTimer)
+
 	return &DockerProvider{
-		client:  client,
-		cpuSets: make([]bool, runtime.NumCPU()),
+		client:       client,
+		cpuSets:      make([]bool, runtime.NumCPU()),
+		bootTimer:    bootTimer,
 	}, nil
 }
 
@@ -78,6 +85,8 @@ func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
 		return nil, err
 	}
 
+	startBooting := time.Now()
+
 	err = p.client.StartContainer(container.ID, &docker.HostConfig{})
 	if err != nil {
 		return nil, err
@@ -102,6 +111,7 @@ func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
 
 	select {
 	case container := <-containerReady:
+		p.bootTimer.UpdateSince(startBooting)
 		return &DockerInstance{
 			client:    p.client,
 			provider:  p,

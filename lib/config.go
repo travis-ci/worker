@@ -14,6 +14,9 @@ type Config struct {
 	ProviderName   string `env:"PROVIDER_NAME"`
 	ProviderConfig string `env:"PROVIDER_CONFIG"`
 	QueueName      string `env:"QUEUE_NAME"`
+	LibratoEmail   string `env:"LIBRATO_EMAIL"`
+	LibratoToken   string `env:"LIBRATO_TOKEN"`
+	LibratoSource  string `env:"LIBRATO_SOURCE"`
 }
 
 // EnvToConfig creates a Config instance from the current environment variables
