@@ -14,7 +14,7 @@ type Provider interface {
 	// Start starts an instance. It shouldn't return until the instance is
 	// ready to call UploadScript on (this may, for example, mean that it
 	// waits for SSH connections to be possible).
-	Start(context.Context) (Instance, error)
+	Start(context.Context, StartAttributes) (Instance, error)
 }
 
 // An Instance is something that can run a build script.
@@ -28,6 +28,15 @@ type Instance interface {
 	// UploadScript method.
 	RunScript(context.Context, io.WriteCloser) (RunResult, error)
 	Stop(context.Context) error
+}
+
+// StartAttributes contains some parts of the config which can be used to
+// determine the type of instance to boot up (for example, what image to use)
+type StartAttributes struct {
+	Language string `json:"language"`
+	OsxImage string `json:"osx_image"`
+	Dist     string `json:"dist"`
+	Group    string `json:"group"`
 }
 
 type RunResult struct {

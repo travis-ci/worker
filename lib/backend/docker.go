@@ -52,13 +52,13 @@ func NewDockerProvider(endpoint string) (*DockerProvider, error) {
 	}, nil
 }
 
-func (p *DockerProvider) Start(ctx context.Context) (Instance, error) {
+func (p *DockerProvider) Start(ctx context.Context, startAttributes StartAttributes) (Instance, error) {
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil {
 		return nil, err
 	}
 
-	imageID, err := p.imageForLanguage("ruby")
+	imageID, err := p.imageForLanguage(startAttributes.Language)
 	if err != nil {
 		return nil, err
 	}
