@@ -34,3 +34,6 @@ script:
 - cabal sandbox init
 - cabal install -j
 - cabal run
+cache:
+ directories:
+   - test/.cabal-sandbox
