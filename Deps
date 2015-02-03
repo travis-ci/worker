@@ -77,6 +77,10 @@
 			"Rev": "506297c9013d2893d5c5daaa9155e7333a1c58de"
 		},
 		{
+			"ImportPath": "github.com/rcrowley/go-metrics",
+			"Rev": "dee209f2455f101a5e4e593dea94872d2c62d85d"
+		},
+		{
 			"ImportPath": "github.com/streadway/amqp",
 			"Rev": "6f6c32de185ed6c6d05214c0c6abb1a74eaa0373"
 		},
