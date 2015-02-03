@@ -31,7 +31,7 @@ script:
 - git diff --cached --exit-code
 - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
 - cd test
-- [[ -d .cabal-sandbox/packages ]] || cabal sandbox init
+- "[[ -d .cabal-sandbox/packages ]] || cabal sandbox init"
 - cabal install -j
 - cabal run
 cache:
