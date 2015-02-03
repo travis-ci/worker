@@ -14,7 +14,7 @@ func NewFakeProvider(logOutput []byte) *FakeProvider {
 	return &FakeProvider{logOutput: logOutput}
 }
 
-func (p *FakeProvider) Start(ctx context.Context) (Instance, error) {
+func (p *FakeProvider) Start(ctx context.Context, _ StartAttributes) (Instance, error) {
 	return &FakeInstance{logOutput: p.logOutput}, nil
 }
 

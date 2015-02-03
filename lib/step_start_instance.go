@@ -20,7 +20,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx, cancel := context.WithTimeout(ctx, s.startTimeout)
 	defer cancel()
-	instance, err := s.provider.Start(ctx)
+	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
 	if err != nil {
 		LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
 		buildJob.Requeue()

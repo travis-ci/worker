@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/streadway/amqp"
+	"github.com/travis-ci/worker/lib/backend"
 	"golang.org/x/net/context"
 )
 
@@ -17,13 +18,18 @@ type JobQueue struct {
 }
 
 type amqpJob struct {
-	conn     *amqp.Connection
-	delivery amqp.Delivery
-	payload  JobPayload
+	conn            *amqp.Connection
+	delivery        amqp.Delivery
+	payload         JobPayload
+	startAttributes backend.StartAttributes
 }
 
 func (j amqpJob) Payload() JobPayload {
 	return j.payload
+}
+
+func (j amqpJob) StartAttributes() backend.StartAttributes {
+	return j.startAttributes
 }
 
 func (j amqpJob) Error(ctx context.Context, errMessage string) error {
@@ -214,10 +220,18 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 	go func() {
 		for delivery := range deliveries {
 			var buildJob amqpJob
+			var startAttrs struct {
+				config backend.StartAttributes `json:"config"`
+			}
 			err := json.Unmarshal(delivery.Body, &buildJob.payload)
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
 			}
+			err = json.Unmarshal(delivery.Body, &startAttrs)
+			if err != nil {
+				fmt.Printf("JSON parse error: %v\n", err)
+			}
+			buildJob.startAttributes = startAttrs.config
 			buildJob.conn = q.conn
 			buildJob.delivery = delivery
 

@@ -9,7 +9,7 @@ func NewSauceLabsProvider(config string) Provider {
 	return &sauceLabsProvider{}
 }
 
-func (p *sauceLabsProvider) Start(ctx context.Context) (Instance, error) {
+func (p *sauceLabsProvider) Start(ctx context.Context, _ StartAttributes) (Instance, error) {
 	return nil, nil
 }
 

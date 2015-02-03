@@ -3,6 +3,7 @@ package lib
 import (
 	"io"
 
+	"github.com/travis-ci/worker/lib/backend"
 	"golang.org/x/net/context"
 )
 
@@ -60,6 +61,7 @@ const (
 // A Job ties togeher all the elements required for a build job
 type Job interface {
 	Payload() JobPayload
+	StartAttributes() backend.StartAttributes
 
 	Started() error
 	Error(context.Context, string) error
