@@ -42,7 +42,7 @@ func runWorker(c *cli.Context) {
 
 	amqpConn, err := amqp.Dial(config.AmqpURI)
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't connect to AMQP")
+		lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't connect to AMQP")
 		return
 	}
 
@@ -51,7 +51,7 @@ func runWorker(c *cli.Context) {
 	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
 	provider, err := backend.NewProvider(config.ProviderName, config.ProviderConfig)
 	if err != nil {
-		logger.Errorf("couldn't create provider: %v", err)
+		lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create backend provider")
 		return
 	}
 
@@ -66,7 +66,7 @@ func runWorker(c *cli.Context) {
 	signal.Notify(signalChan, os.Interrupt)
 	go func() {
 		<-signalChan
-		logger.Info("SIGTERM received, starting graceful shutdown")
+		lib.LoggerFromContext(ctx).Info("SIGTERM received, starting graceful shutdown")
 		pool.GracefulShutdown()
 	}()
 
@@ -74,7 +74,7 @@ func runWorker(c *cli.Context) {
 
 	err = amqpConn.Close()
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't close AMQP connection cleanly")
+		lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't close AMQP connection cleanly")
 		return
 	}
 }
