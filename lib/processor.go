@@ -93,10 +93,10 @@ func (p *Processor) process(ctx context.Context, buildJob Job) {
 
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{canceller: p.canceller},
-		&stepUpdateState{},
 		&stepGenerateScript{generator: p.generator},
 		&stepStartInstance{provider: p.provider, startTimeout: 10 * time.Second},
 		&stepUploadScript{},
+		&stepUpdateState{},
 		&stepRunScript{},
 	}
 
