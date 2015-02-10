@@ -34,8 +34,12 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 }
 
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
-	instance := state.Get("instance").(backend.Instance)
 	ctx := state.Get("ctx").(context.Context)
+	instance, ok := state.Get("instance").(backend.Instance)
+	if !ok {
+		LoggerFromContext(ctx).Info("no instance to stop")
+		return
+	}
 
 	if err := instance.Stop(ctx); err != nil {
 		LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Error("couldn't stop instance")
