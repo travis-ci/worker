@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/Sirupsen/logrus"
+	"github.com/Sirupsen/logrus/hooks/sentry"
 	"github.com/codegangsta/cli"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/librato"
@@ -31,6 +33,15 @@ func runWorker(c *cli.Context) {
 
 	config := lib.EnvToConfig()
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
+
+	if config.SentryDSN != "" {
+		sentryHook, err := logrus_sentry.NewSentryHook(config.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
+		if err != nil {
+			lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create sentry hook")
+		}
+
+		logrus.AddHook(sentryHook)
+	}
 
 	if config.LibratoEmail != "" && config.LibratoToken != "" && config.LibratoSource != "" {
 		lib.LoggerFromContext(ctx).Info("starting librato metrics reporter")

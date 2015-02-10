@@ -17,6 +17,7 @@ type Config struct {
 	LibratoEmail   string `env:"LIBRATO_EMAIL"`
 	LibratoToken   string `env:"LIBRATO_TOKEN"`
 	LibratoSource  string `env:"LIBRATO_SOURCE"`
+	SentryDSN      string `env:"SENTRY_DSN"`
 }
 
 // EnvToConfig creates a Config instance from the current environment variables
