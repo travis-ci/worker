@@ -55,11 +55,15 @@ func runWorker(c *cli.Context) {
 		return
 	}
 
+	commandDispatcher := lib.NewCommandDispatcher(ctx, amqpConn)
+	go commandDispatcher.Run()
+
 	pool := &lib.ProcessorPool{
 		Context:   ctx,
 		Conn:      amqpConn,
 		Provider:  provider,
 		Generator: generator,
+		Canceller: commandDispatcher,
 	}
 
 	signalChan := make(chan os.Signal, 1)

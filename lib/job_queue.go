@@ -24,6 +24,10 @@ type amqpJob struct {
 	startAttributes backend.StartAttributes
 }
 
+type amqpPayloadStartAttrs struct {
+	Config backend.StartAttributes `json:"config"`
+}
+
 func (j amqpJob) Payload() JobPayload {
 	return j.payload
 }
@@ -220,18 +224,21 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 	go func() {
 		for delivery := range deliveries {
 			var buildJob amqpJob
-			var startAttrs struct {
-				config backend.StartAttributes `json:"config"`
-			}
+			var startAttrs amqpPayloadStartAttrs
+
 			err := json.Unmarshal(delivery.Body, &buildJob.payload)
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
+				continue
 			}
+
 			err = json.Unmarshal(delivery.Body, &startAttrs)
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
+				continue
 			}
-			buildJob.startAttributes = startAttrs.config
+
+			buildJob.startAttributes = startAttrs.Config
 			buildJob.conn = q.conn
 			buildJob.delivery = delivery
 

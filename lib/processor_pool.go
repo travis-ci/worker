@@ -15,6 +15,7 @@ type ProcessorPool struct {
 	Conn      *amqp.Connection
 	Provider  backend.Provider
 	Generator BuildScriptGenerator
+	Canceller Canceller
 
 	processorsLock sync.Mutex
 	processors     []*Processor
@@ -62,7 +63,7 @@ func (p *ProcessorPool) processor(queue *JobQueue) {
 		return
 	}
 
-	proc := NewProcessor(p.Context, buildJobChan, p.Provider, p.Generator)
+	proc := NewProcessor(p.Context, buildJobChan, p.Provider, p.Generator, p.Canceller)
 
 	p.processorsLock.Lock()
 	p.processors = append(p.processors, proc)

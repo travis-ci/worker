@@ -26,6 +26,7 @@ type Processor struct {
 	buildJobsChan <-chan Job
 	provider      backend.Provider
 	generator     BuildScriptGenerator
+	canceller     Canceller
 
 	graceful  chan struct{}
 	terminate context.CancelFunc
@@ -34,7 +35,7 @@ type Processor struct {
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx context.Context, buildJobsChan <-chan Job, provider backend.Provider, generator BuildScriptGenerator) *Processor {
+func NewProcessor(ctx context.Context, buildJobsChan <-chan Job, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) *Processor {
 	processorUUID := uuid.NewRandom()
 
 	ctx, cancel := context.WithCancel(contextFromProcessor(ctx, processorUUID.String()))
@@ -46,6 +47,7 @@ func NewProcessor(ctx context.Context, buildJobsChan <-chan Job, provider backen
 		buildJobsChan: buildJobsChan,
 		provider:      provider,
 		generator:     generator,
+		canceller:     canceller,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -90,6 +92,7 @@ func (p *Processor) process(ctx context.Context, buildJob Job) {
 	state.Put("ctx", ctx)
 
 	steps := []multistep.Step{
+		&stepSubscribeCancellation{canceller: p.canceller},
 		&stepUpdateState{},
 		&stepGenerateScript{generator: p.generator},
 		&stepStartInstance{provider: p.provider},
