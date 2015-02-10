@@ -95,7 +95,7 @@ func (p *Processor) process(ctx context.Context, buildJob Job) {
 		&stepSubscribeCancellation{canceller: p.canceller},
 		&stepUpdateState{},
 		&stepGenerateScript{generator: p.generator},
-		&stepStartInstance{provider: p.provider},
+		&stepStartInstance{provider: p.provider, startTimeout: 10 * time.Second},
 		&stepUploadScript{},
 		&stepRunScript{},
 	}
