@@ -12,8 +12,8 @@
 		},
 		{
 			"ImportPath": "github.com/Sirupsen/logrus",
-			"Comment": "v0.5.1",
-			"Rev": "736840a898fb560e3d93413410a4cb1371f42f71"
+			"Comment": "v0.6.4-13-g0b189e0",
+			"Rev": "0b189e019aabcec0af8e433b10b3073ad9382b44"
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
@@ -63,6 +63,10 @@
 		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
 			"Rev": "5da2a37ecfb5bcb921a36dbc18e912c3235f139a"
+		},
+		{
+			"ImportPath": "github.com/getsentry/raven-go",
+			"Rev": "3fd636ed242c26c0f55bc9ee1fe47e1d6d2d77f7"
 		},
 		{
 			"ImportPath": "github.com/kr/fs",
