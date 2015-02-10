@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"time"
 
+	"github.com/rcrowley/go-metrics"
 	"golang.org/x/net/context"
 )
 
@@ -61,11 +63,14 @@ func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload JobPaylo
 	req.Header.Set("User-Agent", fmt.Sprintf("worker-go v=%v rev=%v d=%v", VersionString, RevisionString, GeneratedString))
 	req.Header.Set("Content-Type", "application/json")
 
+	startRequest := time.Now()
+
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	metrics.GetOrRegisterTimer("worker.job.script.api", metrics.DefaultRegistry).UpdateSince(startRequest)
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
