@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
 	"golang.org/x/net/context"
@@ -65,6 +66,8 @@ func (j amqpJob) Error(ctx context.Context, errMessage string) error {
 }
 
 func (j amqpJob) Requeue() error {
+	metrics.GetOrRegisterMeter("worker.job.requeue", metrics.DefaultRegistry).Mark(1)
+
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
 		return err
