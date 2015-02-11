@@ -83,8 +83,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttri
 				Force:         true,
 			})
 			if err != nil {
-				// TODO: logrusify
-				fmt.Printf("error: couldn't remove container after create failure: %v\n", err)
+				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't remove container after create failure")
 			}
 		}
 
@@ -279,8 +278,7 @@ func (i *DockerInstance) Stop(ctx gocontext.Context) error {
 		})
 
 		if err2 != nil {
-			// TODO: logrusify
-			fmt.Printf("error: couldn't remove container after stop failure: %v\n", err2)
+			context.LoggerFromContext(ctx).WithField("err", err).WithField("err2", err2).Error("couldn't remove container after stop failure")
 		}
 
 		return err
