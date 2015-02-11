@@ -5,13 +5,14 @@ import (
 
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 // A ProcessorPool spins up multiple Processors handling build jobs from the
 // same queue.
 type ProcessorPool struct {
-	Context   context.Context
+	Context   gocontext.Context
 	Conn      *amqp.Connection
 	Provider  backend.Provider
 	Generator BuildScriptGenerator
@@ -59,7 +60,7 @@ func (p *ProcessorPool) GracefulShutdown() {
 func (p *ProcessorPool) processor(queue *JobQueue) {
 	buildJobChan, err := queue.Jobs()
 	if err != nil {
-		// TODO: log
+		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't subscribe to queue")
 		return
 	}
 
