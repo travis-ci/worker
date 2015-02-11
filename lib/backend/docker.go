@@ -271,18 +271,12 @@ func (i *DockerInstance) Stop(ctx gocontext.Context) error {
 
 	err := i.client.StopContainer(i.container.ID, 30)
 	if err != nil {
-		err2 := i.client.RemoveContainer(docker.RemoveContainerOptions{
-			ID:            i.container.ID,
-			RemoveVolumes: true,
-			Force:         true,
-		})
-
-		if err2 != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).WithField("err2", err2).Error("couldn't remove container after stop failure")
-		}
-
 		return err
 	}
 
-	return nil
+	return i.client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:            i.container.ID,
+		RemoveVolumes: true,
+		Force:         true,
+	})
 }
