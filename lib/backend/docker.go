@@ -11,8 +11,8 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pkg/sftp"
-	"github.com/rcrowley/go-metrics"
 	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/lib/metrics"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
 )
@@ -22,9 +22,6 @@ type DockerProvider struct {
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
-
-	bootTimer    metrics.Timer
-	timeoutMeter metrics.Meter
 }
 
 type DockerInstance struct {
@@ -39,17 +36,9 @@ func NewDockerProvider(endpoint string) (*DockerProvider, error) {
 		return nil, err
 	}
 
-	bootTimer := metrics.NewTimer()
-	metrics.Register("worker.vm.provider.docker.boot", bootTimer)
-
-	timeoutMeter := metrics.NewMeter()
-	metrics.Register("worker.vm.provider.docker.boot.timeout", timeoutMeter)
-
 	return &DockerProvider{
-		client:       client,
-		cpuSets:      make([]bool, runtime.NumCPU()),
-		bootTimer:    bootTimer,
-		timeoutMeter: timeoutMeter,
+		client:  client,
+		cpuSets: make([]bool, runtime.NumCPU()),
 	}, nil
 }
 
@@ -116,7 +105,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttri
 
 	select {
 	case container := <-containerReady:
-		p.bootTimer.UpdateSince(startBooting)
+		metrics.TimeSince("worker.vm.provider.docker.boot", startBooting)
 		return &DockerInstance{
 			client:    p.client,
 			provider:  p,
@@ -126,7 +115,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttri
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
-			p.timeoutMeter.Mark(1)
+			metrics.Mark("worker.vm.provider.docker.boot.timeout")
 		}
 		return nil, ctx.Err()
 	}

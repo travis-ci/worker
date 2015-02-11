@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/rcrowley/go-metrics"
+	"github.com/travis-ci/worker/lib/metrics"
 	"golang.org/x/net/context"
 )
 
@@ -70,7 +70,7 @@ func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload JobPaylo
 		return nil, err
 	}
 	defer resp.Body.Close()
-	metrics.GetOrRegisterTimer("worker.job.script.api", metrics.DefaultRegistry).UpdateSince(startRequest)
+	metrics.TimeSince("worker.job.script.api", startRequest)
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
