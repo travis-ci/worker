@@ -7,7 +7,8 @@ import (
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/lib/backend"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 // InstanceStartTimeout is the timeout for starting an instance and waiting for
@@ -22,28 +23,28 @@ var JobTimeout = 50 * time.Minute
 type Processor struct {
 	processorUUID uuid.UUID
 
-	ctx           context.Context
+	ctx           gocontext.Context
 	buildJobsChan <-chan Job
 	provider      backend.Provider
 	generator     BuildScriptGenerator
 	canceller     Canceller
 
 	graceful  chan struct{}
-	terminate context.CancelFunc
+	terminate gocontext.CancelFunc
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx context.Context, buildJobsChan <-chan Job, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) *Processor {
+func NewProcessor(ctx gocontext.Context, buildJobsChan <-chan Job, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) *Processor {
 	processorUUID := uuid.NewRandom()
 
-	ctx, cancel := context.WithCancel(contextFromProcessor(ctx, processorUUID.String()))
+	ctx, cancel := gocontext.WithCancel(context.FromProcessor(ctx, processorUUID.String()))
 
 	return &Processor{
 		processorUUID: processorUUID,
 
-		ctx:           contextFromProcessor(ctx, processorUUID.String()),
+		ctx:           context.FromProcessor(ctx, processorUUID.String()),
 		buildJobsChan: buildJobsChan,
 		provider:      provider,
 		generator:     generator,
@@ -61,13 +62,14 @@ func (p *Processor) Run() {
 	for {
 		select {
 		case <-p.graceful:
-			LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
 				return
 			}
-			p.process(contextFromJob(p.ctx, buildJob), buildJob)
+			ctx := context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID)
+			p.process(ctx, buildJob)
 		}
 	}
 }
@@ -76,7 +78,7 @@ func (p *Processor) Run() {
 // processing, but not pick up any new jobs. This method will return
 // immediately, the processor is done when Run() returns.
 func (p *Processor) GracefulShutdown() {
-	LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
+	context.LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
 	close(p.graceful)
 }
 
@@ -86,7 +88,7 @@ func (p *Processor) Terminate() {
 	p.terminate()
 }
 
-func (p *Processor) process(ctx context.Context, buildJob Job) {
+func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
@@ -102,7 +104,7 @@ func (p *Processor) process(ctx context.Context, buildJob Job) {
 
 	runner := &multistep.BasicRunner{Steps: steps}
 
-	LoggerFromContext(ctx).Info("starting job")
+	context.LoggerFromContext(ctx).Info("starting job")
 	runner.Run(state)
-	LoggerFromContext(ctx).Info("finished job")
+	context.LoggerFromContext(ctx).Info("finished job")
 }

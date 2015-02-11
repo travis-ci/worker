@@ -12,8 +12,9 @@ import (
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pkg/sftp"
 	"github.com/rcrowley/go-metrics"
+	"github.com/travis-ci/worker/lib/context"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
+	gocontext "golang.org/x/net/context"
 )
 
 type DockerProvider struct {
@@ -52,7 +53,7 @@ func NewDockerProvider(endpoint string) (*DockerProvider, error) {
 	}, nil
 }
 
-func (p *DockerProvider) Start(ctx context.Context, startAttributes StartAttributes) (Instance, error) {
+func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttributes) (Instance, error) {
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil {
 		return nil, err
@@ -125,7 +126,7 @@ func (p *DockerProvider) Start(ctx context.Context, startAttributes StartAttribu
 	case err := <-errChan:
 		return nil, err
 	case <-ctx.Done():
-		if ctx.Err() == context.DeadlineExceeded {
+		if ctx.Err() == gocontext.DeadlineExceeded {
 			p.timeoutMeter.Mark(1)
 		}
 		return nil, ctx.Err()
@@ -207,7 +208,7 @@ func (i *DockerInstance) sshClient() (*ssh.Client, error) {
 	})
 }
 
-func (i *DockerInstance) UploadScript(ctx context.Context, script []byte) error {
+func (i *DockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
@@ -232,7 +233,7 @@ func (i *DockerInstance) UploadScript(ctx context.Context, script []byte) error 
 	return nil
 }
 
-func (i *DockerInstance) RunScript(ctx context.Context, output io.WriteCloser) (RunResult, error) {
+func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return RunResult{Completed: false}, err
@@ -266,7 +267,7 @@ func (i *DockerInstance) RunScript(ctx context.Context, output io.WriteCloser) (
 	}
 }
 
-func (i *DockerInstance) Stop(ctx context.Context) error {
+func (i *DockerInstance) Stop(ctx gocontext.Context) error {
 	defer i.provider.checkinCPUSets(i.container.Config.CPUSet)
 
 	err := i.client.StopContainer(i.container.ID, 30)

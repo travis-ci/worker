@@ -2,7 +2,8 @@ package lib
 
 import (
 	"github.com/mitchellh/multistep"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 type stepSubscribeCancellation struct {
@@ -10,14 +11,14 @@ type stepSubscribeCancellation struct {
 }
 
 func (s *stepSubscribeCancellation) Run(state multistep.StateBag) multistep.StepAction {
-	ctx := state.Get("ctx").(context.Context)
+	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 
 	ch := make(chan struct{})
 	state.Put("cancelChan", (<-chan struct{})(ch))
 	err := s.canceller.Subscribe(buildJob.Payload().Job.ID, ch)
 	if err != nil {
-		LoggerFromContext(ctx).WithField("err", err).Error("couldn't subscribe to canceller")
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't subscribe to canceller")
 		buildJob.Requeue()
 		return multistep.ActionHalt
 	}

@@ -6,7 +6,8 @@ import (
 	"sync"
 
 	"github.com/streadway/amqp"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 type cancelCommand struct {
@@ -22,14 +23,14 @@ type Canceller interface {
 
 type CommandDispatcher struct {
 	conn *amqp.Connection
-	ctx  context.Context
+	ctx  gocontext.Context
 
 	cancelMutex sync.Mutex
 	cancelMap   map[uint64](chan<- struct{})
 }
 
-func NewCommandDispatcher(ctx context.Context, conn *amqp.Connection) *CommandDispatcher {
-	ctx = contextFromComponent(ctx, "command_dispatcher")
+func NewCommandDispatcher(ctx gocontext.Context, conn *amqp.Connection) *CommandDispatcher {
+	ctx = context.FromComponent(ctx, "command_dispatcher")
 
 	return &CommandDispatcher{
 		ctx:       ctx,
@@ -41,38 +42,38 @@ func NewCommandDispatcher(ctx context.Context, conn *amqp.Connection) *CommandDi
 func (d *CommandDispatcher) Run() {
 	amqpChan, err := d.conn.Channel()
 	if err != nil {
-		LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't open channel")
+		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't open channel")
 		return
 	}
 	defer amqpChan.Close()
 
 	err = amqpChan.Qos(1, 0, false)
 	if err != nil {
-		LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't set prefetch")
+		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't set prefetch")
 		return
 	}
 
 	err = amqpChan.ExchangeDeclare("worker.commands", "fanout", false, false, false, false, nil)
 	if err != nil {
-		LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't declare exchange")
+		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't declare exchange")
 		return
 	}
 
 	queue, err := amqpChan.QueueDeclare("", true, false, true, false, nil)
 	if err != nil {
-		LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't declare queue")
+		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't declare queue")
 		return
 	}
 
 	err = amqpChan.QueueBind(queue.Name, "", "worker.commands", false, nil)
 	if err != nil {
-		LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't bind queue to exchange")
+		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't bind queue to exchange")
 		return
 	}
 
 	deliveries, err := amqpChan.Consume(queue.Name, "commands", false, true, false, false, nil)
 	if err != nil {
-		LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't consume queue")
+		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't consume queue")
 		return
 	}
 
@@ -106,12 +107,12 @@ func (d *CommandDispatcher) processCommand(delivery amqp.Delivery) {
 	var command cancelCommand
 	err := json.Unmarshal(delivery.Body, &command)
 	if err != nil {
-		LoggerFromContext(d.ctx).WithField("err", err).Error("unable to parse JSON")
+		context.LoggerFromContext(d.ctx).WithField("err", err).Error("unable to parse JSON")
 		return
 	}
 
 	if command.Type != "cancel_job" {
-		LoggerFromContext(d.ctx).WithField("command", command.Type).Error("unknown worker command")
+		context.LoggerFromContext(d.ctx).WithField("command", command.Type).Error("unknown worker command")
 		return
 	}
 
@@ -120,14 +121,14 @@ func (d *CommandDispatcher) processCommand(delivery amqp.Delivery) {
 
 	cancelChan, ok := d.cancelMap[command.JobID]
 	if !ok {
-		LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Info("no job with this ID found on this worker")
+		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Info("no job with this ID found on this worker")
 		return
 	}
 
 	if tryClose(cancelChan) {
-		LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Info("cancelling job")
+		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Info("cancelling job")
 	} else {
-		LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Warn("job already cancelled")
+		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Warn("job already cancelled")
 	}
 }
 

@@ -9,7 +9,8 @@ import (
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 // A JobQueue allows getting Jobs out of an AMQP queue.
@@ -37,7 +38,7 @@ func (j amqpJob) StartAttributes() backend.StartAttributes {
 	return j.startAttributes
 }
 
-func (j amqpJob) Error(ctx context.Context, errMessage string) error {
+func (j amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 	log, err := j.LogWriter(ctx)
 	if err != nil {
 		return err
@@ -50,7 +51,7 @@ func (j amqpJob) Error(ctx context.Context, errMessage string) error {
 			return err
 		}
 	} else {
-		LoggerFromContext(ctx).Error("Log writer wasn't a LogWriter… We're doing Write+Close instead")
+		context.LoggerFromContext(ctx).Error("Log writer wasn't a LogWriter… We're doing Write+Close instead")
 		_, err = fmt.Fprintf(log, "%s", errMessage)
 		if err != nil {
 			return err
@@ -172,7 +173,7 @@ func (j amqpJob) Finish(state FinishState) error {
 	return nil
 }
 
-func (j amqpJob) LogWriter(ctx context.Context) (io.WriteCloser, error) {
+func (j amqpJob) LogWriter(ctx gocontext.Context) (io.WriteCloser, error) {
 	return NewLogWriter(ctx, j.conn, j.payload.Job.ID)
 }
 

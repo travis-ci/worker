@@ -2,7 +2,8 @@ package lib
 
 import (
 	"github.com/mitchellh/multistep"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 type stepGenerateScript struct {
@@ -11,17 +12,17 @@ type stepGenerateScript struct {
 
 func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
-	ctx := state.Get("ctx").(context.Context)
+	ctx := state.Get("ctx").(gocontext.Context)
 
 	script, err := s.generator.Generate(ctx, buildJob.Payload())
 	if err != nil {
 		if genErr, ok := err.(BuildScriptGeneratorError); ok && genErr.Recover {
-			LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, requeueing job")
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, requeueing job")
 			buildJob.Requeue()
 			return multistep.ActionHalt
 		}
 
-		LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, erroring job")
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, erroring job")
 		buildJob.Error(ctx, "An error occurred while generating the build script.")
 		return multistep.ActionHalt
 	}

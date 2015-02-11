@@ -6,7 +6,8 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/lib/backend"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 type stepStartInstance struct {
@@ -16,13 +17,13 @@ type stepStartInstance struct {
 
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
-	ctx := state.Get("ctx").(context.Context)
+	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, cancel := context.WithTimeout(ctx, s.startTimeout)
+	ctx, cancel := gocontext.WithTimeout(ctx, s.startTimeout)
 	defer cancel()
 	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
 	if err != nil {
-		LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
 		buildJob.Requeue()
 
 		return multistep.ActionHalt
@@ -34,16 +35,16 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 }
 
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
-	ctx := state.Get("ctx").(context.Context)
+	ctx := state.Get("ctx").(gocontext.Context)
 	instance, ok := state.Get("instance").(backend.Instance)
 	if !ok {
-		LoggerFromContext(ctx).Info("no instance to stop")
+		context.LoggerFromContext(ctx).Info("no instance to stop")
 		return
 	}
 
 	if err := instance.Stop(ctx); err != nil {
-		LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Error("couldn't stop instance")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Error("couldn't stop instance")
 	} else {
-		LoggerFromContext(ctx).Info("stopped instance")
+		context.LoggerFromContext(ctx).Info("stopped instance")
 	}
 }

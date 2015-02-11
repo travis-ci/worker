@@ -15,7 +15,8 @@ import (
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib"
 	"github.com/travis-ci/worker/lib/backend"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 func main() {
@@ -28,8 +29,8 @@ func main() {
 }
 
 func runWorker(c *cli.Context) {
-	ctx := context.Background()
-	logger := lib.LoggerFromContext(ctx)
+	ctx := gocontext.Background()
+	logger := context.LoggerFromContext(ctx)
 
 	config := lib.EnvToConfig()
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
@@ -37,32 +38,32 @@ func runWorker(c *cli.Context) {
 	if config.SentryDSN != "" {
 		sentryHook, err := logrus_sentry.NewSentryHook(config.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
 		if err != nil {
-			lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create sentry hook")
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create sentry hook")
 		}
 
 		logrus.AddHook(sentryHook)
 	}
 
 	if config.LibratoEmail != "" && config.LibratoToken != "" && config.LibratoSource != "" {
-		lib.LoggerFromContext(ctx).Info("starting librato metrics reporter")
+		context.LoggerFromContext(ctx).Info("starting librato metrics reporter")
 		go librato.Librato(metrics.DefaultRegistry, time.Minute, config.LibratoEmail, config.LibratoToken, config.LibratoSource, []float64{0.95}, time.Millisecond)
 	} else {
-		lib.LoggerFromContext(ctx).Info("starting logger metrics reporter")
+		context.LoggerFromContext(ctx).Info("starting logger metrics reporter")
 		go metrics.Log(metrics.DefaultRegistry, time.Minute, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
 
 	amqpConn, err := amqp.Dial(config.AmqpURI)
 	if err != nil {
-		lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't connect to AMQP")
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't connect to AMQP")
 		return
 	}
 
-	lib.LoggerFromContext(ctx).Debug("connected to AMQP")
+	context.LoggerFromContext(ctx).Debug("connected to AMQP")
 
 	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
 	provider, err := backend.NewProvider(config.ProviderName, config.ProviderConfig)
 	if err != nil {
-		lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create backend provider")
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create backend provider")
 		return
 	}
 
@@ -81,7 +82,7 @@ func runWorker(c *cli.Context) {
 	signal.Notify(signalChan, os.Interrupt)
 	go func() {
 		<-signalChan
-		lib.LoggerFromContext(ctx).Info("SIGTERM received, starting graceful shutdown")
+		context.LoggerFromContext(ctx).Info("SIGTERM received, starting graceful shutdown")
 		pool.GracefulShutdown()
 	}()
 
@@ -89,7 +90,7 @@ func runWorker(c *cli.Context) {
 
 	err = amqpConn.Close()
 	if err != nil {
-		lib.LoggerFromContext(ctx).WithField("err", err).Error("couldn't close AMQP connection cleanly")
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't close AMQP connection cleanly")
 		return
 	}
 }

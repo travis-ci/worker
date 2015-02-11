@@ -8,7 +8,8 @@ import (
 	"time"
 
 	"github.com/streadway/amqp"
-	"golang.org/x/net/context"
+	"github.com/travis-ci/worker/lib/context"
+	gocontext "golang.org/x/net/context"
 )
 
 var (
@@ -37,7 +38,7 @@ var (
 
 // A LogWriter is an io.WriteCloser that redirects to travis-logs
 type LogWriter struct {
-	ctx      context.Context
+	ctx      gocontext.Context
 	amqpConn *amqp.Connection
 	jobID    uint64
 
@@ -59,7 +60,7 @@ type logPart struct {
 	Final   bool   `json:"final"`
 }
 
-func NewLogWriter(ctx context.Context, conn *amqp.Connection, jobID uint64) (*LogWriter, error) {
+func NewLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (*LogWriter, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -81,7 +82,7 @@ func NewLogWriter(ctx context.Context, conn *amqp.Connection, jobID uint64) (*Lo
 	}
 
 	writer := &LogWriter{
-		ctx:       contextFromComponent(ctx, "log_writer"),
+		ctx:       context.FromComponent(ctx, "log_writer"),
 		amqpConn:  conn,
 		amqpChan:  channel,
 		jobID:     jobID,
@@ -204,22 +205,22 @@ func (w *LogWriter) flush() {
 			switch err.(type) {
 			case *amqp.Error:
 				if w.reopenChannel() != nil {
-					LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part and couldn't reopen channel")
+					context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part and couldn't reopen channel")
 					// Close or something
 					return
 				}
 
 				err = w.publishLogPart(part)
-				LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part, even after reopening channel")
+				context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part, even after reopening channel")
 			default:
-				LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part")
+				context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part")
 			}
 		}
 	}
 }
 
 func (w *LogWriter) publishLogPart(part logPart) error {
-	part.UUID, _ = uuidFromContext(w.ctx)
+	part.UUID, _ = context.UUIDFromContext(w.ctx)
 
 	partBody, err := json.Marshal(part)
 	if err != nil {
