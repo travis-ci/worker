@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -61,7 +62,7 @@ func runWorker(c *cli.Context) {
 	context.LoggerFromContext(ctx).Debug("connected to AMQP")
 
 	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
-	provider, err := backend.NewProvider(config.ProviderName, config.ProviderConfig)
+	provider, err := backend.NewProvider(config.ProviderName, ProviderConfigFromEnviron(config.ProviderName))
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create backend provider")
 		return
@@ -93,4 +94,21 @@ func runWorker(c *cli.Context) {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't close AMQP connection cleanly")
 		return
 	}
+}
+
+func ProviderConfigFromEnviron(providerName string) map[string]string {
+	prefix := "TRAVIS_WORKER_" + strings.ToUpper(providerName) + "_"
+
+	config := make(map[string]string)
+
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, prefix) {
+			pair := strings.SplitN(e, "=", 2)
+			key := strings.ToLower(strings.TrimPrefix(pair[0], prefix))
+
+			config[key] = pair[1]
+		}
+	}
+
+	return config
 }

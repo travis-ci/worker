@@ -44,10 +44,12 @@ type RunResult struct {
 	Completed bool
 }
 
-func NewProvider(name, config string) (Provider, error) {
+func NewProvider(name string, config map[string]string) (Provider, error) {
 	switch name {
 	case "docker":
 		return NewDockerProvider(config)
+	case "sauce_labs":
+		return NewSauceLabsProvider(config)
 	case "fake":
 		return NewFakeProvider([]byte("Hello to the logs")), nil
 	default:

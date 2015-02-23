@@ -30,7 +30,12 @@ type DockerInstance struct {
 	container *docker.Container
 }
 
-func NewDockerProvider(endpoint string) (*DockerProvider, error) {
+func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
+	endpoint, ok := config["endpoint"]
+	if !ok {
+		return nil, fmt.Errorf("expected config key endpoint")
+	}
+
 	client, err := docker.NewClient(endpoint)
 	if err != nil {
 		return nil, err
