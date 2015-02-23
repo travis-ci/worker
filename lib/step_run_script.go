@@ -1,13 +1,17 @@
 package lib
 
 import (
+	"time"
+
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/lib/backend"
 	"github.com/travis-ci/worker/lib/context"
 	gocontext "golang.org/x/net/context"
 )
 
-type stepRunScript struct{}
+type stepRunScript struct {
+	logTimeout time.Duration
+}
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	ctx, cancelCtx := gocontext.WithCancel(state.Get("ctx").(gocontext.Context))
@@ -21,6 +25,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		buildJob.Requeue()
 		return multistep.ActionHalt
 	}
+
+	logWriter.SetTimeout(s.logTimeout)
 
 	resultChan := make(chan struct {
 		result backend.RunResult
@@ -57,8 +63,6 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	case <-cancelChan:
 		cancelCtx()
 
-		logWriter := logWriter.(*LogWriter)
-
 		_, err := logWriter.WriteAndClose([]byte("\n\nDone: Job Cancelled\n\n"))
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write cancellation log message")
@@ -67,6 +71,20 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		err = buildJob.Finish(FinishStateCancelled)
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to cancelled")
+		}
+
+		return multistep.ActionHalt
+	case <-logWriter.Timeout():
+		cancelCtx()
+
+		_, err := logWriter.WriteAndClose([]byte("\n\nNo output has been received in the last ... minutes, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n"))
+		if err != nil {
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write log timeout log message")
+		}
+
+		err = buildJob.Finish(FinishStateErrored)
+		if err != nil {
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to errored")
 		}
 
 		return multistep.ActionHalt

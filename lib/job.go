@@ -2,6 +2,7 @@ package lib
 
 import (
 	"io"
+	"time"
 
 	"github.com/travis-ci/worker/lib/backend"
 	"golang.org/x/net/context"
@@ -68,5 +69,12 @@ type Job interface {
 	Requeue() error
 	Finish(FinishState) error
 
-	LogWriter(context.Context) (io.WriteCloser, error)
+	LogWriter(context.Context) (LogWriter, error)
+}
+
+type LogWriter interface {
+	io.WriteCloser
+	WriteAndClose([]byte) (int, error)
+	SetTimeout(time.Duration)
+	Timeout() <-chan time.Time
 }

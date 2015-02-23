@@ -37,7 +37,7 @@ var (
 )
 
 // A LogWriter is an io.WriteCloser that redirects to travis-logs
-type LogWriter struct {
+type amqpLogWriter struct {
 	ctx      gocontext.Context
 	amqpConn *amqp.Connection
 	jobID    uint64
@@ -50,6 +50,9 @@ type LogWriter struct {
 
 	amqpChanMutex sync.RWMutex
 	amqpChan      *amqp.Channel
+
+	timer   *time.Timer
+	timeout time.Duration
 }
 
 type logPart struct {
@@ -60,7 +63,7 @@ type logPart struct {
 	Final   bool   `json:"final"`
 }
 
-func NewLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (*LogWriter, error) {
+func NewLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (LogWriter, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -81,13 +84,15 @@ func NewLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (*
 		return nil, err
 	}
 
-	writer := &LogWriter{
+	writer := &amqpLogWriter{
 		ctx:       context.FromComponent(ctx, "log_writer"),
 		amqpConn:  conn,
 		amqpChan:  channel,
 		jobID:     jobID,
 		closeChan: make(chan struct{}),
 		buffer:    new(bytes.Buffer),
+		timer:     time.NewTimer(time.Hour),
+		timeout:   0,
 	}
 
 	go writer.flushRegularly()
@@ -95,20 +100,24 @@ func NewLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (*
 	return writer, nil
 }
 
-func (w *LogWriter) Write(p []byte) (int, error) {
+func (w *amqpLogWriter) Write(p []byte) (int, error) {
 	if w.closed() {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
+
+	w.timer.Reset(w.timeout)
 
 	w.bufferMutex.Lock()
 	defer w.bufferMutex.Unlock()
 	return w.buffer.Write(p)
 }
 
-func (w *LogWriter) Close() error {
+func (w *amqpLogWriter) Close() error {
 	if w.closed() {
 		return nil
 	}
+
+	w.timer.Stop()
 
 	close(w.closeChan)
 	w.flush()
@@ -123,12 +132,23 @@ func (w *LogWriter) Close() error {
 	return w.publishLogPart(part)
 }
 
+func (w *amqpLogWriter) SetTimeout(d time.Duration) {
+	w.timeout = d
+	w.timer.Reset(w.timeout)
+}
+
+func (w *amqpLogWriter) Timeout() <-chan time.Time {
+	return w.timer.C
+}
+
 // WriteAndClose works like a Write followed by a Close, but ensures that no
 // other Writes are allowed in between.
-func (w *LogWriter) WriteAndClose(p []byte) (int, error) {
+func (w *amqpLogWriter) WriteAndClose(p []byte) (int, error) {
 	if w.closed() {
 		return 0, fmt.Errorf("log already closed")
 	}
+
+	w.timer.Stop()
 
 	close(w.closeChan)
 
@@ -151,7 +171,7 @@ func (w *LogWriter) WriteAndClose(p []byte) (int, error) {
 	return n, w.publishLogPart(part)
 }
 
-func (w *LogWriter) closed() bool {
+func (w *amqpLogWriter) closed() bool {
 	select {
 	case <-w.closeChan:
 		return true
@@ -160,7 +180,7 @@ func (w *LogWriter) closed() bool {
 	}
 }
 
-func (w *LogWriter) flushRegularly() {
+func (w *amqpLogWriter) flushRegularly() {
 	ticker := time.NewTicker(LogWriterTick)
 	defer ticker.Stop()
 	for {
@@ -173,7 +193,7 @@ func (w *LogWriter) flushRegularly() {
 	}
 }
 
-func (w *LogWriter) flush() {
+func (w *amqpLogWriter) flush() {
 	w.bufferMutex.Lock()
 	defer w.bufferMutex.Unlock()
 
@@ -219,7 +239,7 @@ func (w *LogWriter) flush() {
 	}
 }
 
-func (w *LogWriter) publishLogPart(part logPart) error {
+func (w *amqpLogWriter) publishLogPart(part logPart) error {
 	part.UUID, _ = context.UUIDFromContext(w.ctx)
 
 	partBody, err := json.Marshal(part)
@@ -240,7 +260,7 @@ func (w *LogWriter) publishLogPart(part logPart) error {
 	return err
 }
 
-func (w *LogWriter) reopenChannel() error {
+func (w *amqpLogWriter) reopenChannel() error {
 	w.amqpChanMutex.Lock()
 	defer w.amqpChanMutex.Unlock()
 

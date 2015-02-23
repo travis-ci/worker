@@ -3,13 +3,11 @@ package lib
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
-	"github.com/travis-ci/worker/lib/context"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -44,23 +42,9 @@ func (j amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 		return err
 	}
 
-	logWriter, ok := log.(*LogWriter)
-	if ok {
-		_, err = logWriter.WriteAndClose([]byte(errMessage))
-		if err != nil {
-			return err
-		}
-	} else {
-		context.LoggerFromContext(ctx).Error("Log writer wasn't a LogWriter… We're doing Write+Close instead")
-		_, err = fmt.Fprintf(log, "%s", errMessage)
-		if err != nil {
-			return err
-		}
-
-		err = log.Close()
-		if err != nil {
-			return err
-		}
+	_, err = log.WriteAndClose([]byte(errMessage))
+	if err != nil {
+		return err
 	}
 
 	return j.Finish(FinishStateErrored)
@@ -173,7 +157,7 @@ func (j amqpJob) Finish(state FinishState) error {
 	return nil
 }
 
-func (j amqpJob) LogWriter(ctx gocontext.Context) (io.WriteCloser, error) {
+func (j amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
 	return NewLogWriter(ctx, j.conn, j.payload.Job.ID)
 }
 
