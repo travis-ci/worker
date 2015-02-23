@@ -68,8 +68,9 @@ func (p *Processor) Run() {
 			if !ok {
 				return
 			}
-			ctx := context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID)
+			ctx, cancel := gocontext.WithTimeout(context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID), 50*time.Minute)
 			p.process(ctx, buildJob)
+			cancel()
 		}
 	}
 }
