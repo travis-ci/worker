@@ -24,6 +24,8 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
+	context.LoggerFromContext(ctx).Info("uploaded script")
+
 	return multistep.ActionContinue
 }
 

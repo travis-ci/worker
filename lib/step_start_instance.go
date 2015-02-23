@@ -19,6 +19,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
+	context.LoggerFromContext(ctx).Info("starting instance")
+
 	ctx, cancel := gocontext.WithTimeout(ctx, s.startTimeout)
 	defer cancel()
 	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
@@ -28,6 +30,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 		return multistep.ActionHalt
 	}
+
+	context.LoggerFromContext(ctx).Info("started instance")
 
 	state.Put("instance", instance)
 

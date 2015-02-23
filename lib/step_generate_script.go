@@ -27,6 +27,8 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 		return multistep.ActionHalt
 	}
 
+	context.LoggerFromContext(ctx).Info("generated script")
+
 	state.Put("script", script)
 
 	return multistep.ActionContinue

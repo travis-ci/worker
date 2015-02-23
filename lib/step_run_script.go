@@ -33,6 +33,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		err    error
 	}, 1)
 
+	context.LoggerFromContext(ctx).Info("running script")
+	defer context.LoggerFromContext(ctx).Info("finished script")
+
 	go func() {
 		result, err := instance.RunScript(ctx, logWriter)
 		resultChan <- struct {
