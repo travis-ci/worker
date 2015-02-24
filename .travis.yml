@@ -37,3 +37,7 @@ script:
 cache:
  directories:
    - test/.cabal-sandbox
+notifications:
+  slack:
+    rooms:
+      - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 
