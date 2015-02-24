@@ -87,6 +87,38 @@ func (j amqpJob) Requeue() error {
 	return nil
 }
 
+func (j amqpJob) Received() error {
+	amqpChan, err := j.conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer amqpChan.Close()
+
+	body := map[string]interface{}{
+		"id":          j.Payload().Job.ID,
+		"state":       "received",
+		"received_at": time.Now().Format(time.RFC3339),
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Timestamp:    time.Now(),
+		Type:         "job:test:receive",
+		Body:         bodyBytes,
+	})
+}
+
 func (j amqpJob) Started() error {
 	amqpChan, err := j.conn.Channel()
 	if err != nil {

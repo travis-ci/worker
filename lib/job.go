@@ -64,6 +64,7 @@ type Job interface {
 	Payload() JobPayload
 	StartAttributes() backend.StartAttributes
 
+	Received() error
 	Started() error
 	Error(context.Context, string) error
 	Requeue() error
