@@ -50,6 +50,28 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	cancelChan := state.Get("cancelChan").(<-chan struct{})
 
 	select {
+	// This needs to be before <-resultChan, since cancelling the context is
+	// likely going to cause resultChan to get something sent to it if the
+	// script stops fast enough.
+	case <-ctx.Done():
+		cancelCtx()
+
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
+			_, err := logWriter.WriteAndClose([]byte("\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n"))
+			if err != nil {
+				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write hard timeout log message")
+			}
+
+			err = buildJob.Finish(FinishStateErrored)
+			if err != nil {
+				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to errored")
+			}
+		} else {
+			context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
+		}
+
+		return multistep.ActionHalt
 	case r := <-resultChan:
 		if r.err != nil {
 			context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
