@@ -180,6 +180,12 @@ func (p *SauceLabsProvider) Start(ctx context.Context, startAttributes StartAttr
 			provider: p,
 		}, nil
 	case err := <-errChan:
+		instance := &SauceLabsInstance{
+			payload:  payload,
+			provider: p,
+		}
+		instance.Stop(ctx)
+
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == context.DeadlineExceeded {
