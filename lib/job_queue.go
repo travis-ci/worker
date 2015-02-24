@@ -249,12 +249,14 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 			err := json.Unmarshal(delivery.Body, &buildJob.payload)
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
+				delivery.Ack(false)
 				continue
 			}
 
 			err = json.Unmarshal(delivery.Body, &startAttrs)
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
+				delivery.Ack(false)
 				continue
 			}
 
