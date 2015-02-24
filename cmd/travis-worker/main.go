@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -91,11 +92,16 @@ func runWorker(c *cli.Context) {
 	}
 
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, syscall.SIGTERM, os.Interrupt)
 	go func() {
-		<-signalChan
-		context.LoggerFromContext(ctx).Info("SIGTERM received, starting graceful shutdown")
-		pool.GracefulShutdown()
+		sig := <-signalChan
+		if sig == os.Interrupt {
+			context.LoggerFromContext(ctx).Info("SIGTERM received, starting graceful shutdown")
+			pool.GracefulShutdown()
+		} else {
+			context.LoggerFromContext(ctx).Info("SIGINT received, shutting down immediately")
+			cancel()
+		}
 	}()
 
 	pool.Run(config.PoolSize, config.QueueName)
