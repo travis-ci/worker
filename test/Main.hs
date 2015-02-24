@@ -118,6 +118,12 @@ main = do
       compare (lp_number logWithContent) (lp_number logFinal) `shouldBe` LT
 
     it "sends state updates" $ withChannel conn $ \chan -> do
+      mstateUpdateReceived <- decodeFromChan chan "reporting.jobs.builds"
+      let stateUpdateReceived = fromJust mstateUpdateReceived
+
+      su_jobID stateUpdateReceived `shouldBe` 3
+      su_state stateUpdateReceived `shouldBe` "received"
+
       mstateUpdateStarted <- decodeFromChan chan "reporting.jobs.builds"
       let stateUpdateStarted = fromJust mstateUpdateStarted
 
