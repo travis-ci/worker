@@ -61,6 +61,9 @@ func NewProcessor(ctx gocontext.Context, buildJobsChan <-chan Job, provider back
 func (p *Processor) Run() {
 	for {
 		select {
+		case <-p.ctx.Done():
+			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
 			return

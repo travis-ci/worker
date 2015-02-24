@@ -30,7 +30,7 @@ func main() {
 }
 
 func runWorker(c *cli.Context) {
-	ctx := gocontext.Background()
+	ctx, cancel := gocontext.WithCancel(gocontext.Background())
 	logger := context.LoggerFromContext(ctx)
 
 	config := lib.EnvToConfig()
@@ -58,6 +58,17 @@ func runWorker(c *cli.Context) {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't connect to AMQP")
 		return
 	}
+
+	go func() {
+		errChan := make(chan *amqp.Error)
+		errChan = amqpConn.NotifyClose(errChan)
+
+		err, ok := <-errChan
+		if ok {
+			context.LoggerFromContext(ctx).WithField("err", err).Error("amqp connection errored, terminating")
+			cancel()
+		}
+	}()
 
 	context.LoggerFromContext(ctx).Debug("connected to AMQP")
 
