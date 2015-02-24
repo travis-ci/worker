@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -91,7 +90,7 @@ func NewSauceLabsProvider(config map[string]string) (*SauceLabsProvider, error) 
 }
 
 func (p *SauceLabsProvider) Start(ctx context.Context, startAttributes StartAttributes) (Instance, error) {
-	startupInfo, err := json.Marshal(map[string]string{"worker_pid": strconv.Itoa(os.Getpid()), "source": "worker"})
+	startupInfo, err := json.Marshal(map[string]interface{}{"worker_pid": os.Getpid(), "source": "worker"})
 	if err != nil {
 		return nil, err
 	}
