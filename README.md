@@ -6,6 +6,27 @@
 2. Copy `config/worker.json.example` to `config/worker.json` and update the
    details inside of it.
 
+## Configuring Travis Worker
+
+Travis Worker is configured with environment variables. Here is a list of all environment variables in use by Travis Worker:
+
+- `AMQP_URI`: The URI to the AMQP server to connect to.
+- `POOL_SIZE`: The size of the processor pool, affecting the number of jobs this worker can run in parallel.
+- `BUILD_API_URI`: The full URL to the build API endpoint to use. Note that this also requires the path of the URL. If a username is included in the URL, this will be translated to a token passed in the Authorization header.
+- `PROVIDER_NAME`: The name of the provider to use. See below for provider-specific configuration.
+- `QUEUE_NAME`: The AMQP queue to subscribe to for jobs.
+- `LIBRATO_EMAIL`, `LIBRATO_TOKEN`, `LIBRATO_SOURCE`: Librato metrics configuration. If not all are set, metrics will be printed to stderr.
+- `SENTRY_DSN`: The DSN to send Sentry events to.
+
+### Configuring the Sauce Labs provider
+
+The Sauce Labs provider (used when `PROVIDER_NAME=sauce_labs`) needs a few more configuration settings:
+
+- `TRAVIS_WORKER_SAUCE_LABS_ENDPOINT`: The endpoint to the Sauce Labs API.
+- `TRAVIS_WORKER_SAUCE_LABS_IMAGE_ALIASES`: A comma-separated list of image aliase names to define. This should at least contain "default". For each alias `name` there should also be a variable named `TRAVIS_WORKER_SAUCE_LABS_IMAGE_ALIAS_NAME` containing the name of the image to boot when the `name` alias is requested.
+- `TRAVIS_WORKER_SAUCE_LABS_SSH_KEY_PATH`: The path to the SSH key used to SSH into the VMs.
+- `TRAVIS_WORKER_SAUCE_LABS_SSH_KEY_PASSPHRASE`: The passphrase to the SSH key used to SSH into the VMs.
+
 ## Running Travis Worker
 
 0. `deppy restore`
