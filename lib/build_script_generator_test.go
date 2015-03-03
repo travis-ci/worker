@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bitly/go-simplejson"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
@@ -18,7 +19,7 @@ func TestBuildScriptGenerator(t *testing.T) {
 
 	gen := NewBuildScriptGenerator(ts.URL)
 
-	payload := JobPayload{}
+	payload := simplejson.New()
 
 	script, err := gen.Generate(context.TODO(), payload)
 	require.Nil(t, err)

@@ -14,7 +14,7 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	script, err := s.generator.Generate(ctx, buildJob.Payload())
+	script, err := s.generator.Generate(ctx, buildJob.RawPayload())
 	if err != nil {
 		if genErr, ok := err.(BuildScriptGeneratorError); ok && genErr.Recover {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, requeueing job")

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/bitly/go-simplejson"
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
@@ -21,6 +22,7 @@ type amqpJob struct {
 	conn            *amqp.Connection
 	delivery        amqp.Delivery
 	payload         JobPayload
+	rawPayload      *simplejson.Json
 	startAttributes backend.StartAttributes
 }
 
@@ -30,6 +32,10 @@ type amqpPayloadStartAttrs struct {
 
 func (j amqpJob) Payload() JobPayload {
 	return j.payload
+}
+
+func (j amqpJob) RawPayload() *simplejson.Json {
+	return j.rawPayload
 }
 
 func (j amqpJob) StartAttributes() backend.StartAttributes {
@@ -254,6 +260,13 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 			}
 
 			err = json.Unmarshal(delivery.Body, &startAttrs)
+			if err != nil {
+				fmt.Printf("JSON parse error: %v\n", err)
+				delivery.Ack(false)
+				continue
+			}
+
+			buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
 			if err != nil {
 				fmt.Printf("JSON parse error: %v\n", err)
 				delivery.Ack(false)

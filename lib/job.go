@@ -4,6 +4,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/lib/backend"
 	"golang.org/x/net/context"
 )
@@ -62,6 +63,7 @@ const (
 // A Job ties togeher all the elements required for a build job
 type Job interface {
 	Payload() JobPayload
+	RawPayload() *simplejson.Json
 	StartAttributes() backend.StartAttributes
 
 	Received() error
