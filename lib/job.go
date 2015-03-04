@@ -20,15 +20,8 @@ type JobPayload struct {
 }
 
 type JobJobPayload struct {
-	ID               uint64 `json:"id"`
-	Number           string `json:"number"`
-	Commit           string `json:"commit"`
-	CommitRange      string `json:"commit_range"`
-	CommitMessage    string `json:"commit_message"`
-	Branch           string `json:"branch"`
-	State            string `json:"state"`
-	SecureEnvEnabled bool   `json:"secure_env_enabled"`
-	PullRequest      bool   `json:"pull_request"`
+	ID     uint64 `json:"id"`
+	Number string `json:"number"`
 }
 
 type BuildPayload struct {
@@ -37,14 +30,8 @@ type BuildPayload struct {
 }
 
 type RepositoryPayload struct {
-	ID              uint64 `json:"id"`
-	Slug            string `json:"slug"`
-	GitHubID        uint64 `json:"github_id"`
-	SourceURL       string `json:"source_url"`
-	ApiURL          string `json:"api_url"`
-	LastBuildID     uint64 `json:"last_build_id"`
-	LastBuildNumber string `json:"last_build_number"`
-	Description     string `json:"description"`
+	ID   uint64 `json:"id"`
+	Slug string `json:"slug"`
 }
 
 // FinishState is the state that a job finished with (such as pass/fail/etc.).
