@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -33,6 +35,13 @@ func main() {
 func runWorker(c *cli.Context) {
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
 	logger := context.LoggerFromContext(ctx)
+
+	if os.Getenv("PPROF_PORT") != "" {
+		// Start net/http/pprof server
+		go func() {
+			http.ListenAndServe(fmt.Sprintf("localhost:%s", os.Getenv("PPROF_PORT")), nil)
+		}()
+	}
 
 	config := lib.EnvToConfig()
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
