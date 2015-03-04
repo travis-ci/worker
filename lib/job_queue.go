@@ -2,13 +2,13 @@ package lib
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
+	"github.com/travis-ci/worker/lib/context"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -228,7 +228,7 @@ func NewJobQueue(conn *amqp.Connection, queue string) (*JobQueue, error) {
 // Jobs creates a new consumer on the queue, and returns three channels. The
 // first channel gets sent every BuildJob that we receive from AMQP. The
 // stopChan is a channel that can be closed in order to stop the consumer.
-func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
+func (q *JobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 	channel, err := q.conn.Channel()
 	if err != nil {
 		return
@@ -254,22 +254,25 @@ func (q *JobQueue) Jobs() (outChan <-chan Job, err error) {
 
 			err := json.Unmarshal(delivery.Body, &buildJob.payload)
 			if err != nil {
-				fmt.Printf("JSON parse error: %v\n", err)
-				delivery.Ack(false)
+				context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error")
+				// This should be a regular Ack, but for now we'll requeue it until a Ruby worker picks it up
+				delivery.Reject(true)
 				continue
 			}
 
 			err = json.Unmarshal(delivery.Body, &startAttrs)
 			if err != nil {
-				fmt.Printf("JSON parse error: %v\n", err)
-				delivery.Ack(false)
+				context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error")
+				// This should be a regular Ack, but for now we'll requeue it until a Ruby worker picks it up
+				delivery.Reject(true)
 				continue
 			}
 
 			buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
 			if err != nil {
-				fmt.Printf("JSON parse error: %v\n", err)
-				delivery.Ack(false)
+				context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error")
+				// This should be a regular Ack, but for now we'll requeue it until a Ruby worker picks it up
+				delivery.Reject(true)
 				continue
 			}
 

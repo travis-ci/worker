@@ -36,10 +36,15 @@ type Processor struct {
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, buildJobsChan <-chan Job, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) *Processor {
+func NewProcessor(ctx gocontext.Context, buildJobsQueue *JobQueue, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) (*Processor, error) {
 	processorUUID := uuid.NewRandom()
 
 	ctx, cancel := gocontext.WithCancel(context.FromProcessor(ctx, processorUUID.String()))
+
+	buildJobsChan, err := buildJobsQueue.Jobs(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Processor{
 		processorUUID: processorUUID,
@@ -52,13 +57,15 @@ func NewProcessor(ctx gocontext.Context, buildJobsChan <-chan Job, provider back
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
-	}
+	}, nil
 }
 
 // Run starts the processor. This method will not return until the processor is
 // terminated, either by calling the GracefulShutdown or Terminate methods, or
 // if the build jobs channel is closed.
 func (p *Processor) Run() {
+	context.LoggerFromContext(p.ctx).Info("starting processor")
+
 	for {
 		select {
 		case <-p.ctx.Done():
@@ -76,6 +83,8 @@ func (p *Processor) Run() {
 			cancel()
 		}
 	}
+
+	context.LoggerFromContext(p.ctx).Info("processor done")
 }
 
 // GracefulShutdown tells the processor to finish the job it is currently

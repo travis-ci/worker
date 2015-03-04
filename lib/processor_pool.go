@@ -58,13 +58,10 @@ func (p *ProcessorPool) GracefulShutdown() {
 }
 
 func (p *ProcessorPool) processor(queue *JobQueue) {
-	buildJobChan, err := queue.Jobs()
+	proc, err := NewProcessor(p.Context, queue, p.Provider, p.Generator, p.Canceller)
 	if err != nil {
-		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't subscribe to queue")
-		return
+		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 	}
-
-	proc := NewProcessor(p.Context, buildJobChan, p.Provider, p.Generator, p.Canceller)
 
 	p.processorsLock.Lock()
 	p.processors = append(p.processors, proc)
