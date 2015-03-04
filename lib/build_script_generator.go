@@ -86,14 +86,16 @@ func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload *simplej
 	payload.Set("paranoid", g.paranoid)
 	payload.Set("fix_resolv_conf", g.fixResolvConf)
 	payload.Set("fix_etc_hosts", g.fixEtcHosts)
-	payload.SetPath([]string{"cache_options", "type"}, g.cacheType)
-	payload.SetPath([]string{"cache_options", "fetch_timeout"}, g.cacheFetchTimeout)
-	payload.SetPath([]string{"cache_options", "push_timeout"}, g.cachePushTimeout)
-	payload.SetPath([]string{"cache_options", "s3", "scheme"}, g.s3CacheOptions.scheme)
-	payload.SetPath([]string{"cache_options", "s3", "region"}, g.s3CacheOptions.region)
-	payload.SetPath([]string{"cache_options", "s3", "bucket"}, g.s3CacheOptions.bucket)
-	payload.SetPath([]string{"cache_options", "s3", "access_key_id"}, g.s3CacheOptions.accessKeyId)
-	payload.SetPath([]string{"cache_options", "s3", "secret_access_key"}, g.s3CacheOptions.secretAccessKey)
+	if g.cacheType != "" {
+		payload.SetPath([]string{"cache_options", "type"}, g.cacheType)
+		payload.SetPath([]string{"cache_options", "fetch_timeout"}, g.cacheFetchTimeout)
+		payload.SetPath([]string{"cache_options", "push_timeout"}, g.cachePushTimeout)
+		payload.SetPath([]string{"cache_options", "s3", "scheme"}, g.s3CacheOptions.scheme)
+		payload.SetPath([]string{"cache_options", "s3", "region"}, g.s3CacheOptions.region)
+		payload.SetPath([]string{"cache_options", "s3", "bucket"}, g.s3CacheOptions.bucket)
+		payload.SetPath([]string{"cache_options", "s3", "access_key_id"}, g.s3CacheOptions.accessKeyId)
+		payload.SetPath([]string{"cache_options", "s3", "secret_access_key"}, g.s3CacheOptions.secretAccessKey)
+	}
 
 	b, err := payload.Encode()
 	if err != nil {
