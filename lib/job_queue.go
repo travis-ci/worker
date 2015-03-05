@@ -255,24 +255,21 @@ func (q *JobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 			err := json.Unmarshal(delivery.Body, &buildJob.payload)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error")
-				// This should be a regular Ack, but for now we'll requeue it until a Ruby worker picks it up
-				delivery.Reject(true)
+				delivery.Ack(false)
 				continue
 			}
 
 			err = json.Unmarshal(delivery.Body, &startAttrs)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error")
-				// This should be a regular Ack, but for now we'll requeue it until a Ruby worker picks it up
-				delivery.Reject(true)
+				delivery.Ack(false)
 				continue
 			}
 
 			buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error")
-				// This should be a regular Ack, but for now we'll requeue it until a Ruby worker picks it up
-				delivery.Reject(true)
+				delivery.Ack(false)
 				continue
 			}
 
