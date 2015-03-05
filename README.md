@@ -36,6 +36,10 @@ The Sauce Labs provider (used when `PROVIDER_NAME=sauce_labs`) needs a few more 
 C-c will stop the worker. Note that any VMs for builds that were still running
 will have to be cleaned up manually.
 
+## Stopping Travis Worker
+
+Travis Worker has two shutdown modes: Graceful and immediate. The graceful shutdown will tell the worker to not start any additional jobs, but finish the jobs it is currently running before it shuts down. The immediate shutdown will make the worker stop the jobs it's working on and requeue them, and clean up any open resources (shut down VMs, cleanly close connections, etc.)
+
 ## Running integration tests
 
 The integration tests are in the `test/` directory and are written in Haskell. Currently running them isn't quite as automatic as I'd like, but you can do this:
