@@ -83,7 +83,7 @@ func (j amqpJob) Requeue() error {
 	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now(),
+		Timestamp:    time.Now().UTC(),
 		Type:         "job:test:reset",
 		Body:         bodyBytes,
 	})
@@ -103,7 +103,7 @@ func (j amqpJob) Received() error {
 	body := map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       "received",
-		"received_at": time.Now().Format(time.RFC3339),
+		"received_at": time.Now().UTC().Format(time.RFC3339),
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -119,7 +119,7 @@ func (j amqpJob) Received() error {
 	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now(),
+		Timestamp:    time.Now().UTC(),
 		Type:         "job:test:receive",
 		Body:         bodyBytes,
 	})
@@ -135,7 +135,7 @@ func (j amqpJob) Started() error {
 	body := map[string]interface{}{
 		"id":         j.Payload().Job.ID,
 		"state":      "started",
-		"started_at": time.Now().Format(time.RFC3339),
+		"started_at": time.Now().UTC().Format(time.RFC3339),
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -151,7 +151,7 @@ func (j amqpJob) Started() error {
 	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now(),
+		Timestamp:    time.Now().UTC(),
 		Type:         "job:test:start",
 		Body:         bodyBytes,
 	})
@@ -169,7 +169,7 @@ func (j amqpJob) Finish(state FinishState) error {
 	body := map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       state,
-		"finished_at": time.Now().Format(time.RFC3339),
+		"finished_at": time.Now().UTC().Format(time.RFC3339),
 	}
 
 	bodyBytes, err := json.Marshal(body)
@@ -185,7 +185,7 @@ func (j amqpJob) Finish(state FinishState) error {
 	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now(),
+		Timestamp:    time.Now().UTC(),
 		Type:         "job:test:finish",
 		Body:         bodyBytes,
 	})
