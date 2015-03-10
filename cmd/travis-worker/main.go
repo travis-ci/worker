@@ -101,10 +101,10 @@ func runWorker(c *cli.Context) {
 	}
 
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, os.Interrupt)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		sig := <-signalChan
-		if sig == os.Interrupt {
+		if sig == syscall.SIGINT {
 			context.LoggerFromContext(ctx).Info("SIGTERM received, starting graceful shutdown")
 			pool.GracefulShutdown()
 		} else {
