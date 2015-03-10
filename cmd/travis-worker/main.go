@@ -43,6 +43,9 @@ func runWorker(c *cli.Context) {
 		}()
 	}
 
+	logger.Info("worker started")
+	defer logger.Info("worker finished")
+
 	config := lib.EnvToConfig()
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
 
