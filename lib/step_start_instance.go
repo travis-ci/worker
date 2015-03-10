@@ -23,6 +23,9 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx, cancel := gocontext.WithTimeout(ctx, s.startTimeout)
 	defer cancel()
+
+	startTime := time.Now()
+
 	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
@@ -31,7 +34,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	context.LoggerFromContext(ctx).Info("started instance")
+	context.LoggerFromContext(ctx).WithField("boot_time", startTime.Sub(time.Now())).Info("started instance")
 
 	state.Put("instance", instance)
 
