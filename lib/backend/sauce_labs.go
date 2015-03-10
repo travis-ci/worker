@@ -120,6 +120,7 @@ func (p *SauceLabsProvider) Start(ctx context.Context, startAttributes StartAttr
 	if err != nil {
 		return nil, err
 	}
+	defer io.Copy(ioutil.Discard, resp.Body)
 	defer resp.Body.Close()
 
 	if c := resp.StatusCode; c < 200 || c >= 300 {
@@ -150,6 +151,8 @@ func (p *SauceLabsProvider) Start(ctx context.Context, startAttributes StartAttr
 				errChan <- err
 				return
 			}
+			defer io.Copy(ioutil.Discard, resp.Body)
+			defer resp.Body.Close()
 
 			var payload sauceLabsInstancePayload
 			err = json.NewDecoder(resp.Body).Decode(&payload)
@@ -287,7 +290,9 @@ func (i *SauceLabsInstance) Stop(ctx context.Context) error {
 		return err
 	}
 
-	_, err = i.provider.client.Do(req)
+	resp, err := i.provider.client.Do(req)
+	io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
 	return err
 }
 
