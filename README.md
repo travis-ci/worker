@@ -40,6 +40,8 @@ will have to be cleaned up manually.
 
 Travis Worker has two shutdown modes: Graceful and immediate. The graceful shutdown will tell the worker to not start any additional jobs, but finish the jobs it is currently running before it shuts down. The immediate shutdown will make the worker stop the jobs it's working on and requeue them, and clean up any open resources (shut down VMs, cleanly close connections, etc.)
 
+To start a graceful shutdown, send an INT signal to the worker (for example using `kill -INT`). To start an immediate shutdown, send a TERM signal to the worker (for example using `kill -TERM`).
+
 ## Running integration tests
 
 The integration tests are in the `test/` directory and are written in Haskell. Currently running them isn't quite as automatic as I'd like, but you can do this:
