@@ -34,7 +34,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	context.LoggerFromContext(ctx).WithField("boot_time", startTime.Sub(time.Now())).Info("started instance")
+	context.LoggerFromContext(ctx).WithField("boot_time", time.Now().Sub(startTime)).Info("started instance")
 
 	state.Put("instance", instance)
 
