@@ -267,6 +267,7 @@ func (i *SauceLabsInstance) RunScript(ctx context.Context, output io.WriteCloser
 	session.Stderr = output
 
 	err = session.Run("bash ~/wrapper.sh")
+	defer output.Close()
 	if err == nil {
 		return RunResult{Completed: true, ExitCode: 0}, nil
 	}
