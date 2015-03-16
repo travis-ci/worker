@@ -10,7 +10,8 @@ import (
 )
 
 type stepRunScript struct {
-	logTimeout time.Duration
+	logTimeout   time.Duration
+	maxLogLength int
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -27,6 +28,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	}
 
 	logWriter.SetTimeout(s.logTimeout)
+	logWriter.SetMaxLogLength(s.maxLogLength)
 
 	resultChan := make(chan struct {
 		result backend.RunResult

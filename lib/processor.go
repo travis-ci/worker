@@ -113,7 +113,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepStartInstance{provider: p.provider, startTimeout: 4 * time.Minute},
 		&stepUploadScript{},
 		&stepUpdateState{},
-		&stepRunScript{logTimeout: 10 * time.Minute},
+		&stepRunScript{logTimeout: 10 * time.Minute, maxLogLength: 4500000},
 	}
 
 	runner := &multistep.BasicRunner{Steps: steps}

@@ -48,6 +48,9 @@ type amqpLogWriter struct {
 	buffer        *bytes.Buffer
 	logPartNumber int
 
+	bytesWritten int
+	maxLength    int
+
 	amqpChanMutex sync.RWMutex
 	amqpChan      *amqp.Channel
 
@@ -107,6 +110,12 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 
 	w.timer.Reset(w.timeout)
 
+	w.bytesWritten += len(p)
+	if w.bytesWritten > w.maxLength {
+		w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
+		return 0, fmt.Errorf("wrote past max length")
+	}
+
 	w.bufferMutex.Lock()
 	defer w.bufferMutex.Unlock()
 	return w.buffer.Write(p)
@@ -139,6 +148,10 @@ func (w *amqpLogWriter) SetTimeout(d time.Duration) {
 
 func (w *amqpLogWriter) Timeout() <-chan time.Time {
 	return w.timer.C
+}
+
+func (w *amqpLogWriter) SetMaxLogLength(bytes int) {
+	w.maxLength = bytes
 }
 
 // WriteAndClose works like a Write followed by a Close, but ensures that no
