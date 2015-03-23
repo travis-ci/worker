@@ -138,7 +138,9 @@ func (w *amqpLogWriter) Close() error {
 	}
 	w.logPartNumber++
 
-	return w.publishLogPart(part)
+	err := w.publishLogPart(part)
+	_ = w.amqpChan.Close()
+	return err
 }
 
 func (w *amqpLogWriter) SetTimeout(d time.Duration) {
@@ -181,7 +183,9 @@ func (w *amqpLogWriter) WriteAndClose(p []byte) (int, error) {
 	}
 	w.logPartNumber++
 
-	return n, w.publishLogPart(part)
+	err = w.publishLogPart(part)
+	_ = w.amqpChan.Close()
+	return n, err
 }
 
 func (w *amqpLogWriter) closed() bool {
