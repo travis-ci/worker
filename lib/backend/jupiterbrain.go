@@ -19,7 +19,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-type VSphereProvider struct {
+type JupiterBrainProvider struct {
 	client           *http.Client
 	baseURL          *url.URL
 	sshKeyPath       string
@@ -27,18 +27,18 @@ type VSphereProvider struct {
 	keychainPassword string
 }
 
-type VSphereInstance struct {
-	payload  vSphereInstancePayload
-	provider *VSphereProvider
+type JupiterBrainInstance struct {
+	payload  jupiterBrainInstancePayload
+	provider *JupiterBrainProvider
 }
 
-type vSphereInstancePayload struct {
+type jupiterBrainInstancePayload struct {
 	Uuid        string   `json:"uuid"`
 	IpAddresses []string `json:"ip_addresses"`
 	State       string   `json:"state"`
 }
 
-func NewVSphereProvider(config map[string]string) (*VSphereProvider, error) {
+func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, error) {
 	endpoint, ok := config["endpoint"]
 	if !ok {
 		return nil, fmt.Errorf("expected endpoint config key")
@@ -63,7 +63,7 @@ func NewVSphereProvider(config map[string]string) (*VSphereProvider, error) {
 		return nil, fmt.Errorf("expected keychain_password config key")
 	}
 
-	return &VSphereProvider{
+	return &JupiterBrainProvider{
 		client:           http.DefaultClient,
 		baseURL:          baseURL,
 		sshKeyPath:       sshKeyPath,
@@ -72,7 +72,7 @@ func NewVSphereProvider(config map[string]string) (*VSphereProvider, error) {
 	}, nil
 }
 
-func (p *VSphereProvider) Start(ctx context.Context, startAttributes StartAttributes) (Instance, error) {
+func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartAttributes) (Instance, error) {
 	u, err := p.baseURL.Parse("instances")
 	if err != nil {
 		return nil, err
@@ -91,13 +91,13 @@ func (p *VSphereProvider) Start(ctx context.Context, startAttributes StartAttrib
 	defer resp.Body.Close()
 
 	if c := resp.StatusCode; c < 200 || c >= 300 {
-		return nil, fmt.Errorf("expected 2xx from Sauce Labs API, got %d", c)
+		return nil, fmt.Errorf("expected 2xx from Jupiter Brain API, got %d", c)
 	}
 
-	var payload vSphereInstancePayload
+	var payload jupiterBrainInstancePayload
 	err = json.NewDecoder(resp.Body).Decode(&payload)
 
-	instanceReady := make(chan vSphereInstancePayload, 1)
+	instanceReady := make(chan jupiterBrainInstancePayload, 1)
 	errChan := make(chan error, 1)
 	go func(id string) {
 		u, err := p.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(id)))
@@ -121,7 +121,7 @@ func (p *VSphereProvider) Start(ctx context.Context, startAttributes StartAttrib
 			defer io.Copy(ioutil.Discard, resp.Body)
 			defer resp.Body.Close()
 
-			var payload vSphereInstancePayload
+			var payload jupiterBrainInstancePayload
 			err = json.NewDecoder(resp.Body).Decode(&payload)
 			if err != nil {
 				errChan <- err
@@ -156,14 +156,14 @@ func (p *VSphereProvider) Start(ctx context.Context, startAttributes StartAttrib
 
 	select {
 	case payload := <-instanceReady:
-		metrics.TimeSince("worker.vm.provider.vsphere.boot", startBooting)
+		metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
 		workerctx.LoggerFromContext(ctx).WithField("instance_uuid", payload.Uuid).Info("booted instance")
-		return &VSphereInstance{
+		return &JupiterBrainInstance{
 			payload:  payload,
 			provider: p,
 		}, nil
 	case err := <-errChan:
-		instance := &VSphereInstance{
+		instance := &JupiterBrainInstance{
 			payload:  payload,
 			provider: p,
 		}
@@ -172,10 +172,10 @@ func (p *VSphereProvider) Start(ctx context.Context, startAttributes StartAttrib
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == context.DeadlineExceeded {
-			metrics.Mark("worker.vm.provider.vsphere.boot.timeout")
+			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
 		}
 
-		instance := &VSphereInstance{
+		instance := &JupiterBrainInstance{
 			payload:  payload,
 			provider: p,
 		}
@@ -185,7 +185,7 @@ func (p *VSphereProvider) Start(ctx context.Context, startAttributes StartAttrib
 	}
 }
 
-func (i *VSphereInstance) UploadScript(ctx context.Context, script []byte) error {
+func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
@@ -226,7 +226,7 @@ exit $(cat ~/build.sh.exit)
 	return err
 }
 
-func (i *VSphereInstance) RunScript(ctx context.Context, output io.WriteCloser) (RunResult, error) {
+func (i *JupiterBrainInstance) RunScript(ctx context.Context, output io.WriteCloser) (RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return RunResult{Completed: false}, err
@@ -261,7 +261,7 @@ func (i *VSphereInstance) RunScript(ctx context.Context, output io.WriteCloser) 
 	}
 }
 
-func (i *VSphereInstance) Stop(ctx context.Context) error {
+func (i *JupiterBrainInstance) Stop(ctx context.Context) error {
 	u, err := i.provider.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(i.payload.Uuid)))
 	if err != nil {
 		return err
@@ -278,7 +278,7 @@ func (i *VSphereInstance) Stop(ctx context.Context) error {
 	return err
 }
 
-func (i *VSphereInstance) sshClient() (*ssh.Client, error) {
+func (i *JupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	file, err := ioutil.ReadFile(i.provider.sshKeyPath)
 	if err != nil {
 		return nil, err

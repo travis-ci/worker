@@ -50,8 +50,8 @@ func NewProvider(name string, config map[string]string) (Provider, error) {
 		return NewDockerProvider(config)
 	case "sauce_labs":
 		return NewSauceLabsProvider(config)
-	case "vsphere":
-		return NewVSphereProvider(config)
+	case "jupiterbrain":
+		return NewJupiterBrainProvider(config)
 	case "fake":
 		return NewFakeProvider([]byte("Hello to the logs")), nil
 	default:
