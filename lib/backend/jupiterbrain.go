@@ -174,16 +174,17 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 				errChan <- err
 				return
 			}
-			defer io.Copy(ioutil.Discard, resp.Body)
-			defer resp.Body.Close()
 
 			var dataPayload jupiterBrainDataResponse
 			err = json.NewDecoder(resp.Body).Decode(&dataPayload)
 			if err != nil {
-				errChan <- err
+				errChan <- fmt.Errorf("couldn't decode refresh payload: %s", err)
 				return
 			}
 			payload := dataPayload.Data[0]
+
+			_, _ = io.Copy(ioutil.Discard, resp.Body)
+			_ = resp.Body.Close()
 
 			var ip net.IP
 			for _, ipString := range payload.IpAddresses {
