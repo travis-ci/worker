@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,6 +21,8 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
+
+var nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
 
 type JupiterBrainProvider struct {
 	client           *http.Client
@@ -65,7 +68,9 @@ func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, e
 	imageAliases := make(map[string]string, len(aliasNames))
 
 	for _, aliasName := range strings.Split(aliasNames, ",") {
-		imageName, ok := config[fmt.Sprintf("image_alias_%s", aliasName)]
+		normalizedAliasName := string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_")))
+
+		imageName, ok := config[fmt.Sprintf("image_alias_%s", normalizedAliasName)]
 		if !ok {
 			return nil, fmt.Errorf("expected image alias %q", aliasName)
 		}
@@ -91,6 +96,7 @@ func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, e
 	return &JupiterBrainProvider{
 		client:           http.DefaultClient,
 		baseURL:          baseURL,
+		imageAliases:     imageAliases,
 		sshKeyPath:       sshKeyPath,
 		sshKeyPassphrase: sshKeyPassphrase,
 		keychainPassword: keychainPassword,
@@ -103,7 +109,8 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		return nil, err
 	}
 
-	imageName, ok := p.imageAliases[startAttributes.OsxImage]
+	normalizedAliasName := string(nonAlphaNumRegexp.ReplaceAll([]byte(startAttributes.OsxImage), []byte("_")))
+	imageName, ok := p.imageAliases[normalizedAliasName]
 	if !ok {
 		imageName, _ = p.imageAliases["default"]
 	}
