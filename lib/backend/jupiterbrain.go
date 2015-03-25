@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -23,6 +24,7 @@ import (
 type JupiterBrainProvider struct {
 	client           *http.Client
 	baseURL          *url.URL
+	imageAliases     map[string]string
 	sshKeyPath       string
 	sshKeyPassphrase string
 	keychainPassword string
@@ -55,6 +57,22 @@ func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, e
 		return nil, err
 	}
 
+	aliasNames, ok := config["image_aliases"]
+	if !ok {
+		return nil, fmt.Errorf("expected image_aliases config key")
+	}
+
+	imageAliases := make(map[string]string, len(aliasNames))
+
+	for _, aliasName := range strings.Split(aliasNames, ",") {
+		imageName, ok := config[fmt.Sprintf("image_alias_%s", aliasName)]
+		if !ok {
+			return nil, fmt.Errorf("expected image alias %q", aliasName)
+		}
+
+		imageAliases[aliasName] = imageName
+	}
+
 	sshKeyPath, ok := config["ssh_key_path"]
 	if !ok {
 		return nil, fmt.Errorf("expected ssh_key_path config key")
@@ -85,12 +103,21 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		return nil, err
 	}
 
+	imageName, ok := p.imageAliases[startAttributes.OsxImage]
+	if !ok {
+		imageName, _ = p.imageAliases["default"]
+	}
+
+	if imageName == "" {
+		return nil, fmt.Errorf("no image alias for %s", startAttributes.OsxImage)
+	}
+
 	startBooting := time.Now()
 
 	bodyPayload := map[string]map[string]string{
 		"data": {
 			"type":       "instances",
-			"base-image": startAttributes.OsxImage,
+			"base-image": imageName,
 		},
 	}
 
