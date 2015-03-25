@@ -134,7 +134,8 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 	defer resp.Body.Close()
 
 	if c := resp.StatusCode; c < 200 || c >= 300 {
-		return nil, fmt.Errorf("expected 2xx from Jupiter Brain API, got %d", c)
+		body, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", c, body)
 	}
 
 	var dataPayload jupiterBrainDataResponse
