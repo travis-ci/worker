@@ -39,8 +39,8 @@ type JupiterBrainInstance struct {
 }
 
 type jupiterBrainInstancePayload struct {
-	Uuid        string   `json:"uuid"`
-	IpAddresses []string `json:"ip_addresses"`
+	ID          string   `json:"id"`
+	IpAddresses []string `json:"ip-addresses"`
 	State       string   `json:"state"`
 	BaseImage   string   `json:"base-image,omitempty"`
 	Type        string   `json:"type,omitempty"`
@@ -148,7 +148,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 	var dataPayload jupiterBrainDataResponse
 	err = json.NewDecoder(resp.Body).Decode(&dataPayload)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("couldn't decode created payload: %s", err)
 	}
 
 	payload := dataPayload.Data[0]
@@ -209,12 +209,12 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 				return
 			}
 		}
-	}(payload.Uuid)
+	}(payload.ID)
 
 	select {
 	case payload := <-instanceReady:
 		metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
-		workerctx.LoggerFromContext(ctx).WithField("instance_uuid", payload.Uuid).Info("booted instance")
+		workerctx.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
 		return &JupiterBrainInstance{
 			payload:  payload,
 			provider: p,
@@ -319,7 +319,7 @@ func (i *JupiterBrainInstance) RunScript(ctx context.Context, output io.WriteClo
 }
 
 func (i *JupiterBrainInstance) Stop(ctx context.Context) error {
-	u, err := i.provider.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(i.payload.Uuid)))
+	u, err := i.provider.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(i.payload.ID)))
 	if err != nil {
 		return err
 	}
