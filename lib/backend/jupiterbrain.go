@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -36,6 +37,12 @@ type jupiterBrainInstancePayload struct {
 	Uuid        string   `json:"uuid"`
 	IpAddresses []string `json:"ip_addresses"`
 	State       string   `json:"state"`
+	BaseImage   string   `json:"base-image,omitempty"`
+	Type        string   `json:"type,omitempty"`
+}
+
+type jupiterBrainDataResponse struct {
+	Data []jupiterBrainInstancePayload `json:"data"`
 }
 
 func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, error) {
@@ -80,10 +87,19 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 
 	startBooting := time.Now()
 
-	v := url.Values{}
-	v.Set("base", startAttributes.OsxImage)
+	bodyPayload := map[string]map[string]string{
+		"data": {
+			"type":       "instances",
+			"base-image": startAttributes.OsxImage,
+		},
+	}
 
-	resp, err := p.client.PostForm(u.String(), v)
+	jsonBody, err := json.Marshal(bodyPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := p.client.Post(u.String(), "application/vnd.api+json", bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +110,13 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		return nil, fmt.Errorf("expected 2xx from Jupiter Brain API, got %d", c)
 	}
 
-	var payload jupiterBrainInstancePayload
-	err = json.NewDecoder(resp.Body).Decode(&payload)
+	var dataPayload jupiterBrainDataResponse
+	err = json.NewDecoder(resp.Body).Decode(&dataPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	payload := dataPayload.Data[0]
 
 	instanceReady := make(chan jupiterBrainInstancePayload, 1)
 	errChan := make(chan error, 1)
@@ -121,12 +142,13 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 			defer io.Copy(ioutil.Discard, resp.Body)
 			defer resp.Body.Close()
 
-			var payload jupiterBrainInstancePayload
-			err = json.NewDecoder(resp.Body).Decode(&payload)
+			var dataPayload jupiterBrainDataResponse
+			err = json.NewDecoder(resp.Body).Decode(&dataPayload)
 			if err != nil {
 				errChan <- err
 				return
 			}
+			payload := dataPayload.Data[0]
 
 			var ip net.IP
 			for _, ipString := range payload.IpAddresses {
