@@ -18,6 +18,7 @@ before_install:
 - go get github.com/hamfist/deppy
 - go get github.com/golang/lint/golint
 - go get golang.org/x/tools/cmd/cover
+- go get github.com/laher/goxc
 - go install -a -race std
 install:
 - deppy restore
@@ -34,10 +35,12 @@ script:
 - "[[ -d .cabal-sandbox/packages ]] || cabal sandbox init"
 - cabal install -j
 - cabal run
+after_success:
+- make crossbuild
 cache:
   directories:
   - test/.cabal-sandbox
 notifications:
   slack:
     rooms:
-      - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 
+    - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 

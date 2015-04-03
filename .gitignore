@@ -34,3 +34,4 @@ coverage.html
 .cabal-sandbox/
 cabal.sandbox.config
 test/dist
+.build/
