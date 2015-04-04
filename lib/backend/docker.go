@@ -54,7 +54,7 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 
 func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttributes) (Instance, error) {
 	cpuSets, err := p.checkoutCPUSets()
-	if err != nil {
+	if err != nil && cpuSets != "" {
 		return nil, err
 	}
 

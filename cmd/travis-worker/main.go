@@ -47,14 +47,14 @@ func runWorker(c *cli.Context) {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	if hostname, err := os.Hostname(); os.Getenv("HOSTNAME") == "" && err != nil {
-		os.Setenv("HOSTNAME", hostname)
-	}
-
 	logger.Info("worker started")
 	defer logger.Info("worker finished")
 
 	config := lib.EnvToConfig()
+	if hostname, err := os.Hostname(); config.Hostname == "" && err == nil {
+		config.Hostname = hostname
+	}
+
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
 
 	if config.SentryDSN != "" {

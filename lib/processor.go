@@ -106,7 +106,7 @@ func (p *Processor) Terminate() {
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
-	state.Put("hostname", fmt.Sprintf("%s:%s", p.hostname, p.processorUUID))
+	state.Put("hostname", p.fullHostname())
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
 
@@ -125,4 +125,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	context.LoggerFromContext(ctx).Info("starting job")
 	runner.Run(state)
 	context.LoggerFromContext(ctx).Info("finished job")
+}
+
+func (p *Processor) fullHostname() string {
+	return fmt.Sprintf("%s:%s", p.hostname, p.processorUUID)
 }
