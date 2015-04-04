@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"fmt"
 	"time"
 
 	"code.google.com/p/go-uuid/uuid"
@@ -22,6 +23,7 @@ var JobTimeout = 50 * time.Minute
 // told to shut down or the channel of build jobs closes.
 type Processor struct {
 	processorUUID uuid.UUID
+	hostname      string
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -36,7 +38,7 @@ type Processor struct {
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, buildJobsQueue *JobQueue, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) (*Processor, error) {
+func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQueue, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) (*Processor, error) {
 	processorUUID := uuid.NewRandom()
 
 	ctx, cancel := gocontext.WithCancel(context.FromProcessor(ctx, processorUUID.String()))
@@ -48,6 +50,7 @@ func NewProcessor(ctx gocontext.Context, buildJobsQueue *JobQueue, provider back
 
 	return &Processor{
 		processorUUID: processorUUID,
+		hostname:      hostname,
 
 		ctx:           context.FromProcessor(ctx, processorUUID.String()),
 		buildJobsChan: buildJobsChan,
@@ -103,6 +106,7 @@ func (p *Processor) Terminate() {
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
+	state.Put("hostname", fmt.Sprintf("%s:%s", p.hostname, p.processorUUID))
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
 
