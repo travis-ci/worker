@@ -36,8 +36,8 @@ script:
 - cabal install -j
 - cabal run
 - popd
-after_success:
-- make crossbuild
+# after_success:
+# - make crossbuild
 cache:
   directories:
   - test/.cabal-sandbox
