@@ -18,7 +18,8 @@ before_install:
 - go get github.com/hamfist/deppy
 - go get github.com/golang/lint/golint
 - go get golang.org/x/tools/cmd/cover
-- go get github.com/laher/goxc
+# TODO: re-enable if/when the missing defs file issue is resolved
+# - go get github.com/laher/goxc
 - go install -a -race std
 install:
 - deppy restore
@@ -36,6 +37,7 @@ script:
 - cabal install -j
 - cabal run
 - popd
+# TODO: re-enable if/when the missing defs file issue is resolved
 # after_success:
 # - make crossbuild
 cache:
