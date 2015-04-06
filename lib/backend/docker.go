@@ -41,15 +41,20 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 		return nil, err
 	}
 
+	cpuSetSize := runtime.NumCPU()
+	if cpuSetSize < 2 {
+		cpuSetSize = 2
+	}
+
 	return &DockerProvider{
 		client:  client,
-		cpuSets: make([]bool, runtime.NumCPU()),
+		cpuSets: make([]bool, cpuSetSize),
 	}, nil
 }
 
 func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttributes) (Instance, error) {
 	cpuSets, err := p.checkoutCPUSets()
-	if err != nil {
+	if err != nil && cpuSets != "" {
 		return nil, err
 	}
 
@@ -58,17 +63,17 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttri
 		return nil, err
 	}
 
-	createOptions := docker.CreateContainerOptions{
-		Config: &docker.Config{
-			Cmd:      []string{"/sbin/init"},
-			Image:    imageID,
-			Memory:   1024 * 1024 * 1024 * 4,
-			CPUSet:   cpuSets,
-			Hostname: fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
-		},
+	dockerConfig := &docker.Config{
+		Cmd:      []string{"/sbin/init"},
+		Image:    imageID,
+		Memory:   1024 * 1024 * 1024 * 4,
+		Hostname: fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
+	}
+	if cpuSets != "" {
+		dockerConfig.CPUSet = cpuSets
 	}
 
-	container, err := p.client.CreateContainer(createOptions)
+	container, err := p.client.CreateContainer(docker.CreateContainerOptions{Config: dockerConfig})
 	if err != nil {
 		if container != nil {
 			err := p.client.RemoveContainer(docker.RemoveContainerOptions{

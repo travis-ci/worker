@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/context"
 	gocontext "golang.org/x/net/context"
@@ -98,6 +99,11 @@ func NewLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (L
 		timeout:   0,
 	}
 
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"writer": writer,
+		"job_id": jobID,
+	}).Debug("created new log writer")
+
 	go writer.flushRegularly()
 
 	return writer, nil
@@ -107,6 +113,11 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 	if w.closed() {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
+
+	context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+		"length": len(p),
+		"bytes":  string(p),
+	}).Debug("writing bytes")
 
 	w.timer.Reset(w.timeout)
 

@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/mitchellh/multistep"
@@ -39,6 +40,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	defer context.LoggerFromContext(ctx).Info("finished script")
 
 	go func() {
+		if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
+			logWriter.Write([]byte(fmt.Sprintf("Using worker: %s\n\n", hostname)))
+		}
 		result, err := instance.RunScript(ctx, logWriter)
 		resultChan <- struct {
 			result backend.RunResult

@@ -13,6 +13,7 @@ GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 
 FIND ?= find
 GO ?= go
+GOXC ?= goxc
 DEPPY ?= deppy
 GOPATH := $(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
@@ -21,6 +22,7 @@ GOBUILD_LDFLAGS ?= -ldflags "\
 	-X $(GENERATED_VAR) '$(GENERATED_VALUE)' \
 "
 GOBUILD_FLAGS ?= -x
+GOXC_BUILD_CONSTRAINTS ?= amd64 linux,amd64 darwin
 
 PORT ?= 42151
 export PORT
@@ -68,6 +70,10 @@ coverage.coverprofile: $(COVERPROFILES)
 .PHONY: build
 build:
 	$(GO) install $(GOBUILD_FLAGS) $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+
+.phony: crossbuild
+crossbuild:
+	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
 
 .PHONY: deps
 deps:

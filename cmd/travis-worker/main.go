@@ -43,10 +43,18 @@ func runWorker(c *cli.Context) {
 		}()
 	}
 
+	if os.Getenv("DEBUG") != "" {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
+
 	logger.Info("worker started")
 	defer logger.Info("worker finished")
 
 	config := lib.EnvToConfig()
+	if hostname, err := os.Hostname(); config.Hostname == "" && err == nil {
+		config.Hostname = hostname
+	}
+
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
 
 	if config.SentryDSN != "" {
@@ -96,6 +104,7 @@ func runWorker(c *cli.Context) {
 	go commandDispatcher.Run()
 
 	pool := &lib.ProcessorPool{
+		Hostname:  config.Hostname,
 		Context:   ctx,
 		Conn:      amqpConn,
 		Provider:  provider,

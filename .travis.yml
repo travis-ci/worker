@@ -18,6 +18,8 @@ before_install:
 - go get github.com/hamfist/deppy
 - go get github.com/golang/lint/golint
 - go get golang.org/x/tools/cmd/cover
+# TODO: re-enable if/when the missing defs file issue is resolved
+# - go get github.com/laher/goxc
 - go install -a -race std
 install:
 - deppy restore
@@ -30,14 +32,18 @@ script:
 - git diff --exit-code
 - git diff --cached --exit-code
 - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
-- cd test
+- pushd test
 - "[[ -d .cabal-sandbox/packages ]] || cabal sandbox init"
 - cabal install -j
 - cabal run
+- popd
+# TODO: re-enable if/when the missing defs file issue is resolved
+# after_success:
+# - make crossbuild
 cache:
   directories:
   - test/.cabal-sandbox
 notifications:
   slack:
     rooms:
-      - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 
+    - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 

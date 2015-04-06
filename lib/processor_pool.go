@@ -17,6 +17,7 @@ type ProcessorPool struct {
 	Provider  backend.Provider
 	Generator BuildScriptGenerator
 	Canceller Canceller
+	Hostname  string
 
 	processorsLock sync.Mutex
 	processors     []*Processor
@@ -58,7 +59,7 @@ func (p *ProcessorPool) GracefulShutdown() {
 }
 
 func (p *ProcessorPool) processor(queue *JobQueue) {
-	proc, err := NewProcessor(p.Context, queue, p.Provider, p.Generator, p.Canceller)
+	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller)
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 	}
