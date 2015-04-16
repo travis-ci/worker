@@ -40,6 +40,7 @@ script:
 # TODO: re-enable if/when the missing defs file issue is resolved
 # after_success:
 # - make crossbuild
+after_success: bin/atlas-push
 cache:
   directories:
   - test/.cabal-sandbox
