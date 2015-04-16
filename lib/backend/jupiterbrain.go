@@ -109,8 +109,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		return nil, err
 	}
 
-	normalizedAliasName := string(nonAlphaNumRegexp.ReplaceAll([]byte(startAttributes.OsxImage), []byte("_")))
-	imageName, ok := p.imageAliases[normalizedAliasName]
+	imageName, ok := p.imageAliases[startAttributes.OsxImage]
 	if !ok {
 		imageName, _ = p.imageAliases["default"]
 	}
