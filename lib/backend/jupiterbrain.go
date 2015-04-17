@@ -174,6 +174,12 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 				return
 			}
 
+			if resp.StatusCode != 200 {
+				body, _ := ioutil.ReadAll(resp.Body)
+				errChan <- fmt.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
+				return
+			}
+
 			var dataPayload jupiterBrainDataResponse
 			err = json.NewDecoder(resp.Body).Decode(&dataPayload)
 			if err != nil {
