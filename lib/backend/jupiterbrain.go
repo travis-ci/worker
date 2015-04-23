@@ -132,7 +132,13 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		return nil, err
 	}
 
-	resp, err := p.client.Post(u.String(), "application/vnd.api+json", bytes.NewReader(jsonBody))
+	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/vnd.api+json")
+
+	resp, err := p.httpDo(req)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +174,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		}
 
 		for true {
-			resp, err := p.client.Do(req)
+			resp, err := p.httpDo(req)
 			if err != nil {
 				errChan <- err
 				return
@@ -246,6 +252,16 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 
 		return nil, ctx.Err()
 	}
+}
+
+func (p *JupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error) {
+	if req.URL.User != nil {
+		token := req.URL.User.Username()
+		req.URL.User = nil
+		req.Header.Set("Authorization", "token "+token)
+	}
+
+	return p.client.Do(req)
 }
 
 func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) error {
@@ -335,7 +351,7 @@ func (i *JupiterBrainInstance) Stop(ctx context.Context) error {
 		return err
 	}
 
-	resp, err := i.provider.client.Do(req)
+	resp, err := i.provider.httpDo(req)
 	io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 	return err
