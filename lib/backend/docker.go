@@ -17,6 +17,10 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
+var (
+	errMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
+)
+
 type DockerProvider struct {
 	client *docker.Client
 
@@ -31,12 +35,7 @@ type DockerInstance struct {
 }
 
 func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
-	endpoint, ok := config["endpoint"]
-	if !ok {
-		return nil, fmt.Errorf("expected config key endpoint")
-	}
-
-	client, err := docker.NewClient(endpoint)
+	client, err := buildClient(config)
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +49,22 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 		client:  client,
 		cpuSets: make([]bool, cpuSetSize),
 	}, nil
+}
+
+func buildClient(config map[string]string) (*docker.Client, error) {
+	endpoint, ok := config["endpoint"]
+	if !ok {
+		return nil, errMissingEndpointConfig
+	}
+
+	if path, ok := config["cert_path"]; ok {
+		ca := fmt.Sprintf("%s/ca.pem", path)
+		cert := fmt.Sprintf("%s/cert.pem", path)
+		key := fmt.Sprintf("%s/key.pem", path)
+		return docker.NewTLSClient(endpoint, cert, key, ca)
+	}
+
+	return docker.NewClient(endpoint)
 }
 
 func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttributes) (Instance, error) {
