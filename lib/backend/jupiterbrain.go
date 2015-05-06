@@ -173,7 +173,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 			return
 		}
 
-		for true {
+		for {
 			resp, err := p.httpDo(req)
 			if err != nil {
 				errChan <- err
@@ -220,6 +220,8 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 				instanceReady <- payload
 				return
 			}
+
+			time.Sleep(time.Second)
 		}
 	}(payload.ID)
 
