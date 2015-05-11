@@ -106,12 +106,13 @@ func runWorker(c *cli.Context) {
 	go commandDispatcher.Run()
 
 	pool := &lib.ProcessorPool{
-		Hostname:  config.Hostname,
-		Context:   ctx,
-		Conn:      amqpConn,
-		Provider:  provider,
-		Generator: generator,
-		Canceller: commandDispatcher,
+		Hostname:    config.Hostname,
+		Context:     ctx,
+		HardTimeout: time.Duration(config.HardTimeoutSeconds) * time.Second,
+		Conn:        amqpConn,
+		Provider:    provider,
+		Generator:   generator,
+		Canceller:   commandDispatcher,
 	}
 
 	signalChan := make(chan os.Signal, 1)

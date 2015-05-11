@@ -8,17 +8,18 @@ import (
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	AmqpURI        string `env:"AMQP_URI"`
-	PoolSize       uint16 `env:"POOL_SIZE"`
-	BuildAPIURI    string `env:"BUILD_API_URI"`
-	ProviderName   string `env:"PROVIDER_NAME"`
-	ProviderConfig string `env:"PROVIDER_CONFIG"`
-	QueueName      string `env:"QUEUE_NAME"`
-	LibratoEmail   string `env:"LIBRATO_EMAIL"`
-	LibratoToken   string `env:"LIBRATO_TOKEN"`
-	LibratoSource  string `env:"LIBRATO_SOURCE"`
-	SentryDSN      string `env:"SENTRY_DSN"`
-	Hostname       string `env:"HOSTNAME"`
+	AmqpURI            string `env:"AMQP_URI"`
+	PoolSize           uint16 `env:"POOL_SIZE"`
+	BuildAPIURI        string `env:"BUILD_API_URI"`
+	ProviderName       string `env:"PROVIDER_NAME"`
+	ProviderConfig     string `env:"PROVIDER_CONFIG"`
+	QueueName          string `env:"QUEUE_NAME"`
+	LibratoEmail       string `env:"LIBRATO_EMAIL"`
+	LibratoToken       string `env:"LIBRATO_TOKEN"`
+	LibratoSource      string `env:"LIBRATO_SOURCE"`
+	SentryDSN          string `env:"SENTRY_DSN"`
+	Hostname           string `env:"HOSTNAME"`
+	HardTimeoutSeconds uint64 `env:"HARD_TIMEOUT_SECONDS"`
 }
 
 // EnvToConfig creates a Config instance from the current environment variables
@@ -50,6 +51,10 @@ func valueForField(field reflect.StructField) reflect.Value {
 		return reflect.ValueOf(intValue)
 	case reflect.Int64:
 		var intValue int64
+		fmt.Sscanf(stringValue, "%d", &intValue)
+		return reflect.ValueOf(intValue)
+	case reflect.Uint64:
+		var intValue uint64
 		fmt.Sscanf(stringValue, "%d", &intValue)
 		return reflect.ValueOf(intValue)
 	}
