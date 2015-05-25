@@ -226,7 +226,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 			}
 
 			if ip == nil {
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
