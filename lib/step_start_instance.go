@@ -51,7 +51,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 
 	skipShutdown, ok := state.Get("skipShutdown").(bool)
 	if ok && skipShutdown {
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Error("skipping shutdown, VM will be left running")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{"instance": instance}).Error("skipping shutdown, VM will be left running")
 		return
 	}
 
