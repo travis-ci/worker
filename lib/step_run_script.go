@@ -118,6 +118,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to errored")
 		}
 
+		state.Put("skipShutdown", true)
+
 		return multistep.ActionHalt
 	}
 }
