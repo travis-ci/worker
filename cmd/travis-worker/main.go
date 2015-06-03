@@ -38,6 +38,8 @@ func runWorker(c *cli.Context) {
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
 	logger := context.LoggerFromContext(ctx)
 
+	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true})
+
 	if os.Getenv("PPROF_PORT") != "" {
 		// Start net/http/pprof server
 		go func() {

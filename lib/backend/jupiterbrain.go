@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/pkg/sftp"
 	workerctx "github.com/travis-ci/worker/lib/context"
 	"github.com/travis-ci/worker/lib/metrics"
@@ -23,6 +24,18 @@ import (
 )
 
 var nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+
+const wrapperSh = `#!/bin/bash
+
+[[ $(uname) = Linux ]] && exec bash ~/build.sh
+
+[[ -f ~/build.sh.exit ]] && rm ~/build.sh.exit
+
+until nc 127.0.0.1 15782; do sleep 1; done
+
+until [[ -f ~/build.sh.exit ]]; do sleep 1; done
+exit $(cat ~/build.sh.exit)
+`
 
 type JupiterBrainProvider struct {
 	client           *http.Client
@@ -150,9 +163,14 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		return nil, fmt.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", c, body)
 	}
 
-	var dataPayload jupiterBrainDataResponse
-	err = json.NewDecoder(resp.Body).Decode(&dataPayload)
+	dataPayload := &jupiterBrainDataResponse{}
+	err = json.NewDecoder(resp.Body).Decode(dataPayload)
 	if err != nil {
+		workerctx.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":     err,
+			"payload": dataPayload,
+			"body":    resp.Body,
+		}).Error("couldn't decode created payload")
 		return nil, fmt.Errorf("couldn't decode created payload: %s", err)
 	}
 
@@ -186,8 +204,8 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 				return
 			}
 
-			var dataPayload jupiterBrainDataResponse
-			err = json.NewDecoder(resp.Body).Decode(&dataPayload)
+			dataPayload := &jupiterBrainDataResponse{}
+			err = json.NewDecoder(resp.Body).Decode(dataPayload)
 			if err != nil {
 				errChan <- fmt.Errorf("couldn't decode refresh payload: %s", err)
 				return
@@ -208,6 +226,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 			}
 
 			if ip == nil {
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
@@ -294,15 +313,7 @@ func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) 
 		return err
 	}
 
-	_, err = fmt.Fprintf(f, `#!/bin/bash
-
-[[ -f ~/build.sh.exit ]] && rm ~/build.sh.exit
-
-until nc 127.0.0.1 15782; do sleep 1; done
-
-until [[ -f ~/build.sh.exit ]]; do sleep 1; done
-exit $(cat ~/build.sh.exit)
-`)
+	_, err = fmt.Fprintf(f, wrapperSh)
 
 	return err
 }
