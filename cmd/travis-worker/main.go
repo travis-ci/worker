@@ -104,6 +104,10 @@ func runWorker(c *cli.Context) {
 		return
 	}
 
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"provider": provider,
+	}).Debug("built provider")
+
 	commandDispatcher := lib.NewCommandDispatcher(ctx, amqpConn)
 	go commandDispatcher.Run()
 

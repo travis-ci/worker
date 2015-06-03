@@ -67,7 +67,7 @@ func buildClient(config map[string]string) (*docker.Client, error) {
 	return docker.NewClient(endpoint)
 }
 
-func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttributes) (Instance, error) {
+func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil && cpuSets != "" {
 		return nil, err
@@ -246,22 +246,22 @@ func (i *DockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	return nil
 }
 
-func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (RunResult, error) {
+func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer session.Close()
 
 	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 
 	session.Stdout = output
@@ -269,14 +269,14 @@ func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser)
 
 	err = session.Run("bash ~/build.sh")
 	if err == nil {
-		return RunResult{Completed: true, ExitCode: 0}, nil
+		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
 
 	switch err := err.(type) {
 	case *ssh.ExitError:
-		return RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
+		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
 	default:
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 }
 
