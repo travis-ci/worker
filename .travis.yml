@@ -6,9 +6,10 @@ env:
   - GOPATH="$HOME/gopath"
   - PATH="$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - ARTIFACTS_PATHS="./build/$UNAME/amd64/travis-worker"
 addons:
-  artifacts: true
+  artifacts:
+    paths:
+    - ./build/$UNAME/amd64/travis-worker
 services:
 - rabbitmq
 before_install:
