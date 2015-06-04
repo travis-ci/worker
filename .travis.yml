@@ -5,6 +5,9 @@ env:
   global:
   - GOPATH="$HOME/gopath"
   - PATH="$HOME/gopath/bin:$HOME/bin:$PATH"
+  - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
+addons:
+  artifacts: true
 services:
 - rabbitmq
 before_install:
@@ -40,7 +43,10 @@ script:
 # TODO: re-enable if/when the missing defs file issue is resolved
 # after_success:
 # - make crossbuild
-after_success: bin/atlas-push
+after_success:
+- bin/atlas-push
+- mkdir -p build/$UNAME/amd64
+- cp -v ~/gopath/bin/travis-worker ./build/$UNAME/amd64/travis-worker
 cache:
   directories:
   - test/.cabal-sandbox
