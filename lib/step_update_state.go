@@ -21,7 +21,7 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	mresult, ok := state.GetOk("scriptResult")
 
 	if ok {
-		result := mresult.(backend.RunResult)
+		result := mresult.(*backend.RunResult)
 
 		switch result.ExitCode {
 		case 0:

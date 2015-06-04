@@ -32,7 +32,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter.SetMaxLogLength(s.maxLogLength)
 
 	resultChan := make(chan struct {
-		result backend.RunResult
+		result *backend.RunResult
 		err    error
 	}, 1)
 
@@ -45,7 +45,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		result, err := instance.RunScript(ctx, logWriter)
 		resultChan <- struct {
-			result backend.RunResult
+			result *backend.RunResult
 			err    error
 		}{
 			result: result,

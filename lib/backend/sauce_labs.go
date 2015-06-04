@@ -89,7 +89,7 @@ func NewSauceLabsProvider(config map[string]string) (*SauceLabsProvider, error) 
 	}, nil
 }
 
-func (p *SauceLabsProvider) Start(ctx context.Context, startAttributes StartAttributes) (Instance, error) {
+func (p *SauceLabsProvider) Start(ctx context.Context, startAttributes *StartAttributes) (Instance, error) {
 	startupInfo, err := json.Marshal(map[string]interface{}{"worker_pid": os.Getpid(), "source": "worker"})
 	if err != nil {
 		return nil, err
@@ -245,22 +245,22 @@ exit $(cat ~/build.sh.exit)
 	return err
 }
 
-func (i *SauceLabsInstance) RunScript(ctx context.Context, output io.WriteCloser) (RunResult, error) {
+func (i *SauceLabsInstance) RunScript(ctx context.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer session.Close()
 
 	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 
 	session.Stdout = output
@@ -269,14 +269,14 @@ func (i *SauceLabsInstance) RunScript(ctx context.Context, output io.WriteCloser
 	err = session.Run("bash ~/wrapper.sh")
 	defer output.Close()
 	if err == nil {
-		return RunResult{Completed: true, ExitCode: 0}, nil
+		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
 
 	switch err := err.(type) {
 	case *ssh.ExitError:
-		return RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
+		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
 	default:
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 }
 
