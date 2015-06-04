@@ -6,6 +6,7 @@ env:
   - GOPATH="$HOME/gopath"
   - PATH="$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
+  - ARTIFACTS_PATHS="./build/$UNAME/amd64/travis-worker"
 addons:
   artifacts: true
 services:
@@ -47,6 +48,7 @@ after_success:
 - bin/atlas-push
 - mkdir -p build/$UNAME/amd64
 - cp -v ~/gopath/bin/travis-worker ./build/$UNAME/amd64/travis-worker
+- echo $ARTIFACTS_PATHS
 cache:
   directories:
   - test/.cabal-sandbox
