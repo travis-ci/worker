@@ -19,6 +19,8 @@ type ProcessorPool struct {
 	Canceller Canceller
 	Hostname  string
 
+	SkipShutdownOnLogTimeout bool
+
 	processorsLock sync.Mutex
 	processors     []*Processor
 }
@@ -76,6 +78,8 @@ func (p *ProcessorPool) processor(queue *JobQueue) {
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 	}
+
+	proc.SkipShutdownOnLogTimeout = p.SkipShutdownOnLogTimeout
 
 	p.processorsLock.Lock()
 	p.processors = append(p.processors, proc)

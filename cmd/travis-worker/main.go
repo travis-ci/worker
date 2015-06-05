@@ -114,6 +114,8 @@ func runWorker(c *cli.Context) {
 	pool := lib.NewProcessorPool(config.Hostname, ctx, amqpConn, provider,
 		generator, commandDispatcher)
 
+	pool.SkipShutdownOnLogTimeout = (config.SkipShutdownOnLogTimeout != "")
+
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {

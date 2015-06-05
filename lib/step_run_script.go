@@ -11,8 +11,9 @@ import (
 )
 
 type stepRunScript struct {
-	logTimeout   time.Duration
-	maxLogLength int
+	logTimeout               time.Duration
+	skipShutdownOnLogTimeout bool
+	maxLogLength             int
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -118,7 +119,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to errored")
 		}
 
-		state.Put("skipShutdown", true)
+		if s.skipShutdownOnLogTimeout {
+			state.Put("skipShutdown", true)
+		}
 
 		return multistep.ActionHalt
 	}
