@@ -23,6 +23,19 @@ type ProcessorPool struct {
 	processors     []*Processor
 }
 
+func NewProcessorPool(hostname string, ctx gocontext.Context, amqpConn *amqp.Connection,
+	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) *ProcessorPool {
+
+	return &ProcessorPool{
+		Hostname:  hostname,
+		Context:   ctx,
+		Conn:      amqpConn,
+		Provider:  provider,
+		Generator: generator,
+		Canceller: canceller,
+	}
+}
+
 // Run starts up a number of processors and connects them to the given queue.
 // This method stalls until all processors have finished.
 func (p *ProcessorPool) Run(poolSize uint16, queueName string) error {

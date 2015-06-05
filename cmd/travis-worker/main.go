@@ -111,14 +111,8 @@ func runWorker(c *cli.Context) {
 	commandDispatcher := lib.NewCommandDispatcher(ctx, amqpConn)
 	go commandDispatcher.Run()
 
-	pool := &lib.ProcessorPool{
-		Hostname:  config.Hostname,
-		Context:   ctx,
-		Conn:      amqpConn,
-		Provider:  provider,
-		Generator: generator,
-		Canceller: commandDispatcher,
-	}
+	pool := lib.NewProcessorPool(config.Hostname, ctx, amqpConn, provider,
+		generator, commandDispatcher)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
