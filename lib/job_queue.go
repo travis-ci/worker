@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
 	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/lib/metrics"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -57,7 +57,7 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *amqpJob) Requeue() error {
-	metrics.GetOrRegisterMeter("worker.job.requeue", metrics.DefaultRegistry).Mark(1)
+	metrics.Mark("worker.job.requeue")
 
 	amqpChan, err := j.conn.Channel()
 	if err != nil {

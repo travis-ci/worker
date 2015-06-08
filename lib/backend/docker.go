@@ -234,6 +234,11 @@ func (i *DockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	}
 	defer sftp.Close()
 
+	_, err = sftp.Lstat("build.sh")
+	if err == nil {
+		return ErrStaleVM
+	}
+
 	f, err := sftp.Create("build.sh")
 	if err != nil {
 		return err

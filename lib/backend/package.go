@@ -7,6 +7,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+var (
+	ErrStaleVM = fmt.Errorf("previous build artifacts found on stale vm")
+)
+
 // Provider represents some kind of instance provider. It can point to an
 // external HTTP API, or some process locally, or something completely
 // different.

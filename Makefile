@@ -2,7 +2,9 @@ PACKAGE := github.com/travis-ci/worker
 SUBPACKAGES := \
 	$(PACKAGE)/cmd/travis-worker \
 	$(PACKAGE)/lib \
-	$(PACKAGE)/lib/backend
+	$(PACKAGE)/lib/backend \
+	$(PACKAGE)/lib/context \
+	$(PACKAGE)/lib/metrics
 
 VERSION_VAR := $(PACKAGE)/lib.VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)

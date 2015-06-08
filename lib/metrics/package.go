@@ -2,8 +2,9 @@
 package metrics
 
 import (
-	"github.com/rcrowley/go-metrics"
 	"time"
+
+	"github.com/rcrowley/go-metrics"
 )
 
 // Mark increases the meter metric with the given name by 1

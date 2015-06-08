@@ -217,6 +217,11 @@ func (i *SauceLabsInstance) UploadScript(ctx context.Context, script []byte) err
 	}
 	defer sftp.Close()
 
+	_, err = sftp.Lstat("build.sh")
+	if err == nil {
+		return ErrStaleVM
+	}
+
 	f, err := sftp.Create("build.sh")
 	if err != nil {
 		return err

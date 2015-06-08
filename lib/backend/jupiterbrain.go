@@ -23,7 +23,9 @@ import (
 	"golang.org/x/net/context"
 )
 
-var nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+var (
+	nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+)
 
 const wrapperSh = `#!/bin/bash
 
@@ -305,6 +307,11 @@ func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) 
 		return err
 	}
 	defer sftp.Close()
+
+	_, err = sftp.Lstat("build.sh")
+	if err == nil {
+		return ErrStaleVM
+	}
 
 	f, err := sftp.Create("build.sh")
 	if err != nil {
