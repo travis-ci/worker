@@ -294,3 +294,11 @@ func (i *DockerInstance) Stop(ctx gocontext.Context) error {
 		Force:         true,
 	})
 }
+
+func (i *DockerInstance) ID() string {
+	if i.container == nil {
+		return "{unidentified}"
+	}
+
+	return fmt.Sprintf("%s:%s", i.container.ID, i.container.Image)
+}

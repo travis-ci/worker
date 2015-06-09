@@ -43,3 +43,7 @@ func (i *FakeInstance) RunScript(ctx context.Context, writer io.WriteCloser) (*R
 func (i *FakeInstance) Stop(ctx context.Context) error {
 	return nil
 }
+
+func (i *FakeInstance) ID() string {
+	return "fake"
+}

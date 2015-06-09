@@ -378,6 +378,13 @@ func (i *JupiterBrainInstance) Stop(ctx context.Context) error {
 	return err
 }
 
+func (i *JupiterBrainInstance) ID() string {
+	if i.payload == nil {
+		return "{unidentified}"
+	}
+	return fmt.Sprintf("%s:%s", i.payload.ID, i.payload.BaseImage)
+}
+
 func (i *JupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	file, err := ioutil.ReadFile(i.provider.sshKeyPath)
 	if err != nil {

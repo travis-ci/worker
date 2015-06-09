@@ -330,3 +330,7 @@ func (i *SauceLabsInstance) sshClient() (*ssh.Client, error) {
 		},
 	})
 }
+
+func (i *SauceLabsInstance) ID() string {
+	return fmt.Sprintf("%s:%s", i.payload.ID, i.payload.ImageID)
+}
