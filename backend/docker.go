@@ -48,7 +48,7 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 
 	privileged := false
 	if v, ok := config["privileged"]; ok {
-		privileged = (v != "")
+		privileged = (v == "true")
 	}
 
 	return &DockerProvider{
