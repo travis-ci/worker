@@ -26,43 +26,8 @@
 			"Rev": "9908e96513e5a94de37004098a3974a567f18111"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/archive",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/fileutils",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/ioutils",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/pools",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/promise",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/system",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "5da2a37ecfb5bcb921a36dbc18e912c3235f139a"
+			"Rev": "419285e90ed27813d1df4be3e47249f9eb215dcf"
 		},
 		{
 			"ImportPath": "github.com/getsentry/raven-go",
