@@ -29,9 +29,5 @@ gin-bin
 *.coverprofile
 coverage.html
 
-.env
-
-.cabal-sandbox/
-cabal.sandbox.config
-test/dist
+.*env
 .build/
