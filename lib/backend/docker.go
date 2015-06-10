@@ -22,7 +22,8 @@ var (
 )
 
 type DockerProvider struct {
-	client *docker.Client
+	client        *docker.Client
+	runPrivileged bool
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -45,9 +46,15 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 		cpuSetSize = 2
 	}
 
+	privileged := false
+	if v, ok := config["privileged"]; ok {
+		privileged = v
+	}
+
 	return &DockerProvider{
-		client:  client,
-		cpuSets: make([]bool, cpuSetSize),
+		client:        client,
+		runPrivileged: privileged,
+		cpuSets:       make([]bool, cpuSetSize),
 	}, nil
 }
 
@@ -79,11 +86,13 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 
 	dockerConfig := &docker.Config{
-		Cmd:      []string{"/sbin/init"},
-		Image:    imageID,
-		Memory:   1024 * 1024 * 1024 * 4,
-		Hostname: fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
+		Cmd:        []string{"/sbin/init"},
+		Image:      imageID,
+		Memory:     1024 * 1024 * 1024 * 4,
+		Privileged: p.runPrivileged,
+		Hostname:   fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
 	}
+
 	if cpuSets != "" {
 		dockerConfig.CPUSet = cpuSets
 	}
