@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/pborman/uuid"
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pkg/sftp"
