@@ -32,6 +32,9 @@ type Instance interface {
 	// UploadScript method.
 	RunScript(context.Context, io.WriteCloser) (*RunResult, error)
 	Stop(context.Context) error
+
+	// ID is used when identifying the instance in logs and such
+	ID() string
 }
 
 // StartAttributes contains some parts of the config which can be used to
