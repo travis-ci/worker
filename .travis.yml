@@ -1,6 +1,10 @@
 language: go
-go: 1.4.1
+go: 1.4.2
 sudo: false
+
+env:
+  global:
+  - INTEGRATION_TESTS_DISABLED=1
 
 services:
   - rabbitmq
@@ -23,8 +27,9 @@ script:
   - make save
   - git diff --exit-code
   - git diff --cached --exit-code
-  - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
-  - AMQP_URI=amqp:// go test ./test
+  # TODO: enable integration tests
+  # - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
+  # - AMQP_URI=amqp:// go test -v ./test
   # TODO: re-enable if/when the missing defs file issue is resolved
   # after_success:
   # - make crossbuild
