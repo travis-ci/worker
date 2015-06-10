@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
-	workerctx "github.com/travis-ci/worker/lib/context"
-	"github.com/travis-ci/worker/lib/metrics"
+	workerctx "github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )

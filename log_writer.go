@@ -1,4 +1,4 @@
-package lib
+package worker
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
 )
 

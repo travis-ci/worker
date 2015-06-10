@@ -17,16 +17,16 @@ import (
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/librato"
 	"github.com/streadway/amqp"
-	"github.com/travis-ci/worker/lib"
-	"github.com/travis-ci/worker/lib/backend"
-	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker"
+	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
 )
 
 func main() {
 	app := cli.NewApp()
 	app.Usage = "Travis Worker daemon"
-	app.Version = lib.VersionString
+	app.Version = worker.VersionString
 	app.Action = runWorker
 	app.Author = "Travis CI GmbH"
 	app.Email = "contact+travis-worker@travis-ci.org"
@@ -54,7 +54,7 @@ func runWorker(c *cli.Context) {
 	logger.Info("worker started")
 	defer logger.Info("worker finished")
 
-	config := lib.EnvToConfig()
+	config := worker.EnvToConfig()
 	if hostname, err := os.Hostname(); config.Hostname == "" && err == nil {
 		config.Hostname = hostname
 	}
@@ -97,7 +97,7 @@ func runWorker(c *cli.Context) {
 
 	context.LoggerFromContext(ctx).Debug("connected to AMQP")
 
-	generator := lib.NewBuildScriptGenerator(config.BuildAPIURI)
+	generator := worker.NewBuildScriptGenerator(config.BuildAPIURI)
 	provider, err := backend.NewProvider(config.ProviderName, ProviderConfigFromEnviron(config.ProviderName))
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create backend provider")
@@ -108,10 +108,10 @@ func runWorker(c *cli.Context) {
 		"provider": provider,
 	}).Debug("built provider")
 
-	commandDispatcher := lib.NewCommandDispatcher(ctx, amqpConn)
+	commandDispatcher := worker.NewCommandDispatcher(ctx, amqpConn)
 	go commandDispatcher.Run()
 
-	pool := lib.NewProcessorPool(config.Hostname, ctx,
+	pool := worker.NewProcessorPool(config.Hostname, ctx,
 		time.Duration(config.HardTimeoutSeconds)*time.Second, amqpConn, provider,
 		generator, commandDispatcher)
 

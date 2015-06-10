@@ -1,12 +1,12 @@
-package lib
+package worker
 
 import (
 	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
-	"github.com/travis-ci/worker/lib/backend"
-	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
 )
 

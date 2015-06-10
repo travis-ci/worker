@@ -1,12 +1,12 @@
-package lib
+package worker
 
 import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
-	"github.com/travis-ci/worker/lib/backend"
-	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
 )
 

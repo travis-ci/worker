@@ -1,16 +1,15 @@
 PACKAGE := github.com/travis-ci/worker
 SUBPACKAGES := \
 	$(PACKAGE)/cmd/travis-worker \
-	$(PACKAGE)/lib \
-	$(PACKAGE)/lib/backend \
-	$(PACKAGE)/lib/context \
-	$(PACKAGE)/lib/metrics
+	$(PACKAGE)/backend \
+	$(PACKAGE)/context \
+	$(PACKAGE)/metrics
 
-VERSION_VAR := $(PACKAGE)/lib.VersionString
+VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
-REV_VAR := $(PACKAGE)/lib.RevisionString
+REV_VAR := $(PACKAGE).RevisionString
 REV_VALUE ?= $(shell git rev-parse --sq HEAD 2>/dev/null || echo "'???'")
-GENERATED_VAR := $(PACKAGE)/lib.GeneratedString
+GENERATED_VAR := $(PACKAGE).GeneratedString
 GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 
 FIND ?= find
@@ -30,8 +29,8 @@ PORT ?= 42151
 export PORT
 
 COVERPROFILES := \
-	lib-coverage.coverprofile \
-	lib-backend-coverage.coverprofile
+	coverage.coverprofile \
+	backend-coverage.coverprofile
 
 %-coverage.coverprofile:
 	$(GO) test -covermode=count -coverprofile=$@ \

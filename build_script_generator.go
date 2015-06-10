@@ -1,4 +1,4 @@
-package lib
+package worker
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/travis-ci/worker/lib/metrics"
+	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/net/context"
 )
 
