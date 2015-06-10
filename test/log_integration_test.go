@@ -143,6 +143,10 @@ func TestIntegrationLogMessages(t *testing.T) {
 		t.Skip("Skipping integration test as AMQP_URI isn't set")
 	}
 
+	if os.Getenv("INTEGRATION_TESTS_DISABLED") != "" {
+		t.Skip("Skipping disabled integration tests")
+	}
+
 	buildScriptServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "Hello, world")
 	}))
