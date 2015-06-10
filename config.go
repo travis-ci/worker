@@ -2,64 +2,49 @@ package worker
 
 import (
 	"fmt"
-	"os"
-	"reflect"
+	"strings"
+
+	"github.com/codegangsta/cli"
 )
+
+var (
+	Flags = []cli.Flag{
+		cli.StringFlag{Name: "amqp-uri", EnvVar: twEnvVars("AMQP_URI")},
+		cli.IntFlag{Name: "pool-size", EnvVar: twEnvVars("POOL_SIZE")},
+		cli.StringFlag{Name: "build-api-uri", EnvVar: twEnvVars("BUILD_API_URI")},
+		cli.StringFlag{Name: "provider-name", EnvVar: twEnvVars("PROVIDER_NAME")},
+		cli.StringFlag{Name: "queue-name", EnvVar: twEnvVars("QUEUE_NAME")},
+		cli.StringFlag{Name: "librato-email", EnvVar: twEnvVars("LIBRATO_EMAIL")},
+		cli.StringFlag{Name: "librato-token", EnvVar: twEnvVars("LIBRATO_TOKEN")},
+		cli.StringFlag{Name: "librato-source", EnvVar: twEnvVars("LIBRATO_SOURCE")},
+		cli.StringFlag{Name: "sentry-dsn", EnvVar: twEnvVars("SENTRY_DSN")},
+		cli.StringFlag{Name: "hostname", EnvVar: twEnvVars("HOSTNAME")},
+		cli.IntFlag{Name: "hard-timeout-seconds", EnvVar: twEnvVars("HARD_TIMEOUT_SECONDS")},
+		cli.StringFlag{Name: "skip-shutdown-on-log-timeout", EnvVar: twEnvVars("SKIP_SHUTDOWN_ON_LOG_TIMEOUT")},
+	}
+)
+
+func twEnvVars(key string) string {
+	return strings.ToUpper(fmt.Sprintf("TRAVIS_WORKER_%s,%s", key, key))
+}
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	AmqpURI            string `env:"AMQP_URI"`
-	PoolSize           uint16 `env:"POOL_SIZE"`
-	BuildAPIURI        string `env:"BUILD_API_URI"`
-	ProviderName       string `env:"PROVIDER_NAME"`
-	ProviderConfig     string `env:"PROVIDER_CONFIG"`
-	QueueName          string `env:"QUEUE_NAME"`
-	LibratoEmail       string `env:"LIBRATO_EMAIL"`
-	LibratoToken       string `env:"LIBRATO_TOKEN"`
-	LibratoSource      string `env:"LIBRATO_SOURCE"`
-	SentryDSN          string `env:"SENTRY_DSN"`
-	Hostname           string `env:"HOSTNAME"`
-	HardTimeoutSeconds uint64 `env:"HARD_TIMEOUT_SECONDS"`
+	AmqpURI            string
+	PoolSize           int
+	BuildAPIURI        string
+	ProviderName       string
+	QueueName          string
+	LibratoEmail       string
+	LibratoToken       string
+	LibratoSource      string
+	SentryDSN          string
+	Hostname           string
+	HardTimeoutSeconds int
 
-	SkipShutdownOnLogTimeout string `env:"SKIP_SHUTDOWN_ON_LOG_TIMEOUT"`
+	SkipShutdownOnLogTimeout string
 }
 
-// EnvToConfig creates a Config instance from the current environment variables
-// using the env struct field tags in Config.
-func EnvToConfig() Config {
-	conf := Config{}
-	s := reflect.ValueOf(&conf).Elem()
-	typeOfConf := s.Type()
-	for i := 0; i < s.NumField(); i++ {
-		if typeOfConf.Field(i).Tag.Get("env") == "" {
-			continue
-		}
-
-		s.Field(i).Set(valueForField(typeOfConf.Field(i)))
-	}
-
-	return conf
-}
-
-func valueForField(field reflect.StructField) reflect.Value {
-	stringValue := os.Getenv(field.Tag.Get("env"))
-
-	switch field.Type.Kind() {
-	case reflect.String:
-		return reflect.ValueOf(stringValue)
-	case reflect.Uint16:
-		var intValue uint16
-		fmt.Sscanf(stringValue, "%d", &intValue)
-		return reflect.ValueOf(intValue)
-	case reflect.Int64:
-		var intValue int64
-		fmt.Sscanf(stringValue, "%d", &intValue)
-		return reflect.ValueOf(intValue)
-	case reflect.Uint64:
-		var intValue uint64
-		fmt.Sscanf(stringValue, "%d", &intValue)
-		return reflect.ValueOf(intValue)
-	}
-
-	return reflect.Value{}
+func ConfigFromCLIContext(cfg *Config, c *cli.Context) *Config {
+	return cfg
 }

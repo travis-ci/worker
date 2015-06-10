@@ -27,9 +27,11 @@ func main() {
 	app := cli.NewApp()
 	app.Usage = "Travis Worker daemon"
 	app.Version = worker.VersionString
-	app.Action = runWorker
 	app.Author = "Travis CI GmbH"
 	app.Email = "contact+travis-worker@travis-ci.org"
+
+	app.Flags = worker.Flags
+	app.Action = runWorker
 
 	app.Run(os.Args)
 }
@@ -54,7 +56,9 @@ func runWorker(c *cli.Context) {
 	logger.Info("worker started")
 	defer logger.Info("worker finished")
 
-	config := worker.EnvToConfig()
+	config := &worker.Config{}
+
+	config = worker.ConfigFromCLIContext(config, c)
 	if hostname, err := os.Hostname(); config.Hostname == "" && err == nil {
 		config.Hostname = hostname
 	}
