@@ -48,7 +48,7 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 
 	privileged := false
 	if v, ok := config["privileged"]; ok {
-		privileged = v
+		privileged = (v != "")
 	}
 
 	return &DockerProvider{
@@ -86,18 +86,25 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 
 	dockerConfig := &docker.Config{
-		Cmd:        []string{"/sbin/init"},
-		Image:      imageID,
-		Memory:     1024 * 1024 * 1024 * 4,
+		Cmd:      []string{"/sbin/init"},
+		Image:    imageID,
+		Memory:   1024 * 1024 * 1024 * 4,
+		Hostname: fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
+	}
+
+	dockerHostConfig := &docker.HostConfig{
 		Privileged: p.runPrivileged,
-		Hostname:   fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
 	}
 
 	if cpuSets != "" {
 		dockerConfig.CPUSet = cpuSets
 	}
 
-	container, err := p.client.CreateContainer(docker.CreateContainerOptions{Config: dockerConfig})
+	container, err := p.client.CreateContainer(docker.CreateContainerOptions{
+		Config:     dockerConfig,
+		HostConfig: dockerHostConfig,
+	})
+
 	if err != nil {
 		if container != nil {
 			err := p.client.RemoveContainer(docker.RemoveContainerOptions{
