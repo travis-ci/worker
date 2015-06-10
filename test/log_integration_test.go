@@ -1,4 +1,4 @@
-package worker_integration_test
+package workerintegration
 
 import (
 	"encoding/json"
