@@ -32,8 +32,8 @@ script:
 - make test
 - make test-race
 - make save
-- git diff --exit-code
-- git diff --cached --exit-code
+- git diff --exit-code || echo 'wat is goin on'
+- git diff --cached --exit-code || echo 'wat is goin on'
 # TODO: enable integration tests
 # - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
 # - AMQP_URI=amqp:// go test -v ./test
