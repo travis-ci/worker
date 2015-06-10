@@ -1,8 +1,8 @@
-package lib
+package worker
 
 import (
 	"github.com/mitchellh/multistep"
-	"github.com/travis-ci/worker/lib/backend"
+	"github.com/travis-ci/worker/backend"
 )
 
 type stepUpdateState struct{}

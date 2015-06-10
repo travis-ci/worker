@@ -1,8 +1,8 @@
-package lib
+package worker
 
 import (
 	"github.com/mitchellh/multistep"
-	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
 )
 

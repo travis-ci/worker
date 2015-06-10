@@ -1,4 +1,4 @@
-package lib
+package worker
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"code.google.com/p/go-uuid/uuid"
 
 	"github.com/mitchellh/multistep"
-	"github.com/travis-ci/worker/lib/backend"
-	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
 )
 

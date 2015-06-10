@@ -1,4 +1,4 @@
-package lib
+package worker
 
 import (
 	"encoding/json"
@@ -6,9 +6,9 @@ import (
 
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
-	"github.com/travis-ci/worker/lib/backend"
-	"github.com/travis-ci/worker/lib/context"
-	"github.com/travis-ci/worker/lib/metrics"
+	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
 )
 

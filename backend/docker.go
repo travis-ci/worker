@@ -11,8 +11,8 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pkg/sftp"
-	"github.com/travis-ci/worker/lib/context"
-	"github.com/travis-ci/worker/lib/metrics"
+	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
 )

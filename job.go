@@ -1,11 +1,11 @@
-package lib
+package worker
 
 import (
 	"io"
 	"time"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/travis-ci/worker/lib/backend"
+	"github.com/travis-ci/worker/backend"
 	"golang.org/x/net/context"
 )
 
