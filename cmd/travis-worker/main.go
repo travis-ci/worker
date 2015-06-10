@@ -111,7 +111,8 @@ func runWorker(c *cli.Context) {
 	commandDispatcher := lib.NewCommandDispatcher(ctx, amqpConn)
 	go commandDispatcher.Run()
 
-	pool := lib.NewProcessorPool(config.Hostname, ctx, amqpConn, provider,
+	pool := lib.NewProcessorPool(config.Hostname, ctx,
+		time.Duration(config.HardTimeoutSeconds)*time.Second, amqpConn, provider,
 		generator, commandDispatcher)
 
 	pool.SkipShutdownOnLogTimeout = (config.SkipShutdownOnLogTimeout != "")

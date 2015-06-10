@@ -16,14 +16,12 @@ import (
 // it to be available.
 var InstanceStartTimeout = 300 * time.Second
 
-// JobTimeout is the maximum time a job can take before it times out.
-var JobTimeout = 50 * time.Minute
-
 // A Processor will process build jobs on a channel, one by one, until it is
 // told to shut down or the channel of build jobs closes.
 type Processor struct {
 	processorUUID uuid.UUID
 	hostname      string
+	hardTimeout   time.Duration
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -41,7 +39,8 @@ type Processor struct {
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQueue,
-	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) (*Processor, error) {
+	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
+	hardTimeout time.Duration) (*Processor, error) {
 
 	processorUUID := uuid.NewRandom()
 
@@ -55,6 +54,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQue
 	return &Processor{
 		processorUUID: processorUUID,
 		hostname:      hostname,
+		hardTimeout:   hardTimeout,
 
 		ctx:           context.FromProcessor(ctx, processorUUID.String()),
 		buildJobsChan: buildJobsChan,
@@ -85,7 +85,7 @@ func (p *Processor) Run() {
 			if !ok {
 				return
 			}
-			ctx, cancel := gocontext.WithTimeout(context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID), 50*time.Minute)
+			ctx, cancel := gocontext.WithTimeout(context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID), p.hardTimeout)
 			p.process(ctx, buildJob)
 			cancel()
 		}
@@ -124,6 +124,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepRunScript{
 			logTimeout:               10 * time.Minute,
 			maxLogLength:             4500000,
+			hardTimeout:              p.hardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
 		},
 	}

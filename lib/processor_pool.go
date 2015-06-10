@@ -2,6 +2,7 @@ package lib
 
 import (
 	"sync"
+	"time"
 
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
@@ -12,12 +13,13 @@ import (
 // A ProcessorPool spins up multiple Processors handling build jobs from the
 // same queue.
 type ProcessorPool struct {
-	Context   gocontext.Context
-	Conn      *amqp.Connection
-	Provider  backend.Provider
-	Generator BuildScriptGenerator
-	Canceller Canceller
-	Hostname  string
+	Context     gocontext.Context
+	Conn        *amqp.Connection
+	Provider    backend.Provider
+	Generator   BuildScriptGenerator
+	Canceller   Canceller
+	Hostname    string
+	HardTimeout time.Duration
 
 	SkipShutdownOnLogTimeout bool
 
@@ -25,16 +27,18 @@ type ProcessorPool struct {
 	processors     []*Processor
 }
 
-func NewProcessorPool(hostname string, ctx gocontext.Context, amqpConn *amqp.Connection,
-	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) *ProcessorPool {
+func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.Duration,
+	amqpConn *amqp.Connection, provider backend.Provider, generator BuildScriptGenerator,
+	canceller Canceller) *ProcessorPool {
 
 	return &ProcessorPool{
-		Hostname:  hostname,
-		Context:   ctx,
-		Conn:      amqpConn,
-		Provider:  provider,
-		Generator: generator,
-		Canceller: canceller,
+		Hostname:    hostname,
+		Context:     ctx,
+		HardTimeout: hardTimeout,
+		Conn:        amqpConn,
+		Provider:    provider,
+		Generator:   generator,
+		Canceller:   canceller,
 	}
 }
 
@@ -74,7 +78,7 @@ func (p *ProcessorPool) GracefulShutdown() {
 }
 
 func (p *ProcessorPool) processor(queue *JobQueue) {
-	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller)
+	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller, p.HardTimeout)
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 	}
