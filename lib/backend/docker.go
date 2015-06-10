@@ -148,17 +148,22 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 }
 
 func (p *DockerProvider) imageForLanguage(language string) (string, error) {
-	searchTag := "travis:" + language
-
 	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
 	if err != nil {
 		return "", err
 	}
 
 	for _, image := range images {
-		for _, tag := range image.RepoTags {
-			if tag == searchTag {
-				return image.ID, nil
+		for _, searchTag := range []string{
+			"travis:" + language,
+			language,
+			"travis:default",
+			"default",
+		} {
+			for _, tag := range image.RepoTags {
+				if tag == searchTag {
+					return image.ID, nil
+				}
 			}
 		}
 	}
