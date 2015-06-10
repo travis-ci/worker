@@ -104,17 +104,17 @@ func runWorker(c *cli.Context) {
 		return
 	}
 
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"provider": provider,
+	}).Debug("built provider")
+
 	commandDispatcher := lib.NewCommandDispatcher(ctx, amqpConn)
 	go commandDispatcher.Run()
 
-	pool := &lib.ProcessorPool{
-		Hostname:  config.Hostname,
-		Context:   ctx,
-		Conn:      amqpConn,
-		Provider:  provider,
-		Generator: generator,
-		Canceller: commandDispatcher,
-	}
+	pool := lib.NewProcessorPool(config.Hostname, ctx, amqpConn, provider,
+		generator, commandDispatcher)
+
+	pool.SkipShutdownOnLogTimeout = (config.SkipShutdownOnLogTimeout != "")
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)

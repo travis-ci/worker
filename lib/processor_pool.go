@@ -19,8 +19,23 @@ type ProcessorPool struct {
 	Canceller Canceller
 	Hostname  string
 
+	SkipShutdownOnLogTimeout bool
+
 	processorsLock sync.Mutex
 	processors     []*Processor
+}
+
+func NewProcessorPool(hostname string, ctx gocontext.Context, amqpConn *amqp.Connection,
+	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller) *ProcessorPool {
+
+	return &ProcessorPool{
+		Hostname:  hostname,
+		Context:   ctx,
+		Conn:      amqpConn,
+		Provider:  provider,
+		Generator: generator,
+		Canceller: canceller,
+	}
 }
 
 // Run starts up a number of processors and connects them to the given queue.
@@ -63,6 +78,8 @@ func (p *ProcessorPool) processor(queue *JobQueue) {
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 	}
+
+	proc.SkipShutdownOnLogTimeout = p.SkipShutdownOnLogTimeout
 
 	p.processorsLock.Lock()
 	p.processors = append(p.processors, proc)

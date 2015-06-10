@@ -19,6 +19,8 @@ type Config struct {
 	LibratoSource  string `env:"LIBRATO_SOURCE"`
 	SentryDSN      string `env:"SENTRY_DSN"`
 	Hostname       string `env:"HOSTNAME"`
+
+	SkipShutdownOnLogTimeout string `env:"SKIP_SHUTDOWN_ON_LOG_TIMEOUT"`
 }
 
 // EnvToConfig creates a Config instance from the current environment variables

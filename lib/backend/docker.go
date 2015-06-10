@@ -67,7 +67,7 @@ func buildClient(config map[string]string) (*docker.Client, error) {
 	return docker.NewClient(endpoint)
 }
 
-func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttributes) (Instance, error) {
+func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil && cpuSets != "" {
 		return nil, err
@@ -148,17 +148,22 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes StartAttri
 }
 
 func (p *DockerProvider) imageForLanguage(language string) (string, error) {
-	searchTag := "travis:" + language
-
 	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
 	if err != nil {
 		return "", err
 	}
 
 	for _, image := range images {
-		for _, tag := range image.RepoTags {
-			if tag == searchTag {
-				return image.ID, nil
+		for _, searchTag := range []string{
+			"travis:" + language,
+			language,
+			"travis:default",
+			"default",
+		} {
+			for _, tag := range image.RepoTags {
+				if tag == searchTag {
+					return image.ID, nil
+				}
 			}
 		}
 	}
@@ -234,6 +239,11 @@ func (i *DockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	}
 	defer sftp.Close()
 
+	_, err = sftp.Lstat("build.sh")
+	if err == nil {
+		return ErrStaleVM
+	}
+
 	f, err := sftp.Create("build.sh")
 	if err != nil {
 		return err
@@ -246,22 +256,22 @@ func (i *DockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	return nil
 }
 
-func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (RunResult, error) {
+func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer session.Close()
 
 	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 
 	session.Stdout = output
@@ -269,14 +279,14 @@ func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser)
 
 	err = session.Run("bash ~/build.sh")
 	if err == nil {
-		return RunResult{Completed: true, ExitCode: 0}, nil
+		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
 
 	switch err := err.(type) {
 	case *ssh.ExitError:
-		return RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
+		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
 	default:
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 }
 
@@ -293,4 +303,12 @@ func (i *DockerInstance) Stop(ctx gocontext.Context) error {
 		RemoveVolumes: true,
 		Force:         true,
 	})
+}
+
+func (i *DockerInstance) ID() string {
+	if i.container == nil {
+		return "{unidentified}"
+	}
+
+	return fmt.Sprintf("%s:%s", i.container.ID, i.container.Image)
 }

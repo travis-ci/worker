@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/lib/backend"
 	"github.com/travis-ci/worker/lib/context"
+	"github.com/travis-ci/worker/lib/metrics"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -21,28 +21,28 @@ type JobQueue struct {
 type amqpJob struct {
 	conn            *amqp.Connection
 	delivery        amqp.Delivery
-	payload         JobPayload
+	payload         *JobPayload
 	rawPayload      *simplejson.Json
-	startAttributes backend.StartAttributes
+	startAttributes *backend.StartAttributes
 }
 
 type amqpPayloadStartAttrs struct {
-	Config backend.StartAttributes `json:"config"`
+	Config *backend.StartAttributes `json:"config"`
 }
 
-func (j amqpJob) Payload() JobPayload {
+func (j *amqpJob) Payload() *JobPayload {
 	return j.payload
 }
 
-func (j amqpJob) RawPayload() *simplejson.Json {
+func (j *amqpJob) RawPayload() *simplejson.Json {
 	return j.rawPayload
 }
 
-func (j amqpJob) StartAttributes() backend.StartAttributes {
+func (j *amqpJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
 }
 
-func (j amqpJob) Error(ctx gocontext.Context, errMessage string) error {
+func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 	log, err := j.LogWriter(ctx)
 	if err != nil {
 		return err
@@ -56,8 +56,8 @@ func (j amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 	return j.Finish(FinishStateErrored)
 }
 
-func (j amqpJob) Requeue() error {
-	metrics.GetOrRegisterMeter("worker.job.requeue", metrics.DefaultRegistry).Mark(1)
+func (j *amqpJob) Requeue() error {
+	metrics.Mark("worker.job.requeue")
 
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
@@ -93,7 +93,7 @@ func (j amqpJob) Requeue() error {
 	return nil
 }
 
-func (j amqpJob) Received() error {
+func (j *amqpJob) Received() error {
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
 		return err
@@ -125,7 +125,7 @@ func (j amqpJob) Received() error {
 	})
 }
 
-func (j amqpJob) Started() error {
+func (j *amqpJob) Started() error {
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
 		return err
@@ -159,7 +159,7 @@ func (j amqpJob) Started() error {
 	return nil
 }
 
-func (j amqpJob) Finish(state FinishState) error {
+func (j *amqpJob) Finish(state FinishState) error {
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
 		return err
@@ -195,7 +195,7 @@ func (j amqpJob) Finish(state FinishState) error {
 	return nil
 }
 
-func (j amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
+func (j *amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
 	return NewLogWriter(ctx, j.conn, j.payload.Job.ID)
 }
 
@@ -249,10 +249,13 @@ func (q *JobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 
 	go func() {
 		for delivery := range deliveries {
-			var buildJob amqpJob
-			var startAttrs amqpPayloadStartAttrs
+			buildJob := &amqpJob{
+				payload:         &JobPayload{},
+				startAttributes: &backend.StartAttributes{},
+			}
+			startAttrs := &amqpPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
-			err := json.Unmarshal(delivery.Body, &buildJob.payload)
+			err := json.Unmarshal(delivery.Body, buildJob.payload)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error")
 				delivery.Ack(false)
