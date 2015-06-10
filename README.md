@@ -3,8 +3,6 @@
 ## Installing Travis Worker
 
 1. Install [Go](http://golang.org) and [Deppy](https://github.com/hamfist/deppy).
-2. Copy `config/worker.json.example` to `config/worker.json` and update the
-   details inside of it.
 
 ## Configuring Travis Worker
 

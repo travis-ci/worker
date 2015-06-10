@@ -25,9 +25,8 @@ before_install:
 # - go get github.com/laher/goxc
 - go install -a -race std
 
-install: deppy restore
-
-before_script: cp config/worker.json.example config/worker.json
+install:
+- deppy restore
 
 script:
 - make test
