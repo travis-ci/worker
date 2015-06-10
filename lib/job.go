@@ -49,9 +49,9 @@ const (
 
 // A Job ties togeher all the elements required for a build job
 type Job interface {
-	Payload() JobPayload
+	Payload() *JobPayload
 	RawPayload() *simplejson.Json
-	StartAttributes() backend.StartAttributes
+	StartAttributes() *backend.StartAttributes
 
 	Received() error
 	Started() error

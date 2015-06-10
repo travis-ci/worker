@@ -38,6 +38,8 @@ func runWorker(c *cli.Context) {
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
 	logger := context.LoggerFromContext(ctx)
 
+	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true})
+
 	if os.Getenv("PPROF_PORT") != "" {
 		// Start net/http/pprof server
 		go func() {
@@ -102,18 +104,18 @@ func runWorker(c *cli.Context) {
 		return
 	}
 
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"provider": provider,
+	}).Debug("built provider")
+
 	commandDispatcher := lib.NewCommandDispatcher(ctx, amqpConn)
 	go commandDispatcher.Run()
 
-	pool := &lib.ProcessorPool{
-		Hostname:    config.Hostname,
-		Context:     ctx,
-		HardTimeout: time.Duration(config.HardTimeoutSeconds) * time.Second,
-		Conn:        amqpConn,
-		Provider:    provider,
-		Generator:   generator,
-		Canceller:   commandDispatcher,
-	}
+	pool := lib.NewProcessorPool(config.Hostname, ctx,
+		time.Duration(config.HardTimeoutSeconds)*time.Second, amqpConn, provider,
+		generator, commandDispatcher)
+
+	pool.SkipShutdownOnLogTimeout = (config.SkipShutdownOnLogTimeout != "")
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/pkg/sftp"
 	workerctx "github.com/travis-ci/worker/lib/context"
 	"github.com/travis-ci/worker/lib/metrics"
@@ -22,7 +23,21 @@ import (
 	"golang.org/x/net/context"
 )
 
-var nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+var (
+	nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+)
+
+const wrapperSh = `#!/bin/bash
+
+[[ $(uname) = Linux ]] && exec bash ~/build.sh
+
+[[ -f ~/build.sh.exit ]] && rm ~/build.sh.exit
+
+until nc 127.0.0.1 15782; do sleep 1; done
+
+until [[ -f ~/build.sh.exit ]]; do sleep 1; done
+exit $(cat ~/build.sh.exit)
+`
 
 type JupiterBrainProvider struct {
 	client           *http.Client
@@ -34,7 +49,7 @@ type JupiterBrainProvider struct {
 }
 
 type JupiterBrainInstance struct {
-	payload  jupiterBrainInstancePayload
+	payload  *jupiterBrainInstancePayload
 	provider *JupiterBrainProvider
 }
 
@@ -47,7 +62,7 @@ type jupiterBrainInstancePayload struct {
 }
 
 type jupiterBrainDataResponse struct {
-	Data []jupiterBrainInstancePayload `json:"data"`
+	Data []*jupiterBrainInstancePayload `json:"data"`
 }
 
 func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, error) {
@@ -65,9 +80,11 @@ func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, e
 		return nil, fmt.Errorf("expected image_aliases config key")
 	}
 
-	imageAliases := make(map[string]string, len(aliasNames))
+	aliasNamesSlice := strings.Split(aliasNames, ",")
 
-	for _, aliasName := range strings.Split(aliasNames, ",") {
+	imageAliases := make(map[string]string, len(aliasNamesSlice))
+
+	for _, aliasName := range aliasNamesSlice {
 		normalizedAliasName := string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_")))
 
 		imageName, ok := config[fmt.Sprintf("image_alias_%s", normalizedAliasName)]
@@ -103,20 +120,26 @@ func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, e
 	}, nil
 }
 
-func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartAttributes) (Instance, error) {
+func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *StartAttributes) (Instance, error) {
 	u, err := p.baseURL.Parse("instances")
 	if err != nil {
 		return nil, err
 	}
 
-	imageName, ok := p.imageAliases[startAttributes.OsxImage]
-	if !ok {
-		imageName, _ = p.imageAliases["default"]
-	}
+	imageName := p.getImageName(startAttributes)
 
 	if imageName == "" {
-		return nil, fmt.Errorf("no image alias for %s", startAttributes.OsxImage)
+		return nil, fmt.Errorf("no image alias for %#v", startAttributes)
 	}
+
+	workerctx.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"image_name": imageName,
+		"osx_image":  startAttributes.OsxImage,
+		"language":   startAttributes.Language,
+		"dist":       startAttributes.Dist,
+		"group":      startAttributes.Group,
+		"os":         startAttributes.OS,
+	}).Info("selected image name")
 
 	startBooting := time.Now()
 
@@ -150,15 +173,20 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 		return nil, fmt.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", c, body)
 	}
 
-	var dataPayload jupiterBrainDataResponse
-	err = json.NewDecoder(resp.Body).Decode(&dataPayload)
+	dataPayload := &jupiterBrainDataResponse{}
+	err = json.NewDecoder(resp.Body).Decode(dataPayload)
 	if err != nil {
+		workerctx.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":     err,
+			"payload": dataPayload,
+			"body":    resp.Body,
+		}).Error("couldn't decode created payload")
 		return nil, fmt.Errorf("couldn't decode created payload: %s", err)
 	}
 
 	payload := dataPayload.Data[0]
 
-	instanceReady := make(chan jupiterBrainInstancePayload, 1)
+	instanceReady := make(chan *jupiterBrainInstancePayload, 1)
 	errChan := make(chan error, 1)
 	go func(id string) {
 		u, err := p.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(id)))
@@ -186,8 +214,8 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 				return
 			}
 
-			var dataPayload jupiterBrainDataResponse
-			err = json.NewDecoder(resp.Body).Decode(&dataPayload)
+			dataPayload := &jupiterBrainDataResponse{}
+			err = json.NewDecoder(resp.Body).Decode(dataPayload)
 			if err != nil {
 				errChan <- fmt.Errorf("couldn't decode refresh payload: %s", err)
 				return
@@ -208,6 +236,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes StartA
 			}
 
 			if ip == nil {
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
@@ -279,6 +308,11 @@ func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) 
 	}
 	defer sftp.Close()
 
+	_, err = sftp.Lstat("build.sh")
+	if err == nil {
+		return ErrStaleVM
+	}
+
 	f, err := sftp.Create("build.sh")
 	if err != nil {
 		return err
@@ -294,35 +328,27 @@ func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) 
 		return err
 	}
 
-	_, err = fmt.Fprintf(f, `#!/bin/bash
-
-[[ -f ~/build.sh.exit ]] && rm ~/build.sh.exit
-
-until nc 127.0.0.1 15782; do sleep 1; done
-
-until [[ -f ~/build.sh.exit ]]; do sleep 1; done
-exit $(cat ~/build.sh.exit)
-`)
+	_, err = fmt.Fprintf(f, wrapperSh)
 
 	return err
 }
 
-func (i *JupiterBrainInstance) RunScript(ctx context.Context, output io.WriteCloser) (RunResult, error) {
+func (i *JupiterBrainInstance) RunScript(ctx context.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 	defer session.Close()
 
 	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
 	if err != nil {
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 
 	session.Stdout = output
@@ -331,14 +357,14 @@ func (i *JupiterBrainInstance) RunScript(ctx context.Context, output io.WriteClo
 	err = session.Run("bash ~/wrapper.sh")
 	defer output.Close()
 	if err == nil {
-		return RunResult{Completed: true, ExitCode: 0}, nil
+		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
 
 	switch err := err.(type) {
 	case *ssh.ExitError:
-		return RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
+		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
 	default:
-		return RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, err
 	}
 }
 
@@ -357,6 +383,13 @@ func (i *JupiterBrainInstance) Stop(ctx context.Context) error {
 	io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 	return err
+}
+
+func (i *JupiterBrainInstance) ID() string {
+	if i.payload == nil {
+		return "{unidentified}"
+	}
+	return fmt.Sprintf("%s:%s", i.payload.ID, i.payload.BaseImage)
 }
 
 func (i *JupiterBrainInstance) sshClient() (*ssh.Client, error) {
@@ -405,4 +438,25 @@ func (i *JupiterBrainInstance) sshClient() (*ssh.Client, error) {
 			ssh.PublicKeys(signer),
 		},
 	})
+}
+
+func (p *JupiterBrainProvider) getImageName(startAttributes *StartAttributes) string {
+	for _, key := range []string{
+		startAttributes.OsxImage,
+		fmt.Sprintf("osx_image_%s", startAttributes.OsxImage),
+		fmt.Sprintf("osx_image_%s_%s", startAttributes.OsxImage, startAttributes.Language),
+		fmt.Sprintf("dist_%s_%s", startAttributes.Dist, startAttributes.Language),
+		fmt.Sprintf("dist_%s", startAttributes.Dist),
+		fmt.Sprintf("group_%s_%s", startAttributes.Group, startAttributes.Language),
+		fmt.Sprintf("group_%s", startAttributes.Group),
+		fmt.Sprintf("language_%s", startAttributes.Language),
+		fmt.Sprintf("default_%s", startAttributes.OS),
+	} {
+		imageName, ok := p.imageAliases[key]
+		if ok {
+			return imageName
+		}
+	}
+
+	return ""
 }

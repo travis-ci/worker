@@ -7,6 +7,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+var (
+	ErrStaleVM = fmt.Errorf("previous build artifacts found on stale vm")
+)
+
 // Provider represents some kind of instance provider. It can point to an
 // external HTTP API, or some process locally, or something completely
 // different.
@@ -14,7 +18,7 @@ type Provider interface {
 	// Start starts an instance. It shouldn't return until the instance is
 	// ready to call UploadScript on (this may, for example, mean that it
 	// waits for SSH connections to be possible).
-	Start(context.Context, StartAttributes) (Instance, error)
+	Start(context.Context, *StartAttributes) (Instance, error)
 }
 
 // An Instance is something that can run a build script.
@@ -26,8 +30,11 @@ type Instance interface {
 
 	// RunScript runs the build script that was uploaded with the
 	// UploadScript method.
-	RunScript(context.Context, io.WriteCloser) (RunResult, error)
+	RunScript(context.Context, io.WriteCloser) (*RunResult, error)
 	Stop(context.Context) error
+
+	// ID is used when identifying the instance in logs and such
+	ID() string
 }
 
 // StartAttributes contains some parts of the config which can be used to
@@ -37,6 +44,7 @@ type StartAttributes struct {
 	OsxImage string `json:"osx_image"`
 	Dist     string `json:"dist"`
 	Group    string `json:"group"`
+	OS       string `json:"os"`
 }
 
 type RunResult struct {

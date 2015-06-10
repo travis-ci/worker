@@ -1,6 +1,6 @@
 {
 	"ImportPath": "github.com/travis-ci/worker",
-	"GoVersion": "go1.4.1",
+	"GoVersion": "go1.4.2",
 	"Packages": [
 		"./..."
 	],
@@ -52,11 +52,6 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/system",
-			"Comment": "v1.4.1-689-g283597a",
-			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/units",
 			"Comment": "v1.4.1-689-g283597a",
 			"Rev": "283597ad37446ccad57f6ba881652ee6f67e576e"
 		},

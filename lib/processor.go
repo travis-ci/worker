@@ -31,12 +31,17 @@ type Processor struct {
 
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
+
+	SkipShutdownOnLogTimeout bool
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQueue, provider backend.Provider, generator BuildScriptGenerator, canceller Canceller, hardTimeout time.Duration) (*Processor, error) {
+func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQueue,
+	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
+	hardTimeout time.Duration) (*Processor, error) {
+
 	processorUUID := uuid.NewRandom()
 
 	ctx, cancel := gocontext.WithCancel(context.FromProcessor(ctx, processorUUID.String()))
@@ -116,7 +121,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepStartInstance{provider: p.provider, startTimeout: 4 * time.Minute},
 		&stepUploadScript{},
 		&stepUpdateState{},
-		&stepRunScript{logTimeout: 10 * time.Minute, maxLogLength: 4500000, hardTimeout: p.hardTimeout},
+		&stepRunScript{
+			logTimeout:               10 * time.Minute,
+			maxLogLength:             4500000,
+			hardTimeout:              p.hardTimeout,
+			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
+		},
 	}
 
 	runner := &multistep.BasicRunner{Steps: steps}

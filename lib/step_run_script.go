@@ -11,9 +11,10 @@ import (
 )
 
 type stepRunScript struct {
-	logTimeout   time.Duration
-	hardTimeout  time.Duration
-	maxLogLength int
+	logTimeout               time.Duration
+	hardTimeout              time.Duration
+	skipShutdownOnLogTimeout bool
+	maxLogLength             int
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -33,7 +34,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter.SetMaxLogLength(s.maxLogLength)
 
 	resultChan := make(chan struct {
-		result backend.RunResult
+		result *backend.RunResult
 		err    error
 	}, 1)
 
@@ -42,11 +43,11 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	go func() {
 		if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-			logWriter.Write([]byte(fmt.Sprintf("Using worker: %s\n\n", hostname)))
+			logWriter.Write([]byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
 		}
 		result, err := instance.RunScript(ctx, logWriter)
 		resultChan <- struct {
-			result backend.RunResult
+			result *backend.RunResult
 			err    error
 		}{
 			result: result,
@@ -117,6 +118,10 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		err = buildJob.Finish(FinishStateErrored)
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to errored")
+		}
+
+		if s.skipShutdownOnLogTimeout {
+			state.Put("skipShutdown", true)
 		}
 
 		return multistep.ActionHalt

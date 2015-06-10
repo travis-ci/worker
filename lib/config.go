@@ -20,6 +20,8 @@ type Config struct {
 	SentryDSN          string `env:"SENTRY_DSN"`
 	Hostname           string `env:"HOSTNAME"`
 	HardTimeoutSeconds uint64 `env:"HARD_TIMEOUT_SECONDS"`
+
+	SkipShutdownOnLogTimeout string `env:"SKIP_SHUTDOWN_ON_LOG_TIMEOUT"`
 }
 
 // EnvToConfig creates a Config instance from the current environment variables
