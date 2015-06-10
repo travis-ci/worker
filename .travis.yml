@@ -28,8 +28,6 @@ before_install:
 - go install -a -race std
 install:
 - deppy restore
-before_script:
-- cp config/worker.json.example config/worker.json
 script:
 - make test
 - make test-race
