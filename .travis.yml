@@ -13,4 +13,4 @@ install:
   - go get github.com/constabulary/gb/...
 
 script:
-  - cd $TRAVIS_BUILD_DIR && ls -lahR vendor/
+  - gb build
