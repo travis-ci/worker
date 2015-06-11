@@ -10,7 +10,7 @@ env:
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
 
 install:
-- go get github.com/constabulary/gb/...
+  - go get github.com/constabulary/gb/...
 
 script:
-- cd $GOPATH && gb build all
+  - cd $GOPATH && ls -lah
