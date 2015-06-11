@@ -70,8 +70,8 @@ func ProviderConfigFromEnviron(providerName string) *ProviderConfig {
 	pc := &ProviderConfig{cfgMap: map[string]string{}}
 
 	for _, prefix := range []string{
-		upperProvider + "_",
 		"TRAVIS_WORKER_" + upperProvider + "_",
+		upperProvider + "_",
 	} {
 		for _, e := range os.Environ() {
 			if strings.HasPrefix(e, prefix) {
