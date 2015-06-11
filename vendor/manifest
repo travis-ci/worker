@@ -1,0 +1,11 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/Sirupsen/logrus",
+			"repository": "https://github.com/Sirupsen/logrus",
+			"revision": "21d4508646ae56d79244bd9046c1df63a5fa8c37",
+			"branch": "master"
+		}
+	]
+}
