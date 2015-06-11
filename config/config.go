@@ -149,8 +149,15 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 
 	sort.Strings(sortedCfgMapKeys)
 
+	fmt.Fprintf(out, "# travis-worker env config generated %s\n", time.Now().UTC())
 	for _, key := range sortedCfgMapKeys {
 		envKey := fmt.Sprintf("TRAVIS_WORKER_%s", strings.ToUpper(strings.Replace(key, "-", "_", -1)))
 		fmt.Fprintf(out, "export %s=%q\n", envKey, fmt.Sprintf("%v", cfgMap[key]))
 	}
+	fmt.Fprintf(out, "\n# travis-worker provider config:\n")
+	cfg.ProviderConfig.Map(func(key, value string) {
+		envKey := strings.ToUpper(fmt.Sprintf("TRAVIS_WORKER_%s_%s", cfg.ProviderName, strings.Replace(key, "-", "_", -1)))
+		fmt.Fprintf(out, "export %s=%q\n", envKey, value)
+	})
+	fmt.Fprintf(out, "# end travis-worker env config\n")
 }

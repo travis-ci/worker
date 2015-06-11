@@ -53,20 +53,17 @@ func runWorker(c *cli.Context) {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	logger.Info("worker started")
-	defer logger.Info("worker finished")
-
 	cfg := config.ConfigFromCLIContext(c)
+
+	if c.Bool("echo-config") {
+		config.WriteEnvConfig(cfg, os.Stdout)
+		return
+	}
 
 	logger.WithField("cfg", fmt.Sprintf("%+v", cfg)).Debug("read config")
 
-	if c.Bool("echo-config") {
-		logger.Info("echoing config and exiting")
-		fmt.Printf("\n\n")
-		config.WriteEnvConfig(cfg, os.Stdout)
-		fmt.Printf("\n\n")
-		return
-	}
+	logger.Info("worker started")
+	defer logger.Info("worker finished")
 
 	if cfg.SentryDSN != "" {
 		sentryHook, err := logrus_sentry.NewSentryHook(cfg.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})

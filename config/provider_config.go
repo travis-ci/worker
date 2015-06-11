@@ -3,6 +3,7 @@ package config
 import (
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -11,6 +12,19 @@ type ProviderConfig struct {
 	sync.Mutex
 
 	cfgMap map[string]string
+}
+
+func (pc *ProviderConfig) Map(f func(string, string)) {
+	keys := []string{}
+	for key, _ := range pc.cfgMap {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		f(key, pc.Get(key))
+	}
 }
 
 func (pc *ProviderConfig) Get(key string) string {
