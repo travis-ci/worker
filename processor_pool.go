@@ -44,7 +44,7 @@ func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.D
 
 // Run starts up a number of processors and connects them to the given queue.
 // This method stalls until all processors have finished.
-func (p *ProcessorPool) Run(poolSize uint16, queueName string) error {
+func (p *ProcessorPool) Run(poolSize int, queueName string) error {
 	queue, err := NewJobQueue(p.Conn, queueName)
 	if err != nil {
 		return err
@@ -52,8 +52,7 @@ func (p *ProcessorPool) Run(poolSize uint16, queueName string) error {
 
 	var wg sync.WaitGroup
 
-	var i uint16
-	for i = 0; i < poolSize; i++ {
+	for i := 0; i < poolSize; i++ {
 		wg.Add(1)
 		go func() {
 			p.processor(queue)

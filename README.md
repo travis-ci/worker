@@ -2,28 +2,42 @@
 
 ## Installing Travis Worker
 
-1. Install [Go](http://golang.org) and [Deppy](https://github.com/hamfist/deppy).
+1. Install [Go](http://golang.org) and
+   [Deppy](https://github.com/hamfist/deppy).
 
 ## Configuring Travis Worker
 
-Travis Worker is configured with environment variables. Here is a list of all environment variables in use by Travis Worker:
+Travis Worker is configured with environment variables or command line flags via
+the [codegangsta/cli](https://github.com/codegangsta/cli) library.  A list of
+the non-dynamic flags and environment variables may be found by invoking the
+built-in help system:
 
-- `AMQP_URI`: The URI to the AMQP server to connect to.
-- `POOL_SIZE`: The size of the processor pool, affecting the number of jobs this worker can run in parallel.
-- `BUILD_API_URI`: The full URL to the build API endpoint to use. Note that this also requires the path of the URL. If a username is included in the URL, this will be translated to a token passed in the Authorization header.
-- `PROVIDER_NAME`: The name of the provider to use. See below for provider-specific configuration.
-- `QUEUE_NAME`: The AMQP queue to subscribe to for jobs.
-- `LIBRATO_EMAIL`, `LIBRATO_TOKEN`, `LIBRATO_SOURCE`: Librato metrics configuration. If not all are set, metrics will be printed to stderr.
-- `SENTRY_DSN`: The DSN to send Sentry events to.
+``` bash
+travis-worker --help
+```
 
-### Configuring the Sauce Labs provider
+### Configuring the requested provider
 
-The Sauce Labs provider (used when `PROVIDER_NAME=sauce_labs`) needs a few more configuration settings:
+Each provider requires its own configuration, which must be provided via
+environment variables namespaced by `TRAVIS_WORKER_{PROVIDER}_`, e.g. for the
+docker provider:
 
-- `TRAVIS_WORKER_SAUCE_LABS_ENDPOINT`: The endpoint to the Sauce Labs API.
-- `TRAVIS_WORKER_SAUCE_LABS_IMAGE_ALIASES`: A comma-separated list of image aliase names to define. This should at least contain "default". For each alias `name` there should also be a variable named `TRAVIS_WORKER_SAUCE_LABS_IMAGE_ALIAS_NAME` containing the name of the image to boot when the `name` alias is requested.
-- `TRAVIS_WORKER_SAUCE_LABS_SSH_KEY_PATH`: The path to the SSH key used to SSH into the VMs.
-- `TRAVIS_WORKER_SAUCE_LABS_SSH_KEY_PASSPHRASE`: The passphrase to the SSH key used to SSH into the VMs.
+``` bash
+export TRAVIS_WORKER_DOCKER_ENDPOINT="tcp://localhost:4243"
+export TRAVIS_WORKER_DOCKER_PRIVILEGED="false"
+export TRAVIS_WORKER_DOCKER_CERT_PATH="/etc/secret-docker-cert-stuff"
+```
+
+### Verifying and exporting configuration
+
+To inspect the parsed configuration in a format that can be used as a base
+environment variable configuration, use the `--echo-config` flag, which will
+exit immediately after writing to stdout:
+
+``` bash
+travis-worker --echo-config
+```
+
 
 ## Running Travis Worker
 
@@ -36,9 +50,15 @@ will have to be cleaned up manually.
 
 ## Stopping Travis Worker
 
-Travis Worker has two shutdown modes: Graceful and immediate. The graceful shutdown will tell the worker to not start any additional jobs, but finish the jobs it is currently running before it shuts down. The immediate shutdown will make the worker stop the jobs it's working on and requeue them, and clean up any open resources (shut down VMs, cleanly close connections, etc.)
+Travis Worker has two shutdown modes: Graceful and immediate. The graceful
+shutdown will tell the worker to not start any additional jobs, but finish the
+jobs it is currently running before it shuts down. The immediate shutdown will
+make the worker stop the jobs it's working on and requeue them, and clean up any
+open resources (shut down VMs, cleanly close connections, etc.)
 
-To start a graceful shutdown, send an INT signal to the worker (for example using `kill -INT`). To start an immediate shutdown, send a TERM signal to the worker (for example using `kill -TERM`).
+To start a graceful shutdown, send an INT signal to the worker (for example
+using `kill -INT`). To start an immediate shutdown, send a TERM signal to the
+worker (for example using `kill -TERM`).
 
 ## License and Copyright Information
 

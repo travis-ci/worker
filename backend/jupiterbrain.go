@@ -17,6 +17,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pkg/sftp"
+	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
@@ -65,19 +66,20 @@ type jupiterBrainDataResponse struct {
 	Data []*jupiterBrainInstancePayload `json:"data"`
 }
 
-func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, error) {
-	endpoint, ok := config["endpoint"]
-	if !ok {
-		return nil, fmt.Errorf("expected endpoint config key")
-	}
-	baseURL, err := url.Parse(endpoint)
-	if err != nil {
-		return nil, err
+func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider, error) {
+	if !cfg.IsSet("endpoint") {
+		return nil, ErrMissingEndpointConfig
 	}
 
-	aliasNames, ok := config["image_aliases"]
-	if !ok {
+	if !cfg.IsSet("image_aliases") {
 		return nil, fmt.Errorf("expected image_aliases config key")
+	}
+
+	aliasNames := cfg.Get("image_aliases")
+
+	baseURL, err := url.Parse(cfg.Get("endpoint"))
+	if err != nil {
+		return nil, err
 	}
 
 	aliasNamesSlice := strings.Split(aliasNames, ",")
@@ -87,28 +89,31 @@ func NewJupiterBrainProvider(config map[string]string) (*JupiterBrainProvider, e
 	for _, aliasName := range aliasNamesSlice {
 		normalizedAliasName := string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_")))
 
-		imageName, ok := config[fmt.Sprintf("image_alias_%s", normalizedAliasName)]
-		if !ok {
+		key := fmt.Sprintf("image_alias_%s", normalizedAliasName)
+		if !cfg.IsSet(key) {
 			return nil, fmt.Errorf("expected image alias %q", aliasName)
 		}
 
-		imageAliases[aliasName] = imageName
+		imageAliases[aliasName] = cfg.Get(key)
 	}
 
-	sshKeyPath, ok := config["ssh_key_path"]
-	if !ok {
+	if !cfg.IsSet("ssh_key_path") {
 		return nil, fmt.Errorf("expected ssh_key_path config key")
 	}
 
-	sshKeyPassphrase, ok := config["ssh_key_passphrase"]
-	if !ok {
+	sshKeyPath := cfg.Get("ssh_key_path")
+
+	if !cfg.IsSet("ssh_key_passphrase") {
 		return nil, fmt.Errorf("expected ssh_key_passphrase config key")
 	}
 
-	keychainPassword, ok := config["keychain_password"]
-	if !ok {
+	sshKeyPassphrase := cfg.Get("ssh_key_passphrase")
+
+	if !cfg.IsSet("keychain_password") {
 		return nil, fmt.Errorf("expected keychain_password config key")
 	}
+
+	keychainPassword := cfg.Get("keychain_password")
 
 	return &JupiterBrainProvider{
 		client:           http.DefaultClient,

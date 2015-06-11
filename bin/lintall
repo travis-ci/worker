@@ -5,6 +5,6 @@ set -e
 PACKAGE=${PACKAGE:-github.com/travis-ci/worker}
 
 golint "${PACKAGE}"
-for pkg in lib ; do
+for pkg in backend context metrics ; do
   golint "${PACKAGE}/${pkg}"
 done
