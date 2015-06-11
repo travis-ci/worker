@@ -10,7 +10,7 @@ env:
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
 
 before_install:
-- go install -a -race std
+- go get github.com/constabulary/gb/...
 
 script:
 - gb build all
