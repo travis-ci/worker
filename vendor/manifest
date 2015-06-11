@@ -2,12 +2,6 @@
 	"version": 0,
 	"dependencies": [
 		{
-			"importpath": "github.com/Sirupsen/logrus",
-			"repository": "https://github.com/Sirupsen/logrus",
-			"revision": "21d4508646ae56d79244bd9046c1df63a5fa8c37",
-			"branch": "master"
-		},
-		{
 			"importpath": "github.com/bitly/go-simplejson",
 			"repository": "https://github.com/bitly/go-simplejson",
 			"revision": "18db6e68d8fd9cbf2e8ebe4c81a78b96fd9bf05a",
@@ -79,6 +73,12 @@
 			"importpath": "github.com/getsentry/raven-go",
 			"repository": "https://github.com/getsentry/raven-go",
 			"revision": "c8f8fb7c415203f52ca882e2661d21bc6dcb54d7",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/Sirupsen/logrus",
+			"repository": "https://github.com/Sirupsen/logrus",
+			"revision": "21d4508646ae56d79244bd9046c1df63a5fa8c37",
 			"branch": "master"
 		}
 	]
