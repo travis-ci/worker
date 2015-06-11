@@ -13,4 +13,4 @@ install:
   - go get github.com/constabulary/gb/...
 
 script:
-  - cd $GOPATH && ls -lah
+  - cd $TRAVIS_BUILD_DIR && ls -lah
