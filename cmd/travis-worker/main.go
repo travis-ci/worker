@@ -42,26 +42,21 @@ func runWorker(c *cli.Context) {
 
 	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true})
 
-	if os.Getenv("PPROF_PORT") != "" {
+	if c.String("pprof-port") != "" {
 		// Start net/http/pprof server
 		go func() {
-			http.ListenAndServe(fmt.Sprintf("localhost:%s", os.Getenv("PPROF_PORT")), nil)
+			http.ListenAndServe(fmt.Sprintf("localhost:%s", c.String("pprof-port")), nil)
 		}()
 	}
 
-	if os.Getenv("DEBUG") != "" {
+	if c.Bool("debug") {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
 	logger.Info("worker started")
 	defer logger.Info("worker finished")
 
-	config := &worker.Config{}
-
-	config = worker.ConfigFromCLIContext(config, c)
-	if hostname, err := os.Hostname(); config.Hostname == "" && err == nil {
-		config.Hostname = hostname
-	}
+	config := worker.ConfigFromCLIContext(c)
 
 	logger.WithField("config", fmt.Sprintf("%+v", config)).Debug("read config")
 
@@ -101,7 +96,7 @@ func runWorker(c *cli.Context) {
 
 	context.LoggerFromContext(ctx).Debug("connected to AMQP")
 
-	generator := worker.NewBuildScriptGenerator(config.BuildAPIURI)
+	generator := worker.NewBuildScriptGenerator(config)
 	provider, err := backend.NewProvider(config.ProviderName, ProviderConfigFromEnviron(config.ProviderName))
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create backend provider")
@@ -115,11 +110,10 @@ func runWorker(c *cli.Context) {
 	commandDispatcher := worker.NewCommandDispatcher(ctx, amqpConn)
 	go commandDispatcher.Run()
 
-	pool := worker.NewProcessorPool(config.Hostname, ctx,
-		time.Duration(config.HardTimeoutSeconds)*time.Second, amqpConn, provider,
-		generator, commandDispatcher)
+	pool := worker.NewProcessorPool(config.Hostname, ctx, config.HardTimeout, amqpConn,
+		provider, generator, commandDispatcher)
 
-	pool.SkipShutdownOnLogTimeout = (config.SkipShutdownOnLogTimeout != "")
+	pool.SkipShutdownOnLogTimeout = config.SkipShutdownOnLogTimeout
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)

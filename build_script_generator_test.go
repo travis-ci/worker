@@ -17,7 +17,7 @@ func TestBuildScriptGenerator(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	gen := NewBuildScriptGenerator(ts.URL)
+	gen := NewBuildScriptGenerator(&Config{BuildAPIURI: ts.URL})
 
 	payload := simplejson.New()
 

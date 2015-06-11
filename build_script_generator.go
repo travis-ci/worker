@@ -6,8 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -51,26 +49,23 @@ type s3BuildCacheOptions struct {
 }
 
 // NewBuildScriptGenerator creates a generator backed by an HTTP API.
-func NewBuildScriptGenerator(URL string) BuildScriptGenerator {
-	cacheFetchTimeout, _ := strconv.Atoi(os.Getenv("TRAVIS_WORKER_BUILD_CACHE_FETCH_TIMEOUT"))
-	cachePushTimeout, _ := strconv.Atoi(os.Getenv("TRAVIS_WORKER_BUILD_CACHE_PUSH_TIMEOUT"))
-
+func NewBuildScriptGenerator(cfg *Config) BuildScriptGenerator {
 	return &webBuildScriptGenerator{
-		URL:               URL,
-		aptCacheHost:      os.Getenv("TRAVIS_WORKER_BUILD_APT_CACHE"),
-		npmCacheHost:      os.Getenv("TRAVIS_WORKER_BUILD_NPM_CACHE"),
-		paranoid:          os.Getenv("TRAVIS_WORKER_BUILD_PARANOID") == "true",
-		fixResolvConf:     os.Getenv("TRAVIS_WORKER_BUILD_FIX_RESOLV_CONF") == "true",
-		fixEtcHosts:       os.Getenv("TRAVIS_WORKER_BUILD_FIX_ETC_HOSTS") == "true",
-		cacheType:         os.Getenv("TRAVIS_WORKER_BUILD_CACHE_TYPE"),
-		cacheFetchTimeout: cacheFetchTimeout,
-		cachePushTimeout:  cachePushTimeout,
+		URL:               cfg.BuildAPIURI,
+		aptCacheHost:      cfg.BuildAptCache,
+		npmCacheHost:      cfg.BuildNpmCache,
+		paranoid:          cfg.BuildParanoid,
+		fixResolvConf:     cfg.BuildFixResolvConf,
+		fixEtcHosts:       cfg.BuildFixEtcHosts,
+		cacheType:         cfg.BuildCacheType,
+		cacheFetchTimeout: int(cfg.BuildCacheFetchTimeout.Seconds()),
+		cachePushTimeout:  int(cfg.BuildCachePushTimeout.Seconds()),
 		s3CacheOptions: s3BuildCacheOptions{
-			scheme:          os.Getenv("TRAVIS_WORKER_BUILD_CACHE_S3_SCHEME"),
-			region:          os.Getenv("TRAVIS_WORKER_BUILD_CACHE_S3_REGION"),
-			bucket:          os.Getenv("TRAVIS_WORKER_BUILD_CACHE_S3_BUCKET"),
-			accessKeyId:     os.Getenv("TRAVIS_WORKER_BUILD_CACHE_S3_ACCESS_KEY_ID"),
-			secretAccessKey: os.Getenv("TRAVIS_WORKER_BUILD_CACHE_S3_SECRET_ACCESS_KEY"),
+			scheme:          cfg.BuildCacheS3Scheme,
+			region:          cfg.BuildCacheS3Region,
+			bucket:          cfg.BuildCacheS3Bucket,
+			accessKeyId:     cfg.BuildCacheS3AccessKeyID,
+			secretAccessKey: cfg.BuildCacheS3SecretAccessKey,
 		},
 	}
 }
