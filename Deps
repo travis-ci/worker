@@ -22,8 +22,8 @@
 		},
 		{
 			"ImportPath": "github.com/codegangsta/cli",
-			"Comment": "1.2.0-38-g9908e96",
-			"Rev": "9908e96513e5a94de37004098a3974a567f18111"
+			"Comment": "1.2.0-118-g474704b",
+			"Rev": "474704ba13442ba4ca7829840da2f742b5a7b02e"
 		},
 		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
