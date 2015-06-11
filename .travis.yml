@@ -9,45 +9,8 @@ env:
   - PATH="$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
 
-addons:
-  artifacts:
-    paths:
-    - ./build/$UNAME/amd64/travis-worker
-
-services:
-  - rabbitmq
-
 before_install:
-- go get github.com/hamfist/deppy
-- go get github.com/golang/lint/golint
-- go get golang.org/x/tools/cmd/cover
-# TODO: re-enable if/when the missing defs file issue is resolved
-# - go get github.com/laher/goxc
 - go install -a -race std
 
-install:
-- deppy restore
-
 script:
-- make test
-- make test-race
-- make save
-- git diff --exit-code || echo 'wat is goin on'
-- git diff --cached --exit-code || echo 'wat is goin on'
-# TODO: enable integration tests
-# - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
-# - AMQP_URI=amqp:// go test -v ./test
-# TODO: re-enable if/when the missing defs file issue is resolved
-# after_success:
-# - make crossbuild
-
-after_success:
-- bin/atlas-push
-- mkdir -p build/$UNAME/amd64
-- cp -v ~/gopath/bin/travis-worker ./build/$UNAME/amd64/travis-worker
-- echo $ARTIFACTS_PATHS
-
-notifications:
-  slack:
-    rooms:
-    - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 
+- gb build all
