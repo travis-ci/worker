@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
+	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/net/context"
 )
@@ -49,7 +50,7 @@ type s3BuildCacheOptions struct {
 }
 
 // NewBuildScriptGenerator creates a generator backed by an HTTP API.
-func NewBuildScriptGenerator(cfg *Config) BuildScriptGenerator {
+func NewBuildScriptGenerator(cfg *config.Config) BuildScriptGenerator {
 	return &webBuildScriptGenerator{
 		URL:               cfg.BuildAPIURI,
 		aptCacheHost:      cfg.BuildAptCache,

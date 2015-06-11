@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitly/go-simplejson"
 	"github.com/stretchr/testify/require"
+	"github.com/travis-ci/worker/config"
 	"golang.org/x/net/context"
 )
 
@@ -17,7 +18,7 @@ func TestBuildScriptGenerator(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	gen := NewBuildScriptGenerator(&Config{BuildAPIURI: ts.URL})
+	gen := NewBuildScriptGenerator(&config.Config{BuildAPIURI: ts.URL})
 
 	payload := simplejson.New()
 

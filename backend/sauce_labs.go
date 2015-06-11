@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/pkg/sftp"
+	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
@@ -44,41 +45,46 @@ type sauceLabsInstancePayload struct {
 	ExtraInfo   map[string]interface{} `json:"extra_info"`
 }
 
-func NewSauceLabsProvider(config map[string]string) (*SauceLabsProvider, error) {
-	endpoint, ok := config["endpoint"]
-	if !ok {
-		return nil, fmt.Errorf("expected endpoint config key")
+func NewSauceLabsProvider(cfg *config.ProviderConfig) (*SauceLabsProvider, error) {
+	if !cfg.IsSet("endpoint") {
+		return nil, ErrMissingEndpointConfig
 	}
-	baseURL, err := url.Parse(endpoint)
+
+	if !cfg.IsSet("image_aliases") {
+		return nil, fmt.Errorf("expected image_aliases config key")
+	}
+
+	baseURL, err := url.Parse(cfg.Get("endpoint"))
 	if err != nil {
 		return nil, err
 	}
 
-	aliasNames, ok := config["image_aliases"]
-	if !ok {
-		return nil, fmt.Errorf("expected image_aliases config key")
-	}
+	aliasNames := cfg.Get("image_aliases")
+	aliasNamesSlice := strings.Split(aliasNames, ",")
 
-	imageAliases := make(map[string]string, len(aliasNames))
+	imageAliases := make(map[string]string, len(aliasNamesSlice))
 
-	for _, aliasName := range strings.Split(aliasNames, ",") {
-		imageName, ok := config[fmt.Sprintf("image_alias_%s", aliasName)]
-		if !ok {
+	for _, aliasName := range aliasNamesSlice {
+		key := fmt.Sprintf("image_alias_%s", aliasName)
+
+		if !cfg.IsSet(key) {
 			return nil, fmt.Errorf("expected image alias %q", aliasName)
 		}
 
-		imageAliases[aliasName] = imageName
+		imageAliases[aliasName] = cfg.Get(key)
 	}
 
-	sshKeyPath, ok := config["ssh_key_path"]
-	if !ok {
+	if !cfg.IsSet("ssh_key_path") {
 		return nil, fmt.Errorf("expected ssh_key_path config key")
 	}
 
-	sshKeyPassphrase, ok := config["ssh_key_passphrase"]
-	if !ok {
+	sshKeyPath := cfg.Get("ssh_key_path")
+
+	if !cfg.IsSet("ssh_key_passphrase") {
 		return nil, fmt.Errorf("expected ssh_key_passphrase config key")
 	}
+
+	sshKeyPassphrase := cfg.Get("ssh_key_passphrase")
 
 	return &SauceLabsProvider{
 		client:           http.DefaultClient,

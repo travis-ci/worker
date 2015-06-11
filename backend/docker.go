@@ -11,14 +11,11 @@ import (
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pkg/sftp"
+	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
-)
-
-var (
-	errMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
 )
 
 type DockerProvider struct {
@@ -35,8 +32,8 @@ type DockerInstance struct {
 	container *docker.Container
 }
 
-func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
-	client, err := buildClient(config)
+func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
+	client, err := buildClient(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -47,8 +44,8 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 	}
 
 	privileged := false
-	if v, ok := config["privileged"]; ok {
-		privileged = (v == "true")
+	if cfg.IsSet("privileged") {
+		privileged = (cfg.Get("privileged") == "true")
 	}
 
 	return &DockerProvider{
@@ -58,13 +55,15 @@ func NewDockerProvider(config map[string]string) (*DockerProvider, error) {
 	}, nil
 }
 
-func buildClient(config map[string]string) (*docker.Client, error) {
-	endpoint, ok := config["endpoint"]
-	if !ok {
-		return nil, errMissingEndpointConfig
+func buildClient(cfg *config.ProviderConfig) (*docker.Client, error) {
+	if !cfg.IsSet("endpoint") {
+		return nil, ErrMissingEndpointConfig
 	}
 
-	if path, ok := config["cert_path"]; ok {
+	endpoint := cfg.Get("endpoint")
+
+	if cfg.IsSet("cert_path") {
+		path := cfg.Get("cert_path")
 		ca := fmt.Sprintf("%s/ca.pem", path)
 		cert := fmt.Sprintf("%s/cert.pem", path)
 		key := fmt.Sprintf("%s/key.pem", path)
