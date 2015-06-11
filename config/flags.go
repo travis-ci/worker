@@ -9,18 +9,65 @@ import (
 
 var (
 	Flags = []cli.Flag{
-		cli.StringFlag{Name: "amqp-uri", Value: defaultAmqpURI, EnvVar: twEnvVars("AMQP_URI")},
-		cli.IntFlag{Name: "pool-size", Value: defaultPoolSize, EnvVar: twEnvVars("POOL_SIZE")},
-		cli.StringFlag{Name: "build-api-uri", EnvVar: twEnvVars("BUILD_API_URI")},
-		cli.StringFlag{Name: "provider-name", Value: defaultProviderName, EnvVar: twEnvVars("PROVIDER_NAME")},
-		cli.StringFlag{Name: "queue-name", EnvVar: twEnvVars("QUEUE_NAME")},
-		cli.StringFlag{Name: "librato-email", EnvVar: twEnvVars("LIBRATO_EMAIL")},
-		cli.StringFlag{Name: "librato-token", EnvVar: twEnvVars("LIBRATO_TOKEN")},
-		cli.StringFlag{Name: "librato-source", EnvVar: twEnvVars("LIBRATO_SOURCE")},
-		cli.StringFlag{Name: "sentry-dsn", EnvVar: twEnvVars("SENTRY_DSN")},
-		cli.StringFlag{Name: "hostname", EnvVar: twEnvVars("HOSTNAME")},
-		cli.DurationFlag{Name: "hard-timeout", Value: defaultHardTimeout, EnvVar: twEnvVars("HARD_TIMEOUT")},
-		cli.StringFlag{Name: "skip-shutdown-on-log-timeout", EnvVar: twEnvVars("SKIP_SHUTDOWN_ON_LOG_TIMEOUT")},
+		cli.StringFlag{
+			Name:   "amqp-uri",
+			Usage:  "The URI to the AMQP server to connect to",
+			Value:  defaultAmqpURI,
+			EnvVar: twEnvVars("AMQP_URI"),
+		},
+		cli.IntFlag{
+			Name:   "pool-size",
+			Value:  defaultPoolSize,
+			Usage:  "The size of the processor pool, affecting the number of jobs this worker can run in parallel",
+			EnvVar: twEnvVars("POOL_SIZE"),
+		},
+		cli.StringFlag{
+			Name:   "build-api-uri",
+			Usage:  "The full URL to the build API endpoint to use. Note that this also requires the path of the URL. If a username is included in the URL, this will be translated to a token passed in the Authorization header",
+			EnvVar: twEnvVars("BUILD_API_URI"),
+		},
+		cli.StringFlag{
+			Name:   "provider-name",
+			Value:  defaultProviderName,
+			Usage:  "The name of the provider to use. See below for provider-specific configuration",
+			EnvVar: twEnvVars("PROVIDER_NAME"),
+		},
+		cli.StringFlag{
+			Name:   "queue-name",
+			Usage:  "The AMQP queue to subscribe to for jobs",
+			EnvVar: twEnvVars("QUEUE_NAME"),
+		},
+		cli.StringFlag{
+			Name:   "librato-email",
+			Usage:  "Librato metrics account email",
+			EnvVar: twEnvVars("LIBRATO_EMAIL"),
+		},
+		cli.StringFlag{
+			Name:   "librato-token",
+			Usage:  "Librato metrics account token",
+			EnvVar: twEnvVars("LIBRATO_TOKEN"),
+		},
+		cli.StringFlag{
+			Name:   "librato-source",
+			Usage:  "Librato metrics source name",
+			EnvVar: twEnvVars("LIBRATO_SOURCE"),
+		},
+		cli.StringFlag{
+			Name:   "sentry-dsn",
+			Usage:  "The DSN to send Sentry events to",
+			EnvVar: twEnvVars("SENTRY_DSN"),
+		},
+		cli.StringFlag{
+			Name:   "hostname",
+			Usage:  "Host name used in log output to identify the source of a job",
+			EnvVar: twEnvVars("HOSTNAME"),
+		},
+		cli.DurationFlag{
+			Name:   "hard-timeout",
+			Value:  defaultHardTimeout,
+			Usage:  "The outermost (maximum) timeout for a given job, at which time the job is cancelled",
+			EnvVar: twEnvVars("HARD_TIMEOUT"),
+		},
 
 		// build script generator flags
 		cli.DurationFlag{Name: "build-cache-fetch-timeout", EnvVar: twEnvVars("BUILD_CACHE_FETCH_TIMEOUT")},
@@ -37,7 +84,12 @@ var (
 		cli.StringFlag{Name: "build-cache-s3-access-key-id", EnvVar: twEnvVars("BUILD_CACHE_S3_ACCESS_KEY_ID")},
 		cli.StringFlag{Name: "build-cache-s3-secret-access-key", EnvVar: twEnvVars("BUILD_CACHE_S3_SECRET_ACCESS_KEY")},
 
-		// non-config flags
+		// non-config and special case flags
+		cli.StringFlag{
+			Name:   "skip-shutdown-on-log-timeout",
+			Usage:  "Special-case mode to aid with debugging timed out jobs",
+			EnvVar: twEnvVars("SKIP_SHUTDOWN_ON_LOG_TIMEOUT"),
+		},
 		cli.StringFlag{Name: "pprof-port", Usage: "enable pprof http endpoint at port", EnvVar: twEnvVars("PPROF_PORT")},
 		cli.BoolFlag{Name: "echo-config", Usage: "echo parsed config and exit", EnvVar: twEnvVars("ECHO_CONFIG")},
 		cli.BoolFlag{Name: "debug", Usage: "set log level to debug", EnvVar: twEnvVars("DEBUG")},

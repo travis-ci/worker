@@ -60,7 +60,9 @@ func runWorker(c *cli.Context) {
 		return
 	}
 
-	logger.WithField("cfg", fmt.Sprintf("%+v", cfg)).Debug("read config")
+	logger.WithFields(logrus.Fields{
+		"cfg": fmt.Sprintf("%#v", cfg),
+	}).Debug("read config")
 
 	logger.Info("worker started")
 	defer logger.Info("worker finished")

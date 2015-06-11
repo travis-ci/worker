@@ -11,6 +11,10 @@ import (
 	"github.com/codegangsta/cli"
 )
 
+var (
+	zeroDuration time.Duration
+)
+
 // Config contains all the configuration needed to run the worker.
 type Config struct {
 	AmqpURI        string
@@ -45,31 +49,36 @@ type Config struct {
 }
 
 func cfgString(c *cli.Context, name, dflt string) string {
-	if !c.IsSet(name) {
-		return dflt
+	for _, strval := range []string{c.String(name), c.GlobalString(name), dflt} {
+		if strval != "" {
+			return strval
+		}
 	}
-	return c.String(name)
+	return dflt
 }
 
 func cfgInt(c *cli.Context, name string, dflt int) int {
-	if !c.IsSet(name) {
-		return dflt
+	for _, intval := range []int{c.Int(name), c.GlobalInt(name), dflt} {
+		if intval != 0 {
+			return intval
+		}
 	}
-	return c.Int(name)
+
+	return dflt
 }
 
 func cfgDuration(c *cli.Context, name string, dflt time.Duration) time.Duration {
-	if !c.IsSet(name) {
-		return dflt
+	for _, durval := range []time.Duration{c.Duration(name), c.GlobalDuration(name), dflt} {
+		if durval != zeroDuration {
+			return durval
+		}
 	}
-	return c.Duration(name)
+
+	return dflt
 }
 
 func cfgBool(c *cli.Context, name string, dflt bool) bool {
-	if !c.IsSet(name) {
-		return dflt
-	}
-	return c.Bool(name)
+	return c.GlobalBool(name) || c.Bool(name) || dflt
 }
 
 func ConfigFromCLIContext(c *cli.Context) *Config {

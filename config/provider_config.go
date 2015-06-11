@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"net/url"
 	"os"
 	"sort"
@@ -12,6 +13,10 @@ type ProviderConfig struct {
 	sync.Mutex
 
 	cfgMap map[string]string
+}
+
+func (pc *ProviderConfig) GoString() string {
+	return fmt.Sprintf("&ProviderConfig{cfgMap: %#v}", pc.cfgMap)
 }
 
 func (pc *ProviderConfig) Map(f func(string, string)) {

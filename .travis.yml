@@ -34,6 +34,11 @@ script:
 - make save
 - git diff --exit-code || echo 'wat is goin on'
 - git diff --cached --exit-code || echo 'wat is goin on'
+- travis-worker --version
+- travis-worker -v
+- travis-worker --help
+- travis-worker -h
+- travis-worker --echo-config
 # TODO: enable integration tests
 # - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
 # - AMQP_URI=amqp:// go test -v ./test
