@@ -15,3 +15,11 @@ install:
 script:
   - gb build
   - make test
+  - make test-race
+  - git diff --exit-code || echo 'wat is goin on'
+  - git diff --cached --exit-code || echo 'wat is goin on'
+  - travis-worker --version
+  - travis-worker -v
+  - travis-worker --help
+  - travis-worker -h
+  - travis-worker --echo-config
