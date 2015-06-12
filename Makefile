@@ -53,7 +53,6 @@ test: build fmtpolice test-deps coverage.html
 
 .PHONY: test-deps
 test-deps:
-	#$(GO) test -i $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
 	gb test
 
 .PHONY: test-no-cover
