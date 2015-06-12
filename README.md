@@ -2,8 +2,25 @@
 
 ## Installing Travis Worker
 
-1. Install [Go](http://golang.org) and
+### from binary
+
+0. download the [64-bit linux
+   binary](https://travis-worker-artifacts.s3.amazonaws.com/travis-ci/worker/172/172.1/build/linux/amd64/travis-worker)
+0. put it somewhere in `$PATH`, e.g. `/usr/local/bin/travis-worker`
+0. if using recent Ubuntu, you can copy over the [example upstart
+   conf](./travis-worker-upstart-example.conf)
+0. populate `/etc/default/travis-worker` with relevant env vars per the
+   [configuration section](#configuring-travis-worker).
+
+### from package
+
+*coming soon!*
+
+### from source
+0. clone this down
+0. install [Go](http://golang.org) and
    [Deppy](https://github.com/hamfist/deppy).
+0. `make`
 
 ## Configuring Travis Worker
 
