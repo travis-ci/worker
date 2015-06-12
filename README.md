@@ -100,7 +100,7 @@ To update all the dependencies, do the following:
 1. `cd ~/code/travis-worker`
 2. `gb vendor update --all`
 
-# Adding a new dependency
+### Adding a new dependency
 
 To add a new dependency, do the following:
 
