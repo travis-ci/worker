@@ -1,4 +1,6 @@
+PACKAGE_CHECKOUT := $(echo $PWD)
 PACKAGE := github.com/travis-ci/worker
+PACKAGE_SRC_DIR := src/$(PACKAGE)
 SUBPACKAGES := \
 	$(PACKAGE)/cmd/travis-worker \
 	$(PACKAGE)/backend \
@@ -15,7 +17,6 @@ GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 FIND ?= find
 GO ?= go
 GOXC ?= goxc
-DEPPY ?= deppy
 GOPATH := $(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
 	-X $(VERSION_VAR) '$(VERSION_VALUE)' \
@@ -47,11 +48,12 @@ buildpack:
 		VERSION_VALUE=buildpack-$(STACK)-$(USER)-$(DYNO)
 
 .PHONY: test
-test: build fmtpolice test-deps coverage.html
+test: build fmtpolice test-deps #coverage.html
 
 .PHONY: test-deps
 test-deps:
-	$(GO) test -i $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	#$(GO) test -i $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	gb test
 
 .PHONY: test-no-cover
 test-no-cover:
@@ -62,41 +64,38 @@ test-race:
 	$(GO) test -race $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
 
 coverage.html: coverage.coverprofile
-	$(GO) tool cover -html=$^ -o $@
+	cd $PACKAGE_SRC_DIR && $(GO) tool cover -html=$^ -o $@
+  #$(go) tool cover -html=$^ -o 
 
 coverage.coverprofile: $(COVERPROFILES)
-	./bin/fold-coverprofiles $^ > $@
+	./utils/fold-coverprofiles $^ > $@
 	$(GO) tool cover -func=$@
 
 .PHONY: build
 build:
-	$(GO) install $(GOBUILD_FLAGS) $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	gb build
 
-.phony: crossbuild
+.PHONY: crossbuild
 crossbuild:
 	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
 
 .PHONY: deps
 deps:
-	$(GO) get -t $(GOBUILD_FLAGS) $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	gb vendor update --all
 
 .PHONY: clean
 clean:
-	./bin/clean
+	./utils/clean
 
 .PHONY: annotations
 annotations:
 	@git grep -E '(TODO|FIXME|XXX):' | grep -v Makefile
 
-.PHONY: save
-save:
-	$(DEPPY) save ./...
-
 .PHONY: fmtpolice
 fmtpolice:
-	./bin/fmtpolice
+	./utils/fmtpolice $(PACKAGE_SRC_DIR)
 
 .PHONY: lintall
 lintall:
-	./bin/lintall
+	./utils/lintall
 

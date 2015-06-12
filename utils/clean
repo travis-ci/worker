@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -e
+
+GO=${GO:-go}
+PACKAGE=${PACKAGE:-github.com/travis-ci/worker}
+PACKAGE_SRC_DIR=src/$PACKAGE
+PACKAGE_CHECKOUT=$PWD
+SUBPACKAGES=$(cd ${PACKAGE_SRC_DIR} && find . -type d|grep -v 'text\|bin')
+
+rm -vf "./bin/travis-worker"
+cd $PACKAGE_SRC_DIR
+rm -vf coverage.html *coverage.coverprofile
+${GO} clean || true
+for f in $SUBPACKAGES; do
+  cd $f
+  cd $PACKAGE_CHECKOUT/$PACKAGE_SRC_DIR
+  ${GO} clean || true
+done
+
+

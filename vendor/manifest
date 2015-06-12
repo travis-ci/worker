@@ -34,7 +34,7 @@
 		{
 			"importpath": "github.com/fsouza/go-dockerclient",
 			"repository": "https://github.com/fsouza/go-dockerclient",
-			"revision": "419285e90ed27813d1df4be3e47249f9eb215dcf",
+			"revision": "7ded562aa26f32c7f72902d998a8b62b9a634b60",
 			"branch": "master"
 		},
 		{
@@ -79,6 +79,12 @@
 			"importpath": "github.com/Sirupsen/logrus",
 			"repository": "https://github.com/Sirupsen/logrus",
 			"revision": "21d4508646ae56d79244bd9046c1df63a5fa8c37",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/stretchr/testify",
+			"repository": "https://github.com/stretchr/testify",
+			"revision": "7e4a149930b09fe4c2b134c50ce637457ba6e966",
 			"branch": "master"
 		}
 	]
