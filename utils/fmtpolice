@@ -13,17 +13,9 @@ gofmt_check () {
   fi
 
 }
-if [[ ! -n $1 ]]; then
-  for f in $(git ls-files '*.go' | grep -v Deps) ; do
-    echo ${f}
-    gofmt_check ${f}
-  done
-else
-  for f in $(find $1 -type f -iname *.go | grep -v Deps); do
-    echo ${f}
-    gofmt_check ${f}
-  done
-fi
+for f in $(git ls-files '*.go' | grep -v vendor/) ; do
+  gofmt_check ${f}
+done
 
 echo
 echo ★★★★★ ALL HAPPY ★★★★★
