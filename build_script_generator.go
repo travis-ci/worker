@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -39,6 +40,8 @@ type webBuildScriptGenerator struct {
 	cacheFetchTimeout int
 	cachePushTimeout  int
 	s3CacheOptions    s3BuildCacheOptions
+
+	httpClient *http.Client
 }
 
 type s3BuildCacheOptions struct {
@@ -67,6 +70,13 @@ func NewBuildScriptGenerator(cfg *config.Config) BuildScriptGenerator {
 			bucket:          cfg.BuildCacheS3Bucket,
 			accessKeyId:     cfg.BuildCacheS3AccessKeyID,
 			secretAccessKey: cfg.BuildCacheS3SecretAccessKey,
+		},
+		httpClient: &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: cfg.BuildAPIInsecureSkipVerify,
+				},
+			},
 		},
 	}
 }
@@ -121,7 +131,7 @@ func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload *simplej
 
 	startRequest := time.Now()
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := g.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
