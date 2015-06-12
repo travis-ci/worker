@@ -7,7 +7,7 @@ if [[ $# -lt 1 ]] ; then
   exit 1
 fi
 
-GO=${GO:-deppy go}
+GO="go"
 OUT_TMP=$(mktemp worker.XXXXX)
 PACKAGE=${PACKAGE:-github.com/travis-ci/worker}
 

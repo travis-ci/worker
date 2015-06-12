@@ -8,9 +8,10 @@ PACKAGE_SRC_DIR=src/$PACKAGE
 PACKAGE_CHECKOUT=$PWD
 SUBPACKAGES=$(cd ${PACKAGE_SRC_DIR} && find . -type d|grep -v 'text\|bin')
 
+cd $PACKAGE_CHECKOUT
 rm -vf "./bin/travis-worker"
-cd $PACKAGE_SRC_DIR
 rm -vf coverage.html *coverage.coverprofile
+cd $PACKAGE_SRC_DIR
 ${GO} clean || true
 for f in $SUBPACKAGES; do
   cd $f

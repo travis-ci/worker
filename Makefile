@@ -1,4 +1,4 @@
-PACKAGE_CHECKOUT := $(echo $PWD)
+PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
 PACKAGE_SRC_DIR := src/$(PACKAGE)
 SUBPACKAGES := \
@@ -17,7 +17,7 @@ GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 FIND ?= find
 GO ?= go
 GOXC ?= goxc
-GOPATH := $(shell echo $${GOPATH%%:*})
+GOPATH := $(PACKAGE_CHECKOUT):$(PACKAGE_CHECKOUT)/vendor:$(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
 	-X $(VERSION_VAR) '$(VERSION_VALUE)' \
 	-X $(REV_VAR) $(REV_VALUE) \
@@ -35,7 +35,8 @@ COVERPROFILES := \
 
 %-coverage.coverprofile:
 	$(GO) test -covermode=count -coverprofile=$@ \
-		$(GOBUILD_LDFLAGS) $(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
+		$(GOBUILD_LDFLAGS) \
+		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: all
 all: clean deps test lintall
@@ -48,7 +49,7 @@ buildpack:
 		VERSION_VALUE=buildpack-$(STACK)-$(USER)-$(DYNO)
 
 .PHONY: test
-test: build fmtpolice test-deps #coverage.html
+test: build fmtpolice test-deps coverage.html
 
 .PHONY: test-deps
 test-deps:
@@ -64,8 +65,7 @@ test-race:
 	$(GO) test -race $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
 
 coverage.html: coverage.coverprofile
-	cd $PACKAGE_SRC_DIR && $(GO) tool cover -html=$^ -o $@
-  #$(go) tool cover -html=$^ -o 
+	$(GO) tool cover -html=$^ -o $@
 
 coverage.coverprofile: $(COVERPROFILES)
 	./utils/fold-coverprofiles $^ > $@
