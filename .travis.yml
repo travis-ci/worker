@@ -23,3 +23,21 @@ script:
   - travis-worker --help
   - travis-worker -h
   - travis-worker --echo-config
+
+# TODO: enable integration tests
+# - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
+# - AMQP_URI=amqp:// go test -v ./test
+# TODO: re-enable if/when the missing defs file issue is resolved
+# after_success:
+# - make crossbuild
+
+after_success:
+- utils/atlas-push
+- mkdir -p build/$UNAME/amd64
+- cp -v $TRAVIS_BUILD_DIR/bin/travis-worker ./build/$UNAME/amd64/travis-worker
+- echo $ARTIFACTS_PATHS
+
+notifications:
+  slack:
+    rooms:
+    - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 
