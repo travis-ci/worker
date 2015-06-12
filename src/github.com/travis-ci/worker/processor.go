@@ -12,10 +12,6 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
-// InstanceStartTimeout is the timeout for starting an instance and waiting for
-// it to be available.
-var InstanceStartTimeout = 300 * time.Second
-
 // A Processor will process build jobs on a channel, one by one, until it is
 // told to shut down or the channel of build jobs closes.
 type Processor struct {
@@ -115,10 +111,17 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("ctx", ctx)
 
 	steps := []multistep.Step{
-		&stepSubscribeCancellation{canceller: p.canceller},
-		&stepGenerateScript{generator: p.generator},
+		&stepSubscribeCancellation{
+			canceller: p.canceller,
+		},
+		&stepGenerateScript{
+			generator: p.generator,
+		},
 		&stepSendReceived{},
-		&stepStartInstance{provider: p.provider, startTimeout: 4 * time.Minute},
+		&stepStartInstance{
+			provider:     p.provider,
+			startTimeout: 4 * time.Minute,
+		},
 		&stepUploadScript{},
 		&stepUpdateState{},
 		&stepRunScript{

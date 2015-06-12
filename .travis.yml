@@ -13,7 +13,6 @@ install:
   - go get github.com/constabulary/gb/...
 
 script:
-  - gb build
   - make test
   - make test-race
   - git diff --exit-code || echo 'wat is goin on'

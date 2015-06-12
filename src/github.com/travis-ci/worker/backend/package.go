@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/travis-ci/worker/config"
 	"golang.org/x/net/context"
 )
 
 var (
-	ErrStaleVM = fmt.Errorf("previous build artifacts found on stale vm")
+	ErrStaleVM               = fmt.Errorf("previous build artifacts found on stale vm")
+	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
 )
 
 // Provider represents some kind of instance provider. It can point to an
@@ -52,14 +54,14 @@ type RunResult struct {
 	Completed bool
 }
 
-func NewProvider(name string, config map[string]string) (Provider, error) {
+func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 	switch name {
 	case "docker":
-		return NewDockerProvider(config)
+		return NewDockerProvider(cfg)
 	case "sauce_labs":
-		return NewSauceLabsProvider(config)
+		return NewSauceLabsProvider(cfg)
 	case "jupiterbrain":
-		return NewJupiterBrainProvider(config)
+		return NewJupiterBrainProvider(cfg)
 	case "fake":
 		return NewFakeProvider([]byte("Hello to the logs")), nil
 	default:
