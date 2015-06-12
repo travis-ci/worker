@@ -1,0 +1,91 @@
+{
+	"version": 0,
+	"dependencies": [
+		{
+			"importpath": "github.com/bitly/go-simplejson",
+			"repository": "https://github.com/bitly/go-simplejson",
+			"revision": "18db6e68d8fd9cbf2e8ebe4c81a78b96fd9bf05a",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/codegangsta/cli",
+			"repository": "https://github.com/codegangsta/cli",
+			"revision": "11ce503420ece8144885918d05688ea38677961b",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/mitchellh/multistep",
+			"repository": "https://github.com/mitchellh/multistep",
+			"revision": "162146fc57112954184d90266f4733e900ed05a5",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/pborman/uuid",
+			"repository": "https://github.com/pborman/uuid",
+			"revision": "ca53cad383cad2479bbba7f7a1a05797ec1386e4",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/streadway/amqp",
+			"repository": "https://github.com/streadway/amqp",
+			"revision": "6a378341a305bfbc252e8a6638f16cf443221997",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/fsouza/go-dockerclient",
+			"repository": "https://github.com/fsouza/go-dockerclient",
+			"revision": "7ded562aa26f32c7f72902d998a8b62b9a634b60",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/pkg/sftp",
+			"repository": "https://github.com/pkg/sftp",
+			"revision": "f234c3c6540c0358b1802f7fd90c0879af9232eb",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/kr/fs",
+			"repository": "https://github.com/kr/fs",
+			"revision": "2788f0dbd16903de03cb8186e5c7d97b69ad387b",
+			"branch": "master"
+		},
+		{
+			"importpath": "golang.org/x/crypto/ssh",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "1e856cbfdf9bc25eefca75f83f25d55e35ae72e0",
+			"branch": "master",
+			"path": "/ssh"
+		},
+		{
+			"importpath": "golang.org/x/net/context",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "dfcbca9c45aeabb8971affa4f76b2d40f6f72328",
+			"branch": "master",
+			"path": "/context"
+		},
+		{
+			"importpath": "github.com/rcrowley/go-metrics",
+			"repository": "https://github.com/rcrowley/go-metrics",
+			"revision": "a5cfc242a56ba7fa70b785f678d6214837bf93b9",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/getsentry/raven-go",
+			"repository": "https://github.com/getsentry/raven-go",
+			"revision": "c8f8fb7c415203f52ca882e2661d21bc6dcb54d7",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/Sirupsen/logrus",
+			"repository": "https://github.com/Sirupsen/logrus",
+			"revision": "21d4508646ae56d79244bd9046c1df63a5fa8c37",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/stretchr/testify",
+			"repository": "https://github.com/stretchr/testify",
+			"revision": "7e4a149930b09fe4c2b134c50ce637457ba6e966",
+			"branch": "master"
+		}
+	]
+}
