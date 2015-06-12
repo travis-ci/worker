@@ -30,7 +30,6 @@ PORT ?= 42151
 export PORT
 
 COVERPROFILES := \
-	coverage.coverprofile \
 	backend-coverage.coverprofile
 
 %-coverage.coverprofile:
