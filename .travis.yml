@@ -6,7 +6,7 @@ env:
   global:
   - INTEGRATION_TESTS_DISABLED=1
   - GOPATH="$HOME/gopath"
-  - PATH="$HOME/gopath/bin:$HOME/bin:$PATH"
+  - PATH="$TRAVIS_BUILD_DIR:bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
 
 install:
