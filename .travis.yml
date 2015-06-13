@@ -12,7 +12,11 @@ env:
 addons:
   artifacts:
     paths:
-    - ./build/$UNAME/amd64/travis-worker
+    - './build/$UNAME/amd64/travis-worker'
+    target_paths:
+    - 'travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER'
+    - 'travis-ci/worker/$(git describe --always --dirty --tags)'
+    - 'travis-ci/worker/$TRAVIS_BRANCH'
 
 install:
   - go get github.com/constabulary/gb/...
