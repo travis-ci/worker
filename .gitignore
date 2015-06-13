@@ -31,3 +31,4 @@ coverage.html
 
 .*env
 .build/
+bin/travis-worker

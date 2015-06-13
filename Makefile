@@ -1,4 +1,6 @@
+PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
+PACKAGE_SRC_DIR := src/$(PACKAGE)
 SUBPACKAGES := \
 	$(PACKAGE)/cmd/travis-worker \
 	$(PACKAGE)/backend \
@@ -15,8 +17,7 @@ GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 FIND ?= find
 GO ?= go
 GOXC ?= goxc
-DEPPY ?= deppy
-GOPATH := $(shell echo $${GOPATH%%:*})
+GOPATH := $(PACKAGE_CHECKOUT):$(PACKAGE_CHECKOUT)/vendor:$(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
 	-X $(VERSION_VAR) '$(VERSION_VALUE)' \
 	-X $(REV_VAR) $(REV_VALUE) \
@@ -34,7 +35,8 @@ COVERPROFILES := \
 
 %-coverage.coverprofile:
 	$(GO) test -covermode=count -coverprofile=$@ \
-		$(GOBUILD_LDFLAGS) $(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
+		$(GOBUILD_LDFLAGS) \
+		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: all
 all: clean deps test lintall
@@ -51,7 +53,7 @@ test: build fmtpolice test-deps coverage.html
 
 .PHONY: test-deps
 test-deps:
-	$(GO) test -i $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	gb test
 
 .PHONY: test-no-cover
 test-no-cover:
@@ -65,38 +67,34 @@ coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@
 
 coverage.coverprofile: $(COVERPROFILES)
-	./bin/fold-coverprofiles $^ > $@
+	./utils/fold-coverprofiles $^ > $@
 	$(GO) tool cover -func=$@
 
 .PHONY: build
 build:
-	$(GO) install $(GOBUILD_FLAGS) $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	gb build
 
-.phony: crossbuild
+.PHONY: crossbuild
 crossbuild:
 	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
 
 .PHONY: deps
 deps:
-	$(GO) get -t $(GOBUILD_FLAGS) $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	gb vendor update --all
 
 .PHONY: clean
 clean:
-	./bin/clean
+	./utils/clean
 
 .PHONY: annotations
 annotations:
 	@git grep -E '(TODO|FIXME|XXX):' | grep -v Makefile
 
-.PHONY: save
-save:
-	$(DEPPY) save ./...
-
 .PHONY: fmtpolice
 fmtpolice:
-	./bin/fmtpolice
+	./utils/fmtpolice $(PACKAGE_SRC_DIR)
 
 .PHONY: lintall
 lintall:
-	./bin/lintall
+	./utils/lintall
 
