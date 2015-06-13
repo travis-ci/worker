@@ -5,7 +5,7 @@
 ### from binary
 
 0. download the [64-bit linux
-   binary](https://travis-worker-artifacts.s3.amazonaws.com/travis-ci/worker/214/214.1/build/linux/amd64/travis-worker)
+   binary](https://travis-worker-artifacts.s3.amazonaws.com/travis-ci/worker/v0.4.3/build/linux/amd64/travis-worker)
 0. put it somewhere in `$PATH`, e.g. `/usr/local/bin/travis-worker`
 0. if using recent Ubuntu, you can copy over the [example upstart
    conf](./travis-worker-upstart-example.conf)
