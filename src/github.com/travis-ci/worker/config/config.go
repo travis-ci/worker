@@ -135,7 +135,8 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 		"hostname":       cfg.Hostname,
 		"hard-timout":    cfg.HardTimeout,
 
-		"skip-shutdown-on-log-timeout": cfg.SkipShutdownOnLogTimeout,
+		"build-api-insecure-skip-verify": cfg.BuildAPIInsecureSkipVerify,
+		"skip-shutdown-on-log-timeout":   cfg.SkipShutdownOnLogTimeout,
 
 		"build-cache-fetch-timeout":        cfg.BuildCacheFetchTimeout,
 		"build-cache-push-timeout":         cfg.BuildCachePushTimeout,

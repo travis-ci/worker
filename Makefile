@@ -71,7 +71,7 @@ coverage.coverprofile: $(COVERPROFILES)
 
 .PHONY: build
 build:
-	gb build
+	gb build $(GOBUILD_LDFLAGS)
 
 .PHONY: crossbuild
 crossbuild:
