@@ -12,7 +12,7 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/metrics"
-	"golang.org/x/net/context"
+	gocontext "golang.org/x/net/context"
 )
 
 // A BuildScriptGeneratorError is sometimes used by the Generate method on a
@@ -26,7 +26,7 @@ type BuildScriptGeneratorError struct {
 
 // A BuildScriptGenerator generates a build script for a given job payload.
 type BuildScriptGenerator interface {
-	Generate(context.Context, *simplejson.Json) ([]byte, error)
+	Generate(gocontext.Context, *simplejson.Json) ([]byte, error)
 }
 
 type webBuildScriptGenerator struct {
@@ -81,7 +81,7 @@ func NewBuildScriptGenerator(cfg *config.Config) BuildScriptGenerator {
 	}
 }
 
-func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload *simplejson.Json) ([]byte, error) {
+func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, payload *simplejson.Json) ([]byte, error) {
 	if g.aptCacheHost != "" {
 		payload.SetPath([]string{"hosts", "apt_cache"}, g.aptCacheHost)
 	}
@@ -92,6 +92,7 @@ func (g *webBuildScriptGenerator) Generate(ctx context.Context, payload *simplej
 	payload.Set("paranoid", g.paranoid)
 	payload.Set("fix_resolv_conf", g.fixResolvConf)
 	payload.Set("fix_etc_hosts", g.fixEtcHosts)
+
 	if g.cacheType != "" {
 		payload.SetPath([]string{"cache_options", "type"}, g.cacheType)
 		payload.SetPath([]string{"cache_options", "fetch_timeout"}, g.cacheFetchTimeout)

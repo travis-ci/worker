@@ -11,8 +11,8 @@ var (
 	Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "amqp-uri",
-			Usage:  "The URI to the AMQP server to connect to",
 			Value:  defaultAmqpURI,
+			Usage:  "The URI to the AMQP server to connect to",
 			EnvVar: twEnvVars("AMQP_URI"),
 		},
 		cli.IntFlag{
@@ -59,6 +59,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:   "hostname",
+			Value:  defaultHostname,
 			Usage:  "Host name used in log output to identify the source of a job",
 			EnvVar: twEnvVars("HOSTNAME"),
 		},
@@ -70,8 +71,16 @@ var (
 		},
 
 		// build script generator flags
-		cli.DurationFlag{Name: "build-cache-fetch-timeout", EnvVar: twEnvVars("BUILD_CACHE_FETCH_TIMEOUT")},
-		cli.DurationFlag{Name: "build-cache-push-timeout", EnvVar: twEnvVars("BUILD_CACHE_PUSH_TIMEOUT")},
+		cli.DurationFlag{
+			Name:   "build-cache-fetch-timeout",
+			Value:  defaultBuildCacheFetchTimeout,
+			EnvVar: twEnvVars("BUILD_CACHE_FETCH_TIMEOUT"),
+		},
+		cli.DurationFlag{
+			Name:   "build-cache-push-timeout",
+			Value:  defaultBuildCachePushTimeout,
+			EnvVar: twEnvVars("BUILD_CACHE_PUSH_TIMEOUT"),
+		},
 		cli.StringFlag{Name: "build-apt-cache", EnvVar: twEnvVars("BUILD_APT_CACHE")},
 		cli.StringFlag{Name: "build-npm-cache", EnvVar: twEnvVars("BUILD_NPM_CACHE")},
 		cli.BoolFlag{Name: "build-paranoid", EnvVar: twEnvVars("BUILD_PARANOID")},
@@ -102,5 +111,12 @@ var (
 )
 
 func twEnvVars(key string) string {
-	return strings.ToUpper(fmt.Sprintf("TRAVIS_WORKER_%s,%s", key, key))
+	return strings.ToUpper(strings.Join(twEnvVarsSlice(key), ","))
+}
+
+func twEnvVarsSlice(key string) []string {
+	return []string{
+		fmt.Sprintf("TRAVIS_WORKER_%s", key),
+		key,
+	}
 }

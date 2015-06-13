@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -49,71 +48,36 @@ type Config struct {
 	BuildCacheS3SecretAccessKey string
 }
 
-func cfgString(c *cli.Context, name, dflt string) string {
-	for _, strval := range []string{c.String(name), c.GlobalString(name), dflt} {
-		if strval != "" {
-			return strval
-		}
-	}
-	return dflt
-}
-
-func cfgInt(c *cli.Context, name string, dflt int) int {
-	for _, intval := range []int{c.Int(name), c.GlobalInt(name), dflt} {
-		if intval != 0 {
-			return intval
-		}
-	}
-
-	return dflt
-}
-
-func cfgDuration(c *cli.Context, name string, dflt time.Duration) time.Duration {
-	for _, durval := range []time.Duration{c.Duration(name), c.GlobalDuration(name), dflt} {
-		if durval != zeroDuration {
-			return durval
-		}
-	}
-
-	return dflt
-}
-
-func cfgBool(c *cli.Context, name string, dflt bool) bool {
-	return c.GlobalBool(name) || c.Bool(name) || dflt
-}
-
 func ConfigFromCLIContext(c *cli.Context) *Config {
-	hostname, _ := os.Hostname()
-
 	cfg := &Config{
-		AmqpURI:       cfgString(c, "amqp-uri", defaultAmqpURI),
-		PoolSize:      cfgInt(c, "pool-size", defaultPoolSize),
-		BuildAPIURI:   cfgString(c, "build-api-uri", ""),
-		ProviderName:  cfgString(c, "provider-name", defaultProviderName),
-		QueueName:     cfgString(c, "queue-name", ""),
-		LibratoEmail:  cfgString(c, "librato-email", ""),
-		LibratoToken:  cfgString(c, "librato-token", ""),
-		LibratoSource: cfgString(c, "librato-source", ""),
-		SentryDSN:     cfgString(c, "sentry-dsn", ""),
-		Hostname:      cfgString(c, "hostname", hostname),
-		HardTimeout:   cfgDuration(c, "hard-timeout", defaultHardTimeout),
+		AmqpURI:       c.String("amqp-uri"),
+		PoolSize:      c.Int("pool-size"),
+		BuildAPIURI:   c.String("build-api-uri"),
+		ProviderName:  c.String("provider-name"),
+		QueueName:     c.String("queue-name"),
+		LibratoEmail:  c.String("librato-email"),
+		LibratoToken:  c.String("librato-token"),
+		LibratoSource: c.String("librato-source"),
+		SentryDSN:     c.String("sentry-dsn"),
+		Hostname:      c.String("hostname"),
+		HardTimeout:   c.Duration("hard-timeout"),
 
-		BuildAPIInsecureSkipVerify: cfgBool(c, "build-api-insecure-skip-verify", false),
-		SkipShutdownOnLogTimeout:   cfgBool(c, "skip-shutdown-on-log-timeout", false),
+		BuildAPIInsecureSkipVerify: c.Bool("build-api-insecure-skip-verify"),
+		SkipShutdownOnLogTimeout:   c.Bool("skip-shutdown-on-log-timeout"),
 
-		BuildCacheFetchTimeout:      cfgDuration(c, "build-cache-fetch-timeout", defaultBuildCacheFetchTimeout),
-		BuildCachePushTimeout:       cfgDuration(c, "build-cache-push-timeout", defaultBuildCachePushTimeout),
-		BuildAptCache:               cfgString(c, "build-apt-cache", ""),
-		BuildNpmCache:               cfgString(c, "build-npm-cache", ""),
-		BuildParanoid:               cfgBool(c, "build-paranoid", true),
-		BuildFixResolvConf:          cfgBool(c, "build-fix-resolv-conf", false),
-		BuildFixEtcHosts:            cfgBool(c, "build-fix-etc-hosts", false),
-		BuildCacheType:              cfgString(c, "build-cache-type", ""),
-		BuildCacheS3Scheme:          cfgString(c, "build-cache-s3-scheme", ""),
-		BuildCacheS3Region:          cfgString(c, "build-cache-s3-region", ""),
-		BuildCacheS3Bucket:          cfgString(c, "build-cache-s3-bucket", ""),
-		BuildCacheS3AccessKeyID:     cfgString(c, "build-cache-s3-access-key-id", ""),
-		BuildCacheS3SecretAccessKey: cfgString(c, "build-cache-s3-secret-access-key", ""),
+		BuildCacheFetchTimeout:      c.Duration("build-cache-fetch-timeout"),
+		BuildCachePushTimeout:       c.Duration("build-cache-push-timeout"),
+		BuildAptCache:               c.String("build-apt-cache"),
+		BuildNpmCache:               c.String("build-npm-cache"),
+		BuildParanoid:               c.Bool("build-paranoid"),
+		BuildFixResolvConf:          c.Bool("build-fix-resolv-conf"),
+		BuildFixEtcHosts:            c.Bool("build-fix-etc-hosts"),
+		BuildCacheType:              c.String("build-cache-type"),
+		BuildCacheS3Scheme:          c.String("build-cache-s3-scheme"),
+		BuildCacheS3Region:          c.String("build-cache-s3-region"),
+		BuildCacheS3Bucket:          c.String("build-cache-s3-bucket"),
+		BuildCacheS3AccessKeyID:     c.String("build-cache-s3-access-key-id"),
+		BuildCacheS3SecretAccessKey: c.String("build-cache-s3-secret-access-key"),
 	}
 
 	cfg.ProviderConfig = ProviderConfigFromEnviron(cfg.ProviderName)

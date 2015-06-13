@@ -70,23 +70,23 @@ func runWorker(c *cli.Context) {
 	if cfg.SentryDSN != "" {
 		sentryHook, err := logrus_sentry.NewSentryHook(cfg.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create sentry hook")
+			logger.WithField("err", err).Error("couldn't create sentry hook")
 		}
 
 		logrus.AddHook(sentryHook)
 	}
 
 	if cfg.LibratoEmail != "" && cfg.LibratoToken != "" && cfg.LibratoSource != "" {
-		context.LoggerFromContext(ctx).Info("starting librato metrics reporter")
+		logger.Info("starting librato metrics reporter")
 		go librato.Librato(metrics.DefaultRegistry, time.Minute, cfg.LibratoEmail, cfg.LibratoToken, cfg.LibratoSource, []float64{0.95}, time.Millisecond)
 	} else {
-		context.LoggerFromContext(ctx).Info("starting logger metrics reporter")
+		logger.Info("starting logger metrics reporter")
 		go metrics.Log(metrics.DefaultRegistry, time.Minute, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
 
 	amqpConn, err := amqp.Dial(cfg.AmqpURI)
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't connect to AMQP")
+		logger.WithField("err", err).Error("couldn't connect to AMQP")
 		return
 	}
 
@@ -96,50 +96,65 @@ func runWorker(c *cli.Context) {
 
 		err, ok := <-errChan
 		if ok {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("amqp connection errored, terminating")
+			logger.WithField("err", err).Error("amqp connection errored, terminating")
 			cancel()
 		}
 	}()
 
-	context.LoggerFromContext(ctx).Debug("connected to AMQP")
+	logger.Debug("connected to AMQP")
 
 	generator := worker.NewBuildScriptGenerator(cfg)
+	logger.WithFields(logrus.Fields{
+		"build_script_generator": fmt.Sprintf("%#v", generator),
+	}).Debug("built")
+
 	provider, err := backend.NewProvider(cfg.ProviderName, cfg.ProviderConfig)
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create backend provider")
+		logger.WithField("err", err).Error("couldn't create backend provider")
 		return
 	}
-
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"provider": provider,
-	}).Debug("built provider")
+	logger.WithFields(logrus.Fields{
+		"provider": fmt.Sprintf("%#v", provider),
+	}).Debug("built")
 
 	commandDispatcher := worker.NewCommandDispatcher(ctx, amqpConn)
+	logger.WithFields(logrus.Fields{
+		"command_dispatcher": fmt.Sprintf("%#v", commandDispatcher),
+	}).Debug("built")
+
 	go commandDispatcher.Run()
 
 	pool := worker.NewProcessorPool(cfg.Hostname, ctx, cfg.HardTimeout, amqpConn,
 		provider, generator, commandDispatcher)
 
 	pool.SkipShutdownOnLogTimeout = cfg.SkipShutdownOnLogTimeout
+	logger.WithFields(logrus.Fields{
+		"pool": pool,
+	}).Debug("built")
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		sig := <-signalChan
 		if sig == syscall.SIGINT {
-			context.LoggerFromContext(ctx).Info("SIGTERM received, starting graceful shutdown")
+			logger.Info("SIGTERM received, starting graceful shutdown")
 			pool.GracefulShutdown()
 		} else {
-			context.LoggerFromContext(ctx).Info("SIGINT received, shutting down immediately")
+			logger.Info("SIGINT received, shutting down immediately")
 			cancel()
 		}
 	}()
+
+	logger.WithFields(logrus.Fields{
+		"pool_size":  cfg.PoolSize,
+		"queue_name": cfg.QueueName,
+	}).Debug("running pool")
 
 	pool.Run(cfg.PoolSize, cfg.QueueName)
 
 	err = amqpConn.Close()
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't close AMQP connection cleanly")
+		logger.WithField("err", err).Error("couldn't close AMQP connection cleanly")
 		return
 	}
 }

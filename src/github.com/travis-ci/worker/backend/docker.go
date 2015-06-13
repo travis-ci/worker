@@ -30,6 +30,8 @@ type DockerInstance struct {
 	client    *docker.Client
 	provider  *DockerProvider
 	container *docker.Container
+
+	imageName string
 }
 
 func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
@@ -79,7 +81,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		return nil, err
 	}
 
-	imageID, err := p.imageForLanguage(startAttributes.Language)
+	imageID, imageName, err := p.imageForLanguage(startAttributes.Language)
 	if err != nil {
 		return nil, err
 	}
@@ -150,6 +152,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 			client:    p.client,
 			provider:  p,
 			container: container,
+			imageName: imageName,
 		}, nil
 	case err := <-errChan:
 		return nil, err
@@ -162,10 +165,10 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 }
 
-func (p *DockerProvider) imageForLanguage(language string) (string, error) {
+func (p *DockerProvider) imageForLanguage(language string) (string, string, error) {
 	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	for _, image := range images {
@@ -177,13 +180,13 @@ func (p *DockerProvider) imageForLanguage(language string) (string, error) {
 		} {
 			for _, tag := range image.RepoTags {
 				if tag == searchTag {
-					return image.ID, nil
+					return image.ID, tag, nil
 				}
 			}
 		}
 	}
 
-	return "", fmt.Errorf("no image found with language %s", language)
+	return "", "", fmt.Errorf("no image found with language %s", language)
 }
 
 func (p *DockerProvider) checkoutCPUSets() (string, error) {
@@ -325,5 +328,5 @@ func (i *DockerInstance) ID() string {
 		return "{unidentified}"
 	}
 
-	return fmt.Sprintf("%s:%s", i.container.ID, i.container.Image)
+	return fmt.Sprintf("%s:%s", i.container.ID[0:7], i.imageName)
 }
