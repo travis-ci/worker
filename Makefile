@@ -30,7 +30,6 @@ PORT ?= 42151
 export PORT
 
 COVERPROFILES := \
-	coverage.coverprofile \
 	backend-coverage.coverprofile
 
 %-coverage.coverprofile:
@@ -39,7 +38,7 @@ COVERPROFILES := \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: all
-all: clean deps test lintall
+all: clean test lintall
 
 .PHONY: buildpack
 buildpack:
@@ -49,10 +48,10 @@ buildpack:
 		VERSION_VALUE=buildpack-$(STACK)-$(USER)-$(DYNO)
 
 .PHONY: test
-test: build fmtpolice test-deps coverage.html
+test: build fmtpolice .test coverage.html
 
-.PHONY: test-deps
-test-deps:
+.PHONY: .test
+.test:
 	gb test
 
 .PHONY: test-no-cover
@@ -78,8 +77,8 @@ build:
 crossbuild:
 	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
 
-.PHONY: deps
-deps:
+.PHONY: update
+update:
 	gb vendor update --all
 
 .PHONY: clean
