@@ -77,6 +77,36 @@ To start a graceful shutdown, send an INT signal to the worker (for example
 using `kill -INT`). To start an immediate shutdown, send a TERM signal to the
 worker (for example using `kill -TERM`).
 
+## Go dependency management
+
+Travis Worker is built using [`gb`](http://getgb.io) and dependencies
+are vendored into this repository. They are managed with
+[`gb-vendor`](http://godoc.org/github.com/constabulary/gb/cmd/gb-vendor).
+
+To work with the dependencies you need to do the following first
+
+- Have this repository checked out
+- Install `gb` with `go get github.com/constabulary/gb/...`
+
+### Updating existing vendored dependencies
+
+To update and existing vendored dependency, do the following:
+
+1. `cd ~/code/travis-worker`
+2. `gb vendor update name/of/package` e.g. `gb vendor update github.com/pkg/sftp`
+
+To update all the dependencies, do the following:
+
+1. `cd ~/code/travis-worker`
+2. `gb vendor update --all`
+
+### Adding a new dependency
+
+To add a new dependency, do the following:
+
+1. `cd ~/code/travis-worker`
+2. `gb vendor fetch name/of/package` e.g. `gb vendor fetch github.com/pkg/sftp`
+
 ## License and Copyright Information
 
 See LICENSE file.
