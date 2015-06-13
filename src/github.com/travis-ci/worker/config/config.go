@@ -30,7 +30,8 @@ type Config struct {
 	Hostname       string
 	HardTimeout    time.Duration
 
-	SkipShutdownOnLogTimeout bool
+	BuildAPIInsecureSkipVerify bool
+	SkipShutdownOnLogTimeout   bool
 
 	// build script generator options
 	BuildCacheFetchTimeout      time.Duration
@@ -97,7 +98,8 @@ func ConfigFromCLIContext(c *cli.Context) *Config {
 		Hostname:      cfgString(c, "hostname", hostname),
 		HardTimeout:   cfgDuration(c, "hard-timeout", defaultHardTimeout),
 
-		SkipShutdownOnLogTimeout: cfgBool(c, "skip-shutdown-on-log-timeout", false),
+		BuildAPIInsecureSkipVerify: cfgBool(c, "build-api-insecure-skip-verify", false),
+		SkipShutdownOnLogTimeout:   cfgBool(c, "skip-shutdown-on-log-timeout", false),
 
 		BuildCacheFetchTimeout:      cfgDuration(c, "build-cache-fetch-timeout", defaultBuildCacheFetchTimeout),
 		BuildCachePushTimeout:       cfgDuration(c, "build-cache-push-timeout", defaultBuildCachePushTimeout),

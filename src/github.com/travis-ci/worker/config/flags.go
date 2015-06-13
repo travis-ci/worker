@@ -90,6 +90,11 @@ var (
 			Usage:  "Special-case mode to aid with debugging timed out jobs",
 			EnvVar: twEnvVars("SKIP_SHUTDOWN_ON_LOG_TIMEOUT"),
 		},
+		cli.BoolFlag{
+			Name:   "build-api-insecure-skip-verify",
+			Usage:  "Skip build API TLS verification (useful for Enterprise and testing)",
+			EnvVar: twEnvVars("BUILD_API_INSECURE_SKIP_VERIFY"),
+		},
 		cli.StringFlag{Name: "pprof-port", Usage: "enable pprof http endpoint at port", EnvVar: twEnvVars("PPROF_PORT")},
 		cli.BoolFlag{Name: "echo-config", Usage: "echo parsed config and exit", EnvVar: twEnvVars("ECHO_CONFIG")},
 		cli.BoolFlag{Name: "debug", Usage: "set log level to debug", EnvVar: twEnvVars("DEBUG")},
