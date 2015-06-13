@@ -18,8 +18,7 @@
 
 ### from source
 0. clone this down
-0. install [Go](http://golang.org) and
-   [Deppy](https://github.com/hamfist/deppy).
+0. install [Go](http://golang.org) and [gb](https://github.com/constabulary/gb).
 0. `make`
 
 ## Configuring Travis Worker
@@ -58,9 +57,8 @@ travis-worker --echo-config
 
 ## Running Travis Worker
 
-0. `deppy restore`
 0. `make`
-0. `${GOPATH%%:*}/bin/travis-worker`
+0. `./bin/travis-worker`
 
 C-c will stop the worker. Note that any VMs for builds that were still running
 will have to be cleaned up manually.
