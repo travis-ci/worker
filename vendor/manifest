@@ -10,7 +10,7 @@
 		{
 			"importpath": "github.com/codegangsta/cli",
 			"repository": "https://github.com/codegangsta/cli",
-			"revision": "11ce503420ece8144885918d05688ea38677961b",
+			"revision": "8cbee4b7192cea690c9f048e742e6b4c3525fd9e",
 			"branch": "master"
 		},
 		{
@@ -59,7 +59,7 @@
 		{
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
-			"revision": "dfcbca9c45aeabb8971affa4f76b2d40f6f72328",
+			"revision": "3cffabab72adf04f8e3b01c5baf775361837b5fe",
 			"branch": "master",
 			"path": "/context"
 		},
