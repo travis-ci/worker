@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
 
 	"github.com/fsouza/go-dockerclient"
@@ -58,11 +59,16 @@ func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
 }
 
 func buildClient(cfg *config.ProviderConfig) (*docker.Client, error) {
-	if !cfg.IsSet("endpoint") {
+	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
+	// compatibility with docker's own env vars.
+	if !cfg.IsSet("endpoint") && !cfg.IsSet("host") {
 		return nil, ErrMissingEndpointConfig
 	}
 
 	endpoint := cfg.Get("endpoint")
+	if endpoint == "" {
+		endpoint = cfg.Get("host")
+	}
 
 	if cfg.IsSet("cert_path") {
 		path := cfg.Get("cert_path")
@@ -76,6 +82,8 @@ func buildClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 }
 
 func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+	logger := context.LoggerFromContext(ctx)
+
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil && cpuSets != "" {
 		return nil, err
@@ -101,6 +109,11 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		dockerConfig.CPUSet = cpuSets
 	}
 
+	logger.WithFields(logrus.Fields{
+		"config":      fmt.Sprintf("%#v", dockerConfig),
+		"host_config": fmt.Sprintf("%#v", dockerHostConfig),
+	}).Debug("starting container")
+
 	container, err := p.client.CreateContainer(docker.CreateContainerOptions{
 		Config:     dockerConfig,
 		HostConfig: dockerHostConfig,
@@ -114,7 +127,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 				Force:         true,
 			})
 			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't remove container after create failure")
+				logger.WithField("err", err).Error("couldn't remove container after create failure")
 			}
 		}
 
@@ -231,8 +244,6 @@ func (i *DockerInstance) sshClient() (*ssh.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("networksettings: %+v\n", i.container.NetworkSettings)
 
 	time.Sleep(2 * time.Second)
 
