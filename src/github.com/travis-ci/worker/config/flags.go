@@ -81,17 +81,50 @@ var (
 			Value:  defaultBuildCachePushTimeout,
 			EnvVar: twEnvVars("BUILD_CACHE_PUSH_TIMEOUT"),
 		},
-		cli.StringFlag{Name: "build-apt-cache", EnvVar: twEnvVars("BUILD_APT_CACHE")},
-		cli.StringFlag{Name: "build-npm-cache", EnvVar: twEnvVars("BUILD_NPM_CACHE")},
-		cli.BoolFlag{Name: "build-paranoid", EnvVar: twEnvVars("BUILD_PARANOID")},
-		cli.BoolFlag{Name: "build-fix-resolv-conf", EnvVar: twEnvVars("BUILD_FIX_RESOLV_CONF")},
-		cli.BoolFlag{Name: "build-fix-etc-hosts", EnvVar: twEnvVars("BUILD_FIX_ETC_HOSTS")},
-		cli.StringFlag{Name: "build-cache-type", EnvVar: twEnvVars("BUILD_CACHE_TYPE")},
-		cli.StringFlag{Name: "build-cache-s3-scheme", EnvVar: twEnvVars("BUILD_CACHE_S3_SCHEME")},
-		cli.StringFlag{Name: "build-cache-s3-region", EnvVar: twEnvVars("BUILD_CACHE_S3_REGION")},
-		cli.StringFlag{Name: "build-cache-s3-bucket", EnvVar: twEnvVars("BUILD_CACHE_S3_BUCKET")},
-		cli.StringFlag{Name: "build-cache-s3-access-key-id", EnvVar: twEnvVars("BUILD_CACHE_S3_ACCESS_KEY_ID")},
-		cli.StringFlag{Name: "build-cache-s3-secret-access-key", EnvVar: twEnvVars("BUILD_CACHE_S3_SECRET_ACCESS_KEY")},
+		cli.StringFlag{
+			Name:   "build-apt-cache",
+			EnvVar: twEnvVars("BUILD_APT_CACHE"),
+		},
+		cli.StringFlag{
+			Name:   "build-npm-cache",
+			EnvVar: twEnvVars("BUILD_NPM_CACHE"),
+		},
+		cli.BoolFlag{
+			Name:   "build-paranoid",
+			EnvVar: twEnvVars("BUILD_PARANOID"),
+		},
+		cli.BoolFlag{
+			Name:   "build-fix-resolv-conf",
+			EnvVar: twEnvVars("BUILD_FIX_RESOLV_CONF"),
+		},
+		cli.BoolFlag{
+			Name:   "build-fix-etc-hosts",
+			EnvVar: twEnvVars("BUILD_FIX_ETC_HOSTS"),
+		},
+		cli.StringFlag{
+			Name:   "build-cache-type",
+			EnvVar: twEnvVars("BUILD_CACHE_TYPE"),
+		},
+		cli.StringFlag{
+			Name:   "build-cache-s3-scheme",
+			EnvVar: twEnvVars("BUILD_CACHE_S3_SCHEME"),
+		},
+		cli.StringFlag{
+			Name:   "build-cache-s3-region",
+			EnvVar: twEnvVars("BUILD_CACHE_S3_REGION"),
+		},
+		cli.StringFlag{
+			Name:   "build-cache-s3-bucket",
+			EnvVar: twEnvVars("BUILD_CACHE_S3_BUCKET"),
+		},
+		cli.StringFlag{
+			Name:   "build-cache-s3-access-key-id",
+			EnvVar: twEnvVars("BUILD_CACHE_S3_ACCESS_KEY_ID"),
+		},
+		cli.StringFlag{
+			Name:   "build-cache-s3-secret-access-key",
+			EnvVar: twEnvVars("BUILD_CACHE_S3_SECRET_ACCESS_KEY"),
+		},
 
 		// non-config and special case flags
 		cli.StringFlag{
@@ -104,9 +137,26 @@ var (
 			Usage:  "Skip build API TLS verification (useful for Enterprise and testing)",
 			EnvVar: twEnvVars("BUILD_API_INSECURE_SKIP_VERIFY"),
 		},
-		cli.StringFlag{Name: "pprof-port", Usage: "enable pprof http endpoint at port", EnvVar: twEnvVars("PPROF_PORT")},
-		cli.BoolFlag{Name: "echo-config", Usage: "echo parsed config and exit", EnvVar: twEnvVars("ECHO_CONFIG")},
-		cli.BoolFlag{Name: "debug", Usage: "set log level to debug", EnvVar: twEnvVars("DEBUG")},
+		cli.StringFlag{
+			Name:   "pprof-port",
+			Usage:  "enable pprof http endpoint at port",
+			EnvVar: twEnvVars("PPROF_PORT"),
+		},
+		cli.BoolFlag{
+			Name:   "silence-metrics",
+			Usage:  "silence metrics logging in case no Librato creds have been provided",
+			EnvVar: twEnvVars("SILENCE_METRICS"),
+		},
+		cli.BoolFlag{
+			Name:   "echo-config",
+			Usage:  "echo parsed config and exit",
+			EnvVar: twEnvVars("ECHO_CONFIG"),
+		},
+		cli.BoolFlag{
+			Name:   "debug",
+			Usage:  "set log level to debug",
+			EnvVar: twEnvVars("DEBUG"),
+		},
 	}
 )
 

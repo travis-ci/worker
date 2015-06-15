@@ -79,7 +79,7 @@ func runWorker(c *cli.Context) {
 	if cfg.LibratoEmail != "" && cfg.LibratoToken != "" && cfg.LibratoSource != "" {
 		logger.Info("starting librato metrics reporter")
 		go librato.Librato(metrics.DefaultRegistry, time.Minute, cfg.LibratoEmail, cfg.LibratoToken, cfg.LibratoSource, []float64{0.95}, time.Millisecond)
-	} else {
+	} else if !c.Bool("silence-metrics") {
 		logger.Info("starting logger metrics reporter")
 		go metrics.Log(metrics.DefaultRegistry, time.Minute, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
