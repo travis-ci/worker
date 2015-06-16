@@ -63,7 +63,7 @@ func (pc *ProviderConfig) IsSet(key string) bool {
 // uppercase provider name + "_" or "TRAVIS_WORKER_" + uppercase provider name +
 // "_", e.g., for provider "foo":
 //   env: TRAVIS_WORKER_FOO_BAR=ham FOO_BAZ=bones
-//   map equiv: {"bar": "ham", "baz": "bones"}
+//   map equiv: {"BAR": "ham", "BAZ": "bones"}
 func ProviderConfigFromEnviron(providerName string) *ProviderConfig {
 	upperProvider := strings.ToUpper(providerName)
 
@@ -77,7 +77,7 @@ func ProviderConfigFromEnviron(providerName string) *ProviderConfig {
 			if strings.HasPrefix(e, prefix) {
 				pair := strings.SplitN(e, "=", 2)
 
-				key := strings.ToLower(strings.TrimPrefix(pair[0], prefix))
+				key := strings.ToUpper(strings.TrimPrefix(pair[0], prefix))
 				value := pair[1]
 				unescapedValue, err := url.QueryUnescape(value)
 				if err == nil {

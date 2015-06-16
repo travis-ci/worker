@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/dustin/go-humanize"
 	"github.com/pborman/uuid"
 
 	"github.com/fsouza/go-dockerclient"
@@ -19,9 +22,29 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
+const (
+	dockerHelp = `
+        ENDPOINT / HOST - [REQUIRED] tcp or unix address for connecting to Docker
+              CERT_PATH - directory where ca.pem, cert.pem, and key.pem are located (default "")
+                    CMD - command (CMD) to run when creating contaniers (default "/sbin/init")
+                 MEMORY - memory to allocate to each container (default "4G")
+                   CPUS - cpu count to allocate to each container (default 2)
+             PRIVILEGED - run containers in privileged mode (default false)
+
+`
+)
+
+func init() {
+	config.SetProviderHelp("Docker", dockerHelp)
+}
+
 type DockerProvider struct {
-	client        *docker.Client
+	client *docker.Client
+
 	runPrivileged bool
+	runCmd        []string
+	runMemory     uint64
+	runCPUs       int
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -47,31 +70,55 @@ func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
 	}
 
 	privileged := false
-	if cfg.IsSet("privileged") {
-		privileged = (cfg.Get("privileged") == "true")
+	if cfg.IsSet("PRIVILEGED") {
+		privileged = (cfg.Get("PRIVILEGED") == "true")
+	}
+
+	cmd := []string{"/sbin/init"}
+	if cfg.IsSet("CMD") {
+		cmd = strings.Split(cfg.Get("CMD"), " ")
+	}
+
+	memory := uint64(1024 * 1024 * 1024 * 4)
+	if cfg.IsSet("MEMORY") {
+		if parsedMemory, err := humanize.ParseBytes(cfg.Get("MEMORY")); err == nil {
+			memory = parsedMemory
+		}
+	}
+
+	cpus := uint64(2)
+	if cfg.IsSet("CPUS") {
+		if parsedCPUs, err := strconv.ParseUint(cfg.Get("CPUS"), 10, 64); err == nil {
+			cpus = parsedCPUs
+		}
 	}
 
 	return &DockerProvider{
-		client:        client,
+		client: client,
+
 		runPrivileged: privileged,
-		cpuSets:       make([]bool, cpuSetSize),
+		runCmd:        cmd,
+		runMemory:     memory,
+		runCPUs:       int(cpus),
+
+		cpuSets: make([]bool, cpuSetSize),
 	}, nil
 }
 
 func buildClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
 	// compatibility with docker's own env vars.
-	if !cfg.IsSet("endpoint") && !cfg.IsSet("host") {
+	if !cfg.IsSet("ENDPOINT") && !cfg.IsSet("HOST") {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	endpoint := cfg.Get("endpoint")
+	endpoint := cfg.Get("ENDPOINT")
 	if endpoint == "" {
-		endpoint = cfg.Get("host")
+		endpoint = cfg.Get("HOST")
 	}
 
-	if cfg.IsSet("cert_path") {
-		path := cfg.Get("cert_path")
+	if cfg.IsSet("CERT_PATH") {
+		path := cfg.Get("CERT_PATH")
 		ca := fmt.Sprintf("%s/ca.pem", path)
 		cert := fmt.Sprintf("%s/cert.pem", path)
 		key := fmt.Sprintf("%s/key.pem", path)
@@ -95,10 +142,10 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 
 	dockerConfig := &docker.Config{
-		Cmd:      []string{"/sbin/init"},
+		Cmd:      p.runCmd,
 		Image:    imageID,
-		Memory:   1024 * 1024 * 1024 * 4,
-		Hostname: fmt.Sprintf("testing-go-%s", uuid.NewUUID()),
+		Memory:   int64(p.runMemory),
+		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewUUID()),
 	}
 
 	dockerHostConfig := &docker.HostConfig{
@@ -212,30 +259,37 @@ func (p *DockerProvider) checkoutCPUSets() (string, error) {
 		if !checkedOut {
 			cpuSets = append(cpuSets, i)
 		}
-		if len(cpuSets) == 2 {
+
+		if len(cpuSets) == p.runCPUs {
 			break
 		}
 	}
 
-	if len(cpuSets) != 2 {
+	if len(cpuSets) != p.runCPUs {
 		return "", fmt.Errorf("not enough free CPUsets")
 	}
 
-	p.cpuSets[cpuSets[0]] = true
-	p.cpuSets[cpuSets[1]] = true
+	cpuSetsString := []string{}
 
-	return fmt.Sprintf("%d,%d", cpuSets[0], cpuSets[1]), nil
+	for i := len(cpuSets); i > 0; i-- {
+		p.cpuSets[cpuSets[i]] = true
+		cpuSetsString = append(cpuSetsString, fmt.Sprintf("%d", cpuSets[i]))
+	}
+
+	return strings.Join(cpuSetsString, ","), nil
 }
 
 func (p *DockerProvider) checkinCPUSets(sets string) {
 	p.cpuSetsMutex.Lock()
 	defer p.cpuSetsMutex.Unlock()
 
-	var cpu1, cpu2 int
-	fmt.Sscanf(sets, "%d,%d", &cpu1, &cpu2)
-
-	p.cpuSets[cpu1] = false
-	p.cpuSets[cpu2] = false
+	for _, cpuString := range strings.Split(sets, ",") {
+		cpu, err := strconv.ParseUint(cpuString, 10, 64)
+		if err != nil {
+			continue
+		}
+		p.cpuSets[int(cpu)] = false
+	}
 }
 
 func (i *DockerInstance) sshClient() (*ssh.Client, error) {
