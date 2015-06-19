@@ -49,6 +49,7 @@ exit $(cat ~/build.sh.exit)
     IMAGE_ALIAS_{ALIAS} - full name for a given alias given via IMAGE_ALIASES, where the alias
                           form in the key is uppercased and normalized by replacing
                           non-alphanumerics with "_"
+        BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default "3s")
 
 `
 )
@@ -64,6 +65,7 @@ type JupiterBrainProvider struct {
 	sshKeyPath       string
 	sshKeyPassphrase string
 	keychainPassword string
+	bootPollSleep    time.Duration
 }
 
 type JupiterBrainInstance struct {
@@ -132,6 +134,15 @@ func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider,
 
 	keychainPassword := cfg.Get("KEYCHAIN_PASSWORD")
 
+	bootPollSleep := 3 * time.Second
+	if cfg.IsSet("BOOT_POLL_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("BOOT_POLL_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		bootPollSleep = si
+	}
+
 	return &JupiterBrainProvider{
 		client:           http.DefaultClient,
 		baseURL:          baseURL,
@@ -139,6 +150,7 @@ func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider,
 		sshKeyPath:       sshKeyPath,
 		sshKeyPassphrase: sshKeyPassphrase,
 		keychainPassword: keychainPassword,
+		bootPollSleep:    bootPollSleep,
 	}, nil
 }
 
@@ -258,7 +270,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 			}
 
 			if ip == nil {
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(p.bootPollSleep)
 				continue
 			}
 
@@ -272,7 +284,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 				return
 			}
 
-			time.Sleep(time.Second)
+			time.Sleep(p.bootPollSleep)
 		}
 	}(payload.ID)
 
