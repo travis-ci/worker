@@ -86,6 +86,12 @@
 			"repository": "https://github.com/stretchr/testify",
 			"revision": "7e4a149930b09fe4c2b134c50ce637457ba6e966",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/dustin/go-humanize",
+			"repository": "https://github.com/dustin/go-humanize",
+			"revision": "00897f070f09f194c26d65afae734ba4c32404e8",
+			"branch": "master"
 		}
 	]
 }

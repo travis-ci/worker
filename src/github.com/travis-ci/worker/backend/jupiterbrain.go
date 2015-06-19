@@ -28,7 +28,8 @@ var (
 	nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
 )
 
-const wrapperSh = `#!/bin/bash
+const (
+	wrapperSh = `#!/bin/bash
 
 [[ $(uname) = Linux ]] && exec bash ~/build.sh
 
@@ -39,6 +40,22 @@ until nc 127.0.0.1 15782; do sleep 1; done
 until [[ -f ~/build.sh.exit ]]; do sleep 1; done
 exit $(cat ~/build.sh.exit)
 `
+	jupiterBrainHelp = `
+               ENDPOINT - [REQUIRED] url to jupiter brain server including auth
+           SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
+     SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
+      KEYCHAIN_PASSWORD - [REQUIRED] password used ... somehow
+          IMAGE_ALIASES - comma-delimited strings used as stable names for images (default "")
+    IMAGE_ALIAS_{ALIAS} - full name for a given alias given via IMAGE_ALIASES, where the alias
+                          form in the key is uppercased and normalized by replacing
+                          non-alphanumerics with "_"
+
+`
+)
+
+func init() {
+	config.SetProviderHelp("Jupiter Brain", jupiterBrainHelp)
+}
 
 type JupiterBrainProvider struct {
 	client           *http.Client
@@ -67,17 +84,17 @@ type jupiterBrainDataResponse struct {
 }
 
 func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider, error) {
-	if !cfg.IsSet("endpoint") {
+	if !cfg.IsSet("ENDPOINT") {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	if !cfg.IsSet("image_aliases") {
-		return nil, fmt.Errorf("expected image_aliases config key")
+	if !cfg.IsSet("IMAGE_ALIASES") {
+		return nil, fmt.Errorf("expected IMAGE_ALIASES config key")
 	}
 
-	aliasNames := cfg.Get("image_aliases")
+	aliasNames := cfg.Get("IMAGE_ALIASES")
 
-	baseURL, err := url.Parse(cfg.Get("endpoint"))
+	baseURL, err := url.Parse(cfg.Get("ENDPOINT"))
 	if err != nil {
 		return nil, err
 	}
@@ -87,9 +104,9 @@ func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider,
 	imageAliases := make(map[string]string, len(aliasNamesSlice))
 
 	for _, aliasName := range aliasNamesSlice {
-		normalizedAliasName := string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_")))
+		normalizedAliasName := strings.ToUpper(string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_"))))
 
-		key := fmt.Sprintf("image_alias_%s", normalizedAliasName)
+		key := fmt.Sprintf("IMAGE_ALIAS_%s", normalizedAliasName)
 		if !cfg.IsSet(key) {
 			return nil, fmt.Errorf("expected image alias %q", aliasName)
 		}
@@ -97,23 +114,23 @@ func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider,
 		imageAliases[aliasName] = cfg.Get(key)
 	}
 
-	if !cfg.IsSet("ssh_key_path") {
-		return nil, fmt.Errorf("expected ssh_key_path config key")
+	if !cfg.IsSet("SSH_KEY_PATH") {
+		return nil, fmt.Errorf("expected SSH_KEY_PATH config key")
 	}
 
-	sshKeyPath := cfg.Get("ssh_key_path")
+	sshKeyPath := cfg.Get("SSH_KEY_PATH")
 
-	if !cfg.IsSet("ssh_key_passphrase") {
-		return nil, fmt.Errorf("expected ssh_key_passphrase config key")
+	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
+		return nil, fmt.Errorf("expected SSH_KEY_PASSPHRASE config key")
 	}
 
-	sshKeyPassphrase := cfg.Get("ssh_key_passphrase")
+	sshKeyPassphrase := cfg.Get("SSH_KEY_PASSPHRASE")
 
-	if !cfg.IsSet("keychain_password") {
-		return nil, fmt.Errorf("expected keychain_password config key")
+	if !cfg.IsSet("KEYCHAIN_PASSWORD") {
+		return nil, fmt.Errorf("expected KEYCHAIN_PASSWORD config key")
 	}
 
-	keychainPassword := cfg.Get("keychain_password")
+	keychainPassword := cfg.Get("KEYCHAIN_PASSWORD")
 
 	return &JupiterBrainProvider{
 		client:           http.DefaultClient,
