@@ -58,12 +58,13 @@ func init() {
 }
 
 type JupiterBrainProvider struct {
-	client           *http.Client
-	baseURL          *url.URL
-	imageAliases     map[string]string
-	sshKeyPath       string
-	sshKeyPassphrase string
-	keychainPassword string
+	client                *http.Client
+	baseURL               *url.URL
+	imageAliases          map[string]string
+	sshKeyPath            string
+	sshKeyPassphrase      string
+	keychainPassword      string
+	bootPollSleepInterval time.Duration
 }
 
 type JupiterBrainInstance struct {
@@ -132,13 +133,23 @@ func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider,
 
 	keychainPassword := cfg.Get("KEYCHAIN_PASSWORD")
 
+	bootPollSleepInterval := 3 * time.Second
+	if cfg.IsSet("boot_poll_sleep_interval") {
+		si, err := time.ParseDuration(cfg.Get("boot_poll_sleep_interval"))
+		if err != nil {
+			return nil, err
+		}
+		bootPollSleepInterval = si
+	}
+
 	return &JupiterBrainProvider{
-		client:           http.DefaultClient,
-		baseURL:          baseURL,
-		imageAliases:     imageAliases,
-		sshKeyPath:       sshKeyPath,
-		sshKeyPassphrase: sshKeyPassphrase,
-		keychainPassword: keychainPassword,
+		client:                http.DefaultClient,
+		baseURL:               baseURL,
+		imageAliases:          imageAliases,
+		sshKeyPath:            sshKeyPath,
+		sshKeyPassphrase:      sshKeyPassphrase,
+		keychainPassword:      keychainPassword,
+		bootPollSleepInterval: bootPollSleepInterval,
 	}, nil
 }
 
@@ -258,7 +269,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 			}
 
 			if ip == nil {
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(p.bootPollSleepInterval)
 				continue
 			}
 
@@ -272,7 +283,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 				return
 			}
 
-			time.Sleep(time.Second)
+			time.Sleep(p.bootPollSleepInterval)
 		}
 	}(payload.ID)
 
