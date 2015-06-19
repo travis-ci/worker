@@ -152,6 +152,7 @@ func runWorker(c *cli.Context) {
 					logger.WithFields(logrus.Fields{
 						"version":   worker.VersionString,
 						"revision":  worker.RevisionString,
+						"generated": worker.GeneratedString,
 						"boot_time": bootTime,
 						"uptime":    time.Since(bootTime),
 					}).Info("SIGUSR1 received, dumping info")
