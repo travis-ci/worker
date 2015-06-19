@@ -137,7 +137,7 @@ func runWorker(c *cli.Context) {
 	}).Debug("built")
 
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGINFO)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1)
 	go func() {
 		for {
 			select {
@@ -148,13 +148,13 @@ func runWorker(c *cli.Context) {
 				} else if sig == syscall.SIGTERM {
 					logger.Info("SIGTERM received, shutting down immediately")
 					cancel()
-				} else if sig == syscall.SIGINFO {
+				} else if sig == syscall.SIGUSR1 {
 					logger.WithFields(logrus.Fields{
 						"version":   worker.VersionString,
 						"revision":  worker.RevisionString,
 						"boot_time": bootTime,
 						"uptime":    time.Since(bootTime),
-					}).Info("SIGINFO received, dumping info")
+					}).Info("SIGUSR1 received, dumping info")
 					pool.Each(func(n int, proc *worker.Processor) {
 						logger.WithFields(logrus.Fields{
 							"n":         n,
