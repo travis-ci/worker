@@ -136,12 +136,15 @@ func runWorker(c *cli.Context) {
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
 		sig := <-signalChan
-		if sig == syscall.SIGINT {
-			logger.Info("SIGTERM received, starting graceful shutdown")
+		switch sig {
+		case syscall.SIGINT:
+			logger.Info("SIGINT received, starting graceful shutdown")
 			pool.GracefulShutdown()
-		} else {
-			logger.Info("SIGINT received, shutting down immediately")
+		case syscall.SIGTERM:
+			logger.Info("SIGTERM received, shutting down immediately")
 			cancel()
+		default:
+			logger.WithField("signal", sig).Info("ignoring unknown signal")
 		}
 	}()
 
