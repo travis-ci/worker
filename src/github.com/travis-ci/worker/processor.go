@@ -15,9 +15,9 @@ import (
 // A Processor will process build jobs on a channel, one by one, until it is
 // told to shut down or the channel of build jobs closes.
 type Processor struct {
-	processorUUID uuid.UUID
-	hostname      string
-	hardTimeout   time.Duration
+	ID          uuid.UUID
+	hostname    string
+	hardTimeout time.Duration
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -27,6 +27,9 @@ type Processor struct {
 
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
+
+	CurrentJob     Job
+	ProcessedCount int
 
 	SkipShutdownOnLogTimeout bool
 }
@@ -48,9 +51,9 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQue
 	}
 
 	return &Processor{
-		processorUUID: processorUUID,
-		hostname:      hostname,
-		hardTimeout:   hardTimeout,
+		ID:          processorUUID,
+		hostname:    hostname,
+		hardTimeout: hardTimeout,
 
 		ctx:           context.FromProcessor(ctx, processorUUID.String()),
 		buildJobsChan: buildJobsChan,
@@ -110,6 +113,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
 
+	p.CurrentJob = buildJob
+
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{
 			canceller: p.canceller,
@@ -137,8 +142,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	context.LoggerFromContext(ctx).Info("starting job")
 	runner.Run(state)
 	context.LoggerFromContext(ctx).Info("finished job")
+	p.ProcessedCount++
 }
 
 func (p *Processor) fullHostname() string {
-	return fmt.Sprintf("%s:%s", p.hostname, p.processorUUID)
+	return fmt.Sprintf("%s:%s", p.hostname, p.ID)
 }

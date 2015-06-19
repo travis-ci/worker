@@ -23,6 +23,10 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
+var (
+	bootTime = time.Now().UTC()
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Usage = "Travis Worker daemon"
@@ -133,18 +137,38 @@ func runWorker(c *cli.Context) {
 	}).Debug("built")
 
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGINFO)
 	go func() {
-		sig := <-signalChan
-		switch sig {
-		case syscall.SIGINT:
-			logger.Info("SIGINT received, starting graceful shutdown")
-			pool.GracefulShutdown()
-		case syscall.SIGTERM:
-			logger.Info("SIGTERM received, shutting down immediately")
-			cancel()
-		default:
-			logger.WithField("signal", sig).Info("ignoring unknown signal")
+		for {
+			select {
+			case sig := <-signalChan:
+				if sig == syscall.SIGINT {
+					logger.Info("SIGINT received, starting graceful shutdown")
+					pool.GracefulShutdown()
+				} else if sig == syscall.SIGTERM {
+					logger.Info("SIGTERM received, shutting down immediately")
+					cancel()
+				} else if sig == syscall.SIGINFO {
+					logger.WithFields(logrus.Fields{
+						"version":   worker.VersionString,
+						"revision":  worker.RevisionString,
+						"boot_time": bootTime,
+						"uptime":    time.Since(bootTime),
+					}).Info("SIGINFO received, dumping info")
+					pool.Each(func(n int, proc *worker.Processor) {
+						logger.WithFields(logrus.Fields{
+							"n":         n,
+							"id":        proc.ID,
+							"job":       proc.CurrentJob,
+							"processed": proc.ProcessedCount,
+						}).Info("processor info")
+					})
+				} else {
+					logger.WithField("signal", sig).Info("ignoring unknown signal")
+				}
+			default:
+				time.Sleep(time.Second)
+			}
 		}
 	}()
 

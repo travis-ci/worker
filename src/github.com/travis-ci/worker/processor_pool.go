@@ -1,9 +1,11 @@
 package worker
 
 import (
+	"sort"
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -42,6 +44,23 @@ func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.D
 	}
 }
 
+func (p *ProcessorPool) Each(f func(int, *Processor)) {
+	procIDs := []string{}
+	procsByID := map[string]*Processor{}
+
+	for _, proc := range p.processors {
+		id := proc.ID.String()
+		procIDs = append(procIDs, id)
+		procsByID[id] = proc
+	}
+
+	sort.Strings(procIDs)
+
+	for i, procID := range procIDs {
+		f(i, procsByID[procID])
+	}
+}
+
 // Run starts up a number of processors and connects them to the given queue.
 // This method stalls until all processors have finished.
 func (p *ProcessorPool) Run(poolSize int, queueName string) error {
@@ -52,12 +71,24 @@ func (p *ProcessorPool) Run(poolSize int, queueName string) error {
 
 	var wg sync.WaitGroup
 
+	poolErrors := []error{}
+
 	for i := 0; i < poolSize; i++ {
 		wg.Add(1)
 		go func() {
-			p.processor(queue)
+			err := p.processor(queue)
+			if err != nil {
+				poolErrors = append(poolErrors, err)
+				return
+			}
 			wg.Done()
 		}()
+	}
+
+	if len(poolErrors) > 0 {
+		context.LoggerFromContext(p.Context).WithFields(logrus.Fields{
+			"pool_errors": poolErrors,
+		}).Panic("failed to populate pool")
 	}
 
 	wg.Wait()
@@ -76,10 +107,11 @@ func (p *ProcessorPool) GracefulShutdown() {
 	}
 }
 
-func (p *ProcessorPool) processor(queue *JobQueue) {
+func (p *ProcessorPool) processor(queue *JobQueue) error {
 	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller, p.HardTimeout)
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
+		return err
 	}
 
 	proc.SkipShutdownOnLogTimeout = p.SkipShutdownOnLogTimeout
@@ -89,4 +121,5 @@ func (p *ProcessorPool) processor(queue *JobQueue) {
 	p.processorsLock.Unlock()
 
 	proc.Run()
+	return nil
 }
