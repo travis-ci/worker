@@ -160,7 +160,7 @@ func runWorker(c *cli.Context) {
 						logger.WithFields(logrus.Fields{
 							"n":         n,
 							"id":        proc.ID,
-							"job":       proc.CurrentJob,
+							"job":       fmt.Sprintf("%#v", proc.CurrentJob),
 							"processed": proc.ProcessedCount,
 						}).Info("processor info")
 					})
