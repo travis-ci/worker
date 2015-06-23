@@ -1,7 +1,6 @@
 language: go
 go: 1.4.2
 dist: trusty
-sudo: required
 env:
   global:
   - INTEGRATION_TESTS_DISABLED=1
