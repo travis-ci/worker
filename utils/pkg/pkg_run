@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# TravisCI
+set -e
+
+if [[ ! -n $CHECKOUT_ROOT ]]; then
+  source /code/utils/pkg/includes/common
+else
+  source $CHECKOUT_ROOT/utils/pkg/includes/common
+fi
+
+docker_pull_images () {
+  declare -a images=('solarce/trusty-ruby', 'solarce/precise-ruby' \
+    'solarce/centos7-ruby', 'ubuntu-upstart:precise', 'ubuntu-upstart:precise' \
+    '2k0ri/centos7-systemd')
+  echo "## Pulling Docker images for builds and testing ##"
+
+  for image in "${pkg_platforms[@]}"; do
+    echo "### Pulling $image ###"
+    docker pull $image > /dev/null
+  done
+}
+
+docker_run () {
+  pkgtype="1"
+  build_docker_image="1"
+  test_docker_image="1"
+
+  for platform in "${pkg_platforms[@]}"; do
+    platform_family=$(echo $platform|cut -d':' -f 1)
+    platform_release=$(echo $platform|cut -d':' -f 2)
+
+    if [[ $platform_family =~ ubuntu$ ]]; then
+      pkgtype="deb"
+      if [[ $platform_release == "precise" ]]; then
+        build_docker_image="solarce/precise-ruby"
+        test_docker_image="ubuntu-upstart:precise"
+      elif [[ $platform_release == "trusty" ]]; then
+        build_docker_image="solarce/trusty-ruby"
+        test_docker_image="ubuntu-upstart:trusty"
+      fi
+    elif [[ $platform_family =~ centos$ ]]; then
+      pkgtype="rpm"
+      if [[ $platform_release == "7" ]]; then
+        build_docker_image="solarce/centos7-ruby"
+        test_docker_image="2k0ri/centos7-systemd"
+      fi
+    fi
+
+    # Run pkg_build inside the appropriate
+    # docker container to
+    #  - Generate the service script for that distro
+    #  - build the package for that distro
+    docker run -i -t \
+      --name build-$platform_release-$pkgtype-$DATE \
+      --rm=true \
+      -v $CHECKOUT_ROOT/:/code \
+      -w "/code" \
+      $build_docker_image \
+      /code/utils/pkg/pkg_build $platform $pkgtype
+
+    # Install and verify the package in the
+    # appropriate docker container for each distro
+    docker run -d --privileged \
+      --name test-$platform_release-$pkgtype-$DATE \
+      --rm=false \
+      -v $CHECKOUT_ROOT/:/code \
+      -w "/code" \
+      $test_docker_image
+
+    docker exec -it \
+      test-$platform_release-$pkgtype-$DATE \
+      /code/utils/pkg/pkg_test $platform $pkgtype
+
+     if [[ ! -n $NO_PUSH ]]; then
+       package_cloud_push
+     fi
+    # fin
+  done
+}
+
+package_cloud_push () {
+    # Publish the package to packagecloud.io
+    echo "## Publishing package to packagecloud.io ##"
+    package_cloud_os="1"
+    if [[ $platform_family =~ ubuntu$ ]]; then
+      package_cloud_os="ubuntu"
+    elif [[ $platform_family =~ centos$ ]]; then
+      package_cloud_os="el"
+    fi
+    package_cloud push \
+      $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
+      tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype
+}
+
+docker_pull_images
+if [[ ! -n $NO_RUN ]]; then
+  docker_run
+fi
+if [[ ! -n $NO_CLEANUP ]]; then
+  echo "## Cleaning up tmp/ ##"
+  rm -fr tmp/*
+fi

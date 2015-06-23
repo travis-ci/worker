@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [[ ! -n $CHECKOUT_ROOT ]]; then
+  source /code/utils/pkg/includes/common
+else
+  source $CHECKOUT_ROOT/utils/pkg/includes/common
+fi
+
+platform=$1
+platform_family=$(echo $platform|cut -d':' -f 1)
+platform_release=$(echo $platform|cut -d':' -f 2)
+package_type=$2
+
+package_install () {
+  echo "## Installing package ##"
+  if [[ $(cat /etc/issue) =~ 12.04 ]]; then
+    dpkg -i tmp/output/deb/ubuntu/precise/*.deb
+  elif [[ $(cat /etc/issue) =~ 14.04 ]]; then
+    dpkg -i tmp/output/deb/ubuntu/trusty/*.deb
+  elif [[ -f /etc/redhat-release ]]; then
+    rpm -i tmp/output/rpm/centos/7/*.rpm
+  fi
+}
+
+package_verify () {
+  echo "## Verifying package installation ##"
+
+  echo "### Testing 'travis' user ###"
+  if getent passwd travis > /dev/null;then
+    echo "User created successfully"
+  else
+    echo "User not found"
+  fi
+
+  if [[ $platform_family =~ ubuntu$ ]]; then
+    if [[ $(apt-cache show travis-worker) ]]; then
+      echo "Package installed successfully"
+      dpkg -c /code/tmp/output/deb/ubuntu/$platform_release/*.deb
+      apt-cache show travis-worker
+    else
+      echo "Package did not installed"
+      exit 1
+    fi
+    echo "### Testing service installation ###"
+    initctl list|grep travis-worker
+  fi
+
+  if [[ $platform_family =~ centos$ ]]; then
+    if [[ $(yum info travis-worker) ]]; then
+      echo "Package installed successfully"
+      rpm -qlp /code/tmp/output/rpm/centos/$platform_release/*.rpm
+      yum info travis-worker
+    else
+      echo "Package did not install"
+      exit 1
+    fi
+    echo "### Testing service installation  ###"
+    systemctl enable travis-worker
+  fi
+  echo "### Package verified ###"
+}
+
+package_install
+package_verify

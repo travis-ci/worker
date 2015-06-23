@@ -97,3 +97,6 @@ fmtpolice:
 lintall:
 	./utils/lintall
 
+.PHONY:  package
+package:
+	./utils/pkg/pkg_run
