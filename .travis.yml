@@ -8,7 +8,7 @@ env:
   - GOPATH="$HOME/gopath"
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - CHECKOUT_ROOT="$HOME/gopath/src/github.com/solarce/worker"
+  - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
 
 addons:
   artifacts:
