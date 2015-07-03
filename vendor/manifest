@@ -106,6 +106,26 @@
 			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
 			"branch": "master",
 			"path": "/googleapi"
+		},
+		{
+			"importpath": "golang.org/x/oauth2",
+			"repository": "https://go.googlesource.com/oauth2",
+			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"branch": "master"
+		},
+		{
+			"importpath": "google.golang.org/cloud/compute/metadata",
+			"repository": "https://code.googlesource.com/gocloud",
+			"revision": "feda659df33f28fe2d0524fad496b4d01a2015af",
+			"branch": "master",
+			"path": "/compute/metadata"
+		},
+		{
+			"importpath": "google.golang.org/cloud/internal",
+			"repository": "https://code.googlesource.com/gocloud",
+			"revision": "feda659df33f28fe2d0524fad496b4d01a2015af",
+			"branch": "master",
+			"path": "/internal"
 		}
 	]
 }
