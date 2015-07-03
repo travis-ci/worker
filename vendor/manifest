@@ -92,6 +92,12 @@
 			"repository": "https://github.com/dustin/go-humanize",
 			"revision": "00897f070f09f194c26d65afae734ba4c32404e8",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/henrikhodne/goblueboxapi",
+			"repository": "https://github.com/henrikhodne/goblueboxapi",
+			"revision": "1619676d2f2e1f7bcceddd876a8c90fa75885f21",
+			"branch": "master"
 		}
 	]
 }
