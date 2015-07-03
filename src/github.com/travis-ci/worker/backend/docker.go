@@ -59,7 +59,7 @@ type DockerInstance struct {
 }
 
 func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
-	client, err := buildClient(cfg)
+	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
 	}, nil
 }
 
-func buildClient(cfg *config.ProviderConfig) (*docker.Client, error) {
+func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
 	// compatibility with docker's own env vars.
 	if !cfg.IsSet("ENDPOINT") && !cfg.IsSet("HOST") {

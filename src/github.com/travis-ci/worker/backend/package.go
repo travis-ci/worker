@@ -62,6 +62,8 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 		return NewSauceLabsProvider(cfg)
 	case "jupiterbrain":
 		return NewJupiterBrainProvider(cfg)
+	case "gce":
+		return NewGCEProvider(cfg)
 	case "fake":
 		return NewFakeProvider([]byte("Hello to the logs")), nil
 	default:
