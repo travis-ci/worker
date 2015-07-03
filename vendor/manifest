@@ -94,10 +94,11 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/google/google-api-go-client",
-			"repository": "https://github.com/google/google-api-go-client",
+			"importpath": "google.golang.org/api/compute/v1",
+			"repository": "https://code.googlesource.com/google-api-go-client",
 			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
-			"branch": "master"
+			"branch": "master",
+			"path": "/compute/v1"
 		}
 	]
 }
