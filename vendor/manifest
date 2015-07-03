@@ -99,6 +99,13 @@
 			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
 			"branch": "master",
 			"path": "/compute/v1"
+		},
+		{
+			"importpath": "google.golang.org/api/googleapi",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
+			"branch": "master",
+			"path": "/googleapi"
 		}
 	]
 }
