@@ -92,6 +92,12 @@
 			"repository": "https://github.com/dustin/go-humanize",
 			"revision": "00897f070f09f194c26d65afae734ba4c32404e8",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/google/google-api-go-client",
+			"repository": "https://github.com/google/google-api-go-client",
+			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
+			"branch": "master"
 		}
 	]
 }
