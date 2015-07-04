@@ -1,9 +1,9 @@
 package backend
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -43,6 +43,7 @@ var (
              PROJECT_ID - [REQUIRED] GCE project id
            ACCOUNT_JSON - [REQUIRED] account JSON config
            SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
+       SSH_PUB_KEY_PATH - [REQUIRED] path to ssh public key used to access job vms
      SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
                    ZONE - zone name (default %q)
            MACHINE_TYPE - machine name (default %q)
@@ -83,13 +84,13 @@ type GCEProvider struct {
 }
 
 type gceInstanceConfig struct {
-	MachineType      *compute.MachineType
-	Zone             *compute.Zone
-	Network          *compute.Network
-	DiskType         string
-	DiskSize         int64
-	SSHKeyPath       string
-	SSHKeyPassphrase string
+	MachineType  *compute.MachineType
+	Zone         *compute.Zone
+	Network      *compute.Network
+	DiskType     string
+	DiskSize     int64
+	SSHKeySigner ssh.Signer
+	SSHPubKey    string
 }
 
 type GCEInstance struct {
@@ -99,7 +100,7 @@ type GCEInstance struct {
 	ic       *gceInstanceConfig
 
 	authUser string
-	authKey  *rsa.PrivateKey
+	// authKey  *rsa.PrivateKey
 
 	projectID string
 	imageName string
@@ -123,11 +124,49 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 
 	sshKeyPath := cfg.Get("SSH_KEY_PATH")
 
+	if !cfg.IsSet("SSH_PUB_KEY_PATH") {
+		return nil, fmt.Errorf("expected SSH_PUB_KEY_PATH config key")
+	}
+
+	sshKeyBytes, err := ioutil.ReadFile(sshKeyPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	sshPubKeyPath := cfg.Get("SSH_PUB_KEY_PATH")
+
 	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
 		return nil, fmt.Errorf("expected SSH_KEY_PASSPHRASE config key")
 	}
 
+	sshPubKeyBytes, err := ioutil.ReadFile(sshPubKeyPath)
+
+	if err != nil {
+		return nil, err
+	}
+
 	sshKeyPassphrase := cfg.Get("SSH_KEY_PASSPHRASE")
+
+	block, _ := pem.Decode(sshKeyBytes)
+	if block == nil {
+		return nil, fmt.Errorf("ssh key does not contain a valid PEM block")
+	}
+
+	der, err := x509.DecryptPEMBlock(block, []byte(sshKeyPassphrase))
+	if err != nil {
+		return nil, err
+	}
+
+	parsedKey, err := x509.ParsePKCS1PrivateKey(der)
+	if err != nil {
+		return nil, err
+	}
+
+	sshKeySigner, err := ssh.NewSignerFromKey(parsedKey)
+	if err != nil {
+		return nil, err
+	}
 
 	zoneName := defaultGCEZone
 	if cfg.IsSet("ZONE") {
@@ -175,10 +214,10 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 			Zone:        zone,
 			Network:     nw,
 			// DiskType:         fmt.Sprintf("zones/%s/diskTypes/local-ssd", zone.Name),
-			DiskType:         fmt.Sprintf("zones/%s/diskTypes/pd-standard", zone.Name),
-			DiskSize:         diskSize,
-			SSHKeyPath:       sshKeyPath,
-			SSHKeyPassphrase: sshKeyPassphrase,
+			DiskType:     fmt.Sprintf("zones/%s/diskTypes/pd-standard", zone.Name),
+			DiskSize:     diskSize,
+			SSHKeySigner: sshKeySigner,
+			SSHPubKey:    string(sshPubKeyBytes),
 		},
 	}, nil
 }
@@ -223,16 +262,6 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil, err
 	}
 
-	authKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, err
-	}
-
-	pubKey, err := ssh.NewPublicKey(authKey)
-	if err != nil {
-		return nil, err
-	}
-
 	inst := &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -256,8 +285,9 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
-					Key:   "startup-script",
-					Value: fmt.Sprintf(gceStartupScript, string(ssh.MarshalAuthorizedKey(pubKey))),
+					Key: "startup-script",
+					// Value: fmt.Sprintf(gceStartupScript, string(ssh.MarshalAuthorizedKey(pubKey))),
+					Value: fmt.Sprintf(gceStartupScript, p.ic.SSHPubKey),
 				},
 			},
 		},
@@ -332,7 +362,7 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			ic:       p.ic,
 
 			authUser: "travis",
-			authKey:  authKey,
+			// authKey:  authKey,
 
 			projectID: p.projectID,
 			imageName: image.Name,
@@ -370,33 +400,6 @@ func (p *GCEProvider) imageForLanguage(language string) (*compute.Image, error) 
 }
 
 func (i *GCEInstance) sshClient() (*ssh.Client, error) {
-	/*
-		file, err := ioutil.ReadFile(i.ic.SSHKeyPath)
-		if err != nil {
-			return nil, err
-		}
-
-		block, _ := pem.Decode(file)
-		if block == nil {
-			return nil, fmt.Errorf("ssh key does not contain a valid PEM block")
-		}
-
-		der, err := x509.DecryptPEMBlock(block, []byte(i.ic.SSHKeyPassphrase))
-		if err != nil {
-			return nil, err
-		}
-
-		key, err := x509.ParsePKCS1PrivateKey(der)
-		if err != nil {
-			return nil, err
-		}
-
-		signer, err := ssh.NewSignerFromKey(key)
-		if err != nil {
-			return nil, err
-		}
-	*/
-
 	i.refreshInstance()
 
 	ipAddr := i.getIP()
@@ -404,16 +407,18 @@ func (i *GCEInstance) sshClient() (*ssh.Client, error) {
 		return nil, gceMissingIPAddressError
 	}
 
-	// FIXME: i.authKey is *rsa.PrivateKey, but NewSignerFromKey rejects it??
-	ks, err := ssh.NewSignerFromKey(i.authKey)
-	if err != nil {
-		return nil, err
-	}
+	/*
+		// FIXME: i.authKey is *rsa.PrivateKey, but NewSignerFromKey rejects it??
+		signer, err := ssh.NewSignerFromKey(i.authKey)
+		if err != nil {
+			return nil, err
+		}
+	*/
 
 	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ipAddr), &ssh.ClientConfig{
 		User: i.authUser,
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(ks),
+			ssh.PublicKeys(i.ic.SSHKeySigner),
 		},
 	})
 }
@@ -445,6 +450,28 @@ func (i *GCEInstance) refreshInstance() error {
 }
 
 func (i *GCEInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+	uploadedChan := make(chan bool)
+	var uploadErr error = nil
+
+	go func() {
+		for {
+			err := i.uploadScriptAttempt(ctx, script)
+			if err == nil {
+				uploadedChan <- true
+			}
+			uploadErr = err
+		}
+	}()
+
+	select {
+	case <-uploadedChan:
+		return nil
+	case <-ctx.Done():
+		return uploadErr
+	}
+}
+
+func (i *GCEInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
