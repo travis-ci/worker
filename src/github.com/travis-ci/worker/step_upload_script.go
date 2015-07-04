@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"time"
+
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -8,7 +10,9 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
-type stepUploadScript struct{}
+type stepUploadScript struct {
+	uploadTimeout time.Duration
+}
 
 func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
@@ -16,6 +20,9 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	instance := state.Get("instance").(backend.Instance)
 	script := state.Get("script").([]byte)
+
+	ctx, cancel := gocontext.WithTimeout(ctx, s.uploadTimeout)
+	defer cancel()
 
 	err := instance.UploadScript(ctx, script)
 	if err != nil {

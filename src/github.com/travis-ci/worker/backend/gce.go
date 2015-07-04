@@ -100,7 +100,6 @@ type GCEInstance struct {
 	ic       *gceInstanceConfig
 
 	authUser string
-	// authKey  *rsa.PrivateKey
 
 	projectID string
 	imageName string
@@ -210,10 +209,9 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 		client:    client,
 		projectID: projectID,
 		ic: &gceInstanceConfig{
-			MachineType: mt,
-			Zone:        zone,
-			Network:     nw,
-			// DiskType:         fmt.Sprintf("zones/%s/diskTypes/local-ssd", zone.Name),
+			MachineType:  mt,
+			Zone:         zone,
+			Network:      nw,
 			DiskType:     fmt.Sprintf("zones/%s/diskTypes/pd-standard", zone.Name),
 			DiskSize:     diskSize,
 			SSHKeySigner: sshKeySigner,
@@ -285,8 +283,7 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
-					Key: "startup-script",
-					// Value: fmt.Sprintf(gceStartupScript, string(ssh.MarshalAuthorizedKey(pubKey))),
+					Key:   "startup-script",
 					Value: fmt.Sprintf(gceStartupScript, p.ic.SSHPubKey),
 				},
 			},
@@ -362,7 +359,6 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			ic:       p.ic,
 
 			authUser: "travis",
-			// authKey:  authKey,
 
 			projectID: p.projectID,
 			imageName: image.Name,
@@ -406,14 +402,6 @@ func (i *GCEInstance) sshClient() (*ssh.Client, error) {
 	if ipAddr == "" {
 		return nil, gceMissingIPAddressError
 	}
-
-	/*
-		// FIXME: i.authKey is *rsa.PrivateKey, but NewSignerFromKey rejects it??
-		signer, err := ssh.NewSignerFromKey(i.authKey)
-		if err != nil {
-			return nil, err
-		}
-	*/
 
 	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ipAddr), &ssh.ClientConfig{
 		User: i.authUser,

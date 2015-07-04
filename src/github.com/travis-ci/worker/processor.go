@@ -128,7 +128,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			provider:     p.provider,
 			startTimeout: 4 * time.Minute,
 		},
-		&stepUploadScript{},
+		&stepUploadScript{
+			uploadTimeout: 1 * time.Minute,
+		},
 		&stepUpdateState{},
 		&stepRunScript{
 			logTimeout:               p.logTimeout,
