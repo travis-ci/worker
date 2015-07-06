@@ -1,13 +1,13 @@
 [Unit]
 Description=no description given
- 
+
 [Service]
 Type=simple
 EnvironmentFile=/etc/default/travis-enterprise
 EnvironmentFile=/etc/default/travis-worker
-User=travis-worker
-Group=travis-worker
-ExecStart=/usr/local/bin/travis-worker 
+User=travis
+Group=travis
+ExecStart=/usr/local/bin/travis-worker
 Restart=always
 
 [Install]
