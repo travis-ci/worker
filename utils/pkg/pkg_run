@@ -2,6 +2,16 @@
 # TravisCI
 set -e
 
+if [[ ! $(which docker) ]]; then
+  echo "Docker not found. Please install docker."
+  exit 1
+fi
+
+# set the version file before anything else, because
+# we need it in our build env and inside the docker
+# containers we'll run some stuff in
+git tag|tail -n 1|cut -d'v' -f 2 > tmp/VERSION
+
 if [[ ! -n $CHECKOUT_ROOT ]]; then
   source /code/utils/pkg/includes/common
 else
@@ -21,6 +31,7 @@ docker_pull_images () {
 }
 
 docker_run () {
+  LATEST_PUBLISHED_VERSION=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/travisci/worker/package/rpm/el/7/travis-worker/x86_64/versions.json | jq .[].version | tail -n 1 | tr -d '"')
   pkgtype="1"
   build_docker_image="1"
   test_docker_image="1"
@@ -71,9 +82,11 @@ docker_run () {
       test-$platform_release-$pkgtype-$DATE \
       /code/utils/pkg/pkg_test $platform $pkgtype
 
-     if [[ ! -n $NO_PUSH ]]; then
-       package_cloud_push
-     fi
+    if [[ ! -n $NO_PUSH && $VERSION != $LATEST_PUBLISHED_VERSION ]]; then
+      package_cloud_push
+    else
+      echo "Version: $VERSION is the same as what's published, not publishing again."
+    fi
     # fin
   done
 }

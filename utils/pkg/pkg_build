@@ -92,7 +92,7 @@ run_fpm () {
     -n travis-worker \
     --url "https://github.com/travis-ci/worker" \
     --description "Travis-CI Go Worker" \
-    -v $(git tag|tail -n 1|cut -d'v' -f 2) \
+    -v $VERSION \
     -C tmp/$package_type \
     .
 
