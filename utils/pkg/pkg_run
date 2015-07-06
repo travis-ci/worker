@@ -10,7 +10,7 @@ fi
 # set the version file before anything else, because
 # we need it in our build env and inside the docker
 # containers we'll run some stuff in
-git tag|tail -n 1|cut -d'v' -f 2 > tmp/VERSION
+git tag|tail -n 1|cut -d'v' -f 2 > VERSION
 
 if [[ ! -n $CHECKOUT_ROOT ]]; then
   source /code/utils/pkg/includes/common
