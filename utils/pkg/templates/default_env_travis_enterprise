@@ -4,4 +4,4 @@
 
 # export TRAVIS_ENTERPRISE_HOST="enterprise.yourhostname.corp"
 # export TRAVIS_ENTERPRISE_SECURITY_TOKEN="abcd1234"
-# export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="__build__"
+export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="__build__"
