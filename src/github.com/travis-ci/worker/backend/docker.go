@@ -271,9 +271,9 @@ func (p *DockerProvider) checkoutCPUSets() (string, error) {
 
 	cpuSetsString := []string{}
 
-	for i := len(cpuSets); i > 0; i-- {
-		p.cpuSets[cpuSets[i]] = true
-		cpuSetsString = append(cpuSetsString, fmt.Sprintf("%d", cpuSets[i]))
+	for _, cpuSet := range cpuSets {
+		p.cpuSets[cpuSet] = true
+		cpuSetsString = append(cpuSetsString, fmt.Sprintf("%d", cpuSet))
 	}
 
 	return strings.Join(cpuSetsString, ","), nil
