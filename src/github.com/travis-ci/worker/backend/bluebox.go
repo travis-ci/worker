@@ -10,6 +10,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/henrikhodne/goblueboxapi"
+	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
@@ -192,14 +193,72 @@ func (i *BlueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) err
 	if err != nil {
 		return err
 	}
-
 	defer client.Close()
 
-	return nil
+	sftp, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftp.Close()
+
+	_, err = sftp.Lstat("build.sh")
+	if err == nil {
+		return ErrStaleVM
+	}
+
+	f, err := sftp.Create("build.sh")
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(script)
+	if err != nil {
+		return err
+	}
+
+	f, err = sftp.Create("wrapper.sh")
+	if err != nil {
+		return err
+	}
+
+	_, err = fmt.Fprintf(f, wrapperSh)
+
+	return err
 }
 
 func (i *BlueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
-	return nil, nil
+	client, err := i.sshClient()
+	if err != nil {
+		return &RunResult{Completed: false}, err
+	}
+	defer client.Close()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return &RunResult{Completed: false}, err
+	}
+	defer session.Close()
+
+	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
+	if err != nil {
+		return &RunResult{Completed: false}, err
+	}
+
+	session.Stdout = output
+	session.Stderr = output
+
+	err = session.Run("bash ~/wrapper.sh")
+	defer output.Close()
+	if err == nil {
+		return &RunResult{Completed: true, ExitCode: 0}, nil
+	}
+
+	switch err := err.(type) {
+	case *ssh.ExitError:
+		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
+	default:
+		return &RunResult{Completed: false}, err
+	}
 }
 
 func (i *BlueBoxInstance) Stop(ctx gocontext.Context) error {
