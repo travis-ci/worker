@@ -1,0 +1,15 @@
+# common script stuff
+
+CHECKOUT_ROOT=${CHECKOUT_ROOT:-$TRAVIS_BUILD_DIR}
+DATE=$(date +"%m-%d-%Y_%H-%M-%S")
+PC_USER="travisci"
+PC_REPO="worker"
+if [[ -z $CHECKOUT_ROOT ]]; then
+  VERSION=$(cat /code/VERSION)
+else
+  VERSION=$(cat $CHECKOUT_ROOT/VERSION)
+fi
+
+declare -a pkg_types=('rpm' 'deb')
+declare -a pkg_platforms=('ubuntu:trusty' \
+  'ubuntu:precise' 'centos:7')

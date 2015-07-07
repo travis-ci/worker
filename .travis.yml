@@ -1,13 +1,14 @@
 language: go
 go: 1.4.2
-sudo: false
+dist: trusty
 
 env:
   global:
   - INTEGRATION_TESTS_DISABLED=1
   - GOPATH="$HOME/gopath"
-  - PATH="$HOME/gopath/src/github.com/travis-ci/worker/bin:$HOME/gopath/bin:$HOME/bin:$PATH"
+  - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
+  - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
 
 addons:
   artifacts:
@@ -19,18 +20,20 @@ addons:
     - 'travis-ci/worker/$TRAVIS_BRANCH'
 
 install:
-  - go get github.com/constabulary/gb/...
+- go get github.com/constabulary/gb/...
+- gem install package_cloud --no-ri --no-rdoc
 
 script:
-  - make test
-  - make test-race
-  - git diff --exit-code || echo 'wat is goin on'
-  - git diff --cached --exit-code || echo 'wat is goin on'
-  - travis-worker --version
-  - travis-worker -v
-  - travis-worker --help
-  - travis-worker -h
-  - travis-worker --echo-config
+- make test
+- make test-race
+- git diff --exit-code || echo 'wat is goin on'
+- git diff --cached --exit-code || echo 'wat is goin on'
+- travis-worker --version
+- travis-worker -v
+- travis-worker --help
+- travis-worker -h
+- travis-worker --echo-config
+- make package
 
 # TODO: enable integration tests
 # - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
@@ -49,3 +52,4 @@ notifications:
   slack:
     rooms:
     - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 
+
