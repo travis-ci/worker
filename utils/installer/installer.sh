@@ -57,12 +57,6 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-if [[ ! -n $TRAVIS_WORKER_VERSION ]]; then
-  export TRAVIS_WORKER_VERSION="0.4.3"
-else
-  export TRAVIS_WORKER_VERSION
-fi
-
 if [[ ! -n $DOCKER_VERSION ]]; then
   export DOCKER_VERSION="1.6.2"
 else
@@ -159,7 +153,11 @@ install_travis_worker() {
   if [[ ! -f /etc/apt/sources.list.d/travisci_worker.list ]]; then
     # add packagecloud apt repo for travis-worker
     curl -s https://packagecloud.io/install/repositories/travisci/worker/script.deb.sh | bash
-    apt-get install travis-worker=$TRAVIS_WORKER_VERSION
+    if [[ -n $TRAVIS_WORKER_VERSION ]]; then
+      apt-get install travis-worker=$TRAVIS_WORKER_VERSION
+    else
+      apt-get install travis-worker
+    fi
   fi
 }
 
