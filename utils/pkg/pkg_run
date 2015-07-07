@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # TravisCI
-set -e
+
+if [[ -n $BUILD_DEBUG ]]; then
+  set -ex
+else
+  set -e
+fi
 
 if [[ ! $(which docker) ]]; then
   echo "Docker not found. Please install docker."
@@ -61,7 +66,14 @@ docker_run () {
     # docker container to
     #  - Generate the service script for that distro
     #  - build the package for that distro
-    docker run -i -t \
+    DOCKER_RUN_CMD="docker run"
+    if [[ -n $BUILD_DEBUG ]]; then
+      export DOCKER_RUN_CMD="$DOCKER_RUN_CMD --env BUILD_DEBUG=true"
+    else
+      export DOCKER_RUN_CMD
+    fi
+
+    $DOCKER_RUN_CMD -i -t \
       --name build-$platform_release-$pkgtype-$DATE \
       --rm=true \
       -v $CHECKOUT_ROOT/:/code \
@@ -71,7 +83,7 @@ docker_run () {
 
     # Install and verify the package in the
     # appropriate docker container for each distro
-    docker run -d --privileged \
+    $DOCKER_RUN_CMD -d --privileged \
       --name test-$platform_release-$pkgtype-$DATE \
       --rm=false \
       -v $CHECKOUT_ROOT/:/code \

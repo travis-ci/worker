@@ -33,3 +33,4 @@ coverage.html
 .build/
 bin/travis-worker
 tmp/
+VERSION

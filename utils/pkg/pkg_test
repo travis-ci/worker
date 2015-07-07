@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-set -e
+if [[ -n $BUILD_DEBUG ]]; then
+  set -ex
+else
+  set -e
+fi
 
 if [[ ! -n $CHECKOUT_ROOT ]]; then
   source /code/utils/pkg/includes/common
