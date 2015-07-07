@@ -34,3 +34,4 @@ coverage.html
 bin/travis-worker
 tmp/
 VERSION
+.vagrant/
