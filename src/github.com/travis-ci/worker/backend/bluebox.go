@@ -156,25 +156,6 @@ type BlueBoxInstance struct {
 	password string
 }
 
-/*
-func (i *BlueBoxInstance) SSHInfo() VMSSHInfo {
-	ipString := s.block.IPs[0].Address
-	for _, address := range s.block.IPs {
-		ip := net.ParseIP(address.Address)
-		if ip.To4() != nil {
-			ipString = ip.String()
-			break
-		}
-	}
-
-	return VMSSHInfo{
-		Addr:     fmt.Sprintf("%s:22", ipString),
-		Username: "travis",
-		Password: s.password,
-	}
-}
-*/
-
 func (i *BlueBoxInstance) sshClient() (*ssh.Client, error) {
 	if len(i.block.IPs) == 0 {
 		return nil, errNoBlueBoxIP
