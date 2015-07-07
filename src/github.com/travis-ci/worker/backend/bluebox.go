@@ -83,6 +83,8 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 				blockReady <- true
 				return
 			}
+
+			time.Sleep(5 * time.Second)
 		}
 	}(block.ID)
 
