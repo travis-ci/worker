@@ -6,5 +6,5 @@ export AMQP_URI="amqp://travis:${TRAVIS_ENTERPRISE_SECURITY_TOKEN:-travis}@${TRA
 export BUILD_API_URI="http://travis:${TRAVIS_ENTERPRISE_SECURITY_TOKEN:-travis}@${TRAVIS_ENTERPRISE_HOST:-localhost}/${TRAVIS_ENTERPRISE_BUILD_ENDPOINT:-build-api}"
 export POOL_SIZE='2'
 export PROVIDER_NAME='docker'
-export QUEUE_NAME='builds.*'
+export QUEUE_NAME='builds.linux'
 export TRAVIS_WORKER_DOCKER_ENDPOINT='tcp://localhost:4243'

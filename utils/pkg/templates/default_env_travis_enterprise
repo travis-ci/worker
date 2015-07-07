@@ -2,6 +2,6 @@
 # Uncomment and set, then restart `travis-worker` for
 # them to take effect.
 
-# export TRAVIS_ENTERPRISE_HOST="demo.enterprise.travis-ci.com"
+# export TRAVIS_ENTERPRISE_HOST="enterprise.yourhostname.corp"
 # export TRAVIS_ENTERPRISE_SECURITY_TOKEN="abcd1234"
-# export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="build-api"
+# export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="__build__"
