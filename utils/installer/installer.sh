@@ -58,7 +58,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [[ ! -n $TRAVIS_WORKER_VERSION ]]; then
-  export TRAVIS_WORKER_VERSION="0.4.3"
+  export TRAVIS_WORKER_VERSION="$(curl -s https://api.github.com/repos/travis-ci/worker/releases/latest|grep tag_name|awk '{print $2}'|tr -d '"'|tr -d ','|tr -d 'v')"
 else
   export TRAVIS_WORKER_VERSION
 fi
