@@ -4,3 +4,4 @@
 
 # export TRAVIS_ENTERPRISE_HOST="demo.enterprise.travis-ci.com"
 # export TRAVIS_ENTERPRISE_SECURITY_TOKEN="abcd1234"
+# export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="build-api"
