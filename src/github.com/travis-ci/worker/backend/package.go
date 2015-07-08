@@ -75,6 +75,7 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 		return nil, fmt.Errorf("unknown provider: %s", name)
 	}
 }
+
 func generatePassword() string {
 	randomBytes := make([]byte, 30)
 	rand.Read(randomBytes)
