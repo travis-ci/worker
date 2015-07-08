@@ -174,7 +174,7 @@ func (i *BlueBoxInstance) sshClient() (*ssh.Client, error) {
 		return nil, errNoBlueBoxIP
 	}
 
-	return ssh.Dial("tcp6", fmt.Sprintf("[%s]:22", i.block.IPs[0]), &ssh.ClientConfig{
+	return ssh.Dial("tcp6", fmt.Sprintf("[%s]:22", i.block.IPs[0].Address), &ssh.ClientConfig{
 		User: "travis",
 		Auth: []ssh.AuthMethod{
 			ssh.Password(i.password),
