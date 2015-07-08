@@ -66,7 +66,7 @@ fi
 if [[ ! -n $AWS ]]; then
   export AWS=false
 else
-  export AWS
+  export AWS=true
 fi
 
 ##
@@ -108,7 +108,7 @@ docker_setup() {
 
   fi
 
-  if [[ -n $AWS ]]; then
+  if [[ $AWS == true ]]; then
     DOCKER_MOUNT_POINT="--graph=/mnt/docker"
   fi
 
