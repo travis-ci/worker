@@ -87,7 +87,13 @@ func (p *Processor) Run() {
 			if !ok {
 				return
 			}
-			ctx, cancel := gocontext.WithTimeout(context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID), p.hardTimeout)
+
+			hardTimeout := p.hardTimeout
+			if buildJob.Payload().Timeouts.HardLimit != 0 {
+				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
+			}
+
+			ctx, cancel := gocontext.WithTimeout(context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID), hardTimeout)
 			p.process(ctx, buildJob)
 			cancel()
 		}
@@ -115,6 +121,11 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("ctx", ctx)
 
 	p.CurrentJob = buildJob
+
+	logTimeout := p.logTimeout
+	if buildJob.Payload().Timeouts.LogSilence != 0 {
+		logTimeout = time.Duration(buildJob.Payload().Timeouts.LogSilence) * time.Second
+	}
 
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{
