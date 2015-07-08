@@ -86,6 +86,13 @@ copy_service_scripts () {
 }
 
 run_fpm () {
+
+  if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]]; then
+    FULL_GIT_VERSION=$(git describe --always --dirty --tags 2>/dev/null)
+    GIT_INCREMENT=$(echo $FULL_GIT_VERSION|cut -d'-' -f 2)
+    export VERSION="$VERSION".dev."$GIT_INCREMENT"-"$CURRENT_SHA1"
+  fi
+
   echo "## Building package for $platform with fpm ##"
   fpm -f -s dir \
     --log info \

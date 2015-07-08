@@ -19,14 +19,10 @@ if [[ ! -n $PACKAGECLOUD_TOKEN ]]; then
   echo "you must set a PACKAGECLOUD_TOKEN env variable for this to run"
   exit 1
 fi
-git tag|tail -n 1|cut -d'v' -f 2 > VERSION
-LATEST_PUBLISHED_VERSION=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/travisci/worker/package/rpm/el/7/travis-worker/x86_64/versions.json | jq .[].version | tail -n 1 | tr -d '"')
 
-if [[ $(cat VERSION) == $LATEST_PUBLISHED_VERSION ]]; then
-  echo "Version: $(cat VERSION) is the same as what's on packagecloud.io, not publishing again."
-  # We exit with 0 because this shouldn't trigger a build failure.
-  exit 0
-fi
+git tag|tail -n 1|cut -d'v' -f 2 > VERSION
+git rev-parse --short $(git rev-parse $(git tag|tail -n 1)) >  VERSION_SHA1
+git rev-parse --short $(git rev-parse HEAD) > CURRENT_SHA1
 
 if [[ ! -n $CHECKOUT_ROOT ]]; then
   source /code/utils/pkg/includes/common
@@ -120,6 +116,11 @@ package_cloud_push () {
     elif [[ $platform_family =~ centos$ ]]; then
       package_cloud_os="el"
     fi
+
+    if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]]; then
+      export PC_REPO="worker-testing"
+    fi
+
     package_cloud push \
       $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
       tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype
