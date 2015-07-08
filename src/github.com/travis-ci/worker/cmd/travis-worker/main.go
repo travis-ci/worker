@@ -128,8 +128,8 @@ func runWorker(c *cli.Context) {
 
 	go commandDispatcher.Run()
 
-	pool := worker.NewProcessorPool(cfg.Hostname, ctx, cfg.HardTimeout, amqpConn,
-		provider, generator, commandDispatcher)
+	pool := worker.NewProcessorPool(cfg.Hostname, ctx, cfg.HardTimeout, cfg.LogTimeout,
+		amqpConn, provider, generator, commandDispatcher)
 
 	pool.SkipShutdownOnLogTimeout = cfg.SkipShutdownOnLogTimeout
 	logger.WithFields(logrus.Fields{

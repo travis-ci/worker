@@ -22,6 +22,7 @@ type ProcessorPool struct {
 	Canceller   Canceller
 	Hostname    string
 	HardTimeout time.Duration
+	LogTimeout  time.Duration
 
 	SkipShutdownOnLogTimeout bool
 
@@ -30,13 +31,14 @@ type ProcessorPool struct {
 }
 
 func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.Duration,
-	amqpConn *amqp.Connection, provider backend.Provider, generator BuildScriptGenerator,
-	canceller Canceller) *ProcessorPool {
+	logTimeout time.Duration, amqpConn *amqp.Connection, provider backend.Provider,
+	generator BuildScriptGenerator, canceller Canceller) *ProcessorPool {
 
 	return &ProcessorPool{
 		Hostname:    hostname,
 		Context:     ctx,
 		HardTimeout: hardTimeout,
+		LogTimeout:  logTimeout,
 		Conn:        amqpConn,
 		Provider:    provider,
 		Generator:   generator,
@@ -108,7 +110,7 @@ func (p *ProcessorPool) GracefulShutdown() {
 }
 
 func (p *ProcessorPool) processor(queue *JobQueue) error {
-	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller, p.HardTimeout)
+	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller, p.HardTimeout, p.LogTimeout)
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 		return err

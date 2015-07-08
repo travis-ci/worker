@@ -18,6 +18,7 @@ type Processor struct {
 	ID          uuid.UUID
 	hostname    string
 	hardTimeout time.Duration
+	logTimeout  time.Duration
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -39,7 +40,7 @@ type Processor struct {
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQueue,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
-	hardTimeout time.Duration) (*Processor, error) {
+	hardTimeout time.Duration, logTimeout time.Duration) (*Processor, error) {
 
 	processorUUID := uuid.NewRandom()
 
@@ -54,6 +55,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQue
 		ID:          processorUUID,
 		hostname:    hostname,
 		hardTimeout: hardTimeout,
+		logTimeout:  logTimeout,
 
 		ctx:           context.FromProcessor(ctx, processorUUID.String()),
 		buildJobsChan: buildJobsChan,
@@ -130,7 +132,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepUploadScript{},
 		&stepUpdateState{},
 		&stepRunScript{
-			logTimeout:               10 * time.Minute,
+			logTimeout:               p.logTimeout,
 			maxLogLength:             4500000,
 			hardTimeout:              p.hardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,

@@ -69,6 +69,12 @@ var (
 			Usage:  "The outermost (maximum) timeout for a given job, at which time the job is cancelled",
 			EnvVar: twEnvVars("HARD_TIMEOUT"),
 		},
+		cli.DurationFlag{
+			Name:   "log-timeout",
+			Value:  defaultLogTimeout,
+			Usage:  "The timeout for a job that's not outputting anything",
+			EnvVar: twEnvVars("LOG_TIMEOUT"),
+		},
 
 		// build script generator flags
 		cli.DurationFlag{

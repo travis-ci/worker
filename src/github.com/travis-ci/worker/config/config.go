@@ -28,6 +28,7 @@ type Config struct {
 	SentryDSN      string
 	Hostname       string
 	HardTimeout    time.Duration
+	LogTimeout     time.Duration
 
 	BuildAPIInsecureSkipVerify bool
 	SkipShutdownOnLogTimeout   bool
@@ -61,6 +62,7 @@ func ConfigFromCLIContext(c *cli.Context) *Config {
 		SentryDSN:     c.String("sentry-dsn"),
 		Hostname:      c.String("hostname"),
 		HardTimeout:   c.Duration("hard-timeout"),
+		LogTimeout:    c.Duration("log-timeout"),
 
 		BuildAPIInsecureSkipVerify: c.Bool("build-api-insecure-skip-verify"),
 		SkipShutdownOnLogTimeout:   c.Bool("skip-shutdown-on-log-timeout"),
