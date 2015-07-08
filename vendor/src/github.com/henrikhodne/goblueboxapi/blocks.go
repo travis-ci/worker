@@ -18,6 +18,7 @@ type Block struct {
 	Hostname string
 	IPs      []BlockIP
 	Status   string
+	VSHID    string `json:"vsh_id"`
 }
 
 // A BlockIP holds an IPv4 or IPv6 address for a block.

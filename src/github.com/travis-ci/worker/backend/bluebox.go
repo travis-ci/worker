@@ -169,21 +169,28 @@ type BlueBoxInstance struct {
 	password string
 }
 
-func (i *BlueBoxInstance) sshClient() (*ssh.Client, error) {
+func (i *BlueBoxInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 	if len(i.block.IPs) == 0 {
 		return nil, errNoBlueBoxIP
 	}
 
-	return ssh.Dial("tcp6", fmt.Sprintf("[%s]:22", i.block.IPs[0].Address), &ssh.ClientConfig{
+	client, err := ssh.Dial("tcp6", fmt.Sprintf("[%s]:22", i.block.IPs[0].Address), &ssh.ClientConfig{
 		User: "travis",
 		Auth: []ssh.AuthMethod{
 			ssh.Password(i.password),
 		},
 	})
+
+	if err != nil {
+		metrics.Mark("worker.vm.provider.bluebox.ssh.error")
+		context.LoggerFromContext(ctx).WithField("block", i.block).WithField("vsh_id", i.block.VSHID).WithField("err", err).Error("error connecting to SSH")
+	}
+
+	return client, err
 }
 
 func (i *BlueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) error {
-	client, err := i.sshClient()
+	client, err := i.sshClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -221,7 +228,7 @@ func (i *BlueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) err
 }
 
 func (i *BlueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
-	client, err := i.sshClient()
+	client, err := i.sshClient(ctx)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
