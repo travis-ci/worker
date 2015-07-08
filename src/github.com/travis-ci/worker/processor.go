@@ -73,6 +73,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQue
 // if the build jobs channel is closed.
 func (p *Processor) Run() {
 	context.LoggerFromContext(p.ctx).Info("starting processor")
+	defer context.LoggerFromContext(p.ctx).Info("processor done")
 
 	for {
 		select {
@@ -91,8 +92,6 @@ func (p *Processor) Run() {
 			cancel()
 		}
 	}
-
-	context.LoggerFromContext(p.ctx).Info("processor done")
 }
 
 // GracefulShutdown tells the processor to finish the job it is currently
