@@ -12,6 +12,7 @@ import (
 	"github.com/henrikhodne/goblueboxapi"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
+	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
@@ -71,17 +72,10 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 	}
 
 	blockReady := make(chan bool)
-	errChan := make(chan error)
-
 	go func(id string) {
 		for {
 			block, err = b.client.Blocks.Get(id)
-			if err != nil {
-				errChan <- err
-				return
-			}
-
-			if block.Status == "running" {
+			if err == nil && block.Status == "running" {
 				blockReady <- true
 				return
 			}
@@ -98,9 +92,14 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 			block:    block,
 			password: password,
 		}, nil
-	case err := <-errChan:
-		return nil, err
 	case <-ctx.Done():
+		if block != nil {
+			err := b.client.Blocks.Destroy(block.ID)
+			if err != nil {
+				context.LoggerFromContext(ctx).WithField("block", block).WithField("err", err).Error("could not destroy block")
+			}
+		}
+
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.bluebox.boot.timeout")
 		}
