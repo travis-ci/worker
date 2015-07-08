@@ -32,7 +32,7 @@ func main() {
 	app.Usage = "Travis Worker daemon"
 	app.Version = worker.VersionString
 	app.Author = "Travis CI GmbH"
-	app.Email = "contact+travis-worker@travis-ci.org"
+	app.Email = "contact+travis-worker@travis-ci.com"
 
 	app.Flags = config.Flags
 	app.Action = runWorker
