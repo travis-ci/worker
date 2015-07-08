@@ -55,7 +55,7 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 	password := generatePassword()
 	params := goblueboxapi.BlockParams{
 		Product:  b.cfg.Get("PRODUCT_ID"),
-		Template: b.templateIDForLanguage(startAttributes.Language),
+		Template: b.templateIDForLanguageGroup(startAttributes.Language, startAttributes.Group),
 		Location: b.cfg.Get("LOCATION_ID"),
 		Hostname: fmt.Sprintf("testing-bb-%s", uuid.NewUUID()),
 		Username: "travis",
@@ -108,13 +108,18 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 	}
 }
 
-func (b *BlueBoxProvider) templateIDForLanguage(language string) string {
+func (b *BlueBoxProvider) templateIDForLanguageGroup(language, group string) string {
 	languageMapSetting := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(language))
 	if b.cfg.IsSet(languageMapSetting) {
 		language = b.cfg.Get(languageMapSetting)
 	}
 
 	templates := b.latestTemplates()
+
+	if templateID, ok := templates[fmt.Sprintf("%s-%s", language, group)]; group != "" && ok {
+		return templateID
+	}
+
 	if templateID, ok := templates[language]; ok {
 		return templateID
 	}
