@@ -20,8 +20,9 @@ if [[ ! -n $PACKAGECLOUD_TOKEN ]]; then
   exit 1
 fi
 
-git tag|tail -n 1|cut -d'v' -f 2 > VERSION
-git rev-parse --short $(git rev-parse $(git tag|tail -n 1)) >  VERSION_SHA1
+git tag|tail -n 1|tr -d 'v' > VERSION
+export LATEST_PUBLISHED_VERSION=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/travisci/worker/package/rpm/el/7/travis-worker/x86_64/versions.json | jq .[].version | tail -n 1 | tr -d '"')
+git rev-parse --short $(git rev-list $(git tag|tail -n 1)|head -n 1) > VERSION_SHA1
 git rev-parse --short $(git rev-parse HEAD) > CURRENT_SHA1
 
 if [[ ! -n $CHECKOUT_ROOT ]]; then
@@ -102,6 +103,8 @@ docker_run () {
 
     if [[ ! -n $NO_PUSH ]]; then
       package_cloud_push
+    else
+      echo "NO_PUSH set, so skipping pushing to packagecloud.io"
     fi
     # fin
   done
