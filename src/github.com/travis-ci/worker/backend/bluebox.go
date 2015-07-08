@@ -24,11 +24,13 @@ var (
 
 const (
 	blueBoxHelp = `
-            CUSTOMER_ID - [REQUIRED] account customer id
-                API_KEY - [REQUIRED] API key
-            LOCATION_ID - [REQUIRED] location where job blocks will be provisioned
-             PRODUCT_ID - [REQUIRED]
-              IPV6_ONLY - boot all blocks with only an IPv6 address (default false)
+              CUSTOMER_ID - [REQUIRED] account customer id
+                  API_KEY - [REQUIRED] API key
+              LOCATION_ID - [REQUIRED] location where job blocks will be provisioned
+               PRODUCT_ID - [REQUIRED]
+                IPV6_ONLY - boot all blocks with only an IPv6 address (default false)
+  LANGUAGE_MAP_{LANGUAGE} - Map the key specified in the key to the image associated
+                            with a different language
 
 `
 )
@@ -107,6 +109,11 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 }
 
 func (b *BlueBoxProvider) templateIDForLanguage(language string) string {
+	languageMapSetting := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(language))
+	if b.cfg.IsSet(languageMapSetting) {
+		language = b.cfg.Get(languageMapSetting)
+	}
+
 	templates := b.latestTemplates()
 	if templateID, ok := templates[language]; ok {
 		return templateID
