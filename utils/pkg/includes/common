@@ -6,8 +6,12 @@ PC_USER="travisci"
 PC_REPO="worker"
 if [[ -z $CHECKOUT_ROOT ]]; then
   VERSION=$(cat /code/VERSION)
+  VERSION_SHA1=$(cat /code/VERSION_SHA1)
+  CURRENT_SHA1=$(cat /code/CURRENT_SHA1)
 else
   VERSION=$(cat $CHECKOUT_ROOT/VERSION)
+  VERSION=$(cat $CHECKOUT_ROOT/VERSION_SHA1)
+  CURRENT_SHA1=$(cat $CHECKOUT_ROOT/CURRENT_SHA1)
 fi
 
 declare -a pkg_types=('rpm' 'deb')
