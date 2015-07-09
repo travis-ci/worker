@@ -91,3 +91,7 @@ func ProviderConfigFromEnviron(providerName string) *ProviderConfig {
 
 	return pc
 }
+
+func ProviderConfigFromMap(cfgMap map[string]string) *ProviderConfig {
+	return &ProviderConfig{cfgMap: cfgMap}
+}

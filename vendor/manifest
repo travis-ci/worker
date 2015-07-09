@@ -126,6 +126,12 @@
 			"revision": "feda659df33f28fe2d0524fad496b4d01a2015af",
 			"branch": "master",
 			"path": "/internal"
+		},
+		{
+			"importpath": "github.com/henrikhodne/goblueboxapi",
+			"repository": "https://github.com/henrikhodne/goblueboxapi",
+			"revision": "4f22069c7d39dd3c479dadc82b36a84a4f922740",
+			"branch": "master"
 		}
 	]
 }

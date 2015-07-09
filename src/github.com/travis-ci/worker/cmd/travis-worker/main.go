@@ -6,6 +6,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -41,6 +42,14 @@ func main() {
 }
 
 func runWorker(c *cli.Context) {
+	if os.Getenv("START_HOOK") != "" {
+		_ = exec.Command("/bin/sh", "-c", os.Getenv("START_HOOK")).Run()
+	}
+
+	if os.Getenv("STOP_HOOK") != "" {
+		defer exec.Command("/bin/sh", "-c", os.Getenv("STOP_HOOK")).Run()
+	}
+
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
 	logger := context.LoggerFromContext(ctx)
 
