@@ -191,7 +191,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	containerReady := make(chan *docker.Container)
 	errChan := make(chan error)
 	go func(id string) {
-		for true {
+		for {
 			container, err := p.client.InspectContainer(id)
 			if err != nil {
 				errChan <- err
@@ -222,7 +222,6 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		}
 		return nil, ctx.Err()
 	}
-
 }
 
 func (p *DockerProvider) imageForLanguage(language string) (string, string, error) {

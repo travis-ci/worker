@@ -1,8 +1,12 @@
 package backend
 
 import (
+	"crypto/rand"
+	"crypto/sha1"
+	"encoding/base64"
 	"fmt"
 	"io"
+	"regexp"
 
 	"github.com/travis-ci/worker/config"
 	"golang.org/x/net/context"
@@ -11,6 +15,7 @@ import (
 var (
 	ErrStaleVM               = fmt.Errorf("previous build artifacts found on stale vm")
 	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
+	punctRegex               = regexp.MustCompile(`[&+/=\\]`)
 )
 
 // Provider represents some kind of instance provider. It can point to an
@@ -60,9 +65,19 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 		return NewDockerProvider(cfg)
 	case "jupiterbrain":
 		return NewJupiterBrainProvider(cfg)
+	case "bluebox":
+		return NewBlueBoxProvider(cfg)
 	case "fake":
 		return NewFakeProvider([]byte("Hello to the logs")), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", name)
 	}
+}
+
+func generatePassword() string {
+	randomBytes := make([]byte, 30)
+	rand.Read(randomBytes)
+	hash := sha1.New().Sum(randomBytes)
+	str := base64.StdEncoding.EncodeToString(hash)
+	return punctRegex.ReplaceAllLiteralString(str, "")[0:19]
 }
