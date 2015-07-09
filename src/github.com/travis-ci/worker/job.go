@@ -17,6 +17,7 @@ type JobPayload struct {
 	Repository RepositoryPayload      `json:"repository"`
 	UUID       string                 `json:"uuid"`
 	Config     map[string]interface{} `json:"config"`
+	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
 }
 
 type JobJobPayload struct {
@@ -32,6 +33,11 @@ type BuildPayload struct {
 type RepositoryPayload struct {
 	ID   uint64 `json:"id"`
 	Slug string `json:"slug"`
+}
+
+type TimeoutsPayload struct {
+	HardLimit  uint64 `json:"hard_limit"`
+	LogSilence uint64 `json:"log_silence"`
 }
 
 // FinishState is the state that a job finished with (such as pass/fail/etc.).
