@@ -30,6 +30,7 @@ const (
 	defaultGCEMachineType = "n1-standard-2"
 	defaultGCENetwork     = "default"
 	defaultGCEDiskSize    = int64(20)
+	defaultGCELanguage    = "minimal"
 	gceImagesFilter       = "name eq ^travis-ci-%s.+"
 	gceStartupScript      = `#!/usr/bin/env bash
 cat > ~travis/.ssh/authorized_keys <<EOF
@@ -49,8 +50,11 @@ var (
            MACHINE_TYPE - machine name (default %q)
                 NETWORK - machine name (default %q)
               DISK_SIZE - disk size in GB (default %v)
+      LANGUAGE_MAPPINGS - key=value comma-delimited pairs for image lookup
+       DEFAULT_LANGUAGE - default language to use when looking up image (default %q)
 
-`, defaultGCEZone, defaultGCEMachineType, defaultGCENetwork, defaultGCEDiskSize)
+`, defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
+		defaultGCEDiskSize, defaultGCELanguage)
 	gceMissingIPAddressError = fmt.Errorf("no IP address found")
 )
 
@@ -81,6 +85,9 @@ type GCEProvider struct {
 	client    *compute.Service
 	projectID string
 	ic        *gceInstanceConfig
+
+	defaultLanguage  string
+	languageMappings map[string]string
 }
 
 type gceInstanceConfig struct {
@@ -205,9 +212,26 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 		}
 	}
 
+	defaultLanguage := defaultGCELanguage
+	if cfg.IsSet("DEFAULT_LANGUAGE") {
+		defaultLanguage = cfg.Get("DEFAULT_LANGUAGE")
+	}
+
+	languageMappings := map[string]string{}
+	if cfg.IsSet("LANGUAGE_MAPPINGS") {
+		for _, pair := range strings.Split(cfg.Get("LANGUAGE_MAPPINGS"), ",") {
+			kv := strings.Split(strings.TrimSpace(pair), "=")
+			if len(kv) == 2 {
+				languageMappings[kv[0]] = kv[1]
+			}
+		}
+	}
+
 	return &GCEProvider{
-		client:    client,
-		projectID: projectID,
+		client:           client,
+		projectID:        projectID,
+		defaultLanguage:  defaultLanguage,
+		languageMappings: languageMappings,
 		ic: &gceInstanceConfig{
 			MachineType:  mt,
 			Zone:         zone,
@@ -255,7 +279,25 @@ func loadGoogleAccountJSON(filename string) (*gceAccountJSON, error) {
 
 func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx)
-	image, err := p.imageForLanguage(startAttributes.Language)
+
+	var (
+		image *compute.Image
+		err   error
+	)
+
+	candidateLangs := []string{startAttributes.Language}
+	if lang, ok := p.languageMappings[startAttributes.Language]; ok {
+		candidateLangs = append(candidateLangs, lang)
+	}
+	candidateLangs = append(candidateLangs, p.defaultLanguage)
+
+	for _, language := range candidateLangs {
+		image, err = p.imageForLanguage(language)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -374,6 +416,7 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 }
 
 func (p *GCEProvider) imageForLanguage(language string) (*compute.Image, error) {
+	// TODO: add some TTL cache in here maybe?
 	images, err := p.client.Images.List(p.projectID).Filter(fmt.Sprintf(gceImagesFilter, language)).Do()
 	if err != nil {
 		return nil, err
