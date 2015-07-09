@@ -58,8 +58,6 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 	switch name {
 	case "docker":
 		return NewDockerProvider(cfg)
-	case "sauce_labs":
-		return NewSauceLabsProvider(cfg)
 	case "jupiterbrain":
 		return NewJupiterBrainProvider(cfg)
 	case "fake":
