@@ -217,13 +217,6 @@ func (i *BlueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) err
 		return err
 	}
 
-	f, err = sftp.Create("wrapper.sh")
-	if err != nil {
-		return err
-	}
-
-	_, err = fmt.Fprintf(f, wrapperSh)
-
 	return err
 }
 
@@ -248,7 +241,7 @@ func (i *BlueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser
 	session.Stdout = output
 	session.Stderr = output
 
-	err = session.Run("bash ~/wrapper.sh")
+	err = session.Run("bash --login ~/build.sh")
 	defer output.Close()
 	if err == nil {
 		return &RunResult{Completed: true, ExitCode: 0}, nil
