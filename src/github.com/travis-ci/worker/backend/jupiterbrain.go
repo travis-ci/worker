@@ -41,15 +41,15 @@ until [[ -f ~/build.sh.exit ]]; do sleep 1; done
 exit $(cat ~/build.sh.exit)
 `
 	jupiterBrainHelp = `
-               ENDPOINT - [REQUIRED] url to jupiter brain server including auth
-           SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
-     SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
-      KEYCHAIN_PASSWORD - [REQUIRED] password used ... somehow
-          IMAGE_ALIASES - comma-delimited strings used as stable names for images (default "")
-    IMAGE_ALIAS_{ALIAS} - full name for a given alias given via IMAGE_ALIASES, where the alias
-                          form in the key is uppercased and normalized by replacing
-                          non-alphanumerics with "_"
-        BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default "3s")
+                 ENDPOINT - [REQUIRED] url to jupiter brain server including auth
+             SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
+       SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
+        KEYCHAIN_PASSWORD - [REQUIRED] password used ... somehow
+            IMAGE_ALIASES - comma-delimited strings used as stable names for images (default "")
+      IMAGE_ALIAS_{ALIAS} - full name for a given alias given via IMAGE_ALIASES, where the alias
+                            form in the key is uppercased and normalized by replacing
+                            non-alphanumerics with "_"
+          BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default 3s)
 
 `
 )

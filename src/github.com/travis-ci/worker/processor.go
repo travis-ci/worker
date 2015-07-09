@@ -104,8 +104,14 @@ func (p *Processor) Run() {
 // processing, but not pick up any new jobs. This method will return
 // immediately, the processor is done when Run() returns.
 func (p *Processor) GracefulShutdown() {
+	defer func() {
+		err := recover()
+		if err != nil {
+			context.LoggerFromContext(p.ctx).WithField("err", err).Error("recovered from panic")
+		}
+	}()
 	context.LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
-	close(p.graceful)
+	p.graceful <- struct{}{}
 }
 
 // Terminate tells the processor to stop working on the current job as soon as

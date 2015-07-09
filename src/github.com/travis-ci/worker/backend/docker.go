@@ -24,12 +24,12 @@ import (
 
 const (
 	dockerHelp = `
-        ENDPOINT / HOST - [REQUIRED] tcp or unix address for connecting to Docker
-              CERT_PATH - directory where ca.pem, cert.pem, and key.pem are located (default "")
-                    CMD - command (CMD) to run when creating contaniers (default "/sbin/init")
-                 MEMORY - memory to allocate to each container (default "4G")
-                   CPUS - cpu count to allocate to each container (default 2)
-             PRIVILEGED - run containers in privileged mode (default false)
+          ENDPOINT / HOST - [REQUIRED] tcp or unix address for connecting to Docker
+                CERT_PATH - directory where ca.pem, cert.pem, and key.pem are located (default "")
+                      CMD - command (CMD) to run when creating contaniers (default "/sbin/init")
+                   MEMORY - memory to allocate to each container (default "4G")
+                     CPUS - cpu count to allocate to each container (default 2)
+               PRIVILEGED - run containers in privileged mode (default false)
 
 `
 )

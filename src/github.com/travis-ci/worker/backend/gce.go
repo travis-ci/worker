@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -10,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -26,36 +28,41 @@ import (
 )
 
 const (
-	defaultGCEZone        = "us-central1-a"
-	defaultGCEMachineType = "n1-standard-2"
-	defaultGCENetwork     = "default"
-	defaultGCEDiskSize    = int64(20)
-	defaultGCELanguage    = "minimal"
-	gceImagesFilter       = "name eq ^travis-ci-%s.+"
-	gceStartupScript      = `#!/usr/bin/env bash
-cat > ~travis/.ssh/authorized_keys <<EOF
-%s
-EOF
-`
+	defaultGCEZone          = "us-central1-a"
+	defaultGCEMachineType   = "n1-standard-2"
+	defaultGCENetwork       = "default"
+	defaultGCEDiskSize      = int64(20)
+	defaultGCELanguage      = "minimal"
+	defaultGCEBootPollSleep = 3 * time.Second
+	gceImagesFilter         = "name eq ^travis-ci-%s.+"
 )
 
 var (
 	gceHelp = fmt.Sprintf(`
-             PROJECT_ID - [REQUIRED] GCE project id
-           ACCOUNT_JSON - [REQUIRED] account JSON config
-           SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
-       SSH_PUB_KEY_PATH - [REQUIRED] path to ssh public key used to access job vms
-     SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
-                   ZONE - zone name (default %q)
-           MACHINE_TYPE - machine name (default %q)
-                NETWORK - machine name (default %q)
-              DISK_SIZE - disk size in GB (default %v)
-      LANGUAGE_MAPPINGS - key=value comma-delimited pairs for image lookup
-       DEFAULT_LANGUAGE - default language to use when looking up image (default %q)
+               PROJECT_ID - [REQUIRED] GCE project id
+             ACCOUNT_JSON - [REQUIRED] account JSON config
+             SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
+         SSH_PUB_KEY_PATH - [REQUIRED] path to ssh public key used to access job vms
+       SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
+                     ZONE - zone name (default %q)
+             MACHINE_TYPE - machine name (default %q)
+                  NETWORK - machine name (default %q)
+                DISK_SIZE - disk size in GB (default %v)
+  LANGUAGE_MAP_{LANGUAGE} - Map the key specified in the key to the image associated
+                            with a different language
+         DEFAULT_LANGUAGE - default language to use when looking up image (default %q)
+          BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default %v)
 
 `, defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
-		defaultGCEDiskSize, defaultGCELanguage)
+		defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep)
+
 	gceMissingIPAddressError = fmt.Errorf("no IP address found")
+
+	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
+cat > ~travis/.ssh/authorized_keys <<EOF
+{{ .SSHPubKey }}
+EOF
+`))
 )
 
 func init() {
@@ -85,9 +92,10 @@ type GCEProvider struct {
 	client    *compute.Service
 	projectID string
 	ic        *gceInstanceConfig
+	cfg       *config.ProviderConfig
 
-	defaultLanguage  string
-	languageMappings map[string]string
+	bootPollSleep   time.Duration
+	defaultLanguage string
 }
 
 type gceInstanceConfig struct {
@@ -212,26 +220,25 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 		}
 	}
 
+	bootPollSleep := defaultGCEBootPollSleep
+	if cfg.IsSet("BOOT_POLL_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("BOOT_POLL_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		bootPollSleep = si
+	}
+
 	defaultLanguage := defaultGCELanguage
 	if cfg.IsSet("DEFAULT_LANGUAGE") {
 		defaultLanguage = cfg.Get("DEFAULT_LANGUAGE")
 	}
 
-	languageMappings := map[string]string{}
-	if cfg.IsSet("LANGUAGE_MAPPINGS") {
-		for _, pair := range strings.Split(cfg.Get("LANGUAGE_MAPPINGS"), ",") {
-			kv := strings.Split(strings.TrimSpace(pair), "=")
-			if len(kv) == 2 {
-				languageMappings[kv[0]] = kv[1]
-			}
-		}
-	}
-
 	return &GCEProvider{
-		client:           client,
-		projectID:        projectID,
-		defaultLanguage:  defaultLanguage,
-		languageMappings: languageMappings,
+		client:    client,
+		projectID: projectID,
+		cfg:       cfg,
+
 		ic: &gceInstanceConfig{
 			MachineType:  mt,
 			Zone:         zone,
@@ -241,6 +248,9 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 			SSHKeySigner: sshKeySigner,
 			SSHPubKey:    string(sshPubKeyBytes),
 		},
+
+		bootPollSleep:   bootPollSleep,
+		defaultLanguage: defaultLanguage,
 	}, nil
 }
 
@@ -285,19 +295,45 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		err   error
 	)
 
-	candidateLangs := []string{startAttributes.Language}
-	if lang, ok := p.languageMappings[startAttributes.Language]; ok {
-		candidateLangs = append(candidateLangs, lang)
+	candidateLangs := []string{}
+
+	mappedLang := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(startAttributes.Language))
+	if p.cfg.IsSet(mappedLang) {
+		logger.WithFields(logrus.Fields{
+			"original": startAttributes.Language,
+			"mapped":   p.cfg.Get(mappedLang),
+		}).Debug("using mapped language to candidates")
+		candidateLangs = append(candidateLangs, p.cfg.Get(mappedLang))
+	} else {
+		logger.WithFields(logrus.Fields{
+			"original": startAttributes.Language,
+		}).Debug("adding original language to candidates")
+		candidateLangs = append(candidateLangs, startAttributes.Language)
 	}
 	candidateLangs = append(candidateLangs, p.defaultLanguage)
 
 	for _, language := range candidateLangs {
+		logger.WithFields(logrus.Fields{
+			"original":  startAttributes.Language,
+			"candidate": language,
+		}).Debug("searching for image matching language")
+
 		image, err = p.imageForLanguage(language)
 		if err == nil {
+			logger.WithFields(logrus.Fields{
+				"candidate": language,
+				"image":     image,
+			}).Debug("found matching image for language")
 			break
 		}
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
+	scriptBuf := bytes.Buffer{}
+	err = gceStartupScript.Execute(&scriptBuf, p.ic)
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +362,7 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
 					Key:   "startup-script",
-					Value: fmt.Sprintf(gceStartupScript, p.ic.SSHPubKey),
+					Value: scriptBuf.String(),
 				},
 			},
 		},
@@ -388,6 +424,8 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 				instanceReady <- inst
 				return
 			}
+
+			time.Sleep(p.bootPollSleep)
 		}
 	}()
 
