@@ -303,7 +303,7 @@ func (w *amqpLogWriter) reopenChannel() error {
 	// reopenChannel() shouldn't be called if the channel isn't already closed.
 	// but we're closing the channel again, just in case, to avoid leaking
 	// channels.
-	w.amqpChan.Close()
+	_ = w.amqpChan.Close()
 
 	w.amqpChan = amqpChan
 
