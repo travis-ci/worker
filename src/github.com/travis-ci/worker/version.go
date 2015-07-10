@@ -18,9 +18,9 @@ var (
 
 func init() {
 	cli.VersionPrinter = customVersionPrinter
-	os.Setenv("VERSION", VersionString)
-	os.Setenv("REVISION", RevisionString)
-	os.Setenv("GENERATED", GeneratedString)
+	_ = os.Setenv("VERSION", VersionString)
+	_ = os.Setenv("REVISION", RevisionString)
+	_ = os.Setenv("GENERATED", GeneratedString)
 }
 
 func customVersionPrinter(c *cli.Context) {
