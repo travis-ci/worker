@@ -79,21 +79,30 @@ func (q *JobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 			err := json.Unmarshal(delivery.Body, buildJob.payload)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error")
-				delivery.Ack(false)
+				err := delivery.Ack(false)
+				if err != nil {
+					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't ack delivery")
+				}
 				continue
 			}
 
 			err = json.Unmarshal(delivery.Body, &startAttrs)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error")
-				delivery.Ack(false)
+				err := delivery.Ack(false)
+				if err != nil {
+					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't ack delivery")
+				}
 				continue
 			}
 
 			buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error")
-				delivery.Ack(false)
+				err := delivery.Ack(false)
+				if err != nil {
+					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't ack delivery")
+				}
 				continue
 			}
 
@@ -104,7 +113,10 @@ func (q *JobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 			buildJobChan <- buildJob
 		}
 
-		channel.Close()
+		err := channel.Close()
+		if err != nil {
+			context.LoggerFromContext(ctx).WithField("err", err).WithField("channel", channel).Error("couldn't close channel")
+		}
 	}()
 
 	return
