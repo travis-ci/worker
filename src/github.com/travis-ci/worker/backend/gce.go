@@ -477,7 +477,10 @@ func (p *GCEProvider) imageForLanguage(language string) (*compute.Image, error) 
 }
 
 func (i *GCEInstance) sshClient() (*ssh.Client, error) {
-	i.refreshInstance()
+	err := i.refreshInstance()
+	if err != nil {
+		return nil, err
+	}
 
 	ipAddr := i.getIP()
 	if ipAddr == "" {
