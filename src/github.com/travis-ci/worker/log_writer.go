@@ -123,7 +123,10 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 
 	w.bytesWritten += len(p)
 	if w.bytesWritten > w.maxLength {
-		w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
+		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
+		if err != nil {
+			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
+		}
 		return 0, fmt.Errorf("wrote past max length")
 	}
 
