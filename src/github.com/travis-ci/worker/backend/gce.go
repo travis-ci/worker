@@ -28,13 +28,15 @@ import (
 )
 
 const (
-	defaultGCEZone          = "us-central1-a"
-	defaultGCEMachineType   = "n1-standard-2"
-	defaultGCENetwork       = "default"
-	defaultGCEDiskSize      = int64(20)
-	defaultGCELanguage      = "minimal"
-	defaultGCEBootPollSleep = 3 * time.Second
-	gceImagesFilter         = "name eq ^travis-ci-%s.+"
+	defaultGCEZone             = "us-central1-a"
+	defaultGCEMachineType      = "n1-standard-2"
+	defaultGCENetwork          = "default"
+	defaultGCEDiskSize         = int64(20)
+	defaultGCELanguage         = "minimal"
+	defaultGCEBootPollSleep    = 3 * time.Second
+	defaultGCEUploadRetries    = uint64(10)
+	defaultGCEUploadRetrySleep = 5 * time.Second
+	gceImagesFilter            = "name eq ^travis-ci-%s.+"
 )
 
 var (
@@ -52,11 +54,13 @@ var (
                             with a different language
          DEFAULT_LANGUAGE - default language to use when looking up image (default %q)
           BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default %v)
+           UPLOAD_RETRIES - number of times to attempt to upload script before erroring (default %d)
+       UPLOAD_RETRY_SLEEP - sleep interval between script upload attempts (default %v)
 
 `, defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
-		defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep)
+		defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep, defaultGCEUploadRetries, defaultGCEUploadRetrySleep)
 
-	gceMissingIPAddressError = fmt.Errorf("no IP address found")
+	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
 cat > ~travis/.ssh/authorized_keys <<EOF
@@ -88,14 +92,18 @@ type gceAccountJSON struct {
 	PrivateKey  string `json:"private_key"`
 }
 
+// GCEProvider is an implementation of backend.Provider using Google Compute
+// Engine.
 type GCEProvider struct {
 	client    *compute.Service
 	projectID string
 	ic        *gceInstanceConfig
 	cfg       *config.ProviderConfig
 
-	bootPollSleep   time.Duration
-	defaultLanguage string
+	bootPollSleep    time.Duration
+	defaultLanguage  string
+	uploadRetries    uint64
+	uploadRetrySleep time.Duration
 }
 
 type gceInstanceConfig struct {
@@ -108,6 +116,8 @@ type gceInstanceConfig struct {
 	SSHPubKey    string
 }
 
+// GCEInstance is an implementation of backend.Instance, representing an
+// instance on GCE created by a GCEProvider.
 type GCEInstance struct {
 	client   *compute.Service
 	provider *GCEProvider
@@ -120,6 +130,8 @@ type GCEInstance struct {
 	imageName string
 }
 
+// NewGCEProvider creates a GCEProvider with the given provider configuration.
+// An error can be returned if there's an error with the configuration.
 func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 	client, err := buildGoogleComputeService(cfg)
 	if err != nil {
@@ -227,6 +239,24 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 			return nil, err
 		}
 		bootPollSleep = si
+
+	}
+	uploadRetries := defaultGCEUploadRetries
+	if cfg.IsSet("UPLOAD_RETRIES") {
+		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		uploadRetries = ur
+	}
+
+	uploadRetrySleep := defaultGCEUploadRetrySleep
+	if cfg.IsSet("UPLOAD_RETRY_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("UPLOAD_RETRY_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		uploadRetrySleep = si
 	}
 
 	defaultLanguage := defaultGCELanguage
@@ -249,8 +279,10 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 			SSHPubKey:    string(sshPubKeyBytes),
 		},
 
-		bootPollSleep:   bootPollSleep,
-		defaultLanguage: defaultLanguage,
+		bootPollSleep:    bootPollSleep,
+		defaultLanguage:  defaultLanguage,
+		uploadRetries:    uploadRetries,
+		uploadRetrySleep: uploadRetrySleep,
 	}, nil
 }
 
@@ -287,6 +319,7 @@ func loadGoogleAccountJSON(filename string) (*gceAccountJSON, error) {
 	return a, err
 }
 
+// Start creates a new GCEInstance and returns it once it has finished booting.
 func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx)
 
@@ -477,11 +510,14 @@ func (p *GCEProvider) imageForLanguage(language string) (*compute.Image, error) 
 }
 
 func (i *GCEInstance) sshClient() (*ssh.Client, error) {
-	i.refreshInstance()
+	err := i.refreshInstance()
+	if err != nil {
+		return nil, err
+	}
 
 	ipAddr := i.getIP()
 	if ipAddr == "" {
-		return nil, gceMissingIPAddressError
+		return nil, errGCEMissingIPAddressError
 	}
 
 	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ipAddr), &ssh.ClientConfig{
@@ -518,25 +554,40 @@ func (i *GCEInstance) refreshInstance() error {
 	return nil
 }
 
+// UploadScript uploads a bash script to the GCEInstance so that RunScript can
+// run it later. An error is returned if the script could not be uploaded for
+// some reason.
 func (i *GCEInstance) UploadScript(ctx gocontext.Context, script []byte) error {
-	uploadedChan := make(chan bool)
-	var uploadErr error = nil
+	uploadedChan := make(chan error)
 
 	go func() {
+		var errCount uint64
 		for {
+			if ctx.Err() != nil {
+				return
+			}
+
 			err := i.uploadScriptAttempt(ctx, script)
 			if err == nil {
-				uploadedChan <- true
+				uploadedChan <- nil
+				return
 			}
-			uploadErr = err
+
+			errCount++
+			if errCount > i.provider.uploadRetries {
+				uploadedChan <- err
+				return
+			}
+
+			time.Sleep(i.provider.uploadRetrySleep)
 		}
 	}()
 
 	select {
-	case <-uploadedChan:
-		return nil
+	case err := <-uploadedChan:
+		return err
 	case <-ctx.Done():
-		return uploadErr
+		return ctx.Err()
 	}
 }
 
@@ -570,6 +621,10 @@ func (i *GCEInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 	return nil
 }
 
+// RunScript runs the script that was previously uploaded with UploadScript and
+// streams the output to the given io.WriteCloser. Once the script has finished
+// running, the RunResult is returned with the exit code. An error can be
+// returned if there was an error running the script.
 func (i *GCEInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
@@ -604,6 +659,8 @@ func (i *GCEInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*
 	}
 }
 
+// Stop shuts down the instance. This should be called once the instance is no
+// longer needed.
 func (i *GCEInstance) Stop(ctx gocontext.Context) error {
 	op, err := i.client.Instances.Delete(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
 	if err != nil {
@@ -628,6 +685,8 @@ func (i *GCEInstance) Stop(ctx gocontext.Context) error {
 				errChan <- nil
 				return
 			}
+
+			time.Sleep(i.provider.bootPollSleep)
 		}
 	}()
 
@@ -639,6 +698,7 @@ func (i *GCEInstance) Stop(ctx gocontext.Context) error {
 	}
 }
 
+// ID returns an ID for the instance that should be unique for the GCEProvider.
 func (i *GCEInstance) ID() string {
 	return fmt.Sprintf("%s:%s", i.instance.Name, i.imageName)
 }
