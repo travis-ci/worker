@@ -28,13 +28,15 @@ import (
 )
 
 const (
-	defaultGCEZone          = "us-central1-a"
-	defaultGCEMachineType   = "n1-standard-2"
-	defaultGCENetwork       = "default"
-	defaultGCEDiskSize      = int64(20)
-	defaultGCELanguage      = "minimal"
-	defaultGCEBootPollSleep = 3 * time.Second
-	gceImagesFilter         = "name eq ^travis-ci-%s.+"
+	defaultGCEZone             = "us-central1-a"
+	defaultGCEMachineType      = "n1-standard-2"
+	defaultGCENetwork          = "default"
+	defaultGCEDiskSize         = int64(20)
+	defaultGCELanguage         = "minimal"
+	defaultGCEBootPollSleep    = 3 * time.Second
+	defaultGCEUploadRetries    = uint64(10)
+	defaultGCEUploadRetrySleep = 5 * time.Second
+	gceImagesFilter            = "name eq ^travis-ci-%s.+"
 )
 
 var (
@@ -52,9 +54,11 @@ var (
                             with a different language
          DEFAULT_LANGUAGE - default language to use when looking up image (default %q)
           BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default %v)
+           UPLOAD_RETRIES - number of times to attempt to upload script before erroring (default %d)
+       UPLOAD_RETRY_SLEEP - sleep interval between script upload attempts (default %v)
 
 `, defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
-		defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep)
+		defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep, defaultGCEUploadRetries, defaultGCEUploadRetrySleep)
 
 	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
 
@@ -96,8 +100,10 @@ type GCEProvider struct {
 	ic        *gceInstanceConfig
 	cfg       *config.ProviderConfig
 
-	bootPollSleep   time.Duration
-	defaultLanguage string
+	bootPollSleep    time.Duration
+	defaultLanguage  string
+	uploadRetries    uint64
+	uploadRetrySleep time.Duration
 }
 
 type gceInstanceConfig struct {
@@ -233,6 +239,24 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 			return nil, err
 		}
 		bootPollSleep = si
+
+	}
+	uploadRetries := defaultGCEUploadRetries
+	if cfg.IsSet("UPLOAD_RETRIES") {
+		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		uploadRetries = ur
+	}
+
+	uploadRetrySleep := defaultGCEUploadRetrySleep
+	if cfg.IsSet("UPLOAD_RETRY_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("UPLOAD_RETRY_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		uploadRetrySleep = si
 	}
 
 	defaultLanguage := defaultGCELanguage
@@ -255,8 +279,10 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 			SSHPubKey:    string(sshPubKeyBytes),
 		},
 
-		bootPollSleep:   bootPollSleep,
-		defaultLanguage: defaultLanguage,
+		bootPollSleep:    bootPollSleep,
+		defaultLanguage:  defaultLanguage,
+		uploadRetries:    uploadRetries,
+		uploadRetrySleep: uploadRetrySleep,
 	}, nil
 }
 
@@ -532,24 +558,36 @@ func (i *GCEInstance) refreshInstance() error {
 // run it later. An error is returned if the script could not be uploaded for
 // some reason.
 func (i *GCEInstance) UploadScript(ctx gocontext.Context, script []byte) error {
-	uploadedChan := make(chan bool)
-	var uploadErr error = nil
+	uploadedChan := make(chan error)
 
 	go func() {
+		var errCount uint64
 		for {
+			if ctx.Err() != nil {
+				return
+			}
+
 			err := i.uploadScriptAttempt(ctx, script)
 			if err == nil {
-				uploadedChan <- true
+				uploadedChan <- nil
+				return
 			}
-			uploadErr = err
+
+			errCount++
+			if errCount > i.provider.uploadRetries {
+				uploadedChan <- err
+				return
+			}
+
+			time.Sleep(i.provider.uploadRetrySleep)
 		}
 	}()
 
 	select {
-	case <-uploadedChan:
-		return nil
+	case err := <-uploadedChan:
+		return err
 	case <-ctx.Done():
-		return uploadErr
+		return ctx.Err()
 	}
 }
 
