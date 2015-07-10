@@ -26,7 +26,10 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter, err := buildJob.LogWriter(ctx)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
-		buildJob.Requeue()
+		err := buildJob.Requeue()
+		if err != nil {
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+		}
 		return multistep.ActionHalt
 	}
 
@@ -85,7 +88,10 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
 
 			if !r.result.Completed {
-				buildJob.Requeue()
+				err := buildJob.Requeue()
+				if err != nil {
+					context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+				}
 			}
 
 			return multistep.ActionHalt

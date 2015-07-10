@@ -29,7 +29,10 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
-		buildJob.Requeue()
+		err := buildJob.Requeue()
+		if err != nil {
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+		}
 
 		return multistep.ActionHalt
 	}
