@@ -16,9 +16,9 @@ import (
 var (
 	LogWriterTick = 500 * time.Millisecond
 
-	// This is a bit of a magic number, calculated like this: The maximum
-	// Pusher payload is 10 kB (or 10 KiB, who knows, but let's go with 10
-	// kB since that is smaller). Looking at the travis-logs source, the
+	// LogChunkSize is a bit of a magic number, calculated like this: The
+	// maximum Pusher payload is 10 kB (or 10 KiB, who knows, but let's go with
+	// 10 kB since that is smaller). Looking at the travis-logs source, the
 	// current message overhead (i.e. the part of the payload that isn't
 	// the content of the log part) is 42 bytes + the length of the JSON-
 	// encoded ID and the length of the JSON-encoded sequence number. A 64-
