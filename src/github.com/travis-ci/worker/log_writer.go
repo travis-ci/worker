@@ -16,9 +16,9 @@ import (
 var (
 	LogWriterTick = 500 * time.Millisecond
 
-	// This is a bit of a magic number, calculated like this: The maximum
-	// Pusher payload is 10 kB (or 10 KiB, who knows, but let's go with 10
-	// kB since that is smaller). Looking at the travis-logs source, the
+	// LogChunkSize is a bit of a magic number, calculated like this: The
+	// maximum Pusher payload is 10 kB (or 10 KiB, who knows, but let's go with
+	// 10 kB since that is smaller). Looking at the travis-logs source, the
 	// current message overhead (i.e. the part of the payload that isn't
 	// the content of the log part) is 42 bytes + the length of the JSON-
 	// encoded ID and the length of the JSON-encoded sequence number. A 64-
@@ -123,7 +123,10 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 
 	w.bytesWritten += len(p)
 	if w.bytesWritten > w.maxLength {
-		w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
+		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
+		if err != nil {
+			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
+		}
 		return 0, fmt.Errorf("wrote past max length")
 	}
 
@@ -300,7 +303,7 @@ func (w *amqpLogWriter) reopenChannel() error {
 	// reopenChannel() shouldn't be called if the channel isn't already closed.
 	// but we're closing the channel again, just in case, to avoid leaking
 	// channels.
-	w.amqpChan.Close()
+	_ = w.amqpChan.Close()
 
 	w.amqpChan = amqpChan
 

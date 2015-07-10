@@ -79,7 +79,10 @@ func (d *CommandDispatcher) Run() {
 
 	for delivery := range deliveries {
 		d.processCommand(delivery)
-		delivery.Ack(false)
+		err := delivery.Ack(false)
+		if err != nil {
+			context.LoggerFromContext(d.ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't ack delivery")
+		}
 	}
 }
 
