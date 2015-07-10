@@ -56,7 +56,7 @@ var (
 `, defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
 		defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep)
 
-	gceMissingIPAddressError = fmt.Errorf("no IP address found")
+	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
 cat > ~travis/.ssh/authorized_keys <<EOF
@@ -491,7 +491,7 @@ func (i *GCEInstance) sshClient() (*ssh.Client, error) {
 
 	ipAddr := i.getIP()
 	if ipAddr == "" {
-		return nil, gceMissingIPAddressError
+		return nil, errGCEMissingIPAddressError
 	}
 
 	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ipAddr), &ssh.ClientConfig{
