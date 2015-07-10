@@ -685,6 +685,8 @@ func (i *GCEInstance) Stop(ctx gocontext.Context) error {
 				errChan <- nil
 				return
 			}
+
+			time.Sleep(i.provider.bootPollSleep)
 		}
 	}()
 
