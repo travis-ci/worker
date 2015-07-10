@@ -46,7 +46,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	go func() {
 		if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-			logWriter.Write([]byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
+			_, _ = logWriter.Write([]byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
 		}
 		result, err := instance.RunScript(ctx, logWriter)
 		resultChan <- struct {
