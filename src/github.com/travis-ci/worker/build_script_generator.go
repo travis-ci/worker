@@ -48,7 +48,7 @@ type s3BuildCacheOptions struct {
 	scheme          string
 	region          string
 	bucket          string
-	accessKeyId     string
+	accessKeyID     string
 	secretAccessKey string
 }
 
@@ -68,7 +68,7 @@ func NewBuildScriptGenerator(cfg *config.Config) BuildScriptGenerator {
 			scheme:          cfg.BuildCacheS3Scheme,
 			region:          cfg.BuildCacheS3Region,
 			bucket:          cfg.BuildCacheS3Bucket,
-			accessKeyId:     cfg.BuildCacheS3AccessKeyID,
+			accessKeyID:     cfg.BuildCacheS3AccessKeyID,
 			secretAccessKey: cfg.BuildCacheS3SecretAccessKey,
 		},
 		httpClient: &http.Client{
@@ -100,7 +100,7 @@ func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, payload *simpl
 		payload.SetPath([]string{"cache_options", "s3", "scheme"}, g.s3CacheOptions.scheme)
 		payload.SetPath([]string{"cache_options", "s3", "region"}, g.s3CacheOptions.region)
 		payload.SetPath([]string{"cache_options", "s3", "bucket"}, g.s3CacheOptions.bucket)
-		payload.SetPath([]string{"cache_options", "s3", "access_key_id"}, g.s3CacheOptions.accessKeyId)
+		payload.SetPath([]string{"cache_options", "s3", "access_key_id"}, g.s3CacheOptions.accessKeyID)
 		payload.SetPath([]string{"cache_options", "s3", "secret_access_key"}, g.s3CacheOptions.secretAccessKey)
 	}
 

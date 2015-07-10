@@ -3,33 +3,46 @@ package worker
 import (
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
+	gocontext "golang.org/x/net/context"
 )
 
 type stepUpdateState struct{}
 
 func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
+	ctx := state.Get("ctx").(gocontext.Context)
 
-	buildJob.Started()
+	err := buildJob.Started()
+	if err != nil {
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't mark job as started")
+	}
 
 	return multistep.ActionContinue
 }
 
 func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	buildJob := state.Get("buildJob").(Job)
+	ctx := state.Get("ctx").(gocontext.Context)
 
 	mresult, ok := state.GetOk("scriptResult")
 
 	if ok {
 		result := mresult.(*backend.RunResult)
 
+		var err error
+
 		switch result.ExitCode {
 		case 0:
-			buildJob.Finish(FinishStatePassed)
+			err = buildJob.Finish(FinishStatePassed)
 		case 1:
-			buildJob.Finish(FinishStateFailed)
+			err = buildJob.Finish(FinishStateFailed)
 		default:
-			buildJob.Finish(FinishStateErrored)
+			err = buildJob.Finish(FinishStateErrored)
+		}
+
+		if err != nil {
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't mark job as finished")
 		}
 	}
 }
