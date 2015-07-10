@@ -75,17 +75,18 @@ func (j *amqpJob) Requeue() error {
 		return err
 	}
 
-	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+	err = amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),
 		Type:         "job:test:reset",
 		Body:         bodyBytes,
 	})
+	if err != nil {
+		return err
+	}
 
-	j.delivery.Ack(false)
-
-	return nil
+	return j.delivery.Ack(false)
 }
 
 func (j *amqpJob) Received() error {
@@ -143,15 +144,13 @@ func (j *amqpJob) Started() error {
 		return err
 	}
 
-	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),
 		Type:         "job:test:start",
 		Body:         bodyBytes,
 	})
-
-	return nil
 }
 
 func (j *amqpJob) Finish(state FinishState) error {
@@ -177,17 +176,18 @@ func (j *amqpJob) Finish(state FinishState) error {
 		return err
 	}
 
-	amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+	err = amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),
 		Type:         "job:test:finish",
 		Body:         bodyBytes,
 	})
+	if err != nil {
+		return err
+	}
 
-	j.delivery.Ack(false)
-
-	return nil
+	return j.delivery.Ack(false)
 }
 
 func (j *amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
