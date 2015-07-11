@@ -49,9 +49,9 @@ type Config struct {
 	BuildCacheS3SecretAccessKey string
 }
 
-// ConfigFromCLIContext creates a Config using a cli.Context by pulling
-// configuration from the flags in the context.
-func ConfigFromCLIContext(c *cli.Context) *Config {
+// FromCLIContext creates a Config using a cli.Context by pulling configuration
+// from the flags in the context.
+func FromCLIContext(c *cli.Context) *Config {
 	cfg := &Config{
 		AmqpURI:       c.String("amqp-uri"),
 		PoolSize:      c.Int("pool-size"),
