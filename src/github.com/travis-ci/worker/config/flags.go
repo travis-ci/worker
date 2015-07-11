@@ -8,6 +8,7 @@ import (
 )
 
 var (
+	// Flags is the list of all CLI flags accepted by travis-worker
 	Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:   "amqp-uri",

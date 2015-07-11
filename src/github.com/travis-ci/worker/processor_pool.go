@@ -30,6 +30,7 @@ type ProcessorPool struct {
 	processors     []*Processor
 }
 
+// NewProcessorPool creates a new processor pool using the given arguments.
 func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.Duration,
 	logTimeout time.Duration, amqpConn *amqp.Connection, provider backend.Provider,
 	generator BuildScriptGenerator, canceller Canceller) *ProcessorPool {
@@ -46,6 +47,9 @@ func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.D
 	}
 }
 
+// Each loops through all the processors in the pool and calls the given
+// function for each of them, passing in the index and the processor. The order
+// of the processors is the same for the same set of processors.
 func (p *ProcessorPool) Each(f func(int, *Processor)) {
 	procIDs := []string{}
 	procsByID := map[string]*Processor{}

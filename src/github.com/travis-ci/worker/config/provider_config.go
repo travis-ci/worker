@@ -9,16 +9,22 @@ import (
 	"sync"
 )
 
+// ProviderConfig is the part of a configuration specific to a provider.
 type ProviderConfig struct {
 	sync.Mutex
 
 	cfgMap map[string]string
 }
 
+// GoString formats the ProviderConfig as valid Go syntax. This makes
+// ProviderConfig implement fmt.GoStringer.
 func (pc *ProviderConfig) GoString() string {
 	return fmt.Sprintf("&ProviderConfig{cfgMap: %#v}", pc.cfgMap)
 }
 
+// Map loops over all configuration settings and calls the given function with
+// the key and value. The settings are sorted so f i called with the keys in
+// alphabetical order.
 func (pc *ProviderConfig) Map(f func(string, string)) {
 	keys := []string{}
 	for key, _ := range pc.cfgMap {
@@ -32,6 +38,8 @@ func (pc *ProviderConfig) Map(f func(string, string)) {
 	}
 }
 
+// Get the value of a setting with the given key. The empty string is returned
+// if the setting could not be found.
 func (pc *ProviderConfig) Get(key string) string {
 	pc.Lock()
 	defer pc.Unlock()
@@ -43,6 +51,7 @@ func (pc *ProviderConfig) Get(key string) string {
 	return ""
 }
 
+// Set the value of a setting with the given key.
 func (pc *ProviderConfig) Set(key, value string) {
 	pc.Lock()
 	defer pc.Unlock()
@@ -50,6 +59,8 @@ func (pc *ProviderConfig) Set(key, value string) {
 	pc.cfgMap[key] = value
 }
 
+// IsSet returns true if a setting with the given key exists, or false if it
+// does not.
 func (pc *ProviderConfig) IsSet(key string) bool {
 	pc.Lock()
 	defer pc.Unlock()
@@ -92,6 +103,8 @@ func ProviderConfigFromEnviron(providerName string) *ProviderConfig {
 	return pc
 }
 
+// ProviderConfigFromMap creates a provider configuration backed by the given
+// map. Useful for testing a provider.
 func ProviderConfigFromMap(cfgMap map[string]string) *ProviderConfig {
 	return &ProviderConfig{cfgMap: cfgMap}
 }

@@ -13,7 +13,13 @@ import (
 )
 
 var (
-	ErrStaleVM               = fmt.Errorf("previous build artifacts found on stale vm")
+	// ErrStaleVM is returned from one of the Instance methods if it detects
+	// that the VM had already been used for a repository and was not reverted
+	// afterwards.
+	ErrStaleVM = fmt.Errorf("previous build artifacts found on stale vm")
+
+	// ErrMissingEndpointConfig is returned if the provider config was missing
+	// an 'ENDPOINT' configuration, but one is required.
 	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
 	punctRegex               = regexp.MustCompile(`[&+/=\\]`)
 )
@@ -54,11 +60,18 @@ type StartAttributes struct {
 	OS       string `json:"os"`
 }
 
+// RunResult represents the result of running a script with Instance.RunScript.
 type RunResult struct {
-	ExitCode  uint8
+	// The exit code of the script. Only valid if Completed is true.
+	ExitCode uint8
+
+	// Whether the script finished running or not. Can be false if there was a
+	// connection error in the middle of the script run.
 	Completed bool
 }
 
+// NewProvider creates a new provider using the given name and provider config.
+// Valid names are 'docker', 'jupiterbrain', 'bluebox' and 'fake'.
 func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 	switch name {
 	case "docker":

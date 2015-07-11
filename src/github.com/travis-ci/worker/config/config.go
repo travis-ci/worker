@@ -49,6 +49,8 @@ type Config struct {
 	BuildCacheS3SecretAccessKey string
 }
 
+// ConfigFromCLIContext creates a Config using a cli.Context by pulling
+// configuration from the flags in the context.
 func ConfigFromCLIContext(c *cli.Context) *Config {
 	cfg := &Config{
 		AmqpURI:       c.String("amqp-uri"),
@@ -87,6 +89,9 @@ func ConfigFromCLIContext(c *cli.Context) *Config {
 	return cfg
 }
 
+// WriteEnvConfig writes the given configuration to out. The format of the
+// output is a list of environment variables settings suitable to be sourced
+// by a Bourne-like shell.
 func WriteEnvConfig(cfg *Config, out io.Writer) {
 	cfgMap := map[string]interface{}{
 		"amqp-uri":       cfg.AmqpURI,
