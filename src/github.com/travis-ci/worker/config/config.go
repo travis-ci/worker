@@ -10,10 +10,6 @@ import (
 	"github.com/codegangsta/cli"
 )
 
-var (
-	zeroDuration time.Duration
-)
-
 // Config contains all the configuration needed to run the worker.
 type Config struct {
 	AmqpURI        string
