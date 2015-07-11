@@ -8,7 +8,9 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -41,7 +43,7 @@ type StateUpdate struct {
 }
 
 func setupConn() (*amqp.Connection, error) {
-	amqpConn, err := amqp.Dial(os.Getenv("AMQP_URL"))
+	amqpConn, err := amqp.Dial(os.Getenv("AMQP_URI"))
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +97,7 @@ func publishJob(amqpConn *amqp.Connection) error {
 	return amqpChan.Publish("", "builds.test", false, false, amqp.Publishing{
 		Body: []byte(`{
 			"type": "test",
+			"uuid": "fake-uuid",
 			"job": {
 				"id": 3,
 				"number": "1.1",
@@ -133,7 +136,8 @@ func publishJob(amqpConn *amqp.Connection) error {
 					"hard_limit": null,
 					"log_silence": null
 				}
-			}`),
+			}
+		}`),
 		DeliveryMode: amqp.Persistent,
 	})
 }
@@ -152,6 +156,26 @@ func TestIntegrationLogMessages(t *testing.T) {
 	}))
 	defer buildScriptServer.Close()
 
+	cmd, err := spawnWorkerProcess(map[string]string{
+		"AMQP_URI":      os.Getenv("AMQP_URI"),
+		"POOL_SIZE":     "1",
+		"BUILD_API_URI": buildScriptServer.URL,
+		"PROVIDER_NAME": "fake",
+		"QUEUE_NAME":    "builds.test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cmd.Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		_ = cmd.Wait()
+	}()
+
 	conn, err := setupConn()
 	if err != nil {
 		t.Fatal(err)
@@ -162,6 +186,9 @@ func TestIntegrationLogMessages(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Wait for job to finish
+	time.Sleep(100 * time.Millisecond)
+
 	amqpChan, err := conn.Channel()
 	if err != nil {
 		t.Fatal(err)
@@ -169,22 +196,28 @@ func TestIntegrationLogMessages(t *testing.T) {
 
 	logParts := make([]LogPart, 2)
 
-	delivery, _, err := amqpChan.Get("reporting.jobs.logs", true)
+	delivery, ok, err := amqpChan.Get("reporting.jobs.logs", true)
+	if !ok {
+		t.Fatal("expected log message, but there was none")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = json.Unmarshal(delivery.Body, logParts[0])
+	err = json.Unmarshal(delivery.Body, &logParts[0])
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	delivery, _, err = amqpChan.Get("reporting.jobs.logs", true)
+	delivery, ok, err = amqpChan.Get("reporting.jobs.logs", true)
+	if !ok {
+		t.Fatal("expected log message, but there was none")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = json.Unmarshal(delivery.Body, logParts[1])
+	err = json.Unmarshal(delivery.Body, &logParts[1])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +237,7 @@ func TestIntegrationLogMessages(t *testing.T) {
 		t.Errorf("logParts[0].UUID = %q, expected fake-uuid", logParts[0].UUID)
 	}
 
-	expected := LogPart{ID: 3, Content: "", Final: true, UUID: "fake-uuid"}
+	expected := LogPart{ID: 3, Content: "", Final: true, UUID: "fake-uuid", Number: 1}
 	if logParts[1] != expected {
 		t.Errorf("logParts[1] = %#v, expected %#v", logParts[1], expected)
 	}
