@@ -175,7 +175,7 @@ func signalHandler(logger *logrus.Entry, pool *worker.ProcessorPool, cancel goco
 				logger.Info("SIGTTIN received, adding processor to pool")
 				pool.Incr()
 			case syscall.SIGTTOU:
-				logger.Info("SIGTTIN received, removing processor from pool")
+				logger.Info("SIGTTOU received, removing processor from pool")
 				pool.Decr()
 			case syscall.SIGUSR1:
 				logger.WithFields(logrus.Fields{
