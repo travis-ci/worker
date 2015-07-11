@@ -126,7 +126,7 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 
 	sortedCfgMapKeys := []string{}
 
-	for key, _ := range cfgMap {
+	for key := range cfgMap {
 		sortedCfgMapKeys = append(sortedCfgMapKeys, key)
 	}
 

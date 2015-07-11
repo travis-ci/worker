@@ -27,7 +27,7 @@ func (pc *ProviderConfig) GoString() string {
 // alphabetical order.
 func (pc *ProviderConfig) Map(f func(string, string)) {
 	keys := []string{}
-	for key, _ := range pc.cfgMap {
+	for key := range pc.cfgMap {
 		keys = append(keys, key)
 	}
 
