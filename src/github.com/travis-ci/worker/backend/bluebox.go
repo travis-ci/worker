@@ -259,15 +259,7 @@ func (i *BlueBoxInstance) Stop(ctx gocontext.Context) error {
 	return i.client.Blocks.Destroy(i.block.ID)
 }
 
-func (i *BlueBoxInstance) Refresh() (err error) {
-	i.block, err = i.client.Blocks.Get(i.block.ID)
-	return
-}
-
-func (i *BlueBoxInstance) Ready() bool {
-	return i.block.Status == "running"
-}
-
+// ID is an implementation of Instance.ID.
 func (i *BlueBoxInstance) ID() string {
 	return i.block.ID
 }
