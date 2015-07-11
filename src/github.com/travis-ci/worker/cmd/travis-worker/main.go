@@ -21,6 +21,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	travismetrics "github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -81,7 +82,7 @@ func runWorker(c *cli.Context) {
 	defer logger.Info("worker finished")
 
 	setupSentry(logger, cfg)
-	setupLibrato(logger, cfg, c)
+	setupMetrics(logger, cfg, c)
 
 	amqpConn, err := amqp.Dial(cfg.AmqpURI)
 	if err != nil {
@@ -147,7 +148,8 @@ func setupSentry(logger *logrus.Entry, cfg *config.Config) {
 	}
 }
 
-func setupLibrato(logger *logrus.Entry, cfg *config.Config, c *cli.Context) {
+func setupMetrics(logger *logrus.Entry, cfg *config.Config, c *cli.Context) {
+	go travismetrics.ReportMemstatsMetrics()
 	if cfg.LibratoEmail != "" && cfg.LibratoToken != "" && cfg.LibratoSource != "" {
 		logger.Info("starting librato metrics reporter")
 		go librato.Librato(metrics.DefaultRegistry, time.Minute, cfg.LibratoEmail, cfg.LibratoToken, cfg.LibratoSource, []float64{0.95}, time.Millisecond)
