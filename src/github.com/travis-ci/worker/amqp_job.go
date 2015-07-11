@@ -54,33 +54,9 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 func (j *amqpJob) Requeue() error {
 	metrics.Mark("worker.job.requeue")
 
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
-
-	body := map[string]interface{}{
+	err := j.sendStateUpdate("job:test:reset", map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": "reset",
-	}
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	err = amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now().UTC(),
-		Type:         "job:test:reset",
-		Body:         bodyBytes,
 	})
 	if err != nil {
 		return err
@@ -90,98 +66,26 @@ func (j *amqpJob) Requeue() error {
 }
 
 func (j *amqpJob) Received() error {
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
-
-	body := map[string]interface{}{
+	return j.sendStateUpdate("job:test:receive", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       "received",
 		"received_at": time.Now().UTC().Format(time.RFC3339),
-	}
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now().UTC(),
-		Type:         "job:test:receive",
-		Body:         bodyBytes,
 	})
 }
 
 func (j *amqpJob) Started() error {
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
-
-	body := map[string]interface{}{
+	return j.sendStateUpdate("job:test:start", map[string]interface{}{
 		"id":         j.Payload().Job.ID,
 		"state":      "started",
 		"started_at": time.Now().UTC().Format(time.RFC3339),
-	}
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now().UTC(),
-		Type:         "job:test:start",
-		Body:         bodyBytes,
 	})
 }
 
 func (j *amqpJob) Finish(state FinishState) error {
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
-
-	body := map[string]interface{}{
+	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       state,
 		"finished_at": time.Now().UTC().Format(time.RFC3339),
-	}
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	err = amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now().UTC(),
-		Type:         "job:test:finish",
-		Body:         bodyBytes,
 	})
 	if err != nil {
 		return err
@@ -192,4 +96,30 @@ func (j *amqpJob) Finish(state FinishState) error {
 
 func (j *amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
 	return NewLogWriter(ctx, j.conn, j.payload.Job.ID)
+}
+
+func (j *amqpJob) sendStateUpdate(event string, body map[string]interface{}) error {
+	amqpChan, err := j.conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer amqpChan.Close()
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Timestamp:    time.Now().UTC(),
+		Type:         event,
+		Body:         bodyBytes,
+	})
 }
