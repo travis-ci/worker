@@ -146,24 +146,33 @@ func runWorker(c *cli.Context) {
 	}).Debug("built")
 
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT,
+		syscall.SIGUSR1, syscall.SIGTTIN, syscall.SIGTTOU)
 	go func() {
 		for {
 			select {
 			case sig := <-signalChan:
-				if sig == syscall.SIGINT {
+				switch sig {
+				case syscall.SIGINT:
 					logger.Info("SIGINT received, starting graceful shutdown")
 					pool.GracefulShutdown()
-				} else if sig == syscall.SIGTERM {
+				case syscall.SIGTERM:
 					logger.Info("SIGTERM received, shutting down immediately")
 					cancel()
-				} else if sig == syscall.SIGUSR1 {
+				case syscall.SIGTTIN:
+					logger.Info("SIGTTIN received, adding processor to pool")
+					pool.Incr()
+				case syscall.SIGTTOU:
+					logger.Info("SIGTTIN received, removing processor from pool")
+					pool.Decr()
+				case syscall.SIGUSR1:
 					logger.WithFields(logrus.Fields{
 						"version":   worker.VersionString,
 						"revision":  worker.RevisionString,
 						"generated": worker.GeneratedString,
-						"boot_time": bootTime,
+						"boot_time": bootTime.String(),
 						"uptime":    time.Since(bootTime),
+						"pool_size": pool.Size(),
 					}).Info("SIGUSR1 received, dumping info")
 					pool.Each(func(n int, proc *worker.Processor) {
 						logger.WithFields(logrus.Fields{
@@ -173,7 +182,7 @@ func runWorker(c *cli.Context) {
 							"processed": proc.ProcessedCount,
 						}).Info("processor info")
 					})
-				} else {
+				default:
 					logger.WithField("signal", sig).Info("ignoring unknown signal")
 				}
 			default:
