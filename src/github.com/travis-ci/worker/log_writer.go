@@ -14,6 +14,8 @@ import (
 )
 
 var (
+	// LogWriterTick is how often the buffer should be flushed out and sent to
+	// travis-logs.
 	LogWriterTick = 500 * time.Millisecond
 
 	// LogChunkSize is a bit of a magic number, calculated like this: The
@@ -67,6 +69,8 @@ type logPart struct {
 	Final   bool   `json:"final"`
 }
 
+// NewLogWriter creates a new AMQP-backed log writer for the given job ID. An
+// error can be returned if there was an error declaring the right AMQP queues.
 func NewLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (LogWriter, error) {
 	channel, err := conn.Channel()
 	if err != nil {

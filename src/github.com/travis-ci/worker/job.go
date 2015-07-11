@@ -20,21 +20,26 @@ type JobPayload struct {
 	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
 }
 
+// JobJobPayload contains information about the job.
 type JobJobPayload struct {
 	ID     uint64 `json:"id"`
 	Number string `json:"number"`
 }
 
+// BuildPayload contains information about the build.
 type BuildPayload struct {
 	ID     uint64 `json:"id"`
 	Number string `json:"number"`
 }
 
+// RepositoryPayload contains information about the repository.
 type RepositoryPayload struct {
 	ID   uint64 `json:"id"`
 	Slug string `json:"slug"`
 }
 
+// TimeoutsPayload contains information about any custom timeouts. The timeouts
+// are given in seconds, and a value of 0 means no custom timeout is set.
 type TimeoutsPayload struct {
 	HardLimit  uint64 `json:"hard_limit"`
 	LogSilence uint64 `json:"log_silence"`
@@ -68,6 +73,10 @@ type Job interface {
 	LogWriter(context.Context) (LogWriter, error)
 }
 
+// A LogWriter is primarily an io.Writer that will send all bytes to travis-logs
+// for processing, and also has some utility methods for timeouts and log length
+// limiting. Each LogWriter is tied to a given job, and can be gotten by calling
+// the LogWriter() method on a Job.
 type LogWriter interface {
 	io.WriteCloser
 	WriteAndClose([]byte) (int, error)

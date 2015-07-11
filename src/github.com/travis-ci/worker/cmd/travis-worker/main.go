@@ -66,7 +66,7 @@ func runWorker(c *cli.Context) {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	cfg := config.ConfigFromCLIContext(c)
+	cfg := config.FromCLIContext(c)
 
 	if c.Bool("echo-config") {
 		config.WriteEnvConfig(cfg, os.Stdout)

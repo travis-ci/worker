@@ -16,11 +16,22 @@ type cancelCommand struct {
 	Source string `json:"source"`
 }
 
+// A Canceller allows you to subscribe to and unsubscribe from cancellation
+// messages for a given job ID.
 type Canceller interface {
+	// Subscribe will set up a subscription for cancellation messages for the
+	// given job ID. When a cancellation message comes in, the channel will be
+	// closed. Only one subscription per job ID is valid, if there's already a
+	// subscription set up, an error will be returned.
 	Subscribe(id uint64, ch chan<- struct{}) error
+
+	// Unsubscribe removes the existing subscription for the given job ID.
 	Unsubscribe(id uint64)
 }
 
+// CommandDispatcher is responsible for listening to a command queue on AMQP and
+// dispatching the commands to the right place. Currently the only valid command
+// is the 'cancel job' command.
 type CommandDispatcher struct {
 	conn *amqp.Connection
 	ctx  gocontext.Context
@@ -29,6 +40,8 @@ type CommandDispatcher struct {
 	cancelMap   map[uint64](chan<- struct{})
 }
 
+// NewCommandDispatcher creates a new CommandDispatcher. No network traffic
+// occurs until you call Run()
 func NewCommandDispatcher(ctx gocontext.Context, conn *amqp.Connection) *CommandDispatcher {
 	ctx = context.FromComponent(ctx, "command_dispatcher")
 
@@ -39,6 +52,8 @@ func NewCommandDispatcher(ctx gocontext.Context, conn *amqp.Connection) *Command
 	}
 }
 
+// Run will make the CommandDispatcher listen to the worker command queue and
+// start dispatching any incoming commands.
 func (d *CommandDispatcher) Run() {
 	amqpChan, err := d.conn.Channel()
 	if err != nil {
@@ -86,6 +101,7 @@ func (d *CommandDispatcher) Run() {
 	}
 }
 
+// Subscribe is an implementation of Canceller.Subscribe.
 func (d *CommandDispatcher) Subscribe(id uint64, ch chan<- struct{}) error {
 	d.cancelMutex.Lock()
 	defer d.cancelMutex.Unlock()
@@ -99,6 +115,7 @@ func (d *CommandDispatcher) Subscribe(id uint64, ch chan<- struct{}) error {
 	return nil
 }
 
+// Unsubscribe is an implementation of Canceller.Unsubscribe.
 func (d *CommandDispatcher) Unsubscribe(id uint64) {
 	d.cancelMutex.Lock()
 	defer d.cancelMutex.Unlock()
