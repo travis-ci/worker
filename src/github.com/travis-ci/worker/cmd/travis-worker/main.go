@@ -66,7 +66,7 @@ func runWorker(c *cli.Context) {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
-	cfg := config.ConfigFromCLIContext(c)
+	cfg := config.FromCLIContext(c)
 
 	if c.Bool("echo-config") {
 		config.WriteEnvConfig(cfg, os.Stdout)
@@ -80,39 +80,15 @@ func runWorker(c *cli.Context) {
 	logger.Info("worker started")
 	defer logger.Info("worker finished")
 
-	if cfg.SentryDSN != "" {
-		sentryHook, err := logrus_sentry.NewSentryHook(cfg.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
-		if err != nil {
-			logger.WithField("err", err).Error("couldn't create sentry hook")
-		}
-
-		logrus.AddHook(sentryHook)
-	}
-
-	if cfg.LibratoEmail != "" && cfg.LibratoToken != "" && cfg.LibratoSource != "" {
-		logger.Info("starting librato metrics reporter")
-		go librato.Librato(metrics.DefaultRegistry, time.Minute, cfg.LibratoEmail, cfg.LibratoToken, cfg.LibratoSource, []float64{0.95}, time.Millisecond)
-	} else if !c.Bool("silence-metrics") {
-		logger.Info("starting logger metrics reporter")
-		go metrics.Log(metrics.DefaultRegistry, time.Minute, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
-	}
+	setupSentry(logger, cfg)
+	setupLibrato(logger, cfg, c)
 
 	amqpConn, err := amqp.Dial(cfg.AmqpURI)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't connect to AMQP")
 		return
 	}
-
-	go func() {
-		errChan := make(chan *amqp.Error)
-		errChan = amqpConn.NotifyClose(errChan)
-
-		err, ok := <-errChan
-		if ok {
-			logger.WithField("err", err).Error("amqp connection errored, terminating")
-			cancel()
-		}
-	}()
+	go amqpErrorWatcher(amqpConn, logger, cancel)
 
 	logger.Debug("connected to AMQP")
 
@@ -134,7 +110,6 @@ func runWorker(c *cli.Context) {
 	logger.WithFields(logrus.Fields{
 		"command_dispatcher": fmt.Sprintf("%#v", commandDispatcher),
 	}).Debug("built")
-
 	go commandDispatcher.Run()
 
 	pool := worker.NewProcessorPool(cfg.Hostname, ctx, cfg.HardTimeout, cfg.LogTimeout,
@@ -145,51 +120,7 @@ func runWorker(c *cli.Context) {
 		"pool": pool,
 	}).Debug("built")
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT,
-		syscall.SIGUSR1, syscall.SIGTTIN, syscall.SIGTTOU)
-	go func() {
-		for {
-			select {
-			case sig := <-signalChan:
-				switch sig {
-				case syscall.SIGINT:
-					logger.Info("SIGINT received, starting graceful shutdown")
-					pool.GracefulShutdown()
-				case syscall.SIGTERM:
-					logger.Info("SIGTERM received, shutting down immediately")
-					cancel()
-				case syscall.SIGTTIN:
-					logger.Info("SIGTTIN received, adding processor to pool")
-					pool.Incr()
-				case syscall.SIGTTOU:
-					logger.Info("SIGTTIN received, removing processor from pool")
-					pool.Decr()
-				case syscall.SIGUSR1:
-					logger.WithFields(logrus.Fields{
-						"version":   worker.VersionString,
-						"revision":  worker.RevisionString,
-						"generated": worker.GeneratedString,
-						"boot_time": bootTime.String(),
-						"uptime":    time.Since(bootTime),
-						"pool_size": pool.Size(),
-					}).Info("SIGUSR1 received, dumping info")
-					pool.Each(func(n int, proc *worker.Processor) {
-						logger.WithFields(logrus.Fields{
-							"n":         n,
-							"id":        proc.ID,
-							"job":       fmt.Sprintf("%#v", proc.CurrentJob),
-							"processed": proc.ProcessedCount,
-						}).Info("processor info")
-					})
-				default:
-					logger.WithField("signal", sig).Info("ignoring unknown signal")
-				}
-			default:
-				time.Sleep(time.Second)
-			}
-		}
-	}()
+	go signalHandler(logger, pool, cancel)
 
 	logger.WithFields(logrus.Fields{
 		"pool_size":  cfg.PoolSize,
@@ -202,5 +133,83 @@ func runWorker(c *cli.Context) {
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't close AMQP connection cleanly")
 		return
+	}
+}
+
+func setupSentry(logger *logrus.Entry, cfg *config.Config) {
+	if cfg.SentryDSN != "" {
+		sentryHook, err := logrus_sentry.NewSentryHook(cfg.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't create sentry hook")
+		}
+
+		logrus.AddHook(sentryHook)
+	}
+}
+
+func setupLibrato(logger *logrus.Entry, cfg *config.Config, c *cli.Context) {
+	if cfg.LibratoEmail != "" && cfg.LibratoToken != "" && cfg.LibratoSource != "" {
+		logger.Info("starting librato metrics reporter")
+		go librato.Librato(metrics.DefaultRegistry, time.Minute, cfg.LibratoEmail, cfg.LibratoToken, cfg.LibratoSource, []float64{0.95}, time.Millisecond)
+	} else if !c.Bool("silence-metrics") {
+		logger.Info("starting logger metrics reporter")
+		go metrics.Log(metrics.DefaultRegistry, time.Minute, log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+	}
+}
+
+func signalHandler(logger *logrus.Entry, pool *worker.ProcessorPool, cancel gocontext.CancelFunc) {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT,
+		syscall.SIGUSR1, syscall.SIGTTIN, syscall.SIGTTOU)
+	for {
+		select {
+		case sig := <-signalChan:
+			switch sig {
+			case syscall.SIGINT:
+				logger.Info("SIGINT received, starting graceful shutdown")
+				pool.GracefulShutdown()
+			case syscall.SIGTERM:
+				logger.Info("SIGTERM received, shutting down immediately")
+				cancel()
+			case syscall.SIGTTIN:
+				logger.Info("SIGTTIN received, adding processor to pool")
+				pool.Incr()
+			case syscall.SIGTTOU:
+				logger.Info("SIGTTIN received, removing processor from pool")
+				pool.Decr()
+			case syscall.SIGUSR1:
+				logger.WithFields(logrus.Fields{
+					"version":   worker.VersionString,
+					"revision":  worker.RevisionString,
+					"generated": worker.GeneratedString,
+					"boot_time": bootTime.String(),
+					"uptime":    time.Since(bootTime),
+					"pool_size": pool.Size(),
+				}).Info("SIGUSR1 received, dumping info")
+				pool.Each(func(n int, proc *worker.Processor) {
+					logger.WithFields(logrus.Fields{
+						"n":         n,
+						"id":        proc.ID,
+						"job":       fmt.Sprintf("%#v", proc.CurrentJob),
+						"processed": proc.ProcessedCount,
+					}).Info("processor info")
+				})
+			default:
+				logger.WithField("signal", sig).Info("ignoring unknown signal")
+			}
+		default:
+			time.Sleep(time.Second)
+		}
+	}
+}
+
+func amqpErrorWatcher(amqpConn *amqp.Connection, logger *logrus.Entry, cancel gocontext.CancelFunc) {
+	errChan := make(chan *amqp.Error)
+	errChan = amqpConn.NotifyClose(errChan)
+
+	err, ok := <-errChan
+	if ok {
+		logger.WithField("err", err).Error("amqp connection errored, terminating")
+		cancel()
 	}
 }

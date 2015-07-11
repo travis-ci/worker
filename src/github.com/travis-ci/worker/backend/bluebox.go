@@ -40,19 +40,19 @@ func init() {
 	config.SetProviderHelp("BlueBox", blueBoxHelp)
 }
 
-type BlueBoxProvider struct {
+type blueBoxProvider struct {
 	client *goblueboxapi.Client
 	cfg    *config.ProviderConfig
 }
 
-func NewBlueBoxProvider(cfg *config.ProviderConfig) (*BlueBoxProvider, error) {
-	return &BlueBoxProvider{
+func newBlueBoxProvider(cfg *config.ProviderConfig) (*blueBoxProvider, error) {
+	return &blueBoxProvider{
 		client: goblueboxapi.NewClient(cfg.Get("CUSTOMER_ID"), cfg.Get("API_KEY")),
 		cfg:    cfg,
 	}, nil
 }
 
-func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+func (b *blueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	password := generatePassword()
 	params := goblueboxapi.BlockParams{
 		Product:  b.cfg.Get("PRODUCT_ID"),
@@ -87,7 +87,7 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 	select {
 	case <-blockReady:
 		metrics.TimeSince("worker.vm.provider.bluebox.boot", startBooting)
-		return &BlueBoxInstance{
+		return &blueBoxInstance{
 			client:   b.client,
 			block:    block,
 			password: password,
@@ -107,7 +107,7 @@ func (b *BlueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 	}
 }
 
-func (b *BlueBoxProvider) templateIDForLanguageGroup(language, group string) string {
+func (b *blueBoxProvider) templateIDForLanguageGroup(language, group string) string {
 	languageMapSetting := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(language))
 	if b.cfg.IsSet(languageMapSetting) {
 		language = b.cfg.Get(languageMapSetting)
@@ -130,7 +130,7 @@ func (b *BlueBoxProvider) templateIDForLanguageGroup(language, group string) str
 	return ""
 }
 
-func (b *BlueBoxProvider) latestTemplates() map[string]string {
+func (b *blueBoxProvider) latestTemplates() map[string]string {
 	latest := map[string]goblueboxapi.Template{}
 	latestIDs := map[string]string{}
 
@@ -163,13 +163,13 @@ func (b *BlueBoxProvider) latestTemplates() map[string]string {
 	return latestIDs
 }
 
-type BlueBoxInstance struct {
+type blueBoxInstance struct {
 	client   *goblueboxapi.Client
 	block    *goblueboxapi.Block
 	password string
 }
 
-func (i *BlueBoxInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
+func (i *blueBoxInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 	if len(i.block.IPs) == 0 {
 		return nil, errNoBlueBoxIP
 	}
@@ -189,7 +189,7 @@ func (i *BlueBoxInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) 
 	return client, err
 }
 
-func (i *BlueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+func (i *blueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient(ctx)
 	if err != nil {
 		return err
@@ -220,7 +220,7 @@ func (i *BlueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) err
 	return err
 }
 
-func (i *BlueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *blueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient(ctx)
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -255,19 +255,10 @@ func (i *BlueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser
 	}
 }
 
-func (i *BlueBoxInstance) Stop(ctx gocontext.Context) error {
+func (i *blueBoxInstance) Stop(ctx gocontext.Context) error {
 	return i.client.Blocks.Destroy(i.block.ID)
 }
 
-func (i *BlueBoxInstance) Refresh() (err error) {
-	i.block, err = i.client.Blocks.Get(i.block.ID)
-	return
-}
-
-func (i *BlueBoxInstance) Ready() bool {
-	return i.block.Status == "running"
-}
-
-func (i *BlueBoxInstance) ID() string {
+func (i *blueBoxInstance) ID() string {
 	return i.block.ID
 }

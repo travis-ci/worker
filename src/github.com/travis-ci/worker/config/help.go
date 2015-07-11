@@ -31,6 +31,9 @@ e.g.:
 `
 )
 
+// SetProviderHelp sets the help for a backend.Provider with the given name.
+// The help text should contain a list of all required and optional
+// configuration options.
 func SetProviderHelp(providerName, help string) {
 	providerHelpsMut.Lock()
 	defer providerHelpsMut.Unlock()
@@ -46,7 +49,7 @@ func helpPrinter(w io.Writer, templ string, data interface{}) {
 	cliHelpPrinter(w, templ, data)
 
 	providerNames := []string{}
-	for providerName, _ := range providerHelps {
+	for providerName := range providerHelps {
 		providerNames = append(providerNames, providerName)
 	}
 

@@ -10,10 +10,6 @@ import (
 	"github.com/codegangsta/cli"
 )
 
-var (
-	zeroDuration time.Duration
-)
-
 // Config contains all the configuration needed to run the worker.
 type Config struct {
 	AmqpURI        string
@@ -49,7 +45,9 @@ type Config struct {
 	BuildCacheS3SecretAccessKey string
 }
 
-func ConfigFromCLIContext(c *cli.Context) *Config {
+// FromCLIContext creates a Config using a cli.Context by pulling configuration
+// from the flags in the context.
+func FromCLIContext(c *cli.Context) *Config {
 	cfg := &Config{
 		AmqpURI:       c.String("amqp-uri"),
 		PoolSize:      c.Int("pool-size"),
@@ -87,6 +85,9 @@ func ConfigFromCLIContext(c *cli.Context) *Config {
 	return cfg
 }
 
+// WriteEnvConfig writes the given configuration to out. The format of the
+// output is a list of environment variables settings suitable to be sourced
+// by a Bourne-like shell.
 func WriteEnvConfig(cfg *Config, out io.Writer) {
 	cfgMap := map[string]interface{}{
 		"amqp-uri":       cfg.AmqpURI,
@@ -121,7 +122,7 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 
 	sortedCfgMapKeys := []string{}
 
-	for key, _ := range cfgMap {
+	for key := range cfgMap {
 		sortedCfgMapKeys = append(sortedCfgMapKeys, key)
 	}
 
