@@ -79,7 +79,7 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 	case "jupiterbrain":
 		return newJupiterBrainProvider(cfg)
 	case "gce":
-		return NewGCEProvider(cfg)
+		return newGCEProvider(cfg)
 	case "bluebox":
 		return newBlueBoxProvider(cfg)
 	case "fake":

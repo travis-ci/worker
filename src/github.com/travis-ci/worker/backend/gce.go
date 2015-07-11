@@ -92,9 +92,7 @@ type gceAccountJSON struct {
 	PrivateKey  string `json:"private_key"`
 }
 
-// GCEProvider is an implementation of backend.Provider using Google Compute
-// Engine.
-type GCEProvider struct {
+type gceProvider struct {
 	client    *compute.Service
 	projectID string
 	ic        *gceInstanceConfig
@@ -116,11 +114,9 @@ type gceInstanceConfig struct {
 	SSHPubKey    string
 }
 
-// GCEInstance is an implementation of backend.Instance, representing an
-// instance on GCE created by a GCEProvider.
-type GCEInstance struct {
+type gceInstance struct {
 	client   *compute.Service
-	provider *GCEProvider
+	provider *gceProvider
 	instance *compute.Instance
 	ic       *gceInstanceConfig
 
@@ -130,9 +126,7 @@ type GCEInstance struct {
 	imageName string
 }
 
-// NewGCEProvider creates a GCEProvider with the given provider configuration.
-// An error can be returned if there's an error with the configuration.
-func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
+func newGCEProvider(cfg *config.ProviderConfig) (*gceProvider, error) {
 	client, err := buildGoogleComputeService(cfg)
 	if err != nil {
 		return nil, err
@@ -264,7 +258,7 @@ func NewGCEProvider(cfg *config.ProviderConfig) (*GCEProvider, error) {
 		defaultLanguage = cfg.Get("DEFAULT_LANGUAGE")
 	}
 
-	return &GCEProvider{
+	return &gceProvider{
 		client:    client,
 		projectID: projectID,
 		cfg:       cfg,
@@ -319,8 +313,7 @@ func loadGoogleAccountJSON(filename string) (*gceAccountJSON, error) {
 	return a, err
 }
 
-// Start creates a new GCEInstance and returns it once it has finished booting.
-func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx)
 
 	var (
@@ -465,7 +458,7 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	select {
 	case inst := <-instanceReady:
 		metrics.TimeSince("worker.vm.provider.gce.boot", startBooting)
-		return &GCEInstance{
+		return &gceInstance{
 			client:   p.client,
 			provider: p,
 			instance: inst,
@@ -486,7 +479,7 @@ func (p *GCEProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 }
 
-func (p *GCEProvider) imageForLanguage(language string) (*compute.Image, error) {
+func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) {
 	// TODO: add some TTL cache in here maybe?
 	images, err := p.client.Images.List(p.projectID).Filter(fmt.Sprintf(gceImagesFilter, language)).Do()
 	if err != nil {
@@ -509,7 +502,7 @@ func (p *GCEProvider) imageForLanguage(language string) (*compute.Image, error) 
 	return imagesByName[imageNames[len(imageNames)-1]], nil
 }
 
-func (i *GCEInstance) sshClient() (*ssh.Client, error) {
+func (i *gceInstance) sshClient() (*ssh.Client, error) {
 	err := i.refreshInstance()
 	if err != nil {
 		return nil, err
@@ -528,7 +521,7 @@ func (i *GCEInstance) sshClient() (*ssh.Client, error) {
 	})
 }
 
-func (i *GCEInstance) getIP() string {
+func (i *gceInstance) getIP() string {
 	for _, ni := range i.instance.NetworkInterfaces {
 		if ni.AccessConfigs == nil {
 			continue
@@ -544,7 +537,7 @@ func (i *GCEInstance) getIP() string {
 	return ""
 }
 
-func (i *GCEInstance) refreshInstance() error {
+func (i *gceInstance) refreshInstance() error {
 	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
 	if err != nil {
 		return err
@@ -554,10 +547,7 @@ func (i *GCEInstance) refreshInstance() error {
 	return nil
 }
 
-// UploadScript uploads a bash script to the GCEInstance so that RunScript can
-// run it later. An error is returned if the script could not be uploaded for
-// some reason.
-func (i *GCEInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 
 	go func() {
@@ -591,7 +581,7 @@ func (i *GCEInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	}
 }
 
-func (i *GCEInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
+func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
@@ -621,11 +611,7 @@ func (i *GCEInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 	return nil
 }
 
-// RunScript runs the script that was previously uploaded with UploadScript and
-// streams the output to the given io.WriteCloser. Once the script has finished
-// running, the RunResult is returned with the exit code. An error can be
-// returned if there was an error running the script.
-func (i *GCEInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *gceInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -659,9 +645,7 @@ func (i *GCEInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*
 	}
 }
 
-// Stop shuts down the instance. This should be called once the instance is no
-// longer needed.
-func (i *GCEInstance) Stop(ctx gocontext.Context) error {
+func (i *gceInstance) Stop(ctx gocontext.Context) error {
 	op, err := i.client.Instances.Delete(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
 	if err != nil {
 		return err
@@ -698,7 +682,6 @@ func (i *GCEInstance) Stop(ctx gocontext.Context) error {
 	}
 }
 
-// ID returns an ID for the instance that should be unique for the GCEProvider.
-func (i *GCEInstance) ID() string {
+func (i *gceInstance) ID() string {
 	return fmt.Sprintf("%s:%s", i.instance.Name, i.imageName)
 }
