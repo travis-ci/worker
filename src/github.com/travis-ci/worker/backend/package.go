@@ -62,13 +62,13 @@ type RunResult struct {
 func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 	switch name {
 	case "docker":
-		return NewDockerProvider(cfg)
+		return newDockerProvider(cfg)
 	case "jupiterbrain":
-		return NewJupiterBrainProvider(cfg)
+		return newJupiterBrainProvider(cfg)
 	case "bluebox":
-		return NewBlueBoxProvider(cfg)
+		return newBlueBoxProvider(cfg)
 	case "fake":
-		return NewFakeProvider([]byte("Hello to the logs")), nil
+		return newFakeProvider([]byte("Hello to the logs")), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", name)
 	}

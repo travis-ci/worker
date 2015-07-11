@@ -58,7 +58,7 @@ func init() {
 	config.SetProviderHelp("Jupiter Brain", jupiterBrainHelp)
 }
 
-type JupiterBrainProvider struct {
+type jupiterBrainProvider struct {
 	client           *http.Client
 	baseURL          *url.URL
 	imageAliases     map[string]string
@@ -68,9 +68,9 @@ type JupiterBrainProvider struct {
 	bootPollSleep    time.Duration
 }
 
-type JupiterBrainInstance struct {
+type jupiterBrainInstance struct {
 	payload  *jupiterBrainInstancePayload
-	provider *JupiterBrainProvider
+	provider *jupiterBrainProvider
 }
 
 type jupiterBrainInstancePayload struct {
@@ -85,7 +85,7 @@ type jupiterBrainDataResponse struct {
 	Data []*jupiterBrainInstancePayload `json:"data"`
 }
 
-func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider, error) {
+func newJupiterBrainProvider(cfg *config.ProviderConfig) (*jupiterBrainProvider, error) {
 	if !cfg.IsSet("ENDPOINT") {
 		return nil, ErrMissingEndpointConfig
 	}
@@ -143,7 +143,7 @@ func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider,
 		bootPollSleep = si
 	}
 
-	return &JupiterBrainProvider{
+	return &jupiterBrainProvider{
 		client:           http.DefaultClient,
 		baseURL:          baseURL,
 		imageAliases:     imageAliases,
@@ -154,7 +154,7 @@ func NewJupiterBrainProvider(cfg *config.ProviderConfig) (*JupiterBrainProvider,
 	}, nil
 }
 
-func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *StartAttributes) (Instance, error) {
+func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *StartAttributes) (Instance, error) {
 	u, err := p.baseURL.Parse("instances")
 	if err != nil {
 		return nil, err
@@ -292,12 +292,12 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 	case payload := <-instanceReady:
 		metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
 		workerctx.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
-		return &JupiterBrainInstance{
+		return &jupiterBrainInstance{
 			payload:  payload,
 			provider: p,
 		}, nil
 	case err := <-errChan:
-		instance := &JupiterBrainInstance{
+		instance := &jupiterBrainInstance{
 			payload:  payload,
 			provider: p,
 		}
@@ -309,7 +309,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
 		}
 
-		instance := &JupiterBrainInstance{
+		instance := &jupiterBrainInstance{
 			payload:  payload,
 			provider: p,
 		}
@@ -319,7 +319,7 @@ func (p *JupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 	}
 }
 
-func (p *JupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error) {
+func (p *jupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error) {
 	if req.URL.User != nil {
 		token := req.URL.User.Username()
 		req.URL.User = nil
@@ -329,7 +329,7 @@ func (p *JupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error)
 	return p.client.Do(req)
 }
 
-func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) error {
+func (i *jupiterBrainInstance) UploadScript(ctx context.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
@@ -367,7 +367,7 @@ func (i *JupiterBrainInstance) UploadScript(ctx context.Context, script []byte) 
 	return err
 }
 
-func (i *JupiterBrainInstance) RunScript(ctx context.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -402,7 +402,7 @@ func (i *JupiterBrainInstance) RunScript(ctx context.Context, output io.WriteClo
 	}
 }
 
-func (i *JupiterBrainInstance) Stop(ctx context.Context) error {
+func (i *jupiterBrainInstance) Stop(ctx context.Context) error {
 	u, err := i.provider.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(i.payload.ID)))
 	if err != nil {
 		return err
@@ -419,14 +419,14 @@ func (i *JupiterBrainInstance) Stop(ctx context.Context) error {
 	return err
 }
 
-func (i *JupiterBrainInstance) ID() string {
+func (i *jupiterBrainInstance) ID() string {
 	if i.payload == nil {
 		return "{unidentified}"
 	}
 	return fmt.Sprintf("%s:%s", i.payload.ID, i.payload.BaseImage)
 }
 
-func (i *JupiterBrainInstance) sshClient() (*ssh.Client, error) {
+func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	file, err := ioutil.ReadFile(i.provider.sshKeyPath)
 	if err != nil {
 		return nil, err
@@ -474,7 +474,7 @@ func (i *JupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	})
 }
 
-func (p *JupiterBrainProvider) getImageName(startAttributes *StartAttributes) string {
+func (p *jupiterBrainProvider) getImageName(startAttributes *StartAttributes) string {
 	for _, key := range []string{
 		startAttributes.OsxImage,
 		fmt.Sprintf("osx_image_%s", startAttributes.OsxImage),

@@ -15,14 +15,14 @@ import (
 
 var (
 	blueboxMux      *http.ServeMux
-	blueboxProvider *BlueBoxProvider
+	blueboxProvider *blueBoxProvider
 	blueboxServer   *httptest.Server
 )
 
 func blueboxTestSetup(t *testing.T, cfg *config.ProviderConfig) {
 	blueboxMux = http.NewServeMux()
 	blueboxServer = httptest.NewServer(blueboxMux)
-	blueboxProvider, _ = NewBlueBoxProvider(cfg)
+	blueboxProvider, _ = newBlueBoxProvider(cfg)
 	blueboxProvider.client.BaseURL, _ = url.Parse(blueboxServer.URL)
 }
 
