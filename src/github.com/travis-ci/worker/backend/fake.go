@@ -6,27 +6,27 @@ import (
 	"golang.org/x/net/context"
 )
 
-type FakeProvider struct {
+type fakeProvider struct {
 	logOutput []byte
 }
 
-func NewFakeProvider(logOutput []byte) *FakeProvider {
-	return &FakeProvider{logOutput: logOutput}
+func newFakeProvider(logOutput []byte) *fakeProvider {
+	return &fakeProvider{logOutput: logOutput}
 }
 
-func (p *FakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
-	return &FakeInstance{logOutput: p.logOutput}, nil
+func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
+	return &fakeInstance{logOutput: p.logOutput}, nil
 }
 
-type FakeInstance struct {
+type fakeInstance struct {
 	logOutput []byte
 }
 
-func (i *FakeInstance) UploadScript(ctx context.Context, script []byte) error {
+func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 	return nil
 }
 
-func (i *FakeInstance) RunScript(ctx context.Context, writer io.WriteCloser) (*RunResult, error) {
+func (i *fakeInstance) RunScript(ctx context.Context, writer io.WriteCloser) (*RunResult, error) {
 	_, err := writer.Write(i.logOutput)
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -40,10 +40,10 @@ func (i *FakeInstance) RunScript(ctx context.Context, writer io.WriteCloser) (*R
 	return &RunResult{Completed: true}, nil
 }
 
-func (i *FakeInstance) Stop(ctx context.Context) error {
+func (i *fakeInstance) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (i *FakeInstance) ID() string {
+func (i *fakeInstance) ID() string {
 	return "fake"
 }

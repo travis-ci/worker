@@ -38,7 +38,7 @@ func init() {
 	config.SetProviderHelp("Docker", dockerHelp)
 }
 
-type DockerProvider struct {
+type dockerProvider struct {
 	client *docker.Client
 
 	runPrivileged bool
@@ -50,15 +50,15 @@ type DockerProvider struct {
 	cpuSets      []bool
 }
 
-type DockerInstance struct {
+type dockerInstance struct {
 	client    *docker.Client
-	provider  *DockerProvider
+	provider  *dockerProvider
 	container *docker.Container
 
 	imageName string
 }
 
-func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
+func newDockerProvider(cfg *config.ProviderConfig) (*dockerProvider, error) {
 	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func NewDockerProvider(cfg *config.ProviderConfig) (*DockerProvider, error) {
 		}
 	}
 
-	return &DockerProvider{
+	return &dockerProvider{
 		client: client,
 
 		runPrivileged: privileged,
@@ -128,7 +128,7 @@ func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 	return docker.NewClient(endpoint)
 }
 
-func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx)
 
 	cpuSets, err := p.checkoutCPUSets()
@@ -208,7 +208,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	select {
 	case container := <-containerReady:
 		metrics.TimeSince("worker.vm.provider.docker.boot", startBooting)
-		return &DockerInstance{
+		return &dockerInstance{
 			client:    p.client,
 			provider:  p,
 			container: container,
@@ -224,7 +224,7 @@ func (p *DockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 }
 
-func (p *DockerProvider) imageForLanguage(language string) (string, string, error) {
+func (p *dockerProvider) imageForLanguage(language string) (string, string, error) {
 	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
 	if err != nil {
 		return "", "", err
@@ -248,7 +248,7 @@ func (p *DockerProvider) imageForLanguage(language string) (string, string, erro
 	return "", "", fmt.Errorf("no image found with language %s", language)
 }
 
-func (p *DockerProvider) checkoutCPUSets() (string, error) {
+func (p *dockerProvider) checkoutCPUSets() (string, error) {
 	p.cpuSetsMutex.Lock()
 	defer p.cpuSetsMutex.Unlock()
 
@@ -278,7 +278,7 @@ func (p *DockerProvider) checkoutCPUSets() (string, error) {
 	return strings.Join(cpuSetsString, ","), nil
 }
 
-func (p *DockerProvider) checkinCPUSets(sets string) {
+func (p *dockerProvider) checkinCPUSets(sets string) {
 	p.cpuSetsMutex.Lock()
 	defer p.cpuSetsMutex.Unlock()
 
@@ -291,7 +291,7 @@ func (p *DockerProvider) checkinCPUSets(sets string) {
 	}
 }
 
-func (i *DockerInstance) sshClient() (*ssh.Client, error) {
+func (i *dockerInstance) sshClient() (*ssh.Client, error) {
 	var err error
 	i.container, err = i.client.InspectContainer(i.container.ID)
 	if err != nil {
@@ -308,7 +308,7 @@ func (i *DockerInstance) sshClient() (*ssh.Client, error) {
 	})
 }
 
-func (i *DockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
@@ -338,7 +338,7 @@ func (i *DockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	return nil
 }
 
-func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -372,7 +372,7 @@ func (i *DockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser)
 	}
 }
 
-func (i *DockerInstance) Stop(ctx gocontext.Context) error {
+func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 	defer i.provider.checkinCPUSets(i.container.Config.CPUSet)
 
 	err := i.client.StopContainer(i.container.ID, 30)
@@ -387,7 +387,7 @@ func (i *DockerInstance) Stop(ctx gocontext.Context) error {
 	})
 }
 
-func (i *DockerInstance) ID() string {
+func (i *dockerInstance) ID() string {
 	if i.container == nil {
 		return "{unidentified}"
 	}
