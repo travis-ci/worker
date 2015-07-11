@@ -75,7 +75,7 @@ type jupiterBrainInstance struct {
 
 type jupiterBrainInstancePayload struct {
 	ID          string   `json:"id"`
-	IpAddresses []string `json:"ip-addresses"`
+	IPAddresses []string `json:"ip-addresses"`
 	State       string   `json:"state"`
 	BaseImage   string   `json:"base-image,omitempty"`
 	Type        string   `json:"type,omitempty"`
@@ -260,10 +260,10 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 			_ = resp.Body.Close()
 
 			var ip net.IP
-			for _, ipString := range payload.IpAddresses {
-				curIp := net.ParseIP(ipString)
-				if curIp.To4() != nil {
-					ip = curIp
+			for _, ipString := range payload.IPAddresses {
+				curIP := net.ParseIP(ipString)
+				if curIP.To4() != nil {
+					ip = curIP
 					break
 				}
 
@@ -453,10 +453,10 @@ func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	}
 
 	var ip net.IP
-	for _, ipString := range i.payload.IpAddresses {
-		curIp := net.ParseIP(ipString)
-		if curIp.To4() != nil {
-			ip = curIp
+	for _, ipString := range i.payload.IPAddresses {
+		curIP := net.ParseIP(ipString)
+		if curIP.To4() != nil {
+			ip = curIP
 			break
 		}
 
