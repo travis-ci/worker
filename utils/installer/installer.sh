@@ -129,7 +129,7 @@ docker_populate_images() {
 
   # pick the languages you are interested in
   langs='android erlang go haskell jvm node-js perl php python ruby'
-  declare -a lang_mappings=('clojure:jvm' 'scala:jvm' 'groovy:jvm' 'java:jvm' 'elixir:erlang')
+  declare -a lang_mappings=('clojure:jvm' 'scala:jvm' 'groovy:jvm' 'java:jvm' 'elixir:erlang' 'node_js:node-js')
   tag=latest
   for lang in $langs; do
     $DOCKER_CMD pull quay.io/travisci/travis-$lang:$tag
