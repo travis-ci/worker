@@ -22,6 +22,11 @@ addons:
 install:
 - go get github.com/constabulary/gb/...
 - gem install package_cloud --no-ri --no-rdoc
+- echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee -a /etc/apt/sources.list
+- curl http://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -
+- sudo apt-get update -qq
+- sudo apt-get install rabbitmq-server
+- sudo service rabbitmq-server start
 
 script:
 - make test
