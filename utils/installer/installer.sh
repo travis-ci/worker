@@ -114,7 +114,7 @@ docker_setup() {
 
   # use LXC, and disable inter-container communication
   if [[ ! $(grep icc $DOCKER_CONFIG_FILE) ]]; then
-    echo 'DOCKER_OPTS="-H tcp://0.0.0.0:4243 --storage-driver=devicemapper --icc=false --exec-driver=lxc '$DOCKER_MOUNT_POINT'"' >> $DOCKER_CONFIG_FILE
+    echo 'DOCKER_OPTS="-H tcp://0.0.0.0:4243 --storage-driver=aufs --icc=false --exec-driver=lxc '$DOCKER_MOUNT_POINT'"' >> $DOCKER_CONFIG_FILE
     service docker restart
     sleep 2 # a short pause to ensure the docker daemon starts
   fi
@@ -135,6 +135,9 @@ docker_populate_images() {
     $DOCKER_CMD pull quay.io/travisci/travis-$lang:$tag
     $DOCKER_CMD tag -f quay.io/travisci/travis-$lang:$tag travis:$lang
   done
+
+  # tag travis:ruby as travis:default
+  $DOCKER_CMD tag -f travis:ruby travis:default
 
   for lang_map in "${lang_mappings[@]}"; do
     map=$(echo $lang_map|cut -d':' -f 1)
