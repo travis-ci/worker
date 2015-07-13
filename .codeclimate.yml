@@ -11,4 +11,5 @@ engines:
 exclude_paths:
 - vendor/**/*
 ratings:
-- src
+  paths:
+  - src
