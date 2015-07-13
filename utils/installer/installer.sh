@@ -102,7 +102,7 @@ docker_setup() {
 
   if [[ ! -f $DOCKER_APT_FILE ]]; then
     wget -qO- https://get.docker.io/gpg | apt-key add -
-    echo deb http://get.docker.io/ubuntu docker main > $DOCKER_APT_FILE
+    echo deb https://get.docker.io/ubuntu docker main > $DOCKER_APT_FILE
     apt-get update
     apt-get install -y linux-image-extra-`uname -r` lxc lxc-docker-$DOCKER_VERSION
 
