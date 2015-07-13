@@ -10,3 +10,5 @@ engines:
     enabled: true
 exclude_paths:
 - vendor/**/*
+ratings:
+- src
