@@ -116,12 +116,12 @@ func (p *ProcessorPool) GracefulShutdown() {
 func (p *ProcessorPool) Incr() {
 	p.processorsWG.Add(1)
 	go func() {
+		defer p.processorsWG.Done()
 		err := p.runProcessor(p.queue)
 		if err != nil {
 			p.poolErrors = append(p.poolErrors, err)
 			return
 		}
-		p.processorsWG.Done()
 	}()
 }
 
