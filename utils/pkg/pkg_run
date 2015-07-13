@@ -124,7 +124,7 @@ package_cloud_push () {
       export PC_REPO="worker-testing"
     fi
 
-    package_cloud push \
+    package_cloud push --verbose \
       $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
       tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype
 }
