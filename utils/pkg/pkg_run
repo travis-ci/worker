@@ -21,7 +21,6 @@ if [[ ! -n $PACKAGECLOUD_TOKEN ]]; then
 fi
 
 git tag|tail -n 1|tr -d 'v' > VERSION
-export LATEST_PUBLISHED_VERSION=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/travisci/worker/package/rpm/el/7/travis-worker/x86_64/versions.json | jq .[].version | tail -n 1 | tr -d '"')
 git rev-parse --short $(git rev-list $(git tag|tail -n 1)|head -n 1) > VERSION_SHA1
 git rev-parse --short $(git rev-parse HEAD) > CURRENT_SHA1
 
@@ -29,6 +28,14 @@ if [[ ! -n $CHECKOUT_ROOT ]]; then
   source /code/utils/pkg/includes/common
 else
   source $CHECKOUT_ROOT/utils/pkg/includes/common
+fi
+
+if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]]; then
+  FULL_GIT_VERSION=$(git describe --always --dirty --tags 2>/dev/null)
+  GIT_INCREMENT=$(echo $FULL_GIT_VERSION|cut -d'-' -f 2)
+  export VERSION="$VERSION".dev."$GIT_INCREMENT"-"$CURRENT_SHA1"
+else
+  export VERSION=$(cat VERSION)
 fi
 
 docker_pull_images () {
@@ -54,6 +61,8 @@ docker_run () {
 
     if [[ $platform_family =~ ubuntu$ ]]; then
       pkgtype="deb"
+      pkgarch="amd64"
+      export package_cloud_os="ubuntu"
       if [[ $platform_release == "precise" ]]; then
         build_docker_image="solarce/precise-ruby"
         test_docker_image="ubuntu-upstart:precise"
@@ -63,9 +72,40 @@ docker_run () {
       fi
     elif [[ $platform_family =~ centos$ ]]; then
       pkgtype="rpm"
+      pkgarch="x86_64"
+      export package_cloud_os="el"
       if [[ $platform_release == "7" ]]; then
         build_docker_image="solarce/centos7-ruby"
         test_docker_image="2k0ri/centos7-systemd"
+      fi
+    fi
+
+    if [[ $VERSION =~ dev ]]; then
+      export PC_REPO="worker-testing"
+    else
+      export PC_REPO="worker"
+    fi
+
+    if [[ $pkgtype == "rpm" ]]; then
+      PC_VERSION=$(echo $VERSION|sed 's/\-/\_/')
+    else
+      PC_VERSION=$VERSION
+    fi
+
+    export LATEST_PUBLISHED_FILENAME=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/$PC_USER/$PC_REPO/package/$pkgtype/$package_cloud_os/$platform_release/travis-worker/$pkgarch/$PC_VERSION/1.json|jq .'filename'|tr -d '"')
+    if [[ $pkgtype == "rpm" ]]; then
+      export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'-' -f 3|sed 's/_/-/')
+    else
+      export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'_' -f 2)
+    fi
+
+    if [[ $VERSION == $LATEST_PUBLISHED_VERSION ]]; then
+      if [[ $VERSION =~ dev ]]; then
+        package_cloud yank travisci/$PC_REPO/$package_cloud_os/$platform_release $LATEST_PUBLISHED_FILENAME
+      else
+        echo "Stable version $VERSION has already been published to packagecloud.io"
+        echo "Please determine if you want to remove the package and republish it"
+        exit 1
       fi
     fi
 
@@ -113,12 +153,6 @@ docker_run () {
 package_cloud_push () {
     # Publish the package to packagecloud.io
     echo "## Publishing package to packagecloud.io ##"
-    package_cloud_os="1"
-    if [[ $platform_family =~ ubuntu$ ]]; then
-      package_cloud_os="ubuntu"
-    elif [[ $platform_family =~ centos$ ]]; then
-      package_cloud_os="el"
-    fi
 
     if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]]; then
       export PC_REPO="worker-testing"
@@ -126,7 +160,7 @@ package_cloud_push () {
 
     package_cloud push \
       $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
-      tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype
+      tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype --verbose
 }
 
 docker_pull_images
