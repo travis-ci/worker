@@ -26,8 +26,11 @@ type ProcessorPool struct {
 
 	SkipShutdownOnLogTimeout bool
 
+	queue          *JobQueue
+	poolErrors     []error
 	processorsLock sync.Mutex
 	processors     []*Processor
+	processorsWG   sync.WaitGroup
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -67,6 +70,11 @@ func (p *ProcessorPool) Each(f func(int, *Processor)) {
 	}
 }
 
+// Size returns the number of processors in the pool
+func (p *ProcessorPool) Size() int {
+	return len(p.processors)
+}
+
 // Run starts up a number of processors and connects them to the given queue.
 // This method stalls until all processors have finished.
 func (p *ProcessorPool) Run(poolSize int, queueName string) error {
@@ -75,29 +83,20 @@ func (p *ProcessorPool) Run(poolSize int, queueName string) error {
 		return err
 	}
 
-	var wg sync.WaitGroup
-
-	poolErrors := []error{}
+	p.queue = queue
+	p.poolErrors = []error{}
 
 	for i := 0; i < poolSize; i++ {
-		wg.Add(1)
-		go func() {
-			err := p.processor(queue)
-			if err != nil {
-				poolErrors = append(poolErrors, err)
-				return
-			}
-			wg.Done()
-		}()
+		p.Incr()
 	}
 
-	if len(poolErrors) > 0 {
+	if len(p.poolErrors) > 0 {
 		context.LoggerFromContext(p.Context).WithFields(logrus.Fields{
-			"pool_errors": poolErrors,
+			"pool_errors": p.poolErrors,
 		}).Panic("failed to populate pool")
 	}
 
-	wg.Wait()
+	p.processorsWG.Wait()
 
 	return nil
 }
@@ -113,7 +112,31 @@ func (p *ProcessorPool) GracefulShutdown() {
 	}
 }
 
-func (p *ProcessorPool) processor(queue *JobQueue) error {
+// Incr adds a single running processor to the pool
+func (p *ProcessorPool) Incr() {
+	p.processorsWG.Add(1)
+	go func() {
+		defer p.processorsWG.Done()
+		err := p.runProcessor(p.queue)
+		if err != nil {
+			p.poolErrors = append(p.poolErrors, err)
+			return
+		}
+	}()
+}
+
+// Decr pops a processor out of the pool and issues a graceful shutdown
+func (p *ProcessorPool) Decr() {
+	if len(p.processors) == 0 {
+		return
+	}
+
+	var proc *Processor
+	proc, p.processors = p.processors[len(p.processors)-1], p.processors[:len(p.processors)-1]
+	proc.GracefulShutdown()
+}
+
+func (p *ProcessorPool) runProcessor(queue *JobQueue) error {
 	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller, p.HardTimeout, p.LogTimeout)
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
