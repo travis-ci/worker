@@ -98,8 +98,6 @@ docker_run () {
     else
       export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'_' -f 2)
     fi
-    echo $LATEST_PUBLISHED_FILENAME
-    echo $LATEST_PUBLISHED_VERSION
 
     if [[ $VERSION == $LATEST_PUBLISHED_VERSION ]]; then
       if [[ $VERSION =~ dev ]]; then
