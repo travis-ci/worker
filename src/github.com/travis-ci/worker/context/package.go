@@ -98,7 +98,7 @@ func RepositoryFromContext(ctx context.Context) (string, bool) {
 func LoggerFromContext(ctx context.Context) *logrus.Entry {
 	entry := logrus.WithField("pid", os.Getpid())
 
-	if uuid, ok := UUIDFromContext(ctx); ok {
+	if uuid, ok := UUIDFromContext(ctx); ok && len(uuid) > 0 {
 		entry = entry.WithField("uuid", uuid)
 	}
 
