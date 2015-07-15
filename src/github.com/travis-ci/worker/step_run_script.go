@@ -116,7 +116,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	case <-logWriter.Timeout():
 		cancelCtx()
 
-		_, err := logWriter.WriteAndClose([]byte(fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", s.hardTimeout)))
+		_, err := logWriter.WriteAndClose([]byte(fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", s.logTimeout)))
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write log timeout log message")
 		}
