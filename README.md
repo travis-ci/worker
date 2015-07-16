@@ -109,4 +109,4 @@ To add a new dependency, do the following:
 
 See LICENSE file.
 
-Copyright © 2014 Travis CI GmbH
+© 2014-2015 Travis CI GmbH
