@@ -161,6 +161,12 @@ package_cloud_push () {
     package_cloud push \
       $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
       tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype --verbose
+
+    # Prune old packages
+    cd $WORKDIR/utils/pkg/
+    bundle
+    PC_LIMIT=10
+    bundle exec ruby utils/pkg/packagecloud_prune.rb $PC_REPO $package_cloud_os/$platform_release $PC_LIMIT
 }
 
 docker_pull_images
