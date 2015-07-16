@@ -367,7 +367,7 @@ func (i *jupiterBrainInstance) UploadScript(ctx context.Context, script []byte) 
 	return err
 }
 
-func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -389,7 +389,6 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.WriteClo
 	session.Stderr = output
 
 	err = session.Run("bash ~/wrapper.sh")
-	defer output.Close()
 	if err == nil {
 		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
