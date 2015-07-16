@@ -1,4 +1,4 @@
-## 0.5.2 (unreleased)
+## 0.5.2 (July 16th, 2015)
 
 IMPROVEMENTS:
 
