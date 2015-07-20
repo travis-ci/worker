@@ -132,6 +132,12 @@
 			"repository": "https://github.com/henrikhodne/goblueboxapi",
 			"revision": "4f22069c7d39dd3c479dadc82b36a84a4f922740",
 			"branch": "master"
+		},
+		{
+			"importpath": "github.com/cenkalti/backoff",
+			"repository": "https://github.com/cenkalti/backoff",
+			"revision": "6c45d6bc1e78d94431dff8fc28a99f20bafa355a",
+			"branch": "master"
 		}
 	]
 }
