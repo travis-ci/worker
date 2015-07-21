@@ -25,7 +25,8 @@ import (
 )
 
 var (
-	nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+	nonAlphaNumRegexp     = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+	metricNameCleanRegexp = regexp.MustCompile(`[^A-Za-z0-9.:-_]+`)
 )
 
 const (
@@ -291,6 +292,8 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 	select {
 	case payload := <-instanceReady:
 		metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
+		normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
+		metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
 		workerctx.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
 		return &jupiterBrainInstance{
 			payload:  payload,
