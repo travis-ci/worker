@@ -1,6 +1,6 @@
 language: go
 go: 1.4.2
-dist: trusty
+sudo: 9000
 
 env:
   global:
