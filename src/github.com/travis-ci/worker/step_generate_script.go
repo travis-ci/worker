@@ -16,19 +16,20 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 
 	script, err := s.generator.Generate(ctx, buildJob.RawPayload())
 	if err != nil {
-		if genErr, ok := err.(BuildScriptGeneratorError); ok && genErr.Recover {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, requeueing job")
-			err := buildJob.Requeue()
+		if genErr, ok := err.(BuildScriptGeneratorError); ok && !genErr.Recover {
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, erroring job")
+			err := buildJob.Error(ctx, "An error occurred while generating the build script.")
 			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't error job")
 			}
+
 			return multistep.ActionHalt
 		}
 
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, erroring job")
-		err := buildJob.Error(ctx, "An error occurred while generating the build script.")
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, requeueing job")
+		err := buildJob.Requeue()
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't error job")
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
 		}
 
 		return multistep.ActionHalt
