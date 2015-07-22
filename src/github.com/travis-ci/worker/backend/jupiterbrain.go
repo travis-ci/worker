@@ -391,8 +391,19 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.WriteClo
 	session.Stdout = output
 	session.Stderr = output
 
-	err = session.Run("bash ~/wrapper.sh")
+	errChan := make(chan error)
+
+	go func() {
+		errChan <- session.Run("bash ~/wrapper.sh")
+	}()
 	defer output.Close()
+
+	select {
+	case <-ctx.Done():
+		return &RunResult{Completed: false}, ctx.Err()
+	case err = <-errChan:
+	}
+
 	if err == nil {
 		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
