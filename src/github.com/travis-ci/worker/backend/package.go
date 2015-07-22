@@ -81,7 +81,7 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 	case "bluebox":
 		return newBlueBoxProvider(cfg)
 	case "fake":
-		return newFakeProvider([]byte("Hello to the logs")), nil
+		return newFakeProvider(cfg), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", name)
 	}
