@@ -1,10 +1,10 @@
 language: go
 go: 1.4.2
-dist: trusty
+sudo: 9000
 
 env:
   global:
-  - INTEGRATION_TESTS_DISABLED=1
+  - AMQP_URI=amqp://
   - GOPATH="$HOME/gopath"
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
@@ -22,6 +22,11 @@ addons:
 install:
 - go get github.com/constabulary/gb/...
 - gem install package_cloud --no-ri --no-rdoc
+- echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee -a /etc/apt/sources.list
+- curl http://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -
+- sudo apt-get update -qq
+- sudo apt-get install rabbitmq-server
+- sudo service rabbitmq-server start
 
 script:
 - make test
@@ -34,10 +39,6 @@ script:
 - travis-worker -h
 - travis-worker --echo-config
 - make package
-
-# TODO: enable integration tests
-# - AMQP_URI=amqp:// POOL_SIZE=1 BUILD_API_URI=http://localhost:3000/script PROVIDER_NAME=fake PROVIDER_CONFIG=happy QUEUE_NAME=builds.test travis-worker &
-# - AMQP_URI=amqp:// go test -v ./test
 # TODO: re-enable if/when the missing defs file issue is resolved
 # after_success:
 # - make crossbuild
@@ -51,5 +52,4 @@ after_success:
 notifications:
   slack:
     rooms:
-    - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo=" 
-
+    - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo="

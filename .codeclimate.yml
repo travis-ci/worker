@@ -6,5 +6,10 @@ engines:
     enabled: true
   govet:
     enabled: true
+  fixme:
+    enabled: true
 exclude_paths:
 - vendor/**/*
+ratings:
+  paths:
+  - src

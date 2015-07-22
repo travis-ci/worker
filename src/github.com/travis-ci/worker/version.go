@@ -3,6 +3,7 @@ package worker
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/codegangsta/cli"
 )
@@ -24,5 +25,6 @@ func init() {
 }
 
 func customVersionPrinter(c *cli.Context) {
-	fmt.Printf("%v v=%v rev=%v d=%v\n", c.App.Name, VersionString, RevisionString, GeneratedString)
+	fmt.Printf("%v v=%v rev=%v d=%v\n", filepath.Base(c.App.Name),
+		VersionString, RevisionString, GeneratedString)
 }

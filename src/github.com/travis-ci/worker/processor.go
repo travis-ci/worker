@@ -93,7 +93,11 @@ func (p *Processor) Run() {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
 			}
 
-			ctx, cancel := gocontext.WithTimeout(context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID), hardTimeout)
+			ctx := context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID)
+			if buildJob.Payload().UUID != "" {
+				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
+			}
+			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
 			p.process(ctx, buildJob)
 			cancel()
 		}

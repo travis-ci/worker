@@ -50,6 +50,7 @@ var (
 		},
 		cli.StringFlag{
 			Name:   "librato-source",
+			Value:  defaultHostname,
 			Usage:  "Librato metrics source name",
 			EnvVar: twEnvVars("LIBRATO_SOURCE"),
 		},
