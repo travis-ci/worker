@@ -269,7 +269,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (*gceProvider, error) {
 			MachineType:  mt,
 			Zone:         zone,
 			Network:      nw,
-			DiskType:     fmt.Sprintf("zones/%s/diskTypes/pd-standard", zone.Name),
+			DiskType:     fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
 			DiskSize:     diskSize,
 			SSHKeySigner: sshKeySigner,
 			SSHPubKey:    string(sshPubKeyBytes),
