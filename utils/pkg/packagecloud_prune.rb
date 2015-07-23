@@ -74,12 +74,12 @@ until i == LIMIT
   yank_url = "/#{distro_version}/#{filename}"
   url = base_url + yank_url
 
-  puts "wuold be yanking #{filename}"
-  #result = RestClient.delete(url)
-  #if result == {}
-  #  puts "successfully yanked #{filename}!"
-  #else
-  #  puts "failed with #{result}"
-  #end
+  puts "attempting to yank #{filename}"
+  result = RestClient.delete(url)
+  if result == {}
+    puts "successfully yanked #{filename}!"
+  else
+    puts "failed with #{result}"
+  end
   i -= 1
 end

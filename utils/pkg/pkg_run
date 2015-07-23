@@ -92,23 +92,27 @@ docker_run () {
       PC_VERSION=$VERSION
     fi
 
-    export LATEST_PUBLISHED_FILENAME=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/$PC_USER/$PC_REPO/package/$pkgtype/$package_cloud_os/$platform_release/travis-worker/$pkgarch/$PC_VERSION/1.json|jq .'filename'|tr -d '"')
-    if [[ $pkgtype == "rpm" ]]; then
-      export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'-' -f 3|sed 's/_/-/')
-    else
-      export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'_' -f 2)
-    fi
+    LATEST_PUBLISHED_QUERY=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/$PC_USER/$PC_REPO/package/$pkgtype/$package_cloud_os/$platform_release/travis-worker/$pkgarch/$PC_VERSION/1.json)
 
-    if [[ $VERSION == $LATEST_PUBLISHED_VERSION ]]; then
-      if [[ $VERSION =~ dev ]]; then
-        package_cloud yank travisci/$PC_REPO/$package_cloud_os/$platform_release $LATEST_PUBLISHED_FILENAME
+    if [[ -z $LATEST_PUBLISHED_QUERY ]]; then
+      echo $($LATEST_PUBLISHED_QUERY|jq .'filename'|tr -d '"')
+
+      if [[ $pkgtype == "rpm" ]]; then
+        export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'-' -f 3|sed 's/_/-/')
       else
-        echo "Stable version $VERSION has already been published to packagecloud.io"
-        echo "Please determine if you want to remove the package and republish it"
-        exit 1
+        export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'_' -f 2)
       fi
-    fi
 
+      if [[ $VERSION == $LATEST_PUBLISHED_VERSION ]]; then
+        if [[ $VERSION =~ dev ]]; then
+          package_cloud yank travisci/$PC_REPO/$package_cloud_os/$platform_release $LATEST_PUBLISHED_FILENAME
+        else
+          echo "Stable version $VERSION has already been published to packagecloud.io"
+          echo "Please determine if you want to remove the package and republish it"
+          exit 1
+        fi
+      fi
+  fi
     # Run pkg_build inside the appropriate
     # docker container to
     #  - Generate the service script for that distro
@@ -158,15 +162,22 @@ package_cloud_push () {
       export PC_REPO="worker-testing"
     fi
 
-    package_cloud push \
-      $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
-      tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype --verbose
+    PC_UPLOAD_FILE=$(ls $CHECKOUT_ROOT/tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype)
+    echo $PC_UPLOAD_FILE
+
+    #package_cloud push \
+    #  $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
+    #  tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype --verbose
 
     # Prune old packages
-    cd $WORKDIR/utils/pkg/
+    cd $CHECKOUT_ROOT/utils/pkg/
     bundle
-    PC_LIMIT=10
-    bundle exec ruby utils/pkg/packagecloud_prune.rb $PC_REPO $package_cloud_os/$platform_release $PC_LIMIT
+    if [[ ! -n $PC_LIMIT ]]; then
+      export PC_LIMIT=15
+    else
+      export PC_LIMIT=$PC_LIMIT
+    fi
+    bundle exec ruby ./packagecloud_prune.rb $PC_REPO $package_cloud_os/$platform_release $PC_LIMIT
 }
 
 docker_pull_images
