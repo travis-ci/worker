@@ -35,6 +35,7 @@ func main() {
 	app.Version = worker.VersionString
 	app.Author = "Travis CI GmbH"
 	app.Email = "contact+travis-worker@travis-ci.com"
+	app.Copyright = worker.CopyrightString
 
 	app.Flags = config.Flags
 	app.Action = runWorker

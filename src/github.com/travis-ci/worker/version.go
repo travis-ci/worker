@@ -15,6 +15,8 @@ var (
 	RevisionString = "?"
 	// GeneratedString is the build date set at build time
 	GeneratedString = "?"
+	// CopyrightString is the copyright set at build time
+	CopyrightString = "?"
 )
 
 func init() {
