@@ -8,6 +8,7 @@ IMPROVEMENTS:
 
   * step/upload-script: Add a timeout for the script upload (currently 1 minute)
   * step/upload-script: Treat connection errors as recoverable errors, and requeue the job
+  * backend/jupiterbrain: Per-image boot time and count metrics
 
 BUG FIXES:
 
