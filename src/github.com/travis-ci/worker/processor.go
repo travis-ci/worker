@@ -38,18 +38,14 @@ type Processor struct {
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQueue,
+func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan Job,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
 	hardTimeout time.Duration, logTimeout time.Duration) (*Processor, error) {
 
-	processorUUID := uuid.NewRandom()
+	uuidString, _ := context.UUIDFromContext(ctx)
+	processorUUID := uuid.Parse(uuidString)
 
-	ctx, cancel := gocontext.WithCancel(context.FromProcessor(ctx, processorUUID.String()))
-
-	buildJobsChan, err := buildJobsQueue.Jobs(ctx)
-	if err != nil {
-		return nil, err
-	}
+	ctx, cancel := gocontext.WithCancel(ctx)
 
 	return &Processor{
 		ID:          processorUUID,
