@@ -192,7 +192,6 @@ func signalHandler(logger *logrus.Entry, pool *worker.ProcessorPool, cancel goco
 					logger.WithFields(logrus.Fields{
 						"n":         n,
 						"id":        proc.ID,
-						"job":       fmt.Sprintf("%#v", proc.CurrentJob),
 						"processed": proc.ProcessedCount,
 					}).Info("processor info")
 				})
