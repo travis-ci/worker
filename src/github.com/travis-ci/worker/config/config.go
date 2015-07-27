@@ -107,7 +107,7 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 
 		"build-cache-fetch-timeout":        cfg.BuildCacheFetchTimeout,
 		"build-cache-push-timeout":         cfg.BuildCachePushTimeout,
-		"build-opt-cache":                  cfg.BuildAptCache,
+		"build-apt-cache":                  cfg.BuildAptCache,
 		"build-npm-cache":                  cfg.BuildNpmCache,
 		"build-paranoid":                   cfg.BuildParanoid,
 		"build-fix-resolv-conf":            cfg.BuildFixResolvConf,
