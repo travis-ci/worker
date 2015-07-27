@@ -35,6 +35,7 @@ func main() {
 	app.Version = worker.VersionString
 	app.Author = "Travis CI GmbH"
 	app.Email = "contact+travis-worker@travis-ci.com"
+	app.Copyright = worker.CopyrightString
 
 	app.Flags = config.Flags
 	app.Action = runWorker
@@ -192,7 +193,6 @@ func signalHandler(logger *logrus.Entry, pool *worker.ProcessorPool, cancel goco
 					logger.WithFields(logrus.Fields{
 						"n":         n,
 						"id":        proc.ID,
-						"job":       fmt.Sprintf("%#v", proc.CurrentJob),
 						"processed": proc.ProcessedCount,
 					}).Info("processor info")
 				})

@@ -8,12 +8,6 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/codegangsta/cli",
-			"repository": "https://github.com/codegangsta/cli",
-			"revision": "8cbee4b7192cea690c9f048e742e6b4c3525fd9e",
-			"branch": "master"
-		},
-		{
 			"importpath": "github.com/mitchellh/multistep",
 			"repository": "https://github.com/mitchellh/multistep",
 			"revision": "162146fc57112954184d90266f4733e900ed05a5",
@@ -131,6 +125,12 @@
 			"importpath": "github.com/henrikhodne/goblueboxapi",
 			"repository": "https://github.com/henrikhodne/goblueboxapi",
 			"revision": "4f22069c7d39dd3c479dadc82b36a84a4f922740",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/codegangsta/cli",
+			"repository": "https://github.com/codegangsta/cli",
+			"revision": "bca61c476e3c752594983e4c9bcd5f62fb09f157",
 			"branch": "master"
 		}
 	]
