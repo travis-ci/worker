@@ -2,8 +2,8 @@
 
 CHECKOUT_ROOT=${CHECKOUT_ROOT:-$TRAVIS_BUILD_DIR}
 DATE=$(date +"%m-%d-%Y_%H-%M-%S")
-PC_USER="travisci"
-PC_REPO="worker"
+export PC_USER="travisci"
+export PC_REPO="worker"
 if [[ -z $CHECKOUT_ROOT ]]; then
   VERSION=$(cat /code/VERSION)
   VERSION_SHA1=$(cat /code/VERSION_SHA1)
