@@ -64,7 +64,13 @@ sorted_package_versions = parsed_package_versions.sort_by { |x| Time.parse(x["cr
 i = sorted_package_versions.size - 1
 puts "There are currently #{i} packages in #{REPOSITORY}"
 puts "Your LIMIT is #{LIMIT}"
-puts "Deleting #{i - LIMIT}"
+
+if i > LIMIT
+  puts "Deleting #{i - LIMIT}"
+else
+  puts "The number of packages is below #{LIMIT}, so not yanking any."
+  exit 0
+end
 
 until i == LIMIT
   to_yank = sorted_package_versions[i]
@@ -76,6 +82,7 @@ until i == LIMIT
 
   puts "attempting to yank #{filename}"
   result = RestClient.delete(url)
+  p result
   if result == {}
     puts "successfully yanked #{filename}!"
   else
