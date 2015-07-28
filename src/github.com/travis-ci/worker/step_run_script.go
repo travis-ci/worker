@@ -32,6 +32,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		return multistep.ActionHalt
 	}
+	defer logWriter.Close()
 
 	logWriter.SetTimeout(s.logTimeout)
 	logWriter.SetMaxLogLength(s.maxLogLength)

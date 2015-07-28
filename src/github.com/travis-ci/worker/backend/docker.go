@@ -338,7 +338,7 @@ func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	return nil
 }
 
-func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err

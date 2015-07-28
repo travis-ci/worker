@@ -613,7 +613,7 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 	return nil
 }
 
-func (i *gceInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err

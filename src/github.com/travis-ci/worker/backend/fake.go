@@ -28,15 +28,10 @@ func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 	return nil
 }
 
-func (i *fakeInstance) RunScript(ctx context.Context, writer io.WriteCloser) (*RunResult, error) {
+func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunResult, error) {
 	_, err := writer.Write([]byte(i.p.cfg.Get("LOG_OUTPUT")))
 	if err != nil {
 		return &RunResult{Completed: false}, err
-	}
-
-	err = writer.Close()
-	if err != nil {
-		return &RunResult{Completed: true}, err
 	}
 
 	return &RunResult{Completed: true}, nil

@@ -220,7 +220,7 @@ func (i *blueBoxInstance) UploadScript(ctx gocontext.Context, script []byte) err
 	return err
 }
 
-func (i *blueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser) (*RunResult, error) {
+func (i *blueBoxInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient(ctx)
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -242,7 +242,6 @@ func (i *blueBoxInstance) RunScript(ctx gocontext.Context, output io.WriteCloser
 	session.Stderr = output
 
 	err = session.Run("bash --login ~/build.sh")
-	defer output.Close()
 	if err == nil {
 		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
