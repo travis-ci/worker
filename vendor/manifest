@@ -128,6 +128,12 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/cenkalti/backoff",
+			"repository": "https://github.com/cenkalti/backoff",
+			"revision": "6c45d6bc1e78d94431dff8fc28a99f20bafa355a",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/codegangsta/cli",
 			"repository": "https://github.com/codegangsta/cli",
 			"revision": "bca61c476e3c752594983e4c9bcd5f62fb09f157",
