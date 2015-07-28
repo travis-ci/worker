@@ -29,7 +29,6 @@ type Processor struct {
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
 
-	CurrentJob     Job
 	ProcessedCount int
 
 	SkipShutdownOnLogTimeout bool
@@ -38,18 +37,14 @@ type Processor struct {
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, hostname string, buildJobsQueue *JobQueue,
+func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan Job,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
 	hardTimeout time.Duration, logTimeout time.Duration) (*Processor, error) {
 
-	processorUUID := uuid.NewRandom()
+	uuidString, _ := context.UUIDFromContext(ctx)
+	processorUUID := uuid.Parse(uuidString)
 
-	ctx, cancel := gocontext.WithCancel(context.FromProcessor(ctx, processorUUID.String()))
-
-	buildJobsChan, err := buildJobsQueue.Jobs(ctx)
-	if err != nil {
-		return nil, err
-	}
+	ctx, cancel := gocontext.WithCancel(ctx)
 
 	return &Processor{
 		ID:          processorUUID,
@@ -93,7 +88,11 @@ func (p *Processor) Run() {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
 			}
 
-			ctx, cancel := gocontext.WithTimeout(context.FromUUID(context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID), buildJob.Payload().UUID), hardTimeout)
+			ctx := context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID)
+			if buildJob.Payload().UUID != "" {
+				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
+			}
+			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
 			p.process(ctx, buildJob)
 			cancel()
 		}
@@ -104,8 +103,14 @@ func (p *Processor) Run() {
 // processing, but not pick up any new jobs. This method will return
 // immediately, the processor is done when Run() returns.
 func (p *Processor) GracefulShutdown() {
+	defer func() {
+		err := recover()
+		if err != nil {
+			context.LoggerFromContext(p.ctx).WithField("err", err).Error("recovered from panic")
+		}
+	}()
 	context.LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
-	close(p.graceful)
+	p.graceful <- struct{}{}
 }
 
 // Terminate tells the processor to stop working on the current job as soon as
@@ -119,8 +124,6 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("hostname", p.fullHostname())
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
-
-	p.CurrentJob = buildJob
 
 	logTimeout := p.logTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
@@ -139,7 +142,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			provider:     p.provider,
 			startTimeout: 4 * time.Minute,
 		},
-		&stepUploadScript{},
+		&stepUploadScript{
+			uploadTimeout: 1 * time.Minute,
+		},
 		&stepUpdateState{},
 		&stepRunScript{
 			logTimeout:               logTimeout,

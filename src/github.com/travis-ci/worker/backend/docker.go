@@ -24,12 +24,12 @@ import (
 
 const (
 	dockerHelp = `
-        ENDPOINT / HOST - [REQUIRED] tcp or unix address for connecting to Docker
-              CERT_PATH - directory where ca.pem, cert.pem, and key.pem are located (default "")
-                    CMD - command (CMD) to run when creating contaniers (default "/sbin/init")
-                 MEMORY - memory to allocate to each container (default "4G")
-                   CPUS - cpu count to allocate to each container (default 2)
-             PRIVILEGED - run containers in privileged mode (default false)
+          ENDPOINT / HOST - [REQUIRED] tcp or unix address for connecting to Docker
+                CERT_PATH - directory where ca.pem, cert.pem, and key.pem are located (default "")
+                      CMD - command (CMD) to run when creating contaniers (default "/sbin/init")
+                   MEMORY - memory to allocate to each container (default "4G")
+                     CPUS - cpu count to allocate to each container (default 2)
+               PRIVILEGED - run containers in privileged mode (default false)
 
 `
 )
@@ -59,7 +59,7 @@ type dockerInstance struct {
 }
 
 func newDockerProvider(cfg *config.ProviderConfig) (*dockerProvider, error) {
-	client, err := buildClient(cfg)
+	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (*dockerProvider, error) {
 	}, nil
 }
 
-func buildClient(cfg *config.ProviderConfig) (*docker.Client, error) {
+func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
 	// compatibility with docker's own env vars.
 	if !cfg.IsSet("ENDPOINT") && !cfg.IsSet("HOST") {

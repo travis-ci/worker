@@ -32,8 +32,11 @@ coverage.html
 .*env
 .build/
 bin/travis-worker
+
 tmp/
 VERSION
 VERSION_SHA1
 CURRENT_SHA1
 .vagrant/
+
+*_rsa*

@@ -1,3 +1,21 @@
+## 0.6.0 (July 23rd, 2015)
+
+FEATURES:
+
+  * backend: The GCE backend was added
+
+IMPROVEMENTS:
+
+  * step/upload-script: Add a timeout for the script upload (currently 1 minute)
+  * step/upload-script: Treat connection errors as recoverable errors, and requeue the job
+  * backend/jupiterbrain: Per-image boot time and count metrics
+
+BUG FIXES:
+
+  * backend/jupiterbrain: Fix a goroutine/memory leak where SSH connections for cancelled jobs wouldn't get cleaned up
+  * logger: Don't print the job UUID if it's blank
+  * processor: Fix a panic that would sometimes happen on graceful shutdown
+
 ## 0.5.2 (July 16th, 2015)
 
 IMPROVEMENTS:

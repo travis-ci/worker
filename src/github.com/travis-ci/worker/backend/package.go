@@ -78,10 +78,12 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 		return newDockerProvider(cfg)
 	case "jupiterbrain":
 		return newJupiterBrainProvider(cfg)
+	case "gce":
+		return newGCEProvider(cfg)
 	case "bluebox":
 		return newBlueBoxProvider(cfg)
 	case "fake":
-		return newFakeProvider([]byte("Hello to the logs")), nil
+		return newFakeProvider(cfg), nil
 	default:
 		return nil, fmt.Errorf("unknown provider: %s", name)
 	}

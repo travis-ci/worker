@@ -1,6 +1,6 @@
 language: go
 go: 1.4.2
-dist: trusty
+sudo: 9000
 
 env:
   global:
@@ -24,8 +24,8 @@ install:
 - gem install package_cloud --no-ri --no-rdoc
 - echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee -a /etc/apt/sources.list
 - curl http://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -
-- sudo apt-get update -qq
-- sudo apt-get install rabbitmq-server
+- sudo apt-get update -y
+- sudo apt-get install -y rabbitmq-server
 - sudo service rabbitmq-server start
 
 script:

@@ -3,23 +3,25 @@ package backend
 import (
 	"io"
 
+	"github.com/travis-ci/worker/config"
+
 	"golang.org/x/net/context"
 )
 
 type fakeProvider struct {
-	logOutput []byte
+	cfg *config.ProviderConfig
 }
 
-func newFakeProvider(logOutput []byte) *fakeProvider {
-	return &fakeProvider{logOutput: logOutput}
+func newFakeProvider(cfg *config.ProviderConfig) *fakeProvider {
+	return &fakeProvider{cfg: cfg}
 }
 
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
-	return &fakeInstance{logOutput: p.logOutput}, nil
+	return &fakeInstance{p: p}, nil
 }
 
 type fakeInstance struct {
-	logOutput []byte
+	p *fakeProvider
 }
 
 func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
@@ -27,7 +29,7 @@ func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 }
 
 func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunResult, error) {
-	_, err := writer.Write(i.logOutput)
+	_, err := writer.Write([]byte(i.p.cfg.Get("LOG_OUTPUT")))
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}

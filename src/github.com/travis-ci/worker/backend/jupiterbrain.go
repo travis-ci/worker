@@ -25,7 +25,8 @@ import (
 )
 
 var (
-	nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+	nonAlphaNumRegexp     = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
+	metricNameCleanRegexp = regexp.MustCompile(`[^A-Za-z0-9.:-_]+`)
 )
 
 const (
@@ -41,15 +42,15 @@ until [[ -f ~/build.sh.exit ]]; do sleep 1; done
 exit $(cat ~/build.sh.exit)
 `
 	jupiterBrainHelp = `
-               ENDPOINT - [REQUIRED] url to jupiter brain server including auth
-           SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
-     SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
-      KEYCHAIN_PASSWORD - [REQUIRED] password used ... somehow
-          IMAGE_ALIASES - comma-delimited strings used as stable names for images (default "")
-    IMAGE_ALIAS_{ALIAS} - full name for a given alias given via IMAGE_ALIASES, where the alias
-                          form in the key is uppercased and normalized by replacing
-                          non-alphanumerics with "_"
-        BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default "3s")
+                 ENDPOINT - [REQUIRED] url to jupiter brain server including auth
+             SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
+       SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
+        KEYCHAIN_PASSWORD - [REQUIRED] password used ... somehow
+            IMAGE_ALIASES - comma-delimited strings used as stable names for images (default "")
+      IMAGE_ALIAS_{ALIAS} - full name for a given alias given via IMAGE_ALIASES, where the alias
+                            form in the key is uppercased and normalized by replacing
+                            non-alphanumerics with "_"
+          BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default 3s)
 
 `
 )
@@ -291,6 +292,8 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 	select {
 	case payload := <-instanceReady:
 		metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
+		normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
+		metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
 		workerctx.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
 		return &jupiterBrainInstance{
 			payload:  payload,
@@ -388,7 +391,18 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) 
 	session.Stdout = output
 	session.Stderr = output
 
-	err = session.Run("bash ~/wrapper.sh")
+	errChan := make(chan error)
+
+	go func() {
+		errChan <- session.Run("bash ~/wrapper.sh")
+	}()
+
+	select {
+	case <-ctx.Done():
+		return &RunResult{Completed: false}, ctx.Err()
+	case err = <-errChan:
+	}
+
 	if err == nil {
 		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}

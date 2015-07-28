@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/pborman/uuid"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -137,7 +138,16 @@ func (p *ProcessorPool) Decr() {
 }
 
 func (p *ProcessorPool) runProcessor(queue *JobQueue) error {
-	proc, err := NewProcessor(p.Context, p.Hostname, queue, p.Provider, p.Generator, p.Canceller, p.HardTimeout, p.LogTimeout)
+	processorUUID := uuid.NewRandom()
+	ctx := context.FromProcessor(p.Context, processorUUID.String())
+
+	jobsChan, err := queue.Jobs(ctx)
+	if err != nil {
+		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create jobs channel")
+		return err
+	}
+
+	proc, err := NewProcessor(ctx, p.Hostname, jobsChan, p.Provider, p.Generator, p.Canceller, p.HardTimeout, p.LogTimeout)
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 		return err

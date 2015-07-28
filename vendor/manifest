@@ -8,12 +8,6 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/codegangsta/cli",
-			"repository": "https://github.com/codegangsta/cli",
-			"revision": "8cbee4b7192cea690c9f048e742e6b4c3525fd9e",
-			"branch": "master"
-		},
-		{
 			"importpath": "github.com/mitchellh/multistep",
 			"repository": "https://github.com/mitchellh/multistep",
 			"revision": "162146fc57112954184d90266f4733e900ed05a5",
@@ -94,9 +88,55 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "google.golang.org/api/compute/v1",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
+			"branch": "master",
+			"path": "/compute/v1"
+		},
+		{
+			"importpath": "google.golang.org/api/googleapi",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
+			"branch": "master",
+			"path": "/googleapi"
+		},
+		{
+			"importpath": "golang.org/x/oauth2",
+			"repository": "https://go.googlesource.com/oauth2",
+			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"branch": "master"
+		},
+		{
+			"importpath": "google.golang.org/cloud/compute/metadata",
+			"repository": "https://code.googlesource.com/gocloud",
+			"revision": "feda659df33f28fe2d0524fad496b4d01a2015af",
+			"branch": "master",
+			"path": "/compute/metadata"
+		},
+		{
+			"importpath": "google.golang.org/cloud/internal",
+			"repository": "https://code.googlesource.com/gocloud",
+			"revision": "feda659df33f28fe2d0524fad496b4d01a2015af",
+			"branch": "master",
+			"path": "/internal"
+		},
+		{
 			"importpath": "github.com/henrikhodne/goblueboxapi",
 			"repository": "https://github.com/henrikhodne/goblueboxapi",
 			"revision": "4f22069c7d39dd3c479dadc82b36a84a4f922740",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/cenkalti/backoff",
+			"repository": "https://github.com/cenkalti/backoff",
+			"revision": "6c45d6bc1e78d94431dff8fc28a99f20bafa355a",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/codegangsta/cli",
+			"repository": "https://github.com/codegangsta/cli",
+			"revision": "bca61c476e3c752594983e4c9bcd5f62fb09f157",
 			"branch": "master"
 		}
 	]

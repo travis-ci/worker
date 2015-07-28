@@ -229,9 +229,6 @@ func (w *amqpLogWriter) flushRegularly() {
 }
 
 func (w *amqpLogWriter) flush() {
-	w.bufferMutex.Lock()
-	defer w.bufferMutex.Unlock()
-
 	if w.buffer.Len() <= 0 {
 		return
 	}
@@ -239,7 +236,9 @@ func (w *amqpLogWriter) flush() {
 	buf := make([]byte, LogChunkSize)
 
 	for w.buffer.Len() > 0 {
+		w.bufferMutex.Lock()
 		n, err := w.buffer.Read(buf)
+		w.bufferMutex.Unlock()
 		if err != nil {
 			// According to documentation, err should only be non-nil if
 			// there's no data in the buffer. We've checked for this, so
