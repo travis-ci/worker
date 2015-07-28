@@ -7,10 +7,6 @@
 0. download the [64-bit linux
    binary](https://travis-worker-artifacts.s3.amazonaws.com/travis-ci/worker/v0.4.3/build/linux/amd64/travis-worker)
 0. put it somewhere in `$PATH`, e.g. `/usr/local/bin/travis-worker`
-0. if using recent Ubuntu, you can copy over the [example upstart
-   conf](./travis-worker-upstart-example.conf)
-0. populate `/etc/default/travis-worker` with relevant env vars per the
-   [configuration section](#configuring-travis-worker).
 
 ### from package
 
