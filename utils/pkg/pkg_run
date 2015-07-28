@@ -162,12 +162,12 @@ package_cloud_push () {
       export PC_REPO="worker-testing"
     fi
 
-    PC_UPLOAD_FILE=$(ls $CHECKOUT_ROOT/tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype)
+    PC_UPLOAD_FILE=$(echo $CHECKOUT_ROOT/tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype)
     echo $PC_UPLOAD_FILE
 
-    #package_cloud push \
-    #  $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
-    #  tmp/output/$pkgtype/$platform_family/$platform_release/*.$pkgtype --verbose
+    package_cloud push \
+      $PC_USER/$PC_REPO/$package_cloud_os/$platform_release \
+      $PC_UPLOAD_FILE --verbose
 
     # Prune old packages
     cd $CHECKOUT_ROOT/utils/pkg/
