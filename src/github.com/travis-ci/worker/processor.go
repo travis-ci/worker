@@ -29,7 +29,6 @@ type Processor struct {
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
 
-	CurrentJob     Job
 	ProcessedCount int
 
 	SkipShutdownOnLogTimeout bool
@@ -125,8 +124,6 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("hostname", p.fullHostname())
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
-
-	p.CurrentJob = buildJob
 
 	logTimeout := p.logTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
