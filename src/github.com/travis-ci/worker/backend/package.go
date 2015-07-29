@@ -82,6 +82,8 @@ func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
 		return newGCEProvider(cfg)
 	case "bluebox":
 		return newBlueBoxProvider(cfg)
+	case "local":
+		return newLocalProvider(cfg), nil
 	case "fake":
 		return newFakeProvider(cfg), nil
 	default:
