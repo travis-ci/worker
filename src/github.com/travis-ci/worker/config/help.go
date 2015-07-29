@@ -72,14 +72,13 @@ func helpPrinter(w io.Writer, templ string, data interface{}) {
 		}
 	}
 
-	item_format := fmt.Sprintf("%%%ds - %%s\n", maxLen+margin)
+	itemFmt := fmt.Sprintf("%%%ds - %%s\n", maxLen+margin)
 
 	for _, providerName := range providerNames {
 		fmt.Fprintf(w, "\n%s provider help:\n\n", providerName)
-		//fmt.Fprintf(w, providerHelps[providerName])
 
 		for key, value := range providerHelps[providerName] {
-			fmt.Printf(item_format, key, value)
+			fmt.Printf(itemFmt, key, value)
 		}
 	}
 }

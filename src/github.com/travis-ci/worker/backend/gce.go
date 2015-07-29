@@ -42,7 +42,7 @@ const (
 
 var (
 	gceHelp = map[string]string{
-		"PROJECT_ID":              fmt.Sprintf(`[REQUIRED] GCE project id`),
+		"PROJECT_ID":              "[REQUIRED] GCE project id",
 		"ACCOUNT_JSON":            "[REQUIRED] account JSON config",
 		"SSH_KEY_PATH":            "[REQUIRED] path to ssh key used to access job vms",
 		"SSH_PUB_KEY_PATH":        "[REQUIRED] path to ssh public key used to access job vms",
@@ -57,9 +57,6 @@ var (
 		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
 	}
-
-	//defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
-	//defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep, defaultGCEUploadRetries, defaultGCEUploadRetrySleep)
 
 	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
 
