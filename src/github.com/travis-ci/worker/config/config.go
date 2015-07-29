@@ -12,10 +12,11 @@ import (
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
+	ProviderName   string
+	QueueType      string
 	AmqpURI        string
 	PoolSize       int
 	BuildAPIURI    string
-	ProviderName   string
 	ProviderConfig *ProviderConfig
 	QueueName      string
 	LibratoEmail   string
@@ -49,10 +50,11 @@ type Config struct {
 // from the flags in the context.
 func FromCLIContext(c *cli.Context) *Config {
 	cfg := &Config{
+		ProviderName:  c.String("provider-name"),
+		QueueType:     c.String("queue-type"),
 		AmqpURI:       c.String("amqp-uri"),
 		PoolSize:      c.Int("pool-size"),
 		BuildAPIURI:   c.String("build-api-uri"),
-		ProviderName:  c.String("provider-name"),
 		QueueName:     c.String("queue-name"),
 		LibratoEmail:  c.String("librato-email"),
 		LibratoToken:  c.String("librato-token"),
@@ -90,10 +92,11 @@ func FromCLIContext(c *cli.Context) *Config {
 // by a Bourne-like shell.
 func WriteEnvConfig(cfg *Config, out io.Writer) {
 	cfgMap := map[string]interface{}{
+		"provider-name":  cfg.ProviderName,
+		"queue-type":     cfg.QueueType,
 		"amqp-uri":       cfg.AmqpURI,
 		"pool-size":      cfg.PoolSize,
 		"build-api-uri":  cfg.BuildAPIURI,
-		"provider-name":  cfg.ProviderName,
 		"queue-name":     cfg.QueueName,
 		"librato-email":  cfg.LibratoEmail,
 		"librato-token":  cfg.LibratoToken,

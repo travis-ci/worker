@@ -85,14 +85,11 @@ func runWorker(c *cli.Context) {
 	setupSentry(logger, cfg)
 	setupMetrics(logger, cfg, c)
 
-	amqpConn, err := amqp.Dial(cfg.AmqpURI)
+	jobQueue, canceller, err := setupJobQueueAndCanceller(logger, cfg, ctx, cancel)
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't connect to AMQP")
+		logger.WithField("err", err).Error("couldn't create job queue and canceller")
 		return
 	}
-	go amqpErrorWatcher(amqpConn, logger, cancel)
-
-	logger.Debug("connected to AMQP")
 
 	generator := worker.NewBuildScriptGenerator(cfg)
 	logger.WithFields(logrus.Fields{
@@ -108,14 +105,8 @@ func runWorker(c *cli.Context) {
 		"provider": fmt.Sprintf("%#v", provider),
 	}).Debug("built")
 
-	commandDispatcher := worker.NewCommandDispatcher(ctx, amqpConn)
-	logger.WithFields(logrus.Fields{
-		"command_dispatcher": fmt.Sprintf("%#v", commandDispatcher),
-	}).Debug("built")
-	go commandDispatcher.Run()
-
 	pool := worker.NewProcessorPool(cfg.Hostname, ctx, cfg.HardTimeout, cfg.LogTimeout,
-		amqpConn, provider, generator, commandDispatcher)
+		provider, generator, canceller)
 
 	pool.SkipShutdownOnLogTimeout = cfg.SkipShutdownOnLogTimeout
 	logger.WithFields(logrus.Fields{
@@ -125,15 +116,15 @@ func runWorker(c *cli.Context) {
 	go signalHandler(logger, pool, cancel)
 
 	logger.WithFields(logrus.Fields{
-		"pool_size":  cfg.PoolSize,
-		"queue_name": cfg.QueueName,
+		"pool_size": cfg.PoolSize,
+		"queue":     jobQueue,
 	}).Debug("running pool")
 
-	pool.Run(cfg.PoolSize, cfg.QueueName)
+	pool.Run(cfg.PoolSize, jobQueue)
 
-	err = amqpConn.Close()
+	err = jobQueue.Cleanup()
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't close AMQP connection cleanly")
+		logger.WithField("err", err).Error("couldn't clean up job queue")
 		return
 	}
 }
@@ -202,6 +193,36 @@ func signalHandler(logger *logrus.Entry, pool *worker.ProcessorPool, cancel goco
 		default:
 			time.Sleep(time.Second)
 		}
+	}
+}
+
+func setupJobQueueAndCanceller(logger *logrus.Entry, cfg *config.Config, ctx gocontext.Context, cancel gocontext.CancelFunc) (worker.JobQueue, worker.Canceller, error) {
+	if cfg.QueueType == "amqp" {
+		amqpConn, err := amqp.Dial(cfg.AmqpURI)
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't connect to AMQP")
+			return nil, nil, err
+		}
+
+		go amqpErrorWatcher(amqpConn, logger, cancel)
+
+		logger.Debug("connected to AMQP")
+
+		canceller := worker.NewAMQPCanceller(ctx, amqpConn)
+		logger.WithFields(logrus.Fields{
+			"canceller": fmt.Sprintf("%#v", canceller),
+		}).Debug("built")
+
+		go canceller.Run()
+
+		jobQueue, err := worker.NewAMQPJobQueue(amqpConn, cfg.QueueName)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return jobQueue, canceller, nil
+	} else {
+		return nil, nil, fmt.Errorf("unknown queue type %q", cfg.QueueType)
 	}
 }
 
