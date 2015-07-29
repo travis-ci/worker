@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/travis-ci/worker/config"
 	gocontext "golang.org/x/net/context"
@@ -15,7 +15,14 @@ import (
 
 var (
 	errNoScriptUploaded = fmt.Errorf("no script uploaded")
+	localHelp           = map[string]string{
+		"SCRIPTS_DIR": "directory where generated scripts will be written",
+	}
 )
+
+func init() {
+	config.SetProviderHelp("Local", localHelp)
+}
 
 type localProvider struct {
 	cfg *config.ProviderConfig
@@ -31,30 +38,36 @@ func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttri
 
 type localInstance struct {
 	p *localProvider
-	d string
-	s string
+
+	scriptsDir string
+	scriptPath string
 }
 
 func newLocalInstance(p *localProvider) (*localInstance, error) {
-	tmpDir, err := ioutil.TempDir("", "travis-worker-local")
-	if err != nil {
-		return nil, err
+	scriptsDir, _ := os.Getwd()
+
+	if p.cfg.IsSet("SCRIPTS_DIR") {
+		scriptsDir = p.cfg.Get("SCRIPTS_DIR")
+	}
+
+	if scriptsDir == "" {
+		scriptsDir = os.TempDir()
 	}
 
 	return &localInstance{
-		p: p,
-		d: tmpDir,
+		p:          p,
+		scriptsDir: scriptsDir,
 	}, nil
 }
 
 func (i *localInstance) UploadScript(ctx gocontext.Context, script []byte) error {
-	scriptPath := filepath.Join(i.d, "build.sh")
+	scriptPath := filepath.Join(i.scriptsDir, fmt.Sprintf("build-%v.sh", time.Now().UTC().UnixNano()))
 	f, err := os.Create(scriptPath)
 	if err != nil {
 		return err
 	}
 
-	i.s = scriptPath
+	i.scriptPath = scriptPath
 
 	scriptBuf := bytes.NewBuffer(script)
 	_, err = io.Copy(f, scriptBuf)
@@ -62,11 +75,11 @@ func (i *localInstance) UploadScript(ctx gocontext.Context, script []byte) error
 }
 
 func (i *localInstance) RunScript(ctx gocontext.Context, writer io.Writer) (*RunResult, error) {
-	if i.s == "" {
+	if i.scriptPath == "" {
 		return &RunResult{Completed: false}, errNoScriptUploaded
 	}
 
-	cmd := exec.Command(fmt.Sprintf("bash %s/build.sh", i.d))
+	cmd := exec.Command(fmt.Sprintf("bash %s", i.scriptPath))
 	cmd.Stdout = writer
 	cmd.Stderr = writer
 
@@ -97,9 +110,9 @@ func (i *localInstance) RunScript(ctx gocontext.Context, writer io.Writer) (*Run
 }
 
 func (i *localInstance) Stop(ctx gocontext.Context) error {
-	return os.RemoveAll(i.d)
+	return nil
 }
 
 func (i *localInstance) ID() string {
-	return fmt.Sprintf("local:%s", i.d)
+	return fmt.Sprintf("local:%s", i.scriptPath)
 }

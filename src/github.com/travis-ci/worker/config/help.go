@@ -81,4 +81,6 @@ func helpPrinter(w io.Writer, templ string, data interface{}) {
 			fmt.Printf(itemFmt, key, value)
 		}
 	}
+
+	fmt.Println("")
 }
