@@ -21,19 +21,14 @@ import (
 var (
 	templateRegexp = regexp.MustCompile(`travis-([\w-]+)-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}`)
 	errNoBlueBoxIP = fmt.Errorf("no IP address assigned")
-)
-
-const (
-	blueBoxHelp = `
-              CUSTOMER_ID - [REQUIRED] account customer id
-                  API_KEY - [REQUIRED] API key
-              LOCATION_ID - [REQUIRED] location where job blocks will be provisioned
-               PRODUCT_ID - [REQUIRED]
-                IPV6_ONLY - boot all blocks with only an IPv6 address (default false)
-  LANGUAGE_MAP_{LANGUAGE} - Map the key specified in the key to the image associated
-                            with a different language
-
-`
+	blueBoxHelp    = map[string]string{
+		"CUSTOMER_ID":             "[REQUIRED] account customer id",
+		"API_KEY":                 "[REQUIRED] API key",
+		"LOCATION_ID":             "[REQUIRED] location where job blocks will be provisioned",
+		"PRODUCT_ID":              "[REQUIRED]",
+		"IPV6_ONLY":               "boot all blocks with only an IPv6 address (default false)",
+		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language",
+	}
 )
 
 func init() {
