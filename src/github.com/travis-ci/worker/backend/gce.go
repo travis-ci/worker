@@ -41,25 +41,25 @@ const (
 )
 
 var (
-	gceHelp = fmt.Sprintf(`
-               PROJECT_ID - [REQUIRED] GCE project id
-             ACCOUNT_JSON - [REQUIRED] account JSON config
-             SSH_KEY_PATH - [REQUIRED] path to ssh key used to access job vms
-         SSH_PUB_KEY_PATH - [REQUIRED] path to ssh public key used to access job vms
-       SSH_KEY_PASSPHRASE - [REQUIRED] passphrase for ssh key given as ssh_key_path
-                     ZONE - zone name (default %q)
-             MACHINE_TYPE - machine name (default %q)
-                  NETWORK - machine name (default %q)
-                DISK_SIZE - disk size in GB (default %v)
-  LANGUAGE_MAP_{LANGUAGE} - Map the key specified in the key to the image associated
-                            with a different language
-         DEFAULT_LANGUAGE - default language to use when looking up image (default %q)
-          BOOT_POLL_SLEEP - sleep interval between polling server for instance status (default %v)
-           UPLOAD_RETRIES - number of times to attempt to upload script before erroring (default %d)
-       UPLOAD_RETRY_SLEEP - sleep interval between script upload attempts (default %v)
+	gceHelp = map[string]string{
+		"PROJECT_ID":              fmt.Sprintf(`[REQUIRED] GCE project id`),
+		"ACCOUNT_JSON":            "[REQUIRED] account JSON config",
+		"SSH_KEY_PATH":            "[REQUIRED] path to ssh key used to access job vms",
+		"SSH_PUB_KEY_PATH":        "[REQUIRED] path to ssh public key used to access job vms",
+		"SSH_KEY_PASSPHRASE":      "[REQUIRED] passphrase for ssh key given as ssh_key_path",
+		"ZONE":                    fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"MACHINE_TYPE":            fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"NETWORK":                 fmt.Sprintf("machine name (default %q)", defaultGCENetwork),
+		"DISK_SIZE":               fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language",
+		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
+		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+	}
 
-`, defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
-		defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep, defaultGCEUploadRetries, defaultGCEUploadRetrySleep)
+	//defaultGCEZone, defaultGCEMachineType, defaultGCENetwork,
+	//defaultGCEDiskSize, defaultGCELanguage, defaultGCEBootPollSleep, defaultGCEUploadRetries, defaultGCEUploadRetrySleep)
 
 	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
 

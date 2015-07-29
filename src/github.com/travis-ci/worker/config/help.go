@@ -11,7 +11,7 @@ import (
 
 var (
 	cliHelpPrinter   = cli.HelpPrinter
-	providerHelps    = map[string]string{}
+	providerHelps    = map[string]map[string]string{}
 	providerHelpsMut sync.Mutex
 )
 
@@ -34,7 +34,7 @@ e.g.:
 // SetProviderHelp sets the help for a backend.Provider with the given name.
 // The help text should contain a list of all required and optional
 // configuration options.
-func SetProviderHelp(providerName, help string) {
+func SetProviderHelp(providerName string, help map[string]string) {
 	providerHelpsMut.Lock()
 	defer providerHelpsMut.Unlock()
 
@@ -61,8 +61,25 @@ func helpPrinter(w io.Writer, templ string, data interface{}) {
 
 	fmt.Fprintf(w, providerHelpHeader)
 
+	margin := 4
+	maxLen := 0
+
+	for _, items := range providerHelps {
+		for itemKey, _ := range items {
+			if len(itemKey) > maxLen {
+				maxLen = len(itemKey)
+			}
+		}
+	}
+
+	item_format := fmt.Sprintf("%%%ds - %%s\n", maxLen+margin)
+
 	for _, providerName := range providerNames {
-		fmt.Fprintf(w, "%s provider help:\n", providerName)
-		fmt.Fprintf(w, providerHelps[providerName])
+		fmt.Fprintf(w, "\n%s provider help:\n\n", providerName)
+		//fmt.Fprintf(w, providerHelps[providerName])
+
+		for key, value := range providerHelps[providerName] {
+			fmt.Printf(item_format, key, value)
+		}
 	}
 }
