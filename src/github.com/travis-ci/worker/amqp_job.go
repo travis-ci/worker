@@ -95,7 +95,7 @@ func (j *amqpJob) Finish(state FinishState) error {
 }
 
 func (j *amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return NewLogWriter(ctx, j.conn, j.payload.Job.ID)
+	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID)
 }
 
 func (j *amqpJob) sendStateUpdate(event string, body map[string]interface{}) error {

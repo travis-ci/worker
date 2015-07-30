@@ -37,7 +37,7 @@ func setupConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
 	return amqpConn, amqpChan
 }
 
-func TestLogWriterWrite(t *testing.T) {
+func TestAMQPLogWriterWrite(t *testing.T) {
 	amqpConn, amqpChan := setupConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
@@ -45,7 +45,7 @@ func TestLogWriterWrite(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := NewLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,14 +75,14 @@ func TestLogWriterWrite(t *testing.T) {
 		t.Error("expected log message, but there was none")
 	}
 
-	var lp logPart
+	var lp amqpLogPart
 
 	err = json.Unmarshal(delivery.Body, &lp)
 	if err != nil {
 		t.Error(err)
 	}
 
-	expected := logPart{
+	expected := amqpLogPart{
 		JobID:   4,
 		Content: "Hello, world!",
 		Number:  0,
@@ -95,7 +95,7 @@ func TestLogWriterWrite(t *testing.T) {
 	}
 }
 
-func TestLogWriterClose(t *testing.T) {
+func TestAMQPLogWriterClose(t *testing.T) {
 	amqpConn, amqpChan := setupConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
@@ -103,7 +103,7 @@ func TestLogWriterClose(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := NewLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,14 +124,14 @@ func TestLogWriterClose(t *testing.T) {
 		t.Error("expected log message, but there was none")
 	}
 
-	var lp logPart
+	var lp amqpLogPart
 
 	err = json.Unmarshal(delivery.Body, &lp)
 	if err != nil {
 		t.Error(err)
 	}
 
-	expected := logPart{
+	expected := amqpLogPart{
 		JobID:   4,
 		Content: "",
 		Number:  0,
@@ -144,7 +144,7 @@ func TestLogWriterClose(t *testing.T) {
 	}
 }
 
-func TestMaxLogLength(t *testing.T) {
+func TestAMQPMaxLogLength(t *testing.T) {
 	amqpConn, amqpChan := setupConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
@@ -152,7 +152,7 @@ func TestMaxLogLength(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := NewLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
 	if err != nil {
 		t.Fatal(err)
 	}

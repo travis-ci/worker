@@ -1,9 +1,6 @@
 package worker
 
 import (
-	"io"
-	"time"
-
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 	"golang.org/x/net/context"
@@ -71,16 +68,4 @@ type Job interface {
 	Finish(FinishState) error
 
 	LogWriter(context.Context) (LogWriter, error)
-}
-
-// A LogWriter is primarily an io.Writer that will send all bytes to travis-logs
-// for processing, and also has some utility methods for timeouts and log length
-// limiting. Each LogWriter is tied to a given job, and can be gotten by calling
-// the LogWriter() method on a Job.
-type LogWriter interface {
-	io.WriteCloser
-	WriteAndClose([]byte) (int, error)
-	SetTimeout(time.Duration)
-	Timeout() <-chan time.Time
-	SetMaxLogLength(int)
 }
