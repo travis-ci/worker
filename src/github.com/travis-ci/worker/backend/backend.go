@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/travis-ci/worker/config"
@@ -18,7 +17,6 @@ var (
 // given backend provider wheee
 type Backend struct {
 	Alias             string
-	UppercaseAlias    string
 	HumanReadableName string
 	ProviderHelp      map[string]string
 	ProviderFunc      func(*config.ProviderConfig) (Provider, error)
@@ -31,7 +29,6 @@ func RegisterBackend(alias, humanReadableName string, providerHelp map[string]st
 
 	backendRegistry[alias] = &Backend{
 		Alias:             alias,
-		UppercaseAlias:    strings.ToUpper(alias),
 		HumanReadableName: humanReadableName,
 		ProviderHelp:      providerHelp,
 		ProviderFunc:      providerFunc,
