@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	RegisterBackend("docker", "Docker", dockerHelp, newDockerProvider)
+	Register("docker", "Docker", dockerHelp, newDockerProvider)
 }
 
 type dockerProvider struct {

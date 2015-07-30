@@ -21,7 +21,7 @@ var (
 )
 
 func init() {
-	RegisterBackend("local", "Local", localHelp, newLocalProvider)
+	Register("local", "Local", localHelp, newLocalProvider)
 }
 
 type localProvider struct {

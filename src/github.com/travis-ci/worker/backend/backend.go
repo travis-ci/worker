@@ -22,8 +22,8 @@ type Backend struct {
 	ProviderFunc      func(*config.ProviderConfig) (Provider, error)
 }
 
-// RegisterBackend adds a backend to the registry!
-func RegisterBackend(alias, humanReadableName string, providerHelp map[string]string, providerFunc func(*config.ProviderConfig) (Provider, error)) {
+// Register adds a backend to the registry!
+func Register(alias, humanReadableName string, providerHelp map[string]string, providerFunc func(*config.ProviderConfig) (Provider, error)) {
 	backendRegistryMutex.Lock()
 	defer backendRegistryMutex.Unlock()
 

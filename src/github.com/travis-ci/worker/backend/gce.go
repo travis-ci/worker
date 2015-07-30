@@ -69,7 +69,7 @@ EOF
 )
 
 func init() {
-	RegisterBackend("gce", "Google Compute Engine", gceHelp, newGCEProvider)
+	Register("gce", "Google Compute Engine", gceHelp, newGCEProvider)
 }
 
 type gceOpError struct {

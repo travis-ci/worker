@@ -32,7 +32,7 @@ var (
 )
 
 func init() {
-	RegisterBackend("bluebox", "BlueBox", blueBoxHelp, newBlueBoxProvider)
+	Register("bluebox", "BlueBox", blueBoxHelp, newBlueBoxProvider)
 }
 
 type blueBoxProvider struct {

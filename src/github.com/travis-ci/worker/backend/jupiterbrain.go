@@ -53,7 +53,7 @@ exit $(cat ~/build.sh.exit)
 )
 
 func init() {
-	RegisterBackend("jupiterbrain", "Jupiter Brain", jupiterBrainHelp, newJupiterBrainProvider)
+	Register("jupiterbrain", "Jupiter Brain", jupiterBrainHelp, newJupiterBrainProvider)
 }
 
 type jupiterBrainProvider struct {

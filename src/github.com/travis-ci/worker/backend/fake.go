@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	RegisterBackend("fake", "Fake", map[string]string{
+	Register("fake", "Fake", map[string]string{
 		"LOG_OUTPUT": "faked log output to write",
 	}, newFakeProvider)
 }
