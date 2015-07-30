@@ -53,7 +53,7 @@ exit $(cat ~/build.sh.exit)
 )
 
 func init() {
-	config.SetProviderHelp("Jupiter Brain", jupiterBrainHelp)
+	RegisterBackend("jupiterbrain", "Jupiter Brain", jupiterBrainHelp, newJupiterBrainProvider)
 }
 
 type jupiterBrainProvider struct {
@@ -83,7 +83,7 @@ type jupiterBrainDataResponse struct {
 	Data []*jupiterBrainInstancePayload `json:"data"`
 }
 
-func newJupiterBrainProvider(cfg *config.ProviderConfig) (*jupiterBrainProvider, error) {
+func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	if !cfg.IsSet("ENDPOINT") {
 		return nil, ErrMissingEndpointConfig
 	}

@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	config.SetProviderHelp("Docker", dockerHelp)
+	RegisterBackend("docker", "Docker", dockerHelp, newDockerProvider)
 }
 
 type dockerProvider struct {
@@ -57,7 +57,7 @@ type dockerInstance struct {
 	imageName string
 }
 
-func newDockerProvider(cfg *config.ProviderConfig) (*dockerProvider, error) {
+func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err

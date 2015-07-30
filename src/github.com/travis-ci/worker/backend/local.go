@@ -21,15 +21,15 @@ var (
 )
 
 func init() {
-	config.SetProviderHelp("Local", localHelp)
+	RegisterBackend("local", "Local", localHelp, newLocalProvider)
 }
 
 type localProvider struct {
 	cfg *config.ProviderConfig
 }
 
-func newLocalProvider(cfg *config.ProviderConfig) *localProvider {
-	return &localProvider{cfg: cfg}
+func newLocalProvider(cfg *config.ProviderConfig) (Provider, error) {
+	return &localProvider{cfg: cfg}, nil
 }
 
 func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {

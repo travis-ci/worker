@@ -104,7 +104,7 @@ func runWorker(c *cli.Context) {
 		"build_script_generator": fmt.Sprintf("%#v", generator),
 	}).Debug("built")
 
-	provider, err := backend.NewProvider(cfg.ProviderName, cfg.ProviderConfig)
+	provider, err := backend.NewBackendProvider(cfg.ProviderName, cfg.ProviderConfig)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create backend provider")
 		return

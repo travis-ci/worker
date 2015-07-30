@@ -32,7 +32,7 @@ var (
 )
 
 func init() {
-	config.SetProviderHelp("BlueBox", blueBoxHelp)
+	RegisterBackend("bluebox", "BlueBox", blueBoxHelp, newBlueBoxProvider)
 }
 
 type blueBoxProvider struct {
@@ -40,7 +40,7 @@ type blueBoxProvider struct {
 	cfg    *config.ProviderConfig
 }
 
-func newBlueBoxProvider(cfg *config.ProviderConfig) (*blueBoxProvider, error) {
+func newBlueBoxProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &blueBoxProvider{
 		client: goblueboxapi.NewClient(cfg.Get("CUSTOMER_ID"), cfg.Get("API_KEY")),
 		cfg:    cfg,

@@ -69,7 +69,7 @@ EOF
 )
 
 func init() {
-	config.SetProviderHelp("GCE", gceHelp)
+	RegisterBackend("gce", "Google Compute Engine", gceHelp, newGCEProvider)
 }
 
 type gceOpError struct {
@@ -125,7 +125,7 @@ type gceInstance struct {
 	imageName string
 }
 
-func newGCEProvider(cfg *config.ProviderConfig) (*gceProvider, error) {
+func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	client, err := buildGoogleComputeService(cfg)
 	if err != nil {
 		return nil, err

@@ -109,7 +109,7 @@ func TestProcessor(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromProcessor(context.TODO(), uuid.String())
 
-	provider, err := backend.NewProvider("fake", config.ProviderConfigFromMap(map[string]string{
+	provider, err := backend.NewBackendProvider("fake", config.ProviderConfigFromMap(map[string]string{
 		"LOG_OUTPUT": "hello, world",
 	}))
 	if err != nil {
