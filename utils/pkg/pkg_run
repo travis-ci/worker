@@ -94,24 +94,32 @@ docker_run () {
 
     LATEST_PUBLISHED_QUERY=$(curl -s https://$(echo $PACKAGECLOUD_TOKEN):@packagecloud.io/api/v1/repos/$PC_USER/$PC_REPO/package/$pkgtype/$package_cloud_os/$platform_release/travis-worker/$pkgarch/$PC_VERSION/1.json)
 
-    if [[ -z $LATEST_PUBLISHED_QUERY ]]; then
-      echo $($LATEST_PUBLISHED_QUERY|jq .'filename'|tr -d '"')
-
-      if [[ $pkgtype == "rpm" ]]; then
-        export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'-' -f 3|sed 's/_/-/')
+    if [[ -n "$LATEST_PUBLISHED_QUERY" ]]; then
+      if [[ $LATEST_PUBLISHED_QUERY == [] ]]; then
+        echo "No package found for this version, proceeding with build"
       else
-        export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'_' -f 2)
-      fi
+        LATEST_PUBLISHED_FILENAME=$(echo $LATEST_PUBLISHED_QUERY|jq .'filename'|tr -d '"')
 
-      if [[ $VERSION == $LATEST_PUBLISHED_VERSION ]]; then
-        if [[ $VERSION =~ dev ]]; then
-          package_cloud yank travisci/$PC_REPO/$package_cloud_os/$platform_release $LATEST_PUBLISHED_FILENAME
+        if [[ $pkgtype == "rpm" ]]; then
+          export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'-' -f 3|sed 's/_/-/')
         else
-          echo "Stable version $VERSION has already been published to packagecloud.io"
-          echo "Please determine if you want to remove the package and republish it"
-          exit 1
+          export LATEST_PUBLISHED_VERSION=$(echo $LATEST_PUBLISHED_FILENAME|cut -d'_' -f 2)
+        fi
+
+        if [[ $VERSION == $LATEST_PUBLISHED_VERSION ]]; then
+          if [[ $VERSION =~ dev ]]; then
+            package_cloud yank travisci/$PC_REPO/$package_cloud_os/$platform_release $LATEST_PUBLISHED_FILENAME
+          else
+            echo "Stable version $VERSION has already been published to packagecloud.io"
+            echo "Please determine if you want to remove the package and republish it"
+            exit 1
+          fi
         fi
       fi
+    else
+      echo "Could not get the current version from packagecloud.io."
+      echo "Check that PACKAGECLOUD_TOKEN is set correctly"
+      exit 1
   fi
     # Run pkg_build inside the appropriate
     # docker container to
