@@ -204,7 +204,8 @@ func signalHandler(logger *logrus.Entry, pool *worker.ProcessorPool, cancel goco
 }
 
 func setupJobQueueAndCanceller(logger *logrus.Entry, cfg *config.Config, ctx gocontext.Context, cancel gocontext.CancelFunc) (worker.JobQueue, worker.Canceller, error) {
-	if cfg.QueueType == "amqp" {
+	switch cfg.QueueType {
+	case "amqp":
 		amqpConn, err := amqp.Dial(cfg.AmqpURI)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't connect to AMQP")
@@ -228,9 +229,19 @@ func setupJobQueueAndCanceller(logger *logrus.Entry, cfg *config.Config, ctx goc
 		}
 
 		return jobQueue, canceller, nil
-	} else {
-		return nil, nil, fmt.Errorf("unknown queue type %q", cfg.QueueType)
+	case "file":
+		canceller := worker.NewFileCanceller(ctx, cfg.BaseDir)
+		go canceller.Run()
+
+		jobQueue, err := worker.NewFileJobQueue(cfg.BaseDir, cfg.QueueName)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return jobQueue, canceller, nil
 	}
+
+	return nil, nil, fmt.Errorf("unknown queue type %q", cfg.QueueType)
 }
 
 func amqpErrorWatcher(amqpConn *amqp.Connection, logger *logrus.Entry, cancel gocontext.CancelFunc) {

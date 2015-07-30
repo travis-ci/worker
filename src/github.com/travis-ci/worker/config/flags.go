@@ -19,14 +19,20 @@ var (
 		cli.StringFlag{
 			Name:   "queue-type",
 			Value:  defaultQueueType,
-			Usage:  "The name of the queue type to use",
+			Usage:  `The name of the queue type to use ("amqp" or "file")`,
 			EnvVar: twEnvVars("QUEUE_TYPE"),
 		},
 		cli.StringFlag{
 			Name:   "amqp-uri",
 			Value:  defaultAmqpURI,
-			Usage:  "The URI to the AMQP server to connect to (only valid for amqp queue type)",
+			Usage:  `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
 			EnvVar: twEnvVars("AMQP_URI"),
+		},
+		cli.StringFlag{
+			Name:   "base-dir",
+			Value:  defaultBaseDir,
+			Usage:  `The base directory for file-based queues (only valid for "file" queue type)`,
+			EnvVar: twEnvVars("BASE_DIR"),
 		},
 		cli.IntFlag{
 			Name:   "pool-size",

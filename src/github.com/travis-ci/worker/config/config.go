@@ -15,6 +15,7 @@ type Config struct {
 	ProviderName   string
 	QueueType      string
 	AmqpURI        string
+	BaseDir        string
 	PoolSize       int
 	BuildAPIURI    string
 	ProviderConfig *ProviderConfig
@@ -53,6 +54,7 @@ func FromCLIContext(c *cli.Context) *Config {
 		ProviderName:  c.String("provider-name"),
 		QueueType:     c.String("queue-type"),
 		AmqpURI:       c.String("amqp-uri"),
+		BaseDir:       c.String("base-dir"),
 		PoolSize:      c.Int("pool-size"),
 		BuildAPIURI:   c.String("build-api-uri"),
 		QueueName:     c.String("queue-name"),

@@ -30,7 +30,7 @@ type AMQPCanceller struct {
 // NewAMQPCanceller creates a new AMQPCanceller. No network traffic
 // occurs until you call Run()
 func NewAMQPCanceller(ctx gocontext.Context, conn *amqp.Connection) *AMQPCanceller {
-	ctx = context.FromComponent(ctx, "command_dispatcher")
+	ctx = context.FromComponent(ctx, "canceller")
 
 	return &AMQPCanceller{
 		ctx:       ctx,

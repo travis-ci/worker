@@ -7,6 +7,7 @@ import (
 
 var (
 	defaultAmqpURI                   = "amqp://"
+	defaultBaseDir                   = "."
 	defaultPoolSize                  = 1
 	defaultProviderName              = "docker"
 	defaultQueueType                 = "amqp"
@@ -16,3 +17,12 @@ var (
 	defaultBuildCachePushTimeout, _  = time.ParseDuration("5m")
 	defaultHostname, _               = os.Hostname()
 )
+
+func init() {
+	wd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	defaultBaseDir = wd
+}

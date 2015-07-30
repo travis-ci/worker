@@ -16,10 +16,6 @@ type AMQPJobQueue struct {
 	queue string
 }
 
-type amqpPayloadStartAttrs struct {
-	Config *backend.StartAttributes `json:"config"`
-}
-
 // NewAMQPJobQueue creates a AMQPJobQueue backed by the given AMQP connections and
 // connects to the AMQP queue with the given name. The queue will be declared
 // in AMQP when this function is called, so an error could be raised if the
@@ -74,7 +70,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				payload:         &JobPayload{},
 				startAttributes: &backend.StartAttributes{},
 			}
-			startAttrs := &amqpPayloadStartAttrs{Config: &backend.StartAttributes{}}
+			startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
 			err := json.Unmarshal(delivery.Body, buildJob.payload)
 			if err != nil {

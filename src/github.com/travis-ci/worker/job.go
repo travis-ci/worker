@@ -3,8 +3,12 @@ package worker
 import (
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	"golang.org/x/net/context"
+	gocontext "golang.org/x/net/context"
 )
+
+type jobPayloadStartAttrs struct {
+	Config *backend.StartAttributes `json:"config"`
+}
 
 // JobPayload is the payload we receive over RabbitMQ.
 type JobPayload struct {
@@ -63,9 +67,9 @@ type Job interface {
 
 	Received() error
 	Started() error
-	Error(context.Context, string) error
+	Error(gocontext.Context, string) error
 	Requeue() error
 	Finish(FinishState) error
 
-	LogWriter(context.Context) (LogWriter, error)
+	LogWriter(gocontext.Context) (LogWriter, error)
 }
