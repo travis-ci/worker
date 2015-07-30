@@ -31,6 +31,10 @@ e.g.:
 `
 )
 
+func init() {
+	cli.HelpPrinter = helpPrinter
+}
+
 // SetProviderHelp sets the help for a backend.Provider with the given name.
 // The help text should contain a list of all required and optional
 // configuration options.
@@ -41,8 +45,21 @@ func SetProviderHelp(providerName string, help map[string]string) {
 	providerHelps[providerName] = help
 }
 
-func init() {
-	cli.HelpPrinter = helpPrinter
+// EachProvider calls a given function for each registered provider help
+func EachProviderHelp(f func(string, map[string]string)) {
+	providerHelpsMut.Lock()
+	defer providerHelpsMut.Unlock()
+
+	providerNames := []string{}
+	for providerName, _ := range providerHelps {
+		providerNames = append(providerNames, providerName)
+	}
+
+	sort.Strings(providerNames)
+
+	for _, providerName := range providerNames {
+		f(providerName, providerHelps[providerName])
+	}
 }
 
 func helpPrinter(w io.Writer, templ string, data interface{}) {

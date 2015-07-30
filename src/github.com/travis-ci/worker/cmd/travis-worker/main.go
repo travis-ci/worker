@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -72,6 +73,13 @@ func runWorker(c *cli.Context) {
 
 	if c.Bool("echo-config") {
 		config.WriteEnvConfig(cfg, os.Stdout)
+		return
+	}
+
+	if c.Bool("list-providers") {
+		config.EachProviderHelp(func(name string, _ map[string]string) {
+			fmt.Println(strings.ToLower(strings.Replace(name, " ", "", -1)))
+		})
 		return
 	}
 
