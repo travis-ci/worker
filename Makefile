@@ -18,6 +18,7 @@ COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //'
 
 FIND ?= find
 GO ?= go
+GB ?= gb
 GOXC ?= goxc
 GOPATH := $(PACKAGE_CHECKOUT):$(PACKAGE_CHECKOUT)/vendor:$(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
@@ -33,10 +34,13 @@ PORT ?= 42151
 export PORT
 
 COVERPROFILES := \
-	backend-coverage.coverprofile
+	backend-coverage.coverprofile \
+	metrics-coverage.coverprofile \
+	config-coverage.coverprofile \
+	context-coverage.coverprofile
 
 %-coverage.coverprofile:
-	$(GO) test -covermode=count -coverprofile=$@ \
+	$(GO) test -v -covermode=count -coverprofile=$@ \
 		$(GOBUILD_LDFLAGS) \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
@@ -55,15 +59,15 @@ test: build fmtpolice .test coverage.html
 
 .PHONY: .test
 .test:
-	gb test
+	$(GB) test -v
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	$(GO) test -v $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
 
 .PHONY: test-race
 test-race:
-	$(GO) test -race $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	$(GO) test -v -race $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
 
 coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@

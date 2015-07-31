@@ -80,8 +80,12 @@ func (d *AMQPCanceller) Run() {
 	}
 
 	for delivery := range deliveries {
-		d.processCommand(delivery)
-		err := delivery.Ack(false)
+		err := d.processCommand(delivery)
+		if err != nil {
+			context.LoggerFromContext(d.ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't process delivery")
+		}
+
+		err = delivery.Ack(false)
 		if err != nil {
 			context.LoggerFromContext(d.ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't ack delivery")
 		}
@@ -110,17 +114,17 @@ func (d *AMQPCanceller) Unsubscribe(id uint64) {
 	delete(d.cancelMap, id)
 }
 
-func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) {
-	var command cancelCommand
-	err := json.Unmarshal(delivery.Body, &command)
+func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
+	command := &cancelCommand{}
+	err := json.Unmarshal(delivery.Body, command)
 	if err != nil {
 		context.LoggerFromContext(d.ctx).WithField("err", err).Error("unable to parse JSON")
-		return
+		return err
 	}
 
 	if command.Type != "cancel_job" {
 		context.LoggerFromContext(d.ctx).WithField("command", command.Type).Error("unknown worker command")
-		return
+		return nil
 	}
 
 	d.cancelMutex.Lock()
@@ -129,7 +133,7 @@ func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) {
 	cancelChan, ok := d.cancelMap[command.JobID]
 	if !ok {
 		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Info("no job with this ID found on this worker")
-		return
+		return nil
 	}
 
 	if tryClose(cancelChan) {
@@ -137,6 +141,8 @@ func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) {
 	} else {
 		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Warn("job already cancelled")
 	}
+
+	return nil
 }
 
 func tryClose(ch chan<- struct{}) (closedNow bool) {
