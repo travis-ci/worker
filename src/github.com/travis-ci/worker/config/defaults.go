@@ -8,6 +8,7 @@ import (
 var (
 	defaultAmqpURI                   = "amqp://"
 	defaultBaseDir                   = "."
+	defaultFilePollingInterval, _    = time.ParseDuration("5s")
 	defaultPoolSize                  = 1
 	defaultProviderName              = "docker"
 	defaultQueueType                 = "amqp"

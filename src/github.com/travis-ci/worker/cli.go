@@ -271,7 +271,7 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 
 		i.Canceller = canceller
 
-		jobQueue, err := NewFileJobQueue(i.Config.BaseDir, i.Config.QueueName)
+		jobQueue, err := NewFileJobQueue(i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
 		if err != nil {
 			return err
 		}

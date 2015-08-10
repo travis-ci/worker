@@ -2,12 +2,14 @@ package worker
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -16,7 +18,10 @@ import (
 
 // FileJobQueue is a JobQueue that uses directories for input, state, and output
 type FileJobQueue struct {
-	queue string
+	queue           string
+	pollingInterval time.Duration
+
+	buildJobChan chan Job
 
 	baseDir     string
 	createdDir  string
@@ -27,7 +32,7 @@ type FileJobQueue struct {
 }
 
 // NewFileJobQueue creates a *FileJobQueue from a base directory and queue name
-func NewFileJobQueue(baseDir, queue string) (*FileJobQueue, error) {
+func NewFileJobQueue(baseDir, queue string, pollingInterval time.Duration) (*FileJobQueue, error) {
 	_, err := os.Stat(baseDir)
 	if err != nil {
 		return nil, err
@@ -54,7 +59,8 @@ func NewFileJobQueue(baseDir, queue string) (*FileJobQueue, error) {
 	}
 
 	return &FileJobQueue{
-		queue: queue,
+		queue:           queue,
+		pollingInterval: pollingInterval,
 
 		baseDir:     baseDir,
 		createdDir:  createdDir,
@@ -67,24 +73,32 @@ func NewFileJobQueue(baseDir, queue string) (*FileJobQueue, error) {
 
 // Jobs returns a channel of jobs from the created directory
 func (f *FileJobQueue) Jobs(ctx gocontext.Context) (<-chan Job, error) {
-	buildJobChan := make(chan Job)
-	go f.pollInDirForJobs(ctx, buildJobChan)
-	return buildJobChan, nil
+	if f.buildJobChan == nil {
+		f.buildJobChan = make(chan Job)
+		go f.pollInDirForJobs(ctx)
+	}
+	return f.buildJobChan, nil
 }
 
-func (f *FileJobQueue) pollInDirForJobs(ctx gocontext.Context, buildJobChan chan Job) {
+func (f *FileJobQueue) pollInDirForJobs(ctx gocontext.Context) {
 	for {
-		f.pollInDirTick(ctx, buildJobChan)
-		time.Sleep(1 * time.Second)
+		f.pollInDirTick(ctx)
+		time.Sleep(f.pollingInterval)
 	}
 }
 
-func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context, buildJobChan chan Job) {
+func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
+	logger := context.LoggerFromContext(ctx)
 	entries, err := ioutil.ReadDir(f.createdDir)
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("input directory read error")
+		logger.WithField("err", err).Error("input directory read error")
 		return
 	}
+
+	logger.WithFields(logrus.Fields{
+		"entries":        entries,
+		"file_job_queue": fmt.Sprintf("%p", f),
+	}).Debug("entries")
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
@@ -129,7 +143,7 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context, buildJobChan chan Jo
 		buildJob.logFile = filepath.Join(f.logDir, strings.Replace(entry.Name(), ".json", ".log", -1))
 		buildJob.bytes = fb
 
-		buildJobChan <- buildJob
+		f.buildJobChan <- buildJob
 	}
 }
 

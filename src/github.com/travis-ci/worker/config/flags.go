@@ -34,6 +34,12 @@ var (
 			Usage:  `The base directory for file-based queues (only valid for "file" queue type)`,
 			EnvVar: twEnvVars("BASE_DIR"),
 		},
+		cli.DurationFlag{
+			Name:   "file-polling-interval",
+			Value:  defaultFilePollingInterval,
+			Usage:  `The interval at which file-based queues are checked (only valid for "file" queue type)`,
+			EnvVar: twEnvVars("FILE_POLLING_INTERVAL"),
+		},
 		cli.IntFlag{
 			Name:   "pool-size",
 			Value:  defaultPoolSize,
