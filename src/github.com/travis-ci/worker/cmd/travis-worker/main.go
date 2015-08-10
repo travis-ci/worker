@@ -28,9 +28,12 @@ func main() {
 
 func runWorker(c *cli.Context) {
 	workerCLI := worker.NewCLI(c)
-	successfullySetup := workerCLI.Setup()
-	if !successfullySetup {
-		os.Exit(exitAlarm)
+	canRun, err := workerCLI.Setup()
+	if !canRun {
+		if err != nil {
+			os.Exit(exitAlarm)
+		}
+		return
 	}
 	workerCLI.Run()
 }

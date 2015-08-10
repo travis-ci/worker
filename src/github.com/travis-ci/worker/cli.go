@@ -53,7 +53,7 @@ func NewCLI(c *cli.Context) *CLI {
 
 // Setup runs one-time preparatory actions and returns a boolean success value
 // that is used to determine if it is safe to invoke the Run func
-func (i *CLI) Setup() bool {
+func (i *CLI) Setup() (bool, error) {
 	if i.c.String("pprof-port") != "" {
 		// Start net/http/pprof server
 		go func() {
@@ -79,14 +79,14 @@ func (i *CLI) Setup() bool {
 
 	if i.c.Bool("echo-config") {
 		config.WriteEnvConfig(cfg, os.Stdout)
-		return false
+		return false, nil
 	}
 
 	if i.c.Bool("list-backend-providers") {
 		backend.EachBackend(func(b *backend.Backend) {
 			fmt.Println(b.Alias)
 		})
-		return false
+		return false, nil
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -99,7 +99,7 @@ func (i *CLI) Setup() bool {
 	err := i.setupJobQueueAndCanceller()
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create job queue and canceller")
-		return false
+		return false, err
 	}
 
 	generator := NewBuildScriptGenerator(cfg)
@@ -112,7 +112,7 @@ func (i *CLI) Setup() bool {
 	provider, err := backend.NewBackendProvider(cfg.ProviderName, cfg.ProviderConfig)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create backend provider")
-		return false
+		return false, err
 	}
 	logger.WithFields(logrus.Fields{
 		"provider": fmt.Sprintf("%#v", provider),
@@ -131,7 +131,7 @@ func (i *CLI) Setup() bool {
 
 	i.ProcessorPool = pool
 
-	return true
+	return true, nil
 }
 
 // Run starts all long-running processes and blocks until the processor pool
