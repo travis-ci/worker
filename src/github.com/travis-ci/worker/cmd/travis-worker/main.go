@@ -8,6 +8,10 @@ import (
 	"github.com/travis-ci/worker/config"
 )
 
+const (
+	exitAlarm = 14
+)
+
 func main() {
 	app := cli.NewApp()
 	app.Usage = "Travis Worker daemon"
@@ -26,7 +30,7 @@ func runWorker(c *cli.Context) {
 	workerCLI := worker.NewCLI(c)
 	successfullySetup := workerCLI.Setup()
 	if !successfullySetup {
-		return
+		os.Exit(exitAlarm)
 	}
 	workerCLI.Run()
 }

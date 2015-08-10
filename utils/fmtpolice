@@ -13,11 +13,11 @@ gofmt_check () {
 }
 
 if [[ ! -n $1 ]]; then
-  for f in $(git ls-files '*.go' | grep -v Deps) ; do
+  for f in $(git ls-files '*.go') ; do
     gofmt_check ${f}
   done
 else
-  for f in $(find $1 -type f -iname '*.go' | grep -v Deps); do
+  for f in $(find $1 -type f -iname '*.go'); do
     gofmt_check ${f}
   done
 fi

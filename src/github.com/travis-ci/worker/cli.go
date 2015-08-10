@@ -82,7 +82,7 @@ func (i *CLI) Setup() bool {
 		return false
 	}
 
-	if i.c.Bool("list-providers") {
+	if i.c.Bool("list-backend-providers") {
 		backend.EachBackend(func(b *backend.Backend) {
 			fmt.Println(b.Alias)
 		})

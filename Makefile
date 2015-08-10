@@ -1,7 +1,7 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
 PACKAGE_SRC_DIR := src/$(PACKAGE)
-ALL_PACKAGES := $(shell find src/github.com/travis-ci/worker -type d | sed 's@src@@;s@^/@@')
+ALL_PACKAGES := $(shell utils/list-packages)
 
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
@@ -12,10 +12,8 @@ GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 
-FIND ?= find
 GO ?= go
 GB ?= gb
-GOXC ?= goxc
 GOPATH := $(PACKAGE_CHECKOUT):$(PACKAGE_CHECKOUT)/vendor:$(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
 	-X $(VERSION_VAR) '$(VERSION_VALUE)' \
@@ -23,11 +21,7 @@ GOBUILD_LDFLAGS ?= -ldflags "\
 	-X $(GENERATED_VAR) '$(GENERATED_VALUE)' \
 	-X $(COPYRIGHT_VAR) '$(COPYRIGHT_VALUE)' \
 "
-GOBUILD_FLAGS ?= -x
 GOXC_BUILD_CONSTRAINTS ?= amd64 linux,amd64 darwin
-
-PORT ?= 42151
-export PORT
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
@@ -42,13 +36,6 @@ COVERPROFILES := \
 
 .PHONY: all
 all: clean lintall test
-
-.PHONY: buildpack
-buildpack:
-	@$(MAKE) build \
-		GOBUILD_FLAGS= \
-		REV_VALUE="'$(shell git log -1 --format='%H')'" \
-		VERSION_VALUE=buildpack-$(STACK)-$(USER)-$(DYNO)
 
 .PHONY: test
 test: build fmtpolice .test coverage.html
@@ -74,7 +61,7 @@ coverage.coverprofile: $(COVERPROFILES)
 
 .PHONY: build
 build:
-	gb build $(GOBUILD_LDFLAGS)
+	$(GB) build $(GOBUILD_LDFLAGS)
 
 .PHONY: crossbuild
 crossbuild:
@@ -82,7 +69,7 @@ crossbuild:
 
 .PHONY: update
 update:
-	gb vendor update --all
+	$(GB) vendor update --all
 
 .PHONY: clean
 clean:

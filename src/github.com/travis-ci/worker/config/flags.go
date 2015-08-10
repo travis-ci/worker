@@ -173,9 +173,9 @@ var (
 			EnvVar: twEnvVars("ECHO_CONFIG"),
 		},
 		cli.BoolFlag{
-			Name:   "list-providers",
-			Usage:  "echo provider list and exit",
-			EnvVar: twEnvVars("LIST_PROVIDERS"),
+			Name:   "list-backend-providers",
+			Usage:  "echo backend provider list and exit",
+			EnvVar: twEnvVars("LIST_BACKEND_PROVIDERS"),
 		},
 		cli.BoolFlag{
 			Name:   "debug",
