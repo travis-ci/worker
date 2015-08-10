@@ -102,7 +102,7 @@ run_fpm () {
     --before-remove utils/pkg/templates/pre_remove.sh \
     -n travis-worker \
     --url "https://github.com/travis-ci/worker" \
-    --description "Travis-CI Go Worker" \
+    --description "Travis Worker" \
     -v $VERSION \
     -C tmp/$package_type \
     .

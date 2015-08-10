@@ -14,7 +14,7 @@ const (
 
 func main() {
 	app := cli.NewApp()
-	app.Usage = "Travis Worker daemon"
+	app.Usage = "Travis Worker"
 	app.Version = worker.VersionString
 	app.Author = "Travis CI GmbH"
 	app.Email = "contact+travis-worker@travis-ci.com"
