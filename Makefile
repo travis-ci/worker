@@ -1,11 +1,7 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
 PACKAGE_SRC_DIR := src/$(PACKAGE)
-SUBPACKAGES := \
-	$(PACKAGE)/cmd/travis-worker \
-	$(PACKAGE)/backend \
-	$(PACKAGE)/context \
-	$(PACKAGE)/metrics
+ALL_PACKAGES := $(shell find src/github.com/travis-ci/worker -type d | sed 's@src@@;s@^/@@')
 
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
@@ -45,7 +41,7 @@ COVERPROFILES := \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: all
-all: clean test lintall
+all: clean lintall test
 
 .PHONY: buildpack
 buildpack:
@@ -63,11 +59,11 @@ test: build fmtpolice .test coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test -v $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	$(GO) test -v $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 .PHONY: test-race
 test-race:
-	$(GO) test -v -race $(GOBUILD_LDFLAGS) $(PACKAGE) $(SUBPACKAGES)
+	$(GO) test -v -race $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@

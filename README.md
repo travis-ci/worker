@@ -50,7 +50,6 @@ exit immediately after writing to stdout:
 travis-worker --echo-config
 ```
 
-
 ## Running Travis Worker
 
 0. `make`

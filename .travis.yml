@@ -4,7 +4,7 @@ sudo: 9000
 
 env:
   global:
-  - AMQP_URI=amqp://
+  - AMQP_URI="amqp://"
   - GOPATH="$HOME/gopath"
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
@@ -21,6 +21,8 @@ addons:
 
 install:
 - go get github.com/constabulary/gb/...
+- go get github.com/alecthomas/gometalinter/...
+- gometalinter --install --update
 - gem install package_cloud --no-ri --no-rdoc
 - echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee -a /etc/apt/sources.list
 - curl http://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -

@@ -1,10 +1,29 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
-PACKAGE=${PACKAGE:-github.com/travis-ci/worker}
+pushd $(dirname $(dirname ${BASH_SOURCE[0]}))
+export GOPATH="$PWD:$PWD/vendor:$GOPATH"
+pushd src
 
-golint "${PACKAGE}"
-for pkg in backend context metrics ; do
-  golint "${PACKAGE}/${pkg}"
-done
+: ${CYCLOMAX:=20}
+: ${PACKAGE:=github.com/travis-ci/worker}
+
+DISABLED_LINTER_FLAGS=''
+
+# FIXME: figure out what's going on with gotype's GOPATH
+DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable gotype"
+
+# FIXME: do we care about shadowing `ctx` everywhere?
+DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable go-nyet"
+
+# FIXME: this probably warrants fixing
+DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable errcheck"
+
+GOMETALINTER_ARGS="${DISABLED_LINTER_FLAGS} --cyclo-over=${CYCLOMAX}"
+
+if [[ $DEBUG ]] ; then
+  GOMETALINTER_ARGS="$GOMETALINTER_ARGS --debug"
+fi
+
+exec gometalinter $GOMETALINTER_ARGS $PACKAGE
