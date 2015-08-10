@@ -25,11 +25,22 @@ func init() {
 }
 
 type localProvider struct {
-	cfg *config.ProviderConfig
+	cfg        *config.ProviderConfig
+	scriptsDir string
 }
 
 func newLocalProvider(cfg *config.ProviderConfig) (Provider, error) {
-	return &localProvider{cfg: cfg}, nil
+	scriptsDir, _ := os.Getwd()
+
+	if cfg.IsSet("SCRIPTS_DIR") {
+		scriptsDir = cfg.Get("SCRIPTS_DIR")
+	}
+
+	if scriptsDir == "" {
+		scriptsDir = os.TempDir()
+	}
+
+	return &localProvider{cfg: cfg, scriptsDir: scriptsDir}, nil
 }
 
 func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
@@ -39,29 +50,17 @@ func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttri
 type localInstance struct {
 	p *localProvider
 
-	scriptsDir string
 	scriptPath string
 }
 
 func newLocalInstance(p *localProvider) (*localInstance, error) {
-	scriptsDir, _ := os.Getwd()
-
-	if p.cfg.IsSet("SCRIPTS_DIR") {
-		scriptsDir = p.cfg.Get("SCRIPTS_DIR")
-	}
-
-	if scriptsDir == "" {
-		scriptsDir = os.TempDir()
-	}
-
 	return &localInstance{
-		p:          p,
-		scriptsDir: scriptsDir,
+		p: p,
 	}, nil
 }
 
 func (i *localInstance) UploadScript(ctx gocontext.Context, script []byte) error {
-	scriptPath := filepath.Join(i.scriptsDir, fmt.Sprintf("build-%v.sh", time.Now().UTC().UnixNano()))
+	scriptPath := filepath.Join(i.p.scriptsDir, fmt.Sprintf("build-%v.sh", time.Now().UTC().UnixNano()))
 	f, err := os.Create(scriptPath)
 	if err != nil {
 		return err
@@ -79,7 +78,7 @@ func (i *localInstance) RunScript(ctx gocontext.Context, writer io.Writer) (*Run
 		return &RunResult{Completed: false}, errNoScriptUploaded
 	}
 
-	cmd := exec.Command(fmt.Sprintf("bash %s", i.scriptPath))
+	cmd := exec.Command("bash", i.scriptPath)
 	cmd.Stdout = writer
 	cmd.Stderr = writer
 

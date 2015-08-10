@@ -40,13 +40,13 @@ func NewFileJobQueue(baseDir, queue string) (*FileJobQueue, error) {
 
 	defer fd.Close()
 
-	createdDir := filepath.Join(baseDir, queue, "created")
-	receivedDir := filepath.Join(baseDir, queue, "received")
-	startedDir := filepath.Join(baseDir, queue, "started")
-	finishedDir := filepath.Join(baseDir, queue, "finished")
+	createdDir := filepath.Join(baseDir, queue, "10-created.d")
+	receivedDir := filepath.Join(baseDir, queue, "30-received.d")
+	startedDir := filepath.Join(baseDir, queue, "50-started.d")
+	finishedDir := filepath.Join(baseDir, queue, "70-finished.d")
 	logDir := filepath.Join(baseDir, queue, "log")
 
-	for _, dirname := range []string{createdDir, receivedDir, startedDir, finishedDir} {
+	for _, dirname := range []string{createdDir, receivedDir, startedDir, finishedDir, logDir} {
 		err := os.MkdirAll(dirname, os.FileMode(0755))
 		if err != nil {
 			return nil, err

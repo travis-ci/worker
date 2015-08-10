@@ -60,7 +60,20 @@ func (j *fileJob) Error(ctx gocontext.Context, errMessage string) error {
 func (j *fileJob) Requeue() error {
 	metrics.Mark("worker.job.requeue")
 
-	return os.Rename(j.startedFile, j.createdFile)
+	var err error
+
+	for _, fname := range []string{
+		j.receivedFile,
+		j.startedFile,
+		j.finishedFile,
+	} {
+		err = os.Rename(fname, j.createdFile)
+		if err == nil {
+			return nil
+		}
+	}
+
+	return err
 }
 
 func (j *fileJob) Finish(state FinishState) error {
