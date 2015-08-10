@@ -35,10 +35,10 @@ COVERPROFILES := \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: all
-all: clean lintall test
+all: clean test
 
 .PHONY: test
-test: build fmtpolice .test coverage.html
+test: lintall build fmtpolice .test coverage.html
 
 .PHONY: .test
 .test:

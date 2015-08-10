@@ -31,6 +31,7 @@ install:
 - sudo service rabbitmq-server start
 
 script:
+- make lintall
 - make test
 - make test-race
 - git diff --exit-code || echo 'wat is goin on'
