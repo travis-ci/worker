@@ -11,9 +11,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dustin/go-humanize"
-	"github.com/pborman/uuid"
-
 	"github.com/fsouza/go-dockerclient"
+	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
@@ -144,7 +143,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Cmd:      p.runCmd,
 		Image:    imageID,
 		Memory:   int64(p.runMemory),
-		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewUUID()),
+		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewRandom()),
 	}
 
 	dockerHostConfig := &docker.HostConfig{

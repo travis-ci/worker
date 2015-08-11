@@ -10,7 +10,6 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
-
 	"golang.org/x/net/context"
 )
 

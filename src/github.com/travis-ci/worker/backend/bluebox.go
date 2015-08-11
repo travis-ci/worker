@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pborman/uuid"
-
 	"github.com/henrikhodne/goblueboxapi"
+	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
@@ -53,7 +52,7 @@ func (b *blueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 		Product:  b.cfg.Get("PRODUCT_ID"),
 		Template: b.templateIDForLanguageGroup(startAttributes.Language, startAttributes.Group),
 		Location: b.cfg.Get("LOCATION_ID"),
-		Hostname: fmt.Sprintf("testing-bb-%s", uuid.NewUUID()),
+		Hostname: fmt.Sprintf("testing-bb-%s", uuid.NewRandom()),
 		Username: "travis",
 		Password: password,
 		IPv6Only: b.cfg.Get("IPV6_ONLY") == "true",

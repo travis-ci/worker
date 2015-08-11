@@ -382,7 +382,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			Preemptible: true,
 		},
 		MachineType: p.ic.MachineType.SelfLink,
-		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewUUID()),
+		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
