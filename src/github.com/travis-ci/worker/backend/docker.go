@@ -11,9 +11,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/dustin/go-humanize"
-	"github.com/pborman/uuid"
-
 	"github.com/fsouza/go-dockerclient"
+	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
@@ -34,7 +33,7 @@ var (
 )
 
 func init() {
-	config.SetProviderHelp("Docker", dockerHelp)
+	Register("docker", "Docker", dockerHelp, newDockerProvider)
 }
 
 type dockerProvider struct {
@@ -57,7 +56,7 @@ type dockerInstance struct {
 	imageName string
 }
 
-func newDockerProvider(cfg *config.ProviderConfig) (*dockerProvider, error) {
+func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err
@@ -144,7 +143,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Cmd:      p.runCmd,
 		Image:    imageID,
 		Memory:   int64(p.runMemory),
-		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewUUID()),
+		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewRandom()),
 	}
 
 	dockerHostConfig := &docker.HostConfig{

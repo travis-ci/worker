@@ -11,10 +11,34 @@ var (
 	// Flags is the list of all CLI flags accepted by travis-worker
 	Flags = []cli.Flag{
 		cli.StringFlag{
+			Name:   "provider-name",
+			Value:  defaultProviderName,
+			Usage:  "The name of the provider to use. See below for provider-specific configuration",
+			EnvVar: twEnvVars("PROVIDER_NAME"),
+		},
+		cli.StringFlag{
+			Name:   "queue-type",
+			Value:  defaultQueueType,
+			Usage:  `The name of the queue type to use ("amqp" or "file")`,
+			EnvVar: twEnvVars("QUEUE_TYPE"),
+		},
+		cli.StringFlag{
 			Name:   "amqp-uri",
 			Value:  defaultAmqpURI,
-			Usage:  "The URI to the AMQP server to connect to",
+			Usage:  `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
 			EnvVar: twEnvVars("AMQP_URI"),
+		},
+		cli.StringFlag{
+			Name:   "base-dir",
+			Value:  defaultBaseDir,
+			Usage:  `The base directory for file-based queues (only valid for "file" queue type)`,
+			EnvVar: twEnvVars("BASE_DIR"),
+		},
+		cli.DurationFlag{
+			Name:   "file-polling-interval",
+			Value:  defaultFilePollingInterval,
+			Usage:  `The interval at which file-based queues are checked (only valid for "file" queue type)`,
+			EnvVar: twEnvVars("FILE_POLLING_INTERVAL"),
 		},
 		cli.IntFlag{
 			Name:   "pool-size",
@@ -26,12 +50,6 @@ var (
 			Name:   "build-api-uri",
 			Usage:  "The full URL to the build API endpoint to use. Note that this also requires the path of the URL. If a username is included in the URL, this will be translated to a token passed in the Authorization header",
 			EnvVar: twEnvVars("BUILD_API_URI"),
-		},
-		cli.StringFlag{
-			Name:   "provider-name",
-			Value:  defaultProviderName,
-			Usage:  "The name of the provider to use. See below for provider-specific configuration",
-			EnvVar: twEnvVars("PROVIDER_NAME"),
 		},
 		cli.StringFlag{
 			Name:   "queue-name",
@@ -159,6 +177,11 @@ var (
 			Name:   "echo-config",
 			Usage:  "echo parsed config and exit",
 			EnvVar: twEnvVars("ECHO_CONFIG"),
+		},
+		cli.BoolFlag{
+			Name:   "list-backend-providers",
+			Usage:  "echo backend provider list and exit",
+			EnvVar: twEnvVars("LIST_BACKEND_PROVIDERS"),
 		},
 		cli.BoolFlag{
 			Name:   "debug",

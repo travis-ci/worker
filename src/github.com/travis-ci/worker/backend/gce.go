@@ -69,7 +69,7 @@ EOF
 )
 
 func init() {
-	config.SetProviderHelp("GCE", gceHelp)
+	Register("gce", "Google Compute Engine", gceHelp, newGCEProvider)
 }
 
 type gceOpError struct {
@@ -125,7 +125,7 @@ type gceInstance struct {
 	imageName string
 }
 
-func newGCEProvider(cfg *config.ProviderConfig) (*gceProvider, error) {
+func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	client, err := buildGoogleComputeService(cfg)
 	if err != nil {
 		return nil, err
@@ -382,7 +382,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			Preemptible: true,
 		},
 		MachineType: p.ic.MachineType.SelfLink,
-		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewUUID()),
+		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{

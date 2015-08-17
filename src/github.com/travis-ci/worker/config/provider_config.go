@@ -22,10 +22,10 @@ func (pc *ProviderConfig) GoString() string {
 	return fmt.Sprintf("&ProviderConfig{cfgMap: %#v}", pc.cfgMap)
 }
 
-// Map loops over all configuration settings and calls the given function with
+// Each loops over all configuration settings and calls the given function with
 // the key and value. The settings are sorted so f i called with the keys in
 // alphabetical order.
-func (pc *ProviderConfig) Map(f func(string, string)) {
+func (pc *ProviderConfig) Each(f func(string, string)) {
 	keys := []string{}
 	for key := range pc.cfgMap {
 		keys = append(keys, key)

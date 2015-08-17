@@ -12,19 +12,22 @@ import (
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	AmqpURI        string
-	PoolSize       int
-	BuildAPIURI    string
-	ProviderName   string
-	ProviderConfig *ProviderConfig
-	QueueName      string
-	LibratoEmail   string
-	LibratoToken   string
-	LibratoSource  string
-	SentryDSN      string
-	Hostname       string
-	HardTimeout    time.Duration
-	LogTimeout     time.Duration
+	ProviderName        string
+	QueueType           string
+	AmqpURI             string
+	BaseDir             string
+	FilePollingInterval time.Duration
+	PoolSize            int
+	BuildAPIURI         string
+	ProviderConfig      *ProviderConfig
+	QueueName           string
+	LibratoEmail        string
+	LibratoToken        string
+	LibratoSource       string
+	SentryDSN           string
+	Hostname            string
+	HardTimeout         time.Duration
+	LogTimeout          time.Duration
 
 	BuildAPIInsecureSkipVerify bool
 	SkipShutdownOnLogTimeout   bool
@@ -49,18 +52,21 @@ type Config struct {
 // from the flags in the context.
 func FromCLIContext(c *cli.Context) *Config {
 	cfg := &Config{
-		AmqpURI:       c.String("amqp-uri"),
-		PoolSize:      c.Int("pool-size"),
-		BuildAPIURI:   c.String("build-api-uri"),
-		ProviderName:  c.String("provider-name"),
-		QueueName:     c.String("queue-name"),
-		LibratoEmail:  c.String("librato-email"),
-		LibratoToken:  c.String("librato-token"),
-		LibratoSource: c.String("librato-source"),
-		SentryDSN:     c.String("sentry-dsn"),
-		Hostname:      c.String("hostname"),
-		HardTimeout:   c.Duration("hard-timeout"),
-		LogTimeout:    c.Duration("log-timeout"),
+		ProviderName:        c.String("provider-name"),
+		QueueType:           c.String("queue-type"),
+		AmqpURI:             c.String("amqp-uri"),
+		BaseDir:             c.String("base-dir"),
+		FilePollingInterval: c.Duration("file-polling-interval"),
+		PoolSize:            c.Int("pool-size"),
+		BuildAPIURI:         c.String("build-api-uri"),
+		QueueName:           c.String("queue-name"),
+		LibratoEmail:        c.String("librato-email"),
+		LibratoToken:        c.String("librato-token"),
+		LibratoSource:       c.String("librato-source"),
+		SentryDSN:           c.String("sentry-dsn"),
+		Hostname:            c.String("hostname"),
+		HardTimeout:         c.Duration("hard-timeout"),
+		LogTimeout:          c.Duration("log-timeout"),
 
 		BuildAPIInsecureSkipVerify: c.Bool("build-api-insecure-skip-verify"),
 		SkipShutdownOnLogTimeout:   c.Bool("skip-shutdown-on-log-timeout"),
@@ -90,17 +96,20 @@ func FromCLIContext(c *cli.Context) *Config {
 // by a Bourne-like shell.
 func WriteEnvConfig(cfg *Config, out io.Writer) {
 	cfgMap := map[string]interface{}{
-		"amqp-uri":       cfg.AmqpURI,
-		"pool-size":      cfg.PoolSize,
-		"build-api-uri":  cfg.BuildAPIURI,
-		"provider-name":  cfg.ProviderName,
-		"queue-name":     cfg.QueueName,
-		"librato-email":  cfg.LibratoEmail,
-		"librato-token":  cfg.LibratoToken,
-		"librato-source": cfg.LibratoSource,
-		"sentry-dsn":     cfg.SentryDSN,
-		"hostname":       cfg.Hostname,
-		"hard-timout":    cfg.HardTimeout,
+		"provider-name":         cfg.ProviderName,
+		"queue-type":            cfg.QueueType,
+		"amqp-uri":              cfg.AmqpURI,
+		"base-dir":              cfg.BaseDir,
+		"file-polling-interval": cfg.FilePollingInterval,
+		"pool-size":             cfg.PoolSize,
+		"build-api-uri":         cfg.BuildAPIURI,
+		"queue-name":            cfg.QueueName,
+		"librato-email":         cfg.LibratoEmail,
+		"librato-token":         cfg.LibratoToken,
+		"librato-source":        cfg.LibratoSource,
+		"sentry-dsn":            cfg.SentryDSN,
+		"hostname":              cfg.Hostname,
+		"hard-timout":           cfg.HardTimeout,
 
 		"build-api-insecure-skip-verify": cfg.BuildAPIInsecureSkipVerify,
 		"skip-shutdown-on-log-timeout":   cfg.SkipShutdownOnLogTimeout,
@@ -134,7 +143,7 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 		fmt.Fprintf(out, "export %s=%q\n", envKey, fmt.Sprintf("%v", cfgMap[key]))
 	}
 	fmt.Fprintf(out, "\n# travis-worker provider config:\n")
-	cfg.ProviderConfig.Map(func(key, value string) {
+	cfg.ProviderConfig.Each(func(key, value string) {
 		envKey := strings.ToUpper(fmt.Sprintf("TRAVIS_WORKER_%s_%s", cfg.ProviderName, strings.Replace(key, "-", "_", -1)))
 		fmt.Fprintf(out, "export %s=%q\n", envKey, value)
 	})

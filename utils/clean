@@ -2,21 +2,7 @@
 
 set -e
 
-GO=${GO:-go}
-PACKAGE=${PACKAGE:-github.com/travis-ci/worker}
-PACKAGE_SRC_DIR=src/$PACKAGE
-PACKAGE_CHECKOUT=$PWD
-SUBPACKAGES=$(cd ${PACKAGE_SRC_DIR} && find . -type d|grep -v 'text\|bin')
-
-cd $PACKAGE_CHECKOUT
+cd $(dirname $(dirname ${BASH_SOURCE[0]}))
 rm -vf "./bin/travis-worker"
 rm -vf coverage.html *coverage.coverprofile
-cd $PACKAGE_SRC_DIR
-${GO} clean || true
-for f in $SUBPACKAGES; do
-  cd $f
-  cd $PACKAGE_CHECKOUT/$PACKAGE_SRC_DIR
-  ${GO} clean || true
-done
-
-
+find pkg -wholename '*travis-ci/worker*.a' | xargs rm -vf

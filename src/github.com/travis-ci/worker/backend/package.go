@@ -8,7 +8,6 @@ import (
 	"io"
 	"regexp"
 
-	"github.com/travis-ci/worker/config"
 	"golang.org/x/net/context"
 )
 
@@ -68,25 +67,6 @@ type RunResult struct {
 	// Whether the script finished running or not. Can be false if there was a
 	// connection error in the middle of the script run.
 	Completed bool
-}
-
-// NewProvider creates a new provider using the given name and provider config.
-// Valid names are 'docker', 'jupiterbrain', 'bluebox' and 'fake'.
-func NewProvider(name string, cfg *config.ProviderConfig) (Provider, error) {
-	switch name {
-	case "docker":
-		return newDockerProvider(cfg)
-	case "jupiterbrain":
-		return newJupiterBrainProvider(cfg)
-	case "gce":
-		return newGCEProvider(cfg)
-	case "bluebox":
-		return newBlueBoxProvider(cfg)
-	case "fake":
-		return newFakeProvider(cfg), nil
-	default:
-		return nil, fmt.Errorf("unknown provider: %s", name)
-	}
 }
 
 func generatePassword() string {

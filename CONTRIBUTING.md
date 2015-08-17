@@ -1,6 +1,6 @@
-# Contributing to Travis-CI
+# Contributing to travis-ci/worker
 
-Issues for any Travis-CI repo should be submitted to
+Issues for any Travis CI repo should be submitted to
 https://github.com/travis-ci/travis-ci/issues
 
 ## Security Issues
@@ -15,6 +15,6 @@ https://github.com/travis-ci/travis-ci/issues
 - What steps are required to reproduce the issue
 - An example build that shows the issue
 
-## Submitting a PR to Travis-Worker
+## Submitting a PR to travis-ci/worker
 
 See testing and setup notes in the [README](./README.md).

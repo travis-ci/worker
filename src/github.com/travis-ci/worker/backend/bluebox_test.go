@@ -22,7 +22,8 @@ var (
 func blueboxTestSetup(t *testing.T, cfg *config.ProviderConfig) {
 	blueboxMux = http.NewServeMux()
 	blueboxServer = httptest.NewServer(blueboxMux)
-	blueboxProvider, _ = newBlueBoxProvider(cfg)
+	provider, _ := newBlueBoxProvider(cfg)
+	blueboxProvider = provider.(*blueBoxProvider)
 	blueboxProvider.client.BaseURL, _ = url.Parse(blueboxServer.URL)
 }
 

@@ -1,13 +1,14 @@
 package worker
 
 import (
-	"io"
-	"time"
-
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	"golang.org/x/net/context"
+	gocontext "golang.org/x/net/context"
 )
+
+type jobPayloadStartAttrs struct {
+	Config *backend.StartAttributes `json:"config"`
+}
 
 // JobPayload is the payload we receive over RabbitMQ.
 type JobPayload struct {
@@ -66,21 +67,9 @@ type Job interface {
 
 	Received() error
 	Started() error
-	Error(context.Context, string) error
+	Error(gocontext.Context, string) error
 	Requeue() error
 	Finish(FinishState) error
 
-	LogWriter(context.Context) (LogWriter, error)
-}
-
-// A LogWriter is primarily an io.Writer that will send all bytes to travis-logs
-// for processing, and also has some utility methods for timeouts and log length
-// limiting. Each LogWriter is tied to a given job, and can be gotten by calling
-// the LogWriter() method on a Job.
-type LogWriter interface {
-	io.WriteCloser
-	WriteAndClose([]byte) (int, error)
-	SetTimeout(time.Duration)
-	Timeout() <-chan time.Time
-	SetMaxLogLength(int)
+	LogWriter(gocontext.Context) (LogWriter, error)
 }

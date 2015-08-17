@@ -1,9 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
 
 gofmt_check () {
-
   f="$1"
   gofmt ${f} | if ! diff -u ${f} - ; then
   echo fmtpolice:${f} ✗
@@ -11,14 +10,14 @@ gofmt_check () {
   else
     echo fmtpolice:${f} ✓
   fi
-
 }
+
 if [[ ! -n $1 ]]; then
-  for f in $(git ls-files '*.go' | grep -v Deps) ; do
+  for f in $(git ls-files '*.go') ; do
     gofmt_check ${f}
   done
 else
-  for f in $(find $1 -type f -iname *.go | grep -v Deps); do
+  for f in $(find $1 -type f -iname '*.go'); do
     gofmt_check ${f}
   done
 fi

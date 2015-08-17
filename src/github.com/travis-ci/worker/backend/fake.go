@@ -8,12 +8,18 @@ import (
 	"golang.org/x/net/context"
 )
 
+func init() {
+	Register("fake", "Fake", map[string]string{
+		"LOG_OUTPUT": "faked log output to write",
+	}, newFakeProvider)
+}
+
 type fakeProvider struct {
 	cfg *config.ProviderConfig
 }
 
-func newFakeProvider(cfg *config.ProviderConfig) *fakeProvider {
-	return &fakeProvider{cfg: cfg}
+func newFakeProvider(cfg *config.ProviderConfig) (Provider, error) {
+	return &fakeProvider{cfg: cfg}, nil
 }
 
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {

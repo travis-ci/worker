@@ -7,7 +7,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
-	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
@@ -17,7 +16,6 @@ import (
 // same queue.
 type ProcessorPool struct {
 	Context     gocontext.Context
-	Conn        *amqp.Connection
 	Provider    backend.Provider
 	Generator   BuildScriptGenerator
 	Canceller   Canceller
@@ -27,7 +25,7 @@ type ProcessorPool struct {
 
 	SkipShutdownOnLogTimeout bool
 
-	queue          *JobQueue
+	queue          JobQueue
 	poolErrors     []error
 	processorsLock sync.Mutex
 	processors     []*Processor
@@ -36,7 +34,7 @@ type ProcessorPool struct {
 
 // NewProcessorPool creates a new processor pool using the given arguments.
 func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.Duration,
-	logTimeout time.Duration, amqpConn *amqp.Connection, provider backend.Provider,
+	logTimeout time.Duration, provider backend.Provider,
 	generator BuildScriptGenerator, canceller Canceller) *ProcessorPool {
 
 	return &ProcessorPool{
@@ -44,7 +42,6 @@ func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.D
 		Context:     ctx,
 		HardTimeout: hardTimeout,
 		LogTimeout:  logTimeout,
-		Conn:        amqpConn,
 		Provider:    provider,
 		Generator:   generator,
 		Canceller:   canceller,
@@ -78,12 +75,7 @@ func (p *ProcessorPool) Size() int {
 
 // Run starts up a number of processors and connects them to the given queue.
 // This method stalls until all processors have finished.
-func (p *ProcessorPool) Run(poolSize int, queueName string) error {
-	queue, err := NewJobQueue(p.Conn, queueName)
-	if err != nil {
-		return err
-	}
-
+func (p *ProcessorPool) Run(poolSize int, queue JobQueue) error {
 	p.queue = queue
 	p.poolErrors = []error{}
 
@@ -137,7 +129,7 @@ func (p *ProcessorPool) Decr() {
 	proc.GracefulShutdown()
 }
 
-func (p *ProcessorPool) runProcessor(queue *JobQueue) error {
+func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 	processorUUID := uuid.NewRandom()
 	ctx := context.FromProcessor(p.Context, processorUUID.String())
 
