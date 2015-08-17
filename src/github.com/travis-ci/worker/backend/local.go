@@ -44,7 +44,7 @@ func newLocalProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	return &localInstance{p: p}, nil
+	return newLocalInstance(p)
 }
 
 type localInstance struct {
@@ -105,7 +105,6 @@ func (i *localInstance) RunScript(ctx gocontext.Context, writer io.Writer) (*Run
 		}
 		return &RunResult{Completed: true}, nil
 	}
-	panic("no cases matched???")
 }
 
 func (i *localInstance) Stop(ctx gocontext.Context) error {
