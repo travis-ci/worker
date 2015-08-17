@@ -415,7 +415,6 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		Tags: &compute.Tags{
 			Items: []string{
 				"testing",
-				string(gceIllegalTagChars.ReplaceAll([]byte(startAttributes.Language), []byte("-"))),
 			},
 		},
 	}
