@@ -88,7 +88,7 @@ until i == LIMIT
     puts "attempting to yank #{filename}"
     result = RestClient.delete(url)
     p result
-    if result == {}
+    if result == {} || result == '{}'
       puts "successfully yanked #{filename}!"
     else
       puts "failed with #{result}"
