@@ -209,6 +209,7 @@ host_setup() {
     cat > "/etc/default/grub.d/99-travis-worker-settings.cfg" <<EOF
 GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX"
 EOF
+    update-grub
     return
   fi
 
@@ -220,6 +221,8 @@ EOF
       "s/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"$GRUB_CMDLINE_LINUX\"/" \
       $GRUB_CFG
   fi
+
+  update-grub
 }
 
 host_setup
