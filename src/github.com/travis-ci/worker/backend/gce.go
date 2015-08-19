@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -65,7 +64,6 @@ cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
 `))
-	gceIllegalTagChars = regexp.MustCompile(`[^-a-z0-9]`)
 )
 
 func init() {
@@ -415,7 +413,6 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		Tags: &compute.Tags{
 			Items: []string{
 				"testing",
-				string(gceIllegalTagChars.ReplaceAll([]byte(startAttributes.Language), []byte("-"))),
 			},
 		},
 	}
