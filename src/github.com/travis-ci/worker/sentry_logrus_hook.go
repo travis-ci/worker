@@ -57,6 +57,13 @@ func (hook *SentryHook) Fire(entry *logrus.Entry) error {
 		delete(entry.Data, "server_name")
 	}
 	packet.Extra = map[string]interface{}(entry.Data)
+
+	if errMaybe, ok := packet.Extra["err"]; ok {
+		if err, ok := errMaybe.(error); ok {
+			packet.Extra["err"] = err.Error()
+		}
+	}
+
 	packet.Interfaces = append(packet.Interfaces, raven.NewStacktrace(4, 3, []string{"github.com/travis-ci/worker"}))
 
 	_, errCh := hook.client.Capture(packet, nil)
