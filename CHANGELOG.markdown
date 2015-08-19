@@ -1,4 +1,17 @@
-## 0.7.0 (August 18, 2015)
+## 1.0.0 (August 19th, 2015)
+
+FEATURES:
+
+  * backend/gce: Add auto implode, which will cause a VM to automatically shut
+    down after a hard timeout.
+
+BUG FIXES:
+
+  * logger: Make the processor= field in the logs not be empty anymore
+  * sentry: Stringify the err field sent to Sentry, since it's usually parsed
+    as a struct, making it just {} in Sentry.
+
+## 0.7.0 (August 18th, 2015)
 
 FEATURES:
 
