@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -65,7 +64,6 @@ cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
 `))
-	gceIllegalTagChars = regexp.MustCompile(`[^-a-z0-9]`)
 )
 
 func init() {
