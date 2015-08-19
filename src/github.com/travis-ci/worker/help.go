@@ -3,6 +3,7 @@ package worker
 import (
 	"fmt"
 	"io"
+	"sort"
 
 	"github.com/codegangsta/cli"
 	"github.com/travis-ci/worker/backend"
@@ -53,8 +54,15 @@ func helpPrinter(w io.Writer, templ string, data interface{}) {
 	backend.EachBackend(func(b *backend.Backend) {
 		fmt.Fprintf(w, "\n%s provider help:\n\n", b.HumanReadableName)
 
-		for key, value := range b.ProviderHelp {
-			fmt.Printf(itemFmt, key, value)
+		sortedKeys := []string{}
+		for key := range b.ProviderHelp {
+			sortedKeys = append(sortedKeys, key)
+		}
+
+		sort.Strings(sortedKeys)
+
+		for _, key := range sortedKeys {
+			fmt.Printf(itemFmt, key, b.ProviderHelp[key])
 		}
 	})
 

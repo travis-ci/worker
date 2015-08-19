@@ -28,15 +28,16 @@ import (
 )
 
 const (
-	defaultGCEZone             = "us-central1-a"
-	defaultGCEMachineType      = "n1-standard-2"
-	defaultGCENetwork          = "default"
-	defaultGCEDiskSize         = int64(20)
-	defaultGCELanguage         = "minimal"
-	defaultGCEBootPollSleep    = 3 * time.Second
-	defaultGCEUploadRetries    = uint64(10)
-	defaultGCEUploadRetrySleep = 5 * time.Second
-	gceImagesFilter            = "name eq ^travis-ci-%s.+"
+	defaultGCEZone               = "us-central1-a"
+	defaultGCEMachineType        = "n1-standard-2"
+	defaultGCENetwork            = "default"
+	defaultGCEDiskSize           = int64(20)
+	defaultGCELanguage           = "minimal"
+	defaultGCEBootPollSleep      = 3 * time.Second
+	defaultGCEUploadRetries      = uint64(10)
+	defaultGCEUploadRetrySleep   = 5 * time.Second
+	defaultGCEHardTimeoutMinutes = int64(130)
+	gceImagesFilter              = "name eq ^travis-ci-%s.+"
 )
 
 var (
@@ -55,11 +56,14 @@ var (
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
 		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"AUTO_IMPLODE":            "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
+		"HARD_TIMEOUT_MINUTES":    fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
 	}
 
 	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
+{{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
 cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
@@ -102,13 +106,15 @@ type gceProvider struct {
 }
 
 type gceInstanceConfig struct {
-	MachineType  *compute.MachineType
-	Zone         *compute.Zone
-	Network      *compute.Network
-	DiskType     string
-	DiskSize     int64
-	SSHKeySigner ssh.Signer
-	SSHPubKey    string
+	MachineType        *compute.MachineType
+	Zone               *compute.Zone
+	Network            *compute.Network
+	DiskType           string
+	DiskSize           int64
+	SSHKeySigner       ssh.Signer
+	SSHPubKey          string
+	AutoImplode        bool
+	HardTimeoutMinutes int64
 }
 
 type gceInstance struct {
@@ -255,19 +261,39 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultLanguage = cfg.Get("DEFAULT_LANGUAGE")
 	}
 
+	autoImplode := true
+	if cfg.IsSet("AUTO_IMPLODE") {
+		ai, err := strconv.ParseBool(cfg.Get("AUTO_IMPLODE"))
+		if err != nil {
+			return nil, err
+		}
+		autoImplode = ai
+	}
+
+	hardTimeoutMinutes := defaultGCEHardTimeoutMinutes
+	if cfg.IsSet("HARD_TIMEOUT_MINUTES") {
+		ht, err := strconv.ParseInt(cfg.Get("HARD_TIMEOUT_MINUTES"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		hardTimeoutMinutes = ht
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
 		cfg:       cfg,
 
 		ic: &gceInstanceConfig{
-			MachineType:  mt,
-			Zone:         zone,
-			Network:      nw,
-			DiskType:     fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
-			DiskSize:     diskSize,
-			SSHKeySigner: sshKeySigner,
-			SSHPubKey:    string(sshPubKeyBytes),
+			MachineType:        mt,
+			Zone:               zone,
+			Network:            nw,
+			DiskType:           fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
+			DiskSize:           diskSize,
+			SSHKeySigner:       sshKeySigner,
+			SSHPubKey:          string(sshPubKeyBytes),
+			AutoImplode:        autoImplode,
+			HardTimeoutMinutes: hardTimeoutMinutes,
 		},
 
 		bootPollSleep:    bootPollSleep,
