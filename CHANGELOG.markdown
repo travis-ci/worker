@@ -1,3 +1,26 @@
+## 0.7.0 (August 18, 2015)
+
+FEATURES:
+
+  * backend: The local backend was added
+
+IMPROVEMENTS:
+
+  * backend/jupiterbrain: Add exponential backoff on all HTTP requests
+  * sentry: Include stack trace in logs sent to Sentry
+  * step/generate-script: Add exponential backoff to script generation
+
+BUG FIXES:
+
+  * backend/gce: Fix a bug causing VMs for a build language ending in symbols
+    (such as C++) to error while booting
+  * log-writer: Fix a race condition causing the log writer to be closed before
+    the logs were fully flushed.
+  * log-writer: Minimize locking in the internals of the log writer, making
+    deadlocks less likely.
+  * processor: Fix graceful and forceful shutdown when there are still build
+    jobs waiting.
+
 ## 0.6.0 (July 23rd, 2015)
 
 FEATURES:
