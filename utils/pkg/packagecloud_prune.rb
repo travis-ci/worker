@@ -20,6 +20,8 @@ else
   exit 1
 end
 
+MAX_ERRORS = Integer(ENV['MAX_ERRORS'] || 10)
+
 if ARGV[0]
   REPOSITORY = ARGV[0]
 else
@@ -72,6 +74,8 @@ else
   exit 0
 end
 
+n_errors = 0
+
 until i == LIMIT
   to_yank = sorted_package_versions[i]
 
@@ -80,13 +84,19 @@ until i == LIMIT
   yank_url = "/#{distro_version}/#{filename}"
   url = base_url + yank_url
 
-  puts "attempting to yank #{filename}"
-  result = RestClient.delete(url)
-  p result
-  if result == {}
-    puts "successfully yanked #{filename}!"
-  else
-    puts "failed with #{result}"
+  begin
+    puts "attempting to yank #{filename}"
+    result = RestClient.delete(url)
+    p result
+    if result == {}
+      puts "successfully yanked #{filename}!"
+    else
+      puts "failed with #{result}"
+    end
+    i -= 1
+  rescue => e
+    raise(e) if n_errors >= MAX_ERRORS
+    puts "ERROR: #{e}"
+    n_errors += 1
   end
-  i -= 1
 end
