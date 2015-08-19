@@ -14,7 +14,6 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/Sirupsen/logrus/hooks/sentry"
 	"github.com/codegangsta/cli"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/librato"
@@ -165,7 +164,7 @@ func (i *CLI) Run() {
 
 func (i *CLI) setupSentry() {
 	if i.Config.SentryDSN != "" {
-		sentryHook, err := logrus_sentry.NewSentryHook(i.Config.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
+		sentryHook, err := NewSentryHook(i.Config.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
 		if err != nil {
 			i.logger.WithField("err", err).Error("couldn't create sentry hook")
 		}
