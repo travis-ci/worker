@@ -36,7 +36,7 @@ const (
 	defaultGCEBootPollSleep      = 3 * time.Second
 	defaultGCEUploadRetries      = uint64(10)
 	defaultGCEUploadRetrySleep   = 5 * time.Second
-	defaultGCEHardTimeoutMinutes = int64(120)
+	defaultGCEHardTimeoutMinutes = int64(130)
 	gceImagesFilter              = "name eq ^travis-ci-%s.+"
 )
 
