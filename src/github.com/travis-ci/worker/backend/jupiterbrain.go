@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
@@ -326,7 +327,18 @@ func (p *jupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error)
 		req.Header.Set("Authorization", "token "+token)
 	}
 
-	return p.client.Do(req)
+	var resp *http.Response = nil
+
+	b := backoff.NewExponentialBackOff()
+	b.MaxInterval = 10 * time.Second
+	b.MaxElapsedTime = time.Minute
+
+	err := backoff.Retry(func() (err error) {
+		resp, err = p.client.Do(req)
+		return
+	}, b)
+
+	return resp, err
 }
 
 func (i *jupiterBrainInstance) UploadScript(ctx context.Context, script []byte) error {
