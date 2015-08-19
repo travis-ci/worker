@@ -202,14 +202,27 @@ configure_travis_worker
 
 ## Host Setup
 host_setup() {
+  # enable memory and swap accounting, disable apparmor (optional, but recommended)
+  GRUB_CMDLINE_LINUX='cgroup_enable=memory swapaccount=1 apparmor=0'
+
+  if [[ -d /etc/default/grub.d ]] ; then
+    cat > "/etc/default/grub.d/99-travis-worker-settings.cfg" <<EOF
+GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX"
+EOF
+    update-grub
+    return
+  fi
+
   GRUB_CFG="/etc/default/grub"
+  touch $GRUB_CFG
 
   if [[ ! $(grep cgroup_enabled $GRUB_CFG) ]]; then
-    # enable memory and swap accounting (optional, but recommended)
     sed -i \
-      's/GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cgroup_enable=memory swapaccount=1"/' \
+      "s/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"$GRUB_CMDLINE_LINUX\"/" \
       $GRUB_CFG
   fi
+
+  update-grub
 }
 
 host_setup
