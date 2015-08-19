@@ -40,7 +40,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
 	hardTimeout time.Duration, logTimeout time.Duration) (*Processor, error) {
 
-	uuidString, _ := context.UUIDFromContext(ctx)
+	uuidString, _ := context.ProcessorFromContext(ctx)
 	processorUUID := uuid.Parse(uuidString)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
@@ -51,7 +51,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 		hardTimeout: hardTimeout,
 		logTimeout:  logTimeout,
 
-		ctx:           context.FromProcessor(ctx, processorUUID.String()),
+		ctx:           ctx,
 		buildJobsChan: buildJobsChan,
 		provider:      provider,
 		generator:     generator,
