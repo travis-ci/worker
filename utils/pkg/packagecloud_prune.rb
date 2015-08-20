@@ -78,25 +78,22 @@ n_errors = 0
 
 until i == LIMIT
   to_yank = sorted_package_versions[i]
-
-  distro_version = to_yank["distro_version"]
-  filename = to_yank["filename"]
-  yank_url = "/#{distro_version}/#{filename}"
-  url = base_url + yank_url
+  filename = to_yank['filename']
 
   begin
     puts "attempting to yank #{filename}"
-    result = RestClient.delete(url)
+    result = RestClient.delete(base_url + "/#{to_yank['distro_version']}/#{filename}")
     p result
     if result == {} || result == '{}'
       puts "successfully yanked #{filename}!"
     else
       puts "failed with #{result}"
     end
-    i -= 1
   rescue => e
     raise(e) if n_errors >= MAX_ERRORS
-    puts "ERROR: #{e}"
+    puts "ERROR yanking #{filename}: #{e}"
     n_errors += 1
   end
+
+  i -= 1
 end
