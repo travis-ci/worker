@@ -454,6 +454,14 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil, err
 	}
 
+	abandonedStart := false
+
+	defer func() {
+		if abandonedStart {
+			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, inst.Name).Do()
+		}
+	}()
+
 	startBooting := time.Now()
 
 	instanceReady := make(chan *compute.Instance)
@@ -477,20 +485,37 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 				return
 			}
 
+			if newOp.Error != nil {
+				errChan <- &gceOpError{Err: newOp.Error}
+				return
+			}
+
+			logger.WithFields(logrus.Fields{
+				"op":     newOp,
+				"status": newOp.Status,
+				"name":   op.Name,
+			}).Debug("sleeping before retrying operation")
+
 			time.Sleep(p.bootPollSleep)
 		}
 	}()
 
 	if p.instanceGroup != "" {
+		logger.WithFields(logrus.Fields{
+			"instance":       inst,
+			"instance_group": p.instanceGroup,
+		}).Debug("instance group is non-empty, adding instance to group")
+
 		origInstanceReady := instanceReady
 		instanceReady = make(chan *compute.Instance)
+
+		inst = <-origInstanceReady
 
 		logger.WithFields(logrus.Fields{
 			"instance":       inst,
 			"instance_group": p.instanceGroup,
-		}).Debug("inserting instance into group")
+		}).Debug("instance ready, inserting into group")
 
-		inst := <-origInstanceReady
 		op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
 			Instances: []*compute.InstanceReference{
 				&compute.InstanceReference{
@@ -500,6 +525,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		}).Do()
 
 		if err != nil {
+			abandonedStart = true
 			return nil, err
 		}
 
@@ -541,11 +567,13 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			imageName: image.Name,
 		}, nil
 	case err := <-errChan:
+		abandonedStart = true
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.boot.timeout")
 		}
+		abandonedStart = true
 		return nil, ctx.Err()
 	}
 }
