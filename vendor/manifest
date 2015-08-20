@@ -4,7 +4,7 @@
 		{
 			"importpath": "github.com/Sirupsen/logrus",
 			"repository": "https://github.com/Sirupsen/logrus",
-			"revision": "21d4508646ae56d79244bd9046c1df63a5fa8c37",
+			"revision": "27b713cfd2742876645e3692a488c5e3fd65361d",
 			"branch": "master"
 		},
 		{
@@ -16,25 +16,25 @@
 		{
 			"importpath": "github.com/cenkalti/backoff",
 			"repository": "https://github.com/cenkalti/backoff",
-			"revision": "6c45d6bc1e78d94431dff8fc28a99f20bafa355a",
+			"revision": "4dc77674aceaabba2c7e3da25d4c823edfb73f99",
 			"branch": "master"
 		},
 		{
 			"importpath": "github.com/codegangsta/cli",
 			"repository": "https://github.com/codegangsta/cli",
-			"revision": "bca61c476e3c752594983e4c9bcd5f62fb09f157",
+			"revision": "142e6cd241a4dfbf7f07a018f1f8225180018da4",
 			"branch": "master"
 		},
 		{
 			"importpath": "github.com/dustin/go-humanize",
 			"repository": "https://github.com/dustin/go-humanize",
-			"revision": "00897f070f09f194c26d65afae734ba4c32404e8",
+			"revision": "1c212aae1d02984808182b98b0da7a3e07e4c770",
 			"branch": "master"
 		},
 		{
 			"importpath": "github.com/fsouza/go-dockerclient",
 			"repository": "https://github.com/fsouza/go-dockerclient",
-			"revision": "7ded562aa26f32c7f72902d998a8b62b9a634b60",
+			"revision": "42d06e2b125654477366c320dcea99107a86e9c2",
 			"branch": "master"
 		},
 		{
@@ -70,74 +70,81 @@
 		{
 			"importpath": "github.com/pkg/sftp",
 			"repository": "https://github.com/pkg/sftp",
-			"revision": "f234c3c6540c0358b1802f7fd90c0879af9232eb",
+			"revision": "d2d0a435b798a9af27f5fc597cacc19d275df702",
 			"branch": "master"
 		},
 		{
 			"importpath": "github.com/rcrowley/go-metrics",
 			"repository": "https://github.com/rcrowley/go-metrics",
-			"revision": "a5cfc242a56ba7fa70b785f678d6214837bf93b9",
+			"revision": "3e5e593311103d49927c8d2b0fd93ccdfe4a525c",
 			"branch": "master"
 		},
 		{
 			"importpath": "github.com/streadway/amqp",
 			"repository": "https://github.com/streadway/amqp",
-			"revision": "6a378341a305bfbc252e8a6638f16cf443221997",
+			"revision": "1aedb1f9e106db5d7403222313a0504a06def5b3",
 			"branch": "master"
 		},
 		{
 			"importpath": "github.com/stretchr/testify",
 			"repository": "https://github.com/stretchr/testify",
-			"revision": "7e4a149930b09fe4c2b134c50ce637457ba6e966",
+			"revision": "f5520455607c0233cb6d7b056f71b22c1d265ef1",
 			"branch": "master"
 		},
 		{
 			"importpath": "golang.org/x/crypto/ssh",
 			"repository": "https://go.googlesource.com/crypto",
-			"revision": "1e856cbfdf9bc25eefca75f83f25d55e35ae72e0",
+			"revision": "81bf7719a6b7ce9b665598222362b50122dfc13b",
 			"branch": "master",
 			"path": "/ssh"
 		},
 		{
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
-			"revision": "3cffabab72adf04f8e3b01c5baf775361837b5fe",
+			"revision": "66f0418ca41253f8d1a024eb9754e9441a8e79b9",
 			"branch": "master",
 			"path": "/context"
 		},
 		{
 			"importpath": "golang.org/x/oauth2",
 			"repository": "https://go.googlesource.com/oauth2",
-			"revision": "8914e5017ca260f2a3a1575b1e6868874050d95e",
+			"revision": "397fe7649477ff2e8ced8fc0b2696f781e53745a",
 			"branch": "master"
 		},
 		{
 			"importpath": "google.golang.org/api/compute/v1",
 			"repository": "https://code.googlesource.com/google-api-go-client",
-			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
+			"revision": "0bacdc65dfd3dae28a124e21ecebb6f3f3c22087",
 			"branch": "master",
 			"path": "/compute/v1"
 		},
 		{
 			"importpath": "google.golang.org/api/googleapi",
 			"repository": "https://code.googlesource.com/google-api-go-client",
-			"revision": "a09229c13c2f13bbdedf7b31b506cad4c83ef3bf",
+			"revision": "0bacdc65dfd3dae28a124e21ecebb6f3f3c22087",
 			"branch": "master",
 			"path": "/googleapi"
 		},
 		{
 			"importpath": "google.golang.org/cloud/compute/metadata",
 			"repository": "https://code.googlesource.com/gocloud",
-			"revision": "feda659df33f28fe2d0524fad496b4d01a2015af",
+			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
 			"branch": "master",
 			"path": "/compute/metadata"
 		},
 		{
 			"importpath": "google.golang.org/cloud/internal",
 			"repository": "https://code.googlesource.com/gocloud",
-			"revision": "feda659df33f28fe2d0524fad496b4d01a2015af",
+			"revision": "e34a32f9b0ecbc0784865fb2d47f3818c09521d4",
 			"branch": "master",
 			"path": "/internal"
+		},
+		{
+			"importpath": "golang.org/x/crypto/curve25519",
+			"repository": "https://go.googlesource.com/crypto",
+			"revision": "81bf7719a6b7ce9b665598222362b50122dfc13b",
+			"branch": "master",
+			"path": "/curve25519"
 		}
 	]
 }
