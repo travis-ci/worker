@@ -6,7 +6,7 @@ ALL_PACKAGES := $(shell utils/list-packages)
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
 REV_VAR := $(PACKAGE).RevisionString
-REV_VALUE ?= $(shell git rev-parse --sq HEAD 2>/dev/null || echo "'???'")
+REV_VALUE ?= $(shell git rev-parse HEAD 2>/dev/null || echo "'???'")
 GENERATED_VAR := $(PACKAGE).GeneratedString
 GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 COPYRIGHT_VAR := $(PACKAGE).CopyrightString
@@ -16,10 +16,10 @@ GO ?= go
 GB ?= gb
 GOPATH := $(PACKAGE_CHECKOUT):$(PACKAGE_CHECKOUT)/vendor:$(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
-	-X $(VERSION_VAR) '$(VERSION_VALUE)' \
-	-X $(REV_VAR) $(REV_VALUE) \
-	-X $(GENERATED_VAR) '$(GENERATED_VALUE)' \
-	-X $(COPYRIGHT_VAR) '$(COPYRIGHT_VALUE)' \
+	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
+	-X '$(REV_VAR)=$(REV_VALUE)' \
+	-X '$(GENERATED_VAR)=$(GENERATED_VALUE)' \
+	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)' \
 "
 GOXC_BUILD_CONSTRAINTS ?= amd64 linux,amd64 darwin
 
