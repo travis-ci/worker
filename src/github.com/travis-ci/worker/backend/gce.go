@@ -486,6 +486,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			}
 
 			if newOp.Error != nil {
+				logger.WithFields(logrus.Fields{
+					"err":  newOp.Error,
+					"name": op.Name,
+				}).Error("encountered an error while waiting for instance insert operation")
+
 				errChan <- &gceOpError{Err: newOp.Error}
 				return
 			}
@@ -543,6 +548,16 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 					}
 
 					instanceReady <- inst
+					return
+				}
+
+				if newOp.Error != nil {
+					logger.WithFields(logrus.Fields{
+						"err":  newOp.Error,
+						"name": op.Name,
+					}).Error("encountered an error while waiting for instance group addition operation")
+
+					errChan <- &gceOpError{Err: newOp.Error}
 					return
 				}
 
