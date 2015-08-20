@@ -1,4 +1,5 @@
 GEM
+  remote: https://rubygems.org/
   specs:
     domain_name (0.5.24)
       unf (>= 0.0.5, < 1.0.0)
@@ -21,4 +22,4 @@ DEPENDENCIES
   rest-client
 
 BUNDLED WITH
-   1.10.5
+   1.10.6
