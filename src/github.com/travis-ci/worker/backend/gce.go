@@ -485,21 +485,25 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		origInstanceReady := instanceReady
 		instanceReady = make(chan *compute.Instance)
 
-		go func() {
-			inst := <-origInstanceReady
-			op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
-				Instances: []*compute.InstanceReference{
-					&compute.InstanceReference{
-						Instance: inst.SelfLink,
-					},
+		logger.WithFields(logrus.Fields{
+			"instance":       inst,
+			"instance_group": p.instanceGroup,
+		}).Debug("inserting instance into group")
+
+		inst := <-origInstanceReady
+		op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
+			Instances: []*compute.InstanceReference{
+				&compute.InstanceReference{
+					Instance: inst.SelfLink,
 				},
-			}).Do()
+			},
+		}).Do()
 
-			if err != nil {
-				errChan <- err
-				return
-			}
+		if err != nil {
+			return nil, err
+		}
 
+		go func() {
 			for {
 				newOp, err := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name).Do()
 				if err != nil {
