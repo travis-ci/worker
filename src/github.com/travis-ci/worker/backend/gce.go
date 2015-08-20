@@ -491,10 +491,9 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			}
 
 			logger.WithFields(logrus.Fields{
-				"op":     newOp,
 				"status": newOp.Status,
 				"name":   op.Name,
-			}).Debug("sleeping before retrying operation")
+			}).Debug("sleeping before checking instance insert operation")
 
 			time.Sleep(p.bootPollSleep)
 		}
@@ -546,6 +545,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 					instanceReady <- inst
 					return
 				}
+
+				logger.WithFields(logrus.Fields{
+					"status": newOp.Status,
+					"name":   op.Name,
+				}).Debug("sleeping before checking instance group addition operation")
 
 				time.Sleep(p.bootPollSleep)
 			}
