@@ -65,12 +65,12 @@ func (b *blueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 		return nil, err
 	}
 
-	blockReady := make(chan bool)
+	blockReady := make(chan *goblueboxapi.Block)
 	go func(id string) {
 		for {
-			block, err = b.client.Blocks.Get(id)
-			if err == nil && block.Status == "running" {
-				blockReady <- true
+			b, err := b.client.Blocks.Get(id)
+			if err == nil && b.Status == "running" {
+				blockReady <- b
 				return
 			}
 
@@ -79,7 +79,7 @@ func (b *blueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 	}(block.ID)
 
 	select {
-	case <-blockReady:
+	case block := <-blockReady:
 		metrics.TimeSince("worker.vm.provider.bluebox.boot", startBooting)
 		return &blueBoxInstance{
 			client:   b.client,
