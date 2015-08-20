@@ -1,5 +1,5 @@
 language: go
-go: 1.4.2
+go: 1.5
 sudo: 9000
 
 env:
@@ -44,9 +44,6 @@ script:
 - travis-worker --echo-config
 - travis-worker --list-backend-providers
 - make package
-# TODO: re-enable if/when the missing defs file issue is resolved
-# after_success:
-# - make crossbuild
 
 after_success:
 - utils/atlas-push
