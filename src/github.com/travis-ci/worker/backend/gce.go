@@ -53,6 +53,7 @@ var (
 		"DISK_SIZE":               fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
 		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language",
 		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"INSTANCE_GROUP":          "instance group name to which all inserted instances will be added (no default)",
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
 		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
@@ -99,6 +100,7 @@ type gceProvider struct {
 	ic        *gceInstanceConfig
 	cfg       *config.ProviderConfig
 
+	instanceGroup    string
 	bootPollSleep    time.Duration
 	defaultLanguage  string
 	uploadRetries    uint64
@@ -296,6 +298,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			HardTimeoutMinutes: hardTimeoutMinutes,
 		},
 
+		instanceGroup:    cfg.Get("INSTANCE_GROUP"),
 		bootPollSleep:    bootPollSleep,
 		defaultLanguage:  defaultLanguage,
 		uploadRetries:    uploadRetries,
@@ -454,6 +457,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	startBooting := time.Now()
 
 	instanceReady := make(chan *compute.Instance)
+
 	errChan := make(chan error)
 	go func() {
 		for {
@@ -476,6 +480,47 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			time.Sleep(p.bootPollSleep)
 		}
 	}()
+
+	if p.instanceGroup != "" {
+		origInstanceReady := instanceReady
+		instanceReady = make(chan *compute.Instance)
+
+		go func() {
+			inst := <-origInstanceReady
+			op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
+				Instances: []*compute.InstanceReference{
+					&compute.InstanceReference{
+						Instance: inst.SelfLink,
+					},
+				},
+			}).Do()
+
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			for {
+				newOp, err := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name).Do()
+				if err != nil {
+					errChan <- err
+					return
+				}
+
+				if newOp.Status == "DONE" {
+					if newOp.Error != nil {
+						errChan <- &gceOpError{Err: newOp.Error}
+						return
+					}
+
+					instanceReady <- inst
+					return
+				}
+
+				time.Sleep(p.bootPollSleep)
+			}
+		}()
+	}
 
 	select {
 	case inst := <-instanceReady:
