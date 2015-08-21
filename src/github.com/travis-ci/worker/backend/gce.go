@@ -529,7 +529,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 					"instance":       inst,
 					"instance_group": p.instanceGroup,
 				}).Debug("inserting instance into group")
-
+				break
 			case <-ctx.Done():
 				if ctx.Err() == gocontext.DeadlineExceeded {
 					metrics.Mark("worker.vm.provider.gce.boot.timeout")
