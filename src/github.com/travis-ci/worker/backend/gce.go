@@ -549,12 +549,17 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			return nil, err
 		}
 
+		ref := &compute.InstanceReference{
+			Instance: inst.SelfLink,
+		}
+
+		logger.WithFields(logrus.Fields{
+			"ref":                ref,
+			"instance_self_link": inst.SelfLink,
+		}).Debug("inserting instance into group with ref")
+
 		op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
-			Instances: []*compute.InstanceReference{
-				&compute.InstanceReference{
-					Instance: inst.SelfLink,
-				},
-			},
+			Instances: []*compute.InstanceReference{ref},
 		}).Do()
 
 		if err != nil {
