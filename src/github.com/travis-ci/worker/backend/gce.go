@@ -573,7 +573,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		}
 
 		logger.WithFields(logrus.Fields{
-			"instance": inst,
+			"instance":       inst,
 			"instance_group": p.instanceGroup,
 		}).Debug("starting goroutine to poll for instance group addition")
 
