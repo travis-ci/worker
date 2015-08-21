@@ -549,6 +549,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			return nil, err
 		}
 
+		inst, err = p.client.Instances.Get(p.projectID, p.ic.Zone.Name, inst.Name).Do()
+		if err != nil {
+			return nil, err
+		}
+
 		ref := &compute.InstanceReference{
 			Instance: inst.SelfLink,
 		}
@@ -567,6 +572,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			return nil, err
 		}
 
+		logger.WithFields(logrus.Fields{
+			"instance": inst,
+			"instance_group": p.instanceGroup,
+		}).Debug("starting goroutine to poll for instance group addition")
+
 		go func() {
 			for {
 				newOp, err := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name).Do()
@@ -581,7 +591,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 						return
 					}
 
-					instanceReady <- inst
+					instChan <- inst
 					return
 				}
 
@@ -605,6 +615,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		}()
 	}
 
+	logger.Debug("selecting over instance, error, and done channels")
 	select {
 	case inst := <-instChan:
 		metrics.TimeSince("worker.vm.provider.gce.boot", startBooting)
