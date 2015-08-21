@@ -521,26 +521,32 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		origInstanceReady := instanceReady
 		instChan = make(chan *compute.Instance)
 
-		for {
-			select {
-			case readyInst := <-origInstanceReady:
-				inst = readyInst
-				logger.WithFields(logrus.Fields{
-					"instance":       inst,
-					"instance_group": p.instanceGroup,
-				}).Debug("inserting instance into group")
-				break
-			case <-ctx.Done():
-				if ctx.Err() == gocontext.DeadlineExceeded {
-					metrics.Mark("worker.vm.provider.gce.boot.timeout")
-				}
-				abandonedStart = true
+		err = func() error {
+			for {
+				select {
+				case readyInst := <-origInstanceReady:
+					inst = readyInst
+					logger.WithFields(logrus.Fields{
+						"instance":       inst,
+						"instance_group": p.instanceGroup,
+					}).Debug("inserting instance into group")
+					return nil
+				case <-ctx.Done():
+					if ctx.Err() == gocontext.DeadlineExceeded {
+						metrics.Mark("worker.vm.provider.gce.boot.timeout")
+					}
+					abandonedStart = true
 
-				return nil, ctx.Err()
-			default:
-				logger.Debug("sleeping while waiting for instance to be ready")
-				time.Sleep(p.bootPollSleep)
+					return ctx.Err()
+				default:
+					logger.Debug("sleeping while waiting for instance to be ready")
+					time.Sleep(p.bootPollSleep)
+				}
 			}
+		}()
+
+		if err != nil {
+			return nil, err
 		}
 
 		op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
