@@ -53,6 +53,7 @@ var (
 		"DISK_SIZE":               fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
 		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language",
 		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"INSTANCE_GROUP":          "instance group name to which all inserted instances will be added (no default)",
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
 		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
@@ -99,6 +100,7 @@ type gceProvider struct {
 	ic        *gceInstanceConfig
 	cfg       *config.ProviderConfig
 
+	instanceGroup    string
 	bootPollSleep    time.Duration
 	defaultLanguage  string
 	uploadRetries    uint64
@@ -296,6 +298,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			HardTimeoutMinutes: hardTimeoutMinutes,
 		},
 
+		instanceGroup:    cfg.Get("INSTANCE_GROUP"),
 		bootPollSleep:    bootPollSleep,
 		defaultLanguage:  defaultLanguage,
 		uploadRetries:    uploadRetries,
@@ -451,9 +454,21 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil, err
 	}
 
+	abandonedStart := false
+
+	defer func() {
+		if abandonedStart {
+			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, inst.Name).Do()
+		}
+	}()
+
 	startBooting := time.Now()
 
+	var instChan chan *compute.Instance
+
 	instanceReady := make(chan *compute.Instance)
+	instChan = instanceReady
+
 	errChan := make(chan error)
 	go func() {
 		for {
@@ -469,16 +484,140 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 					return
 				}
 
+				logger.WithFields(logrus.Fields{
+					"status": newOp.Status,
+					"name":   op.Name,
+				}).Debug("instance is ready")
+
 				instanceReady <- inst
 				return
 			}
+
+			if newOp.Error != nil {
+				logger.WithFields(logrus.Fields{
+					"err":  newOp.Error,
+					"name": op.Name,
+				}).Error("encountered an error while waiting for instance insert operation")
+
+				errChan <- &gceOpError{Err: newOp.Error}
+				return
+			}
+
+			logger.WithFields(logrus.Fields{
+				"status": newOp.Status,
+				"name":   op.Name,
+			}).Debug("sleeping before checking instance insert operation")
 
 			time.Sleep(p.bootPollSleep)
 		}
 	}()
 
+	if p.instanceGroup != "" {
+		logger.WithFields(logrus.Fields{
+			"instance":       inst,
+			"instance_group": p.instanceGroup,
+		}).Debug("instance group is non-empty, adding instance to group")
+
+		origInstanceReady := instanceReady
+		instChan = make(chan *compute.Instance)
+
+		err = func() error {
+			for {
+				select {
+				case readyInst := <-origInstanceReady:
+					inst = readyInst
+					logger.WithFields(logrus.Fields{
+						"instance":       inst,
+						"instance_group": p.instanceGroup,
+					}).Debug("inserting instance into group")
+					return nil
+				case <-ctx.Done():
+					if ctx.Err() == gocontext.DeadlineExceeded {
+						metrics.Mark("worker.vm.provider.gce.boot.timeout")
+					}
+					abandonedStart = true
+
+					return ctx.Err()
+				default:
+					logger.Debug("sleeping while waiting for instance to be ready")
+					time.Sleep(p.bootPollSleep)
+				}
+			}
+		}()
+
+		if err != nil {
+			return nil, err
+		}
+
+		inst, err = p.client.Instances.Get(p.projectID, p.ic.Zone.Name, inst.Name).Do()
+		if err != nil {
+			return nil, err
+		}
+
+		ref := &compute.InstanceReference{
+			Instance: inst.SelfLink,
+		}
+
+		logger.WithFields(logrus.Fields{
+			"ref":                ref,
+			"instance_self_link": inst.SelfLink,
+		}).Debug("inserting instance into group with ref")
+
+		op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
+			Instances: []*compute.InstanceReference{ref},
+		}).Do()
+
+		if err != nil {
+			abandonedStart = true
+			return nil, err
+		}
+
+		logger.WithFields(logrus.Fields{
+			"instance":       inst,
+			"instance_group": p.instanceGroup,
+		}).Debug("starting goroutine to poll for instance group addition")
+
+		go func() {
+			for {
+				newOp, err := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name).Do()
+				if err != nil {
+					errChan <- err
+					return
+				}
+
+				if newOp.Status == "DONE" {
+					if newOp.Error != nil {
+						errChan <- &gceOpError{Err: newOp.Error}
+						return
+					}
+
+					instChan <- inst
+					return
+				}
+
+				if newOp.Error != nil {
+					logger.WithFields(logrus.Fields{
+						"err":  newOp.Error,
+						"name": op.Name,
+					}).Error("encountered an error while waiting for instance group addition operation")
+
+					errChan <- &gceOpError{Err: newOp.Error}
+					return
+				}
+
+				logger.WithFields(logrus.Fields{
+					"status": newOp.Status,
+					"name":   op.Name,
+				}).Debug("sleeping before checking instance group addition operation")
+
+				time.Sleep(p.bootPollSleep)
+			}
+		}()
+	}
+
+	logger.Debug("selecting over instance, error, and done channels")
 	select {
-	case inst := <-instanceReady:
+	case inst := <-instChan:
 		metrics.TimeSince("worker.vm.provider.gce.boot", startBooting)
 		return &gceInstance{
 			client:   p.client,
@@ -492,11 +631,13 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			imageName: image.Name,
 		}, nil
 	case err := <-errChan:
+		abandonedStart = true
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.boot.timeout")
 		}
+		abandonedStart = true
 		return nil, ctx.Err()
 	}
 }

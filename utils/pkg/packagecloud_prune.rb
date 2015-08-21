@@ -2,8 +2,9 @@
 # from http://blog.packagecloud.io/api/2015/07/06/pruning-packages-using-the-API/
 
 require 'json'
-require 'pp'
-require 'rest-client'
+require 'openssl'
+require 'net/http'
+require 'uri'
 require 'time'
 
 if ENV['PACKAGECLOUD_TOKEN']
@@ -57,12 +58,22 @@ base_url = "https://#{API_TOKEN}:@packagecloud.io/api/v1/repos/#{USER}/#{REPOSIT
 
 package_url = "/package/#{PACKAGE_TYPE}/#{DIST}/#{PACKAGE}/#{PACKAGE_ARCH}/versions.json"
 
-url = base_url + package_url
-package_versions = RestClient.get(url)
+url = URI(base_url)
 
+http = Net::HTTP.new(url.host, 443)
+http.use_ssl = true
+http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+
+req = Net::HTTP::Get.new(url.path + package_url)
+req.basic_auth(url.user, url.password)
+
+package_versions = http.request(req).body
 parsed_package_versions = JSON.parse(package_versions)
 
-sorted_package_versions = parsed_package_versions.sort_by { |x| Time.parse(x["created_at"]) }.reverse!
+sorted_package_versions = parsed_package_versions.sort_by do |v|
+  Time.parse(v['created_at'])
+end.reverse!
+
 i = sorted_package_versions.size - 1
 puts "There are currently #{i} packages in #{REPOSITORY}"
 puts "Your LIMIT is #{LIMIT}"
@@ -78,25 +89,23 @@ n_errors = 0
 
 until i == LIMIT
   to_yank = sorted_package_versions[i]
-
-  distro_version = to_yank["distro_version"]
-  filename = to_yank["filename"]
-  yank_url = "/#{distro_version}/#{filename}"
-  url = base_url + yank_url
+  filename = to_yank['filename']
 
   begin
     puts "attempting to yank #{filename}"
-    result = RestClient.delete(url)
-    p result
-    if result == {} || result == '{}'
+    req = Net::HTTP::Delete.new(url.path + "/#{to_yank['distro_version']}/#{filename}")
+    req.basic_auth(url.user, url.password)
+    result = http.request(req).body
+    if JSON.parse(result) == {}
       puts "successfully yanked #{filename}!"
     else
       puts "failed with #{result}"
     end
-    i -= 1
   rescue => e
     raise(e) if n_errors >= MAX_ERRORS
-    puts "ERROR: #{e}"
+    puts "ERROR yanking #{filename}: #{e}"
     n_errors += 1
   end
+
+  i -= 1
 end
