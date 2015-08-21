@@ -464,7 +464,10 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	startBooting := time.Now()
 
+	var instChan chan *compute.Instance
+
 	instanceReady := make(chan *compute.Instance)
+	instChan = instanceReady
 
 	errChan := make(chan error)
 	go func() {
@@ -480,6 +483,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 					errChan <- &gceOpError{Err: newOp.Error}
 					return
 				}
+
+				logger.WithFields(logrus.Fields{
+					"status": newOp.Status,
+					"name":   op.Name,
+				}).Debug("instance is ready")
 
 				instanceReady <- inst
 				return
@@ -511,14 +519,29 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		}).Debug("instance group is non-empty, adding instance to group")
 
 		origInstanceReady := instanceReady
-		instanceReady = make(chan *compute.Instance)
+		instChan = make(chan *compute.Instance)
 
-		inst = <-origInstanceReady
+		for {
+			select {
+			case readyInst := <-origInstanceReady:
+				inst = readyInst
+				logger.WithFields(logrus.Fields{
+					"instance":       inst,
+					"instance_group": p.instanceGroup,
+				}).Debug("inserting instance into group")
 
-		logger.WithFields(logrus.Fields{
-			"instance":       inst,
-			"instance_group": p.instanceGroup,
-		}).Debug("instance ready, inserting into group")
+			case <-ctx.Done():
+				if ctx.Err() == gocontext.DeadlineExceeded {
+					metrics.Mark("worker.vm.provider.gce.boot.timeout")
+				}
+				abandonedStart = true
+
+				return nil, ctx.Err()
+			default:
+				logger.Debug("sleeping while waiting for instance to be ready")
+				time.Sleep(p.bootPollSleep)
+			}
+		}
 
 		op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
 			Instances: []*compute.InstanceReference{
@@ -572,7 +595,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 
 	select {
-	case inst := <-instanceReady:
+	case inst := <-instChan:
 		metrics.TimeSince("worker.vm.provider.gce.boot", startBooting)
 		return &gceInstance{
 			client:   p.client,
