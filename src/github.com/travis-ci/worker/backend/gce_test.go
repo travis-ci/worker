@@ -184,6 +184,23 @@ func TestNewGCEProvider_RequiresSSHPubKeyPath(t *testing.T) {
 	assert.Regexp(t, "missing SSH_PUB_KEY_PATH", err.Error())
 }
 
+func TestNewGCEProvider_RequiresSSHKeyPassphrase(t *testing.T) {
+	cfg := config.ProviderConfigFromMap(map[string]string{
+		"ACCOUNT_JSON": "{}",
+		"PROJECT_ID":   "foo",
+	})
+
+	gceTestSetupSSH(t, cfg)
+	cfg.Unset("SSH_KEY_PASSPHRASE")
+	_, err := newGCEProvider(cfg)
+
+	if !assert.NotNil(t, err) {
+		t.Fatal()
+	}
+
+	assert.Regexp(t, "missing SSH_KEY_PASSPHRASE", err.Error())
+}
+
 func TestNewGCEProvider_RequiresValidSSHKey(t *testing.T) {
 	cfg := config.ProviderConfigFromMap(map[string]string{
 		"ACCOUNT_JSON": "{}",
