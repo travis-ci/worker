@@ -26,6 +26,8 @@ func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance,
 	return &fakeInstance{p: p}, nil
 }
 
+func (p *fakeProvider) Setup() error { return nil }
+
 type fakeInstance struct {
 	p *fakeProvider
 }

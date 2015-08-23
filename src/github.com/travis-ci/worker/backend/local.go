@@ -47,6 +47,8 @@ func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttri
 	return newLocalInstance(p)
 }
 
+func (p *localProvider) Setup() error { return nil }
+
 type localInstance struct {
 	p *localProvider
 
