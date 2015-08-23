@@ -138,13 +138,13 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	if !cfg.IsSet("PROJECT_ID") {
-		return nil, fmt.Errorf("mising PROJECT_ID")
+		return nil, fmt.Errorf("missing PROJECT_ID")
 	}
 
 	projectID := cfg.Get("PROJECT_ID")
 
 	if !cfg.IsSet("SSH_KEY_PATH") {
-		return nil, fmt.Errorf("expected SSH_KEY_PATH config key")
+		return nil, fmt.Errorf("missing SSH_KEY_PATH config key")
 	}
 
 	sshKeyBytes, err := ioutil.ReadFile(cfg.Get("SSH_KEY_PATH"))
@@ -154,13 +154,13 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	if !cfg.IsSet("SSH_PUB_KEY_PATH") {
-		return nil, fmt.Errorf("expected SSH_PUB_KEY_PATH config key")
+		return nil, fmt.Errorf("missing SSH_PUB_KEY_PATH config key")
 	}
 
 	sshPubKeyPath := cfg.Get("SSH_PUB_KEY_PATH")
 
 	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
-		return nil, fmt.Errorf("expected SSH_KEY_PASSPHRASE config key")
+		return nil, fmt.Errorf("missing SSH_KEY_PASSPHRASE config key")
 	}
 
 	sshPubKeyBytes, err := ioutil.ReadFile(sshPubKeyPath)
@@ -169,14 +169,12 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	sshKeyPassphrase := cfg.Get("SSH_KEY_PASSPHRASE")
-
 	block, _ := pem.Decode(sshKeyBytes)
 	if block == nil {
 		return nil, fmt.Errorf("ssh key does not contain a valid PEM block")
 	}
 
-	der, err := x509.DecryptPEMBlock(block, []byte(sshKeyPassphrase))
+	der, err := x509.DecryptPEMBlock(block, []byte(cfg.Get("SSH_KEY_PASSPHRASE")))
 	if err != nil {
 		return nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
 )
 
@@ -70,7 +71,7 @@ gsgbojb+5jlIQ/zKuSvqjNKtSCTxi+eYJ9YEptrYiLVflohffCFX8OpYRYG8QnKK
 	gceTestSSHKeyPassphrase = "ca21b20a836efea85aba98e1330959694ee31f7ab7f7dd6d2f723a1b8d31c9d2"
 )
 
-func gceTestSetup(t *testing.T, cfg *config.ProviderConfig) *gceProvider {
+func gceTestSetupSSH(t *testing.T, cfg *config.ProviderConfig) {
 	var (
 		td  string
 		err error
@@ -110,6 +111,17 @@ func gceTestSetup(t *testing.T, cfg *config.ProviderConfig) *gceProvider {
 	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
 		cfg.Set("SSH_KEY_PASSPHRASE", gceTestSSHKeyPassphrase)
 	}
+}
+
+func gceTestSetup(t *testing.T, cfg *config.ProviderConfig) *gceProvider {
+	if cfg == nil {
+		cfg = config.ProviderConfigFromMap(map[string]string{
+			"ACCOUNT_JSON": "{}",
+			"PROJECT_ID":   "project_id",
+		})
+	}
+
+	gceTestSetupSSH(t, cfg)
 
 	p, err := newGCEProvider(cfg)
 	if err != nil {
@@ -125,11 +137,90 @@ func gceTestTeardown(p *gceProvider) {
 	}
 }
 
-func TestGCEStart(t *testing.T) {
-	p := gceTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+func TestNewGCEProvider(t *testing.T) {
+	p := gceTestSetup(t, nil)
+	defer gceTestTeardown(p)
+}
+
+func TestNewGCEProvider_RequiresProjectID(t *testing.T) {
+	_, err := newGCEProvider(config.ProviderConfigFromMap(map[string]string{
 		"ACCOUNT_JSON": "{}",
-		"PROJECT_ID":   "project_id",
 	}))
 
-	defer gceTestTeardown(p)
+	if !assert.NotNil(t, err) {
+		t.Fatal()
+	}
+
+	assert.Equal(t, err.Error(), "missing PROJECT_ID")
+}
+
+func TestNewGCEProvider_RequiresSSHKeyPath(t *testing.T) {
+	_, err := newGCEProvider(config.ProviderConfigFromMap(map[string]string{
+		"ACCOUNT_JSON": "{}",
+		"PROJECT_ID":   "foo",
+	}))
+
+	if !assert.NotNil(t, err) {
+		t.Fatal()
+	}
+
+	assert.Regexp(t, "missing SSH_KEY_PATH", err.Error())
+}
+
+func TestNewGCEProvider_RequiresSSHPubKeyPath(t *testing.T) {
+	cfg := config.ProviderConfigFromMap(map[string]string{
+		"ACCOUNT_JSON": "{}",
+		"PROJECT_ID":   "foo",
+	})
+
+	gceTestSetupSSH(t, cfg)
+	cfg.Unset("SSH_PUB_KEY_PATH")
+	_, err := newGCEProvider(cfg)
+
+	if !assert.NotNil(t, err) {
+		t.Fatal()
+	}
+
+	assert.Regexp(t, "missing SSH_PUB_KEY_PATH", err.Error())
+}
+
+func TestNewGCEProvider_RequiresValidSSHKey(t *testing.T) {
+	cfg := config.ProviderConfigFromMap(map[string]string{
+		"ACCOUNT_JSON": "{}",
+		"PROJECT_ID":   "foo",
+	})
+
+	gceTestSetupSSH(t, cfg)
+
+	err := ioutil.WriteFile(cfg.Get("SSH_KEY_PATH"), []byte("\x08wat"), 0644)
+
+	if !assert.Nil(t, err) {
+		t.Fatal()
+	}
+
+	_, err = newGCEProvider(cfg)
+
+	if !assert.NotNil(t, err) {
+		t.Fatal()
+	}
+
+	assert.Regexp(t, "ssh key does not contain a valid PEM block", err.Error())
+}
+
+func TestNewGCEProvider_RequiresCorrectSSHPassphrase(t *testing.T) {
+	cfg := config.ProviderConfigFromMap(map[string]string{
+		"ACCOUNT_JSON": "{}",
+		"PROJECT_ID":   "foo",
+	})
+
+	gceTestSetupSSH(t, cfg)
+	cfg.Set("SSH_KEY_PASSPHRASE", "nonsense nope nope")
+
+	_, err := newGCEProvider(cfg)
+
+	if !assert.NotNil(t, err) {
+		t.Fatal()
+	}
+
+	assert.Regexp(t, "x509: decryption password incorrect", err.Error())
 }
