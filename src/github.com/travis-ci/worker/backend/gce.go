@@ -266,7 +266,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		hardTimeoutMinutes = ht
 	}
 
-	p := &gceProvider{
+	return &gceProvider{
 		client:    client,
 		projectID: projectID,
 		cfg:       cfg,
@@ -284,10 +284,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultLanguage:  defaultLanguage,
 		uploadRetries:    uploadRetries,
 		uploadRetrySleep: uploadRetrySleep,
-	}
-
-	return p, nil
-
+	}, nil
 }
 
 func (p *gceProvider) Setup() error {
