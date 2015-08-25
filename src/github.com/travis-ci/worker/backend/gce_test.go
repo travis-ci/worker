@@ -113,7 +113,7 @@ func gceTestSetupSSH(t *testing.T, cfg *config.ProviderConfig) {
 	}
 }
 
-func gceTestSetup(t *testing.T, cfg *config.ProviderConfig) *gceProvider {
+func gceTestSetup(t *testing.T, cfg *config.ProviderConfig) (*gceProvider, *recordingHTTPTransport) {
 	if cfg == nil {
 		cfg = config.ProviderConfigFromMap(map[string]string{
 			"ACCOUNT_JSON": "{}",
@@ -123,12 +123,21 @@ func gceTestSetup(t *testing.T, cfg *config.ProviderConfig) *gceProvider {
 
 	gceTestSetupSSH(t, cfg)
 
+	gceCustomHTTPTransportLock.Lock()
+	transport := &recordingHTTPTransport{}
+	gceCustomHTTPTransport = transport
+
 	p, err := newGCEProvider(cfg)
+
+	gceCustomHTTPTransport = nil
+	gceCustomHTTPTransportLock.Unlock()
+
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return p.(*gceProvider)
+	provider := p.(*gceProvider)
+	return provider, transport
 }
 
 func gceTestTeardown(p *gceProvider) {
@@ -138,7 +147,7 @@ func gceTestTeardown(p *gceProvider) {
 }
 
 func TestNewGCEProvider(t *testing.T) {
-	p := gceTestSetup(t, nil)
+	p, _ := gceTestSetup(t, nil)
 	defer gceTestTeardown(p)
 }
 
@@ -240,4 +249,12 @@ func TestNewGCEProvider_RequiresCorrectSSHPassphrase(t *testing.T) {
 	}
 
 	assert.Regexp(t, "x509: decryption password incorrect", err.Error())
+}
+
+func TestGCEProvider_SetupMakesRequests(t *testing.T) {
+	p, transport := gceTestSetup(t, nil)
+	err := p.Setup()
+
+	assert.NotNil(t, err)
+	assert.NotNil(t, transport.req)
 }

@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -69,6 +71,10 @@ cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
 `))
+
+	// FIXME: get rid of the need for this global goop
+	gceCustomHTTPTransport     http.RoundTripper = nil
+	gceCustomHTTPTransportLock sync.Mutex
 )
 
 func init() {
@@ -329,7 +335,14 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 		},
 		TokenURL: "https://accounts.google.com/o/oauth2/token",
 	}
-	return compute.New(config.Client(oauth2.NoContext))
+
+	client := config.Client(oauth2.NoContext)
+
+	if gceCustomHTTPTransport != nil {
+		client.Transport = gceCustomHTTPTransport
+	}
+
+	return compute.New(client)
 }
 
 func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
