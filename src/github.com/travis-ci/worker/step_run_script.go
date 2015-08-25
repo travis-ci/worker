@@ -86,6 +86,11 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	case r := <-resultChan:
 		if r.err != nil {
+			if r.err == ErrWrotePastMaxLogLength {
+				context.LoggerFromContext(ctx).Info("wrote past maximum log length")
+				return multistep.ActionHalt
+			}
+
 			context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
 
 			if !r.result.Completed {

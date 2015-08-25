@@ -102,7 +102,7 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 		if err != nil {
 			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
 		}
-		return 0, fmt.Errorf("wrote past max length")
+		return 0, ErrWrotePastMaxLogLength
 	}
 
 	w.bufferMutex.Lock()
