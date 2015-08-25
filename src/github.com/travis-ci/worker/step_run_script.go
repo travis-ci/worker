@@ -10,64 +10,40 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
+type runScriptReturn struct {
+	result *backend.RunResult
+	err    error
+}
+
 type stepRunScript struct {
 	logTimeout               time.Duration
 	hardTimeout              time.Duration
 	skipShutdownOnLogTimeout bool
-	maxLogLength             int
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	ctx, cancelCtx := gocontext.WithCancel(state.Get("ctx").(gocontext.Context))
+	defer cancelCtx()
+
 	buildJob := state.Get("buildJob").(Job)
-
 	instance := state.Get("instance").(backend.Instance)
-
-	logWriter, err := buildJob.LogWriter(ctx)
-	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
-		err := buildJob.Requeue()
-		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
-		}
-		return multistep.ActionHalt
-	}
-	defer logWriter.Close()
-
-	logWriter.SetTimeout(s.logTimeout)
-	logWriter.SetMaxLogLength(s.maxLogLength)
-
-	resultChan := make(chan struct {
-		result *backend.RunResult
-		err    error
-	}, 1)
+	logWriter := state.Get("logWriter").(LogWriter)
+	cancelChan := state.Get("cancelChan").(<-chan struct{})
 
 	context.LoggerFromContext(ctx).Info("running script")
 	defer context.LoggerFromContext(ctx).Info("finished script")
 
+	resultChan := make(chan runScriptReturn, 1)
 	go func() {
-		if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-			_, _ = logWriter.Write([]byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
-		}
 		result, err := instance.RunScript(ctx, logWriter)
-		resultChan <- struct {
-			result *backend.RunResult
-			err    error
-		}{
+		resultChan <- runScriptReturn{
 			result: result,
 			err:    err,
 		}
 	}()
 
-	cancelChan := state.Get("cancelChan").(<-chan struct{})
-
 	select {
-	// This needs to be before <-resultChan, since cancelling the context is
-	// likely going to cause resultChan to get something sent to it if the
-	// script stops fast enough.
 	case <-ctx.Done():
-		cancelCtx()
-
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
 			_, err := logWriter.WriteAndClose([]byte("\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n"))
@@ -85,12 +61,12 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 		return multistep.ActionHalt
 	case r := <-resultChan:
-		if r.err != nil {
-			if r.err == ErrWrotePastMaxLogLength {
-				context.LoggerFromContext(ctx).Info("wrote past maximum log length")
-				return multistep.ActionHalt
-			}
+		if r.err == ErrWrotePastMaxLogLength {
+			context.LoggerFromContext(ctx).Info("wrote past maximum log length")
+			return multistep.ActionHalt
+		}
 
+		if r.err != nil {
 			context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
 
 			if !r.result.Completed {
@@ -104,10 +80,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		}
 
 		state.Put("scriptResult", r.result)
+
 		return multistep.ActionContinue
 	case <-cancelChan:
-		cancelCtx()
-
 		_, err := logWriter.WriteAndClose([]byte("\n\nDone: Job Cancelled\n\n"))
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write cancellation log message")
@@ -120,8 +95,6 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 		return multistep.ActionHalt
 	case <-logWriter.Timeout():
-		cancelCtx()
-
 		_, err := logWriter.WriteAndClose([]byte(fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", s.logTimeout)))
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write log timeout log message")
