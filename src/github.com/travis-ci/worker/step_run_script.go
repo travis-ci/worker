@@ -22,9 +22,7 @@ type stepRunScript struct {
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
-	ctx, cancelCtx := gocontext.WithCancel(state.Get("ctx").(gocontext.Context))
-	defer cancelCtx()
-
+	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
 	logWriter := state.Get("logWriter").(LogWriter)
