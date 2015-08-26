@@ -47,6 +47,14 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
+		// We need to check for this since it's possible that the RunScript
+		// implementation returns with the error too quickly for the ctx.Done()
+		// case branch below to catch it.
+		if r.err == gocontext.DeadlineExceeded {
+			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n")
+		}
+
 		if r.err != nil {
 			context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
 
