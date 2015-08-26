@@ -41,23 +41,6 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	}()
 
 	select {
-	case <-ctx.Done():
-		if ctx.Err() == gocontext.DeadlineExceeded {
-			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
-			_, err := logWriter.WriteAndClose([]byte("\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n"))
-			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write hard timeout log message")
-			}
-
-			err = buildJob.Finish(FinishStateErrored)
-			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to errored")
-			}
-		} else {
-			context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
-		}
-
-		return multistep.ActionHalt
 	case r := <-resultChan:
 		if r.err == ErrWrotePastMaxLogLength {
 			context.LoggerFromContext(ctx).Info("wrote past maximum log length")
@@ -80,34 +63,39 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		state.Put("scriptResult", r.result)
 
 		return multistep.ActionContinue
-	case <-cancelChan:
-		_, err := logWriter.WriteAndClose([]byte("\n\nDone: Job Cancelled\n\n"))
-		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write cancellation log message")
-		}
-
-		err = buildJob.Finish(FinishStateCancelled)
-		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to cancelled")
+	case <-ctx.Done():
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n")
+		} else {
+			context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
 		}
 
 		return multistep.ActionHalt
-	case <-logWriter.Timeout():
-		_, err := logWriter.WriteAndClose([]byte(fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", s.logTimeout)))
-		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write log timeout log message")
-		}
+	case <-cancelChan:
+		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
 
-		err = buildJob.Finish(FinishStateErrored)
-		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't update job state to errored")
-		}
+		return multistep.ActionHalt
+	case <-logWriter.Timeout():
+		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", s.logTimeout))
 
 		if s.skipShutdownOnLogTimeout {
 			state.Put("skipShutdown", true)
 		}
 
 		return multistep.ActionHalt
+	}
+}
+
+func (s *stepRunScript) writeLogAndFinishWithState(ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
+	_, err := logWriter.WriteAndClose([]byte(logMessage))
+	if err != nil {
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write final log message")
+	}
+
+	err = buildJob.Finish(state)
+	if err != nil {
+		context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 	}
 }
 
