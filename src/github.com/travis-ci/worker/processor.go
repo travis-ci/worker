@@ -119,7 +119,7 @@ func (p *Processor) GracefulShutdown() {
 		}
 	}()
 	context.LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
-	p.graceful <- struct{}{}
+	tryClose(p.graceful)
 }
 
 // Terminate tells the processor to stop working on the current job as soon as
