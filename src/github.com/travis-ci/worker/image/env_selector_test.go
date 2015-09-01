@@ -107,7 +107,7 @@ func TestNewEnvSelector(t *testing.T) {
 	})
 }
 
-func TestNewEnvSelector_Select(t *testing.T) {
+func TestEnvSelector_Select(t *testing.T) {
 	for _, tesm := range testEnvSelectorMaps {
 		es := NewEnvSelector(config.ProviderConfigFromMap(tesm.E))
 		for _, tc := range tesm.O {
