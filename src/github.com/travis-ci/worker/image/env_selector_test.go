@@ -111,7 +111,8 @@ func TestNewEnvSelector_Select(t *testing.T) {
 	for _, tesm := range testEnvSelectorMaps {
 		es := NewEnvSelector(config.ProviderConfigFromMap(tesm.E))
 		for _, tc := range tesm.O {
-			assert.Equal(t, tc.Expected, es.Select(tc.Params), fmt.Sprintf("%#v %q", tc.Params, tc.Expected))
+			actual, _ := es.Select(tc.Params)
+			assert.Equal(t, tc.Expected, actual, fmt.Sprintf("%#v %q", tc.Params, tc.Expected))
 		}
 	}
 }

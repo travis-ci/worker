@@ -54,7 +54,7 @@ func (es *EnvSelector) buildImageAliasMap() {
 	es.imageAliases = imageAliases
 }
 
-func (es *EnvSelector) Select(params *Params) string {
+func (es *EnvSelector) Select(params *Params) (string, error) {
 	imageName := "default"
 
 	for _, key := range []string{
@@ -78,8 +78,8 @@ func (es *EnvSelector) Select(params *Params) string {
 	}
 
 	if selected, ok := es.imageAliases[imageName]; ok {
-		return selected
+		return selected, nil
 	}
 
-	return imageName
+	return imageName, nil
 }
