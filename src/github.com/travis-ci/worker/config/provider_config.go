@@ -59,6 +59,14 @@ func (pc *ProviderConfig) Set(key, value string) {
 	pc.cfgMap[key] = value
 }
 
+// Unset removes the given key from the config map
+func (pc *ProviderConfig) Unset(key string) {
+	pc.Lock()
+	defer pc.Unlock()
+
+	delete(pc.cfgMap, key)
+}
+
 // IsSet returns true if a setting with the given key exists, or false if it
 // does not.
 func (pc *ProviderConfig) IsSet(key string) bool {

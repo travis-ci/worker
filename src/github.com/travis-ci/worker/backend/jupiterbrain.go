@@ -320,6 +320,10 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 	}
 }
 
+func (p *jupiterBrainProvider) Setup() error {
+	return nil
+}
+
 func (p *jupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error) {
 	if req.URL.User != nil {
 		token := req.URL.User.Username()

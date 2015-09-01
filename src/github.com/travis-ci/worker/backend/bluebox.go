@@ -101,6 +101,8 @@ func (b *blueBoxProvider) Start(ctx gocontext.Context, startAttributes *StartAtt
 	}
 }
 
+func (p *blueBoxProvider) Setup() error { return nil }
+
 func (b *blueBoxProvider) templateIDForLanguageGroup(language, group string) string {
 	languageMapSetting := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(language))
 	if b.cfg.IsSet(languageMapSetting) {

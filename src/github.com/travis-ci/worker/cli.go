@@ -113,6 +113,13 @@ func (i *CLI) Setup() (bool, error) {
 		logger.WithField("err", err).Error("couldn't create backend provider")
 		return false, err
 	}
+
+	err = provider.Setup()
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't setup backend provider")
+		return false, err
+	}
+
 	logger.WithFields(logrus.Fields{
 		"provider": fmt.Sprintf("%#v", provider),
 	}).Debug("built")
