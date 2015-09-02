@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
@@ -39,7 +41,8 @@ const (
 	defaultGCEUploadRetries      = uint64(10)
 	defaultGCEUploadRetrySleep   = 5 * time.Second
 	defaultGCEHardTimeoutMinutes = int64(130)
-	gceImagesFilter              = "name eq ^travis-ci-%s.+"
+	defaultGCEImageSelectorType  = "legacy"
+	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
 )
 
 var (
@@ -49,11 +52,13 @@ var (
 		"SSH_KEY_PATH":            "[REQUIRED] path to ssh key used to access job vms",
 		"SSH_PUB_KEY_PATH":        "[REQUIRED] path to ssh public key used to access job vms",
 		"SSH_KEY_PASSPHRASE":      "[REQUIRED] passphrase for ssh key given as ssh_key_path",
+		"IMAGE_SELECTOR_TYPE":     fmt.Sprintf("image selector type (\"legacy\", \"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_URL":      "URL for image selector API, used only when image selector is \"api\"",
 		"ZONE":                    fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 		"MACHINE_TYPE":            fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":                 fmt.Sprintf("machine name (default %q)", defaultGCENetwork),
 		"DISK_SIZE":               fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language",
+		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language, used only when image selector type is \"env\"",
 		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"INSTANCE_GROUP":          "instance group name to which all inserted instances will be added (no default)",
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
@@ -106,11 +111,13 @@ type gceProvider struct {
 	ic        *gceInstanceConfig
 	cfg       *config.ProviderConfig
 
-	instanceGroup    string
-	bootPollSleep    time.Duration
-	defaultLanguage  string
-	uploadRetries    uint64
-	uploadRetrySleep time.Duration
+	imageSelectorType string
+	imageSelector     image.Selector
+	instanceGroup     string
+	bootPollSleep     time.Duration
+	defaultLanguage   string
+	uploadRetries     uint64
+	uploadRetrySleep  time.Duration
 }
 
 type gceInstanceConfig struct {
@@ -272,6 +279,15 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		hardTimeoutMinutes = ht
 	}
 
+	imageSelectorType := defaultGCEImageSelectorType
+	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
+		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
+	}
+
+	if imageSelectorType != "legacy" && imageSelectorType != "env" && imageSelectorType != "api" {
+		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
@@ -285,11 +301,12 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			HardTimeoutMinutes: hardTimeoutMinutes,
 		},
 
-		instanceGroup:    cfg.Get("INSTANCE_GROUP"),
-		bootPollSleep:    bootPollSleep,
-		defaultLanguage:  defaultLanguage,
-		uploadRetries:    uploadRetries,
-		uploadRetrySleep: uploadRetrySleep,
+		imageSelectorType: imageSelectorType,
+		instanceGroup:     cfg.Get("INSTANCE_GROUP"),
+		bootPollSleep:     bootPollSleep,
+		defaultLanguage:   defaultLanguage,
+		uploadRetries:     uploadRetries,
+		uploadRetrySleep:  uploadRetrySleep,
 	}, nil
 }
 
@@ -580,6 +597,20 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 func (p *gceProvider) getImage(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
 	logger := context.LoggerFromContext(ctx)
 
+	switch p.imageSelectorType {
+	case "env", "api":
+		return p.imageSelect(ctx, startAttributes)
+	default:
+		logger.WithFields(logrus.Fields{
+			"selector_type": p.imageSelectorType,
+		}).Warn("unknown image selector, falling back to legacy image selection")
+		return p.legacyImageSelect(ctx, startAttributes)
+	}
+}
+
+func (p *gceProvider) legacyImageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	logger := context.LoggerFromContext(ctx)
+
 	var (
 		image *compute.Image
 		err   error
@@ -621,15 +652,15 @@ func (p *gceProvider) getImage(ctx gocontext.Context, startAttributes *StartAttr
 	return image, err
 }
 
-func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) {
+func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {
 	// TODO: add some TTL cache in here maybe?
-	images, err := p.client.Images.List(p.projectID).Filter(fmt.Sprintf(gceImagesFilter, language)).Do()
+	images, err := p.client.Images.List(p.projectID).Filter(filter).Do()
 	if err != nil {
 		return nil, err
 	}
 
 	if len(images.Items) == 0 {
-		return nil, fmt.Errorf("no image found with language %s", language)
+		return nil, fmt.Errorf("no image found with filter %s", filter)
 	}
 
 	imagesByName := map[string]*compute.Image{}
@@ -642,6 +673,43 @@ func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) 
 	sort.Strings(imageNames)
 
 	return imagesByName[imageNames[len(imageNames)-1]], nil
+}
+
+func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) {
+	return p.imageByFilter(fmt.Sprintf(gceImageTravisCIPrefixFilter, language))
+}
+
+func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	p.buildImageSelector()
+
+	imageName, err := p.imageSelector.Select(&image.Params{
+		Infra:    "gce",
+		Language: startAttributes.Language,
+		OsxImage: startAttributes.OsxImage,
+		Dist:     startAttributes.Dist,
+		Group:    startAttributes.Group,
+		OS:       startAttributes.OS,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return p.imageByFilter(fmt.Sprintf("name eq ^%s", imageName))
+}
+
+func (p *gceProvider) buildImageSelector() {
+	if p.imageSelector != nil {
+		return
+	}
+
+	switch p.imageSelectorType {
+	case "env":
+		p.imageSelector = image.NewEnvSelector(p.cfg)
+	case "api":
+		baseURL, _ := url.Parse(p.cfg.Get("IMAGE_SELECTOR_URL"))
+		p.imageSelector = image.NewAPISelector(baseURL)
+	}
 }
 
 func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
