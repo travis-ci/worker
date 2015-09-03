@@ -52,11 +52,15 @@ func (as *APISelector) Select(params *Params) (string, error) {
 	tagAttempts = append(tagAttempts,
 		fullTagSet,
 		[]string{"language:" + params.Language},
+		[]string{"language_" + params.Language + ":true"},
 		[]string{"dist:" + params.Dist, "language:" + params.Language},
+		[]string{"dist:" + params.Dist, "language_" + params.Language + ":true"},
 		[]string{"dist:" + params.Dist},
 		[]string{"group:" + params.Group, "language:" + params.Language},
+		[]string{"group:" + params.Group, "language_" + params.Language + ":true"},
 		[]string{"group:" + params.Group},
 		[]string{"os:" + params.OsxImage, "language:" + params.Language},
+		[]string{"os:" + params.OsxImage, "language_" + params.Language + ":true"},
 		[]string{"os:" + params.OsxImage})
 
 	for _, tags := range tagAttempts {
