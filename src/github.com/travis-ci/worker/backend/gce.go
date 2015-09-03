@@ -398,7 +398,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil, err
 	}
 
-	inst := p.buildInstance(startAttributes, scriptBuf.String(), image.SelfLink)
+	inst := p.buildInstance(startAttributes, image.SelfLink, scriptBuf.String())
 
 	logger.WithFields(logrus.Fields{
 		"instance": inst,

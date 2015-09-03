@@ -2,11 +2,13 @@ package image
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
+
+	"github.com/cenkalti/backoff"
 )
 
 type APISelector struct {
@@ -20,64 +22,86 @@ func NewAPISelector(u *url.URL) *APISelector {
 func (as *APISelector) Select(params *Params) (string, error) {
 	imageName := "default"
 
-	u, _ := url.Parse(as.baseURL.String())
-
-	qs := url.Values{}
-	qs.Set("infra", params.Infra)
-	qs.Set("limit", "1")
-
-	tags := []string{}
+	fullTagSet := []string{}
 
 	if params.Language != "" {
-		tags = append(tags, fmt.Sprintf("language:%s", params.Language))
-	}
-
-	if params.OS != "" {
-		tags = append(tags, fmt.Sprintf("os:%s", params.OS))
-	}
-
-	if params.OS == "osx" && params.OsxImage != "" {
-		tags = append(tags, fmt.Sprintf("osx_image:%s", params.OsxImage))
+		fullTagSet = append(fullTagSet, "language:"+params.Language)
 	}
 
 	if params.Dist != "" {
-		tags = append(tags, fmt.Sprintf("dist:%s", params.Dist))
+		fullTagSet = append(fullTagSet, "dist:"+params.Dist)
 	}
 
 	if params.Group != "" {
-		tags = append(tags, fmt.Sprintf("group:%s", params.Group))
+		fullTagSet = append(fullTagSet, "group:"+params.Group)
 	}
 
-	qs.Set("tags", strings.Join(tags, ","))
-
-	u.RawQuery = qs.Encode()
-
-	resp, err := http.Get(u.String())
-	if err != nil {
-		return "", err
+	if params.OS != "" {
+		fullTagSet = append(fullTagSet, "os:"+params.OS)
 	}
 
-	defer resp.Body.Close()
+	tagAttempts := [][]string{}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
+	if params.OS == "osx" && params.OsxImage != "" {
+		fullTagSet = append(fullTagSet, "osx_image:"+params.OsxImage)
+		tagAttempts = append(tagAttempts,
+			[]string{"osx_image:" + params.OsxImage, "language:" + params.Language},
+			[]string{"osx_image:" + params.OsxImage})
 	}
 
-	imageResp := &apiSelectorImageResponse{
-		Data: []*apiSelectorImageRef{},
-	}
+	tagAttempts = append(tagAttempts,
+		fullTagSet,
+		[]string{"language:" + params.Language},
+		[]string{"dist:" + params.Dist, "language:" + params.Language},
+		[]string{"dist:" + params.Dist},
+		[]string{"group:" + params.Group, "language:" + params.Language},
+		[]string{"group:" + params.Group},
+		[]string{"os:" + params.OsxImage, "language:" + params.Language},
+		[]string{"os:" + params.OsxImage})
 
-	err = json.Unmarshal(body, imageResp)
-	if err != nil {
-		return "", err
-	}
+	for _, tags := range tagAttempts {
+		u, _ := url.Parse(as.baseURL.String())
+		qs := url.Values{}
+		qs.Set("infra", params.Infra)
+		qs.Set("limit", "1")
+		qs.Set("tags", strings.Join(tags, ","))
 
-	if len(imageResp.Data) == 0 {
-		return imageName, nil
-	}
+		u.RawQuery = qs.Encode()
 
-	return imageResp.Data[0].Name, nil
+		var body []byte
+
+		b := backoff.NewExponentialBackOff()
+		b.MaxInterval = 10 * time.Second
+		b.MaxElapsedTime = time.Minute
+
+		err := backoff.Retry(func() (err error) {
+			resp, err := http.Get(u.String())
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			body, err = ioutil.ReadAll(resp.Body)
+			return
+		}, b)
+
+		if err != nil {
+			return "", err
+		}
+
+		imageResp := &apiSelectorImageResponse{
+			Data: []*apiSelectorImageRef{},
+		}
+
+		err = json.Unmarshal(body, imageResp)
+		if err != nil {
+			return "", err
+		}
+
+		if len(imageResp.Data) > 0 {
+			return imageResp.Data[0].Name, nil
+		}
+	}
+	return imageName, nil
 }
 
 type apiSelectorImageResponse struct {
