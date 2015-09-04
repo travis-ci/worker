@@ -78,7 +78,7 @@ clean:
 
 .PHONY: annotations
 annotations:
-	@git grep -E '(TODO|FIXME|XXX):' | grep -v Makefile
+	@git grep -E '(TODO|FIXME|XXX):' | grep -v -E 'Makefile|vendor/'
 
 .PHONY: fmtpolice
 fmtpolice:
