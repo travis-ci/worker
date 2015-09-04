@@ -11,6 +11,10 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
+const (
+	imageAPIRequestContentType = "application/x-www-form-urlencoded; boundary=NL"
+)
+
 type APISelector struct {
 	baseURL *url.URL
 
@@ -28,32 +32,34 @@ func NewAPISelector(u *url.URL) *APISelector {
 }
 
 func (as *APISelector) Select(params *Params) (string, error) {
-	for _, tags := range as.buildCandidateTags(params) {
-		imageName, err := as.queryWithTags(params.Infra, tags)
-		if err != nil {
-			return "default", err
-		}
+	imageName, err := as.queryWithTags(params.Infra, as.buildCandidateTags(params))
+	if err != nil {
+		return "default", err
+	}
 
-		if imageName != "" {
-			return imageName, nil
-		}
+	if imageName != "" {
+		return imageName, nil
 	}
 
 	return "default", nil
 }
 
-func (as *APISelector) queryWithTags(infra string, tags []string) (string, error) {
-	u, _ := url.Parse(as.baseURL.String())
-	qs := url.Values{}
-	qs.Set("infra", infra)
-	qs.Set("limit", "1")
-	if len(tags) > 0 {
-		qs.Set("tags", strings.Join(tags, ","))
+func (as *APISelector) queryWithTags(infra string, tags [][]string) (string, error) {
+	bodyLines := []string{}
+
+	for _, ts := range tags {
+		qs := url.Values{}
+		qs.Set("infra", infra)
+		qs.Set("limit", "1")
+		if len(tags) > 0 {
+			qs.Set("tags", strings.Join(ts, ","))
+		}
+
+		bodyLines = append(bodyLines, qs.Encode())
 	}
 
-	u.RawQuery = qs.Encode()
-
-	imageResp, err := as.makeImageRequest(u.String())
+	u, _ := url.Parse(as.baseURL.String())
+	imageResp, err := as.makeImageRequest(u.String(), bodyLines)
 	if err != nil {
 		return "", err
 	}
@@ -65,20 +71,22 @@ func (as *APISelector) queryWithTags(infra string, tags []string) (string, error
 	return "", nil
 }
 
-func (as *APISelector) makeImageRequest(urlString string) (*apiSelectorImageResponse, error) {
-	var body []byte
+func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*apiSelectorImageResponse, error) {
+	var responseBody []byte
 
 	b := backoff.NewExponentialBackOff()
 	b.MaxInterval = 10 * time.Second
 	b.MaxElapsedTime = time.Minute
 
 	err := backoff.Retry(func() (err error) {
-		resp, err := http.Get(urlString)
+		resp, err := http.Post(urlString, imageAPIRequestContentType,
+			strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
+
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
-		body, err = ioutil.ReadAll(resp.Body)
+		responseBody, err = ioutil.ReadAll(resp.Body)
 		return
 	}, b)
 
@@ -90,7 +98,7 @@ func (as *APISelector) makeImageRequest(urlString string) (*apiSelectorImageResp
 		Data: []*apiSelectorImageRef{},
 	}
 
-	err = json.Unmarshal(body, imageResp)
+	err = json.Unmarshal(responseBody, imageResp)
 	if err != nil {
 		return nil, err
 	}
