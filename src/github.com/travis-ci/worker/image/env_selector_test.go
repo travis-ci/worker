@@ -10,8 +10,11 @@ import (
 )
 
 var (
-	testEnvSelectorMaps = []*testEnvSelectorMap{
-		&testEnvSelectorMap{
+	testEnvSelectorMaps = []*struct {
+		E map[string]string
+		O []*testEnvCase
+	}{
+		{
 			E: map[string]string{
 				"IMAGE_ALIASES": strings.Join([]string{
 					"language_haskell",
@@ -24,13 +27,13 @@ var (
 				"IMAGE_DEFAULT":                "travis-ci-default",
 			},
 			O: []*testEnvCase{
-				{Expected: "travis-ci-ruby-9001", Params: &Params{Language: "haskell"}},
-				{Expected: "travis-ci-legacy-00", Params: &Params{Language: "java"}},
-				{Expected: "travis-ci-default", Params: &Params{Language: "clojure"}},
-				{Expected: "travis-ci-ruby-9001", Params: &Params{Language: "ruby"}},
+				{E: "travis-ci-ruby-9001", P: &Params{Language: "haskell"}},
+				{E: "travis-ci-legacy-00", P: &Params{Language: "java"}},
+				{E: "travis-ci-default", P: &Params{Language: "clojure"}},
+				{E: "travis-ci-ruby-9001", P: &Params{Language: "ruby"}},
 			},
 		},
-		&testEnvSelectorMap{
+		{
 			E: map[string]string{
 				"IMAGE_ALIASES": strings.Join([]string{
 					"dist_trusty_ruby",
@@ -41,11 +44,11 @@ var (
 				"IMAGE_TRUSTY":                 "travis-ci-mega",
 			},
 			O: []*testEnvCase{
-				{Expected: "travis-ci-mega", Params: &Params{Dist: "trusty"}},
-				{Expected: "travis-ci-ruby", Params: &Params{Dist: "trusty", Language: "ruby"}},
+				{E: "travis-ci-mega", P: &Params{Dist: "trusty"}},
+				{E: "travis-ci-ruby", P: &Params{Dist: "trusty", Language: "ruby"}},
 			},
 		},
-		&testEnvSelectorMap{
+		{
 			E: map[string]string{
 				"IMAGE_ALIASES": strings.Join([]string{
 					"group_dev",
@@ -54,7 +57,7 @@ var (
 					"osx_image_xcode6.4",
 					"osx_image_xcode7_swift",
 					"os_linux",
-					"os_linux_java",
+					"linux_java",
 					"language_haskell",
 					"default_solaris",
 				}, ","),
@@ -64,7 +67,7 @@ var (
 				"IMAGE_ALIAS_OSX_IMAGE_XCODE6_4":     "xcode6",
 				"IMAGE_ALIAS_OSX_IMAGE_XCODE7_SWIFT": "xcode7_swift",
 				"IMAGE_ALIAS_OS_LINUX":               "trusty",
-				"IMAGE_ALIAS_OS_LINUX_JAVA":          "utopic",
+				"IMAGE_ALIAS_LINUX_JAVA":             "utopic",
 				"IMAGE_ALIAS_LANGUAGE_HASKELL":       "trusty",
 				"IMAGE_ALIAS_DEFAULT_SOLARIS":        "smartos",
 				"IMAGE_DEFAULT_OSX":                  "xcode7",
@@ -74,30 +77,25 @@ var (
 				"IMAGE_SMARTOS":                      "base64-20150902",
 			},
 			O: []*testEnvCase{
-				{Expected: "travis-ci-mega", Params: &Params{Dist: "trusty"}},
-				{Expected: "travis-ci-mega", Params: &Params{Dist: "trusty", Language: "ruby"}},
-				{Expected: "travis-xcode7b6", Params: &Params{OsxImage: "xcode7", Language: "swift"}},
-				{Expected: "travis-xcode7b4", Params: &Params{OS: "osx", Language: "objective-c"}},
-				{Expected: "base64-20150902", Params: &Params{OS: "solaris", Language: "ruby"}},
-				{Expected: "base64-20150902", Params: &Params{OS: "smartos"}},
-				{Expected: "utopic", Params: &Params{OS: "linux", Language: "java"}},
-				{Expected: "vivid", Params: &Params{Group: "dev", Language: "java"}},
-				{Expected: "utopic", Params: &Params{Group: "dev", Language: "go"}},
-				{Expected: "travis-ci-mega", Params: &Params{Language: "haskell"}},
-				{Expected: "xcode6", Params: &Params{OsxImage: "xcode6.4"}},
+				{E: "travis-ci-mega", P: &Params{OS: "linux", Dist: "trusty"}},
+				{E: "travis-ci-mega", P: &Params{OS: "linux", Dist: "trusty", Language: "ruby"}},
+				{E: "travis-xcode7b6", P: &Params{OS: "osx", OsxImage: "xcode7", Language: "swift"}},
+				{E: "travis-xcode7b4", P: &Params{OS: "osx", Language: "objective-c"}},
+				{E: "base64-20150902", P: &Params{OS: "solaris", Language: "ruby"}},
+				{E: "base64-20150902", P: &Params{OS: "smartos"}},
+				{E: "utopic", P: &Params{OS: "linux", Language: "java"}},
+				{E: "vivid", P: &Params{OS: "linux", Group: "dev", Language: "java"}},
+				{E: "utopic", P: &Params{OS: "linux", Group: "dev", Language: "go"}},
+				{E: "travis-ci-mega", P: &Params{OS: "linux", Language: "haskell"}},
+				{E: "xcode6", P: &Params{OS: "osx", OsxImage: "xcode6.4"}},
 			},
 		},
 	}
 )
 
-type testEnvSelectorMap struct {
-	E map[string]string
-	O []*testEnvCase
-}
-
 type testEnvCase struct {
-	Expected string
-	Params   *Params
+	E string
+	P *Params
 }
 
 func TestNewEnvSelector(t *testing.T) {
@@ -111,8 +109,8 @@ func TestEnvSelector_Select(t *testing.T) {
 	for _, tesm := range testEnvSelectorMaps {
 		es := NewEnvSelector(config.ProviderConfigFromMap(tesm.E))
 		for _, tc := range tesm.O {
-			actual, _ := es.Select(tc.Params)
-			assert.Equal(t, tc.Expected, actual, fmt.Sprintf("%#v %q", tc.Params, tc.Expected))
+			actual, _ := es.Select(tc.P)
+			assert.Equal(t, tc.E, actual, fmt.Sprintf("%#v %q", tc.P, tc.E))
 		}
 	}
 }

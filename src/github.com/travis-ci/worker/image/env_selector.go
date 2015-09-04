@@ -57,20 +57,11 @@ func (es *EnvSelector) buildImageAliasMap() {
 func (es *EnvSelector) Select(params *Params) (string, error) {
 	imageName := "default"
 
-	for _, key := range []string{
-		params.Language,
-		fmt.Sprintf("dist_%s_%s", params.Dist, params.Language),
-		fmt.Sprintf("dist_%s", params.Dist),
-		fmt.Sprintf("group_%s_%s", params.Group, params.Language),
-		fmt.Sprintf("group_%s", params.Group),
-		fmt.Sprintf("osx_image_%s_%s", params.OsxImage, params.Language),
-		fmt.Sprintf("osx_image_%s", params.OsxImage),
-		fmt.Sprintf("os_%s_%s", params.OS, params.Language),
-		fmt.Sprintf("os_%s", params.OS),
-		fmt.Sprintf("language_%s", params.Language),
-		fmt.Sprintf("default_%s", params.OS),
-		params.OS,
-	} {
+	for _, key := range es.buildCandidateKeys(params) {
+		if key == "" {
+			continue
+		}
+
 		if s, ok := es.imageAliases[key]; ok {
 			imageName = s
 			break
@@ -82,4 +73,74 @@ func (es *EnvSelector) Select(params *Params) (string, error) {
 	}
 
 	return imageName, nil
+}
+
+func (es *EnvSelector) buildCandidateKeys(params *Params) []string {
+	fullKey := []string{}
+	candidateKeys := []string{}
+
+	addKey := func(key string, addToFull bool) {
+		if addToFull {
+			fullKey = append(fullKey, key)
+		}
+		candidateKeys = append(candidateKeys, key)
+	}
+
+	hasLang := params.Language != ""
+	needsOS := true
+	needsLangSuffix := false
+
+	if params.OS == "osx" && params.OsxImage != "" && hasLang {
+		addKey("osx_image_"+params.OsxImage, true)
+		needsOS = false
+		needsLangSuffix = true
+	}
+
+	if params.Dist != "" && hasLang {
+		addKey("dist_"+params.Dist, true)
+		needsLangSuffix = true
+	}
+
+	if params.Group != "" && hasLang {
+		addKey("group_"+params.Group+"_"+params.Language, false)
+		addKey("group_"+params.Group, true)
+		needsLangSuffix = true
+	}
+
+	if params.OS != "" && hasLang {
+		if needsOS {
+			addKey(params.OS, true)
+			addKey("os_"+params.OS, false)
+		}
+		needsLangSuffix = true
+	}
+
+	if hasLang {
+		if needsLangSuffix {
+			addKey(params.Language, true)
+			addKey("language_"+params.Language, false)
+		} else {
+			addKey("language_"+params.Language, true)
+		}
+	}
+
+	if params.OS == "osx" && params.OsxImage != "" {
+		addKey("osx_image_"+params.OsxImage, false)
+	}
+
+	if params.Dist != "" {
+		addKey("dist_"+params.Dist, false)
+	}
+
+	if params.Group != "" {
+		addKey("group_"+params.Group, false)
+	}
+
+	if params.OS != "" {
+		addKey(params.OS, false)
+		addKey("default_"+params.OS, false)
+		addKey(params.OS, false)
+	}
+
+	return append([]string{strings.Join(fullKey, "_")}, candidateKeys...)
 }
