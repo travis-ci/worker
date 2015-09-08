@@ -50,6 +50,7 @@ func (as *APISelector) queryWithTags(infra string, tags [][]string) (string, err
 	for _, ts := range tags {
 		qs := url.Values{}
 		qs.Set("infra", infra)
+		qs.Set("fields[images]", "name")
 		qs.Set("limit", "1")
 		if len(tags) > 0 {
 			qs.Set("tags", strings.Join(ts, ","))
