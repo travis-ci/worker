@@ -42,6 +42,7 @@ const (
 	defaultGCEUploadRetrySleep   = 5 * time.Second
 	defaultGCEHardTimeoutMinutes = int64(130)
 	defaultGCEImageSelectorType  = "legacy"
+	defaultGCEImage              = "travis-ci-mega.+"
 	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
 )
 
@@ -61,6 +62,7 @@ var (
 		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language, used only when image selector type is \"legacy\"",
 		"IMAGE_ALIASES":           "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
 		"IMAGE_[ALIAS_]{ALIAS}":   "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"IMAGE_DEFAULT":           fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"INSTANCE_GROUP":          "instance group name to which all inserted instances will be added (no default)",
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
@@ -118,6 +120,7 @@ type gceProvider struct {
 	instanceGroup     string
 	bootPollSleep     time.Duration
 	defaultLanguage   string
+	defaultImage      string
 	uploadRetries     uint64
 	uploadRetrySleep  time.Duration
 }
@@ -263,6 +266,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultLanguage = cfg.Get("DEFAULT_LANGUAGE")
 	}
 
+	defaultImage := defaultGCEImage
+	if cfg.IsSet("IMAGE_DEFAULT") {
+		defaultImage = cfg.Get("IMAGE_DEFAULT")
+	}
+
 	autoImplode := true
 	if cfg.IsSet("AUTO_IMPLODE") {
 		ai, err := strconv.ParseBool(cfg.Get("AUTO_IMPLODE"))
@@ -307,6 +315,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		instanceGroup:     cfg.Get("INSTANCE_GROUP"),
 		bootPollSleep:     bootPollSleep,
 		defaultLanguage:   defaultLanguage,
+		defaultImage:      defaultImage,
 		uploadRetries:     uploadRetries,
 		uploadRetrySleep:  uploadRetrySleep,
 	}, nil
@@ -695,6 +704,10 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	if err != nil {
 		return nil, err
+	}
+
+	if imageName == "default" {
+		imageName = p.defaultImage
 	}
 
 	return p.imageByFilter(fmt.Sprintf("name eq ^%s", imageName))
