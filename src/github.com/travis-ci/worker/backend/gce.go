@@ -150,6 +150,11 @@ type gceInstance struct {
 }
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
+	var (
+		imageSelector image.Selector
+		err           error
+	)
+
 	client, err := buildGoogleComputeService(cfg)
 	if err != nil {
 		return nil, err
@@ -298,6 +303,13 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
 	}
 
+	if imageSelectorType == "env" || imageSelectorType == "api" {
+		imageSelector, err = buildGCEImageSelector(imageSelectorType, cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
@@ -311,6 +323,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			HardTimeoutMinutes: hardTimeoutMinutes,
 		},
 
+		imageSelector:     imageSelector,
 		imageSelectorType: imageSelectorType,
 		instanceGroup:     cfg.Get("INSTANCE_GROUP"),
 		bootPollSleep:     bootPollSleep,
@@ -691,8 +704,6 @@ func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) 
 }
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
-	p.buildImageSelector()
-
 	imageName, err := p.imageSelector.Select(&image.Params{
 		Infra:    "gce",
 		Language: startAttributes.Language,
@@ -713,17 +724,18 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	return p.imageByFilter(fmt.Sprintf("name eq ^%s", imageName))
 }
 
-func (p *gceProvider) buildImageSelector() {
-	if p.imageSelector != nil {
-		return
-	}
-
-	switch p.imageSelectorType {
+func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
+	switch selectorType {
 	case "env":
-		p.imageSelector = image.NewEnvSelector(p.cfg)
+		return image.NewEnvSelector(cfg)
 	case "api":
-		baseURL, _ := url.Parse(p.cfg.Get("IMAGE_SELECTOR_URL"))
-		p.imageSelector = image.NewAPISelector(baseURL)
+		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
+		if err != nil {
+			return nil, err
+		}
+		return image.NewAPISelector(baseURL), nil
+	default:
+		return nil, fmt.Errorf("invalid image selector type %q", selectorType)
 	}
 }
 

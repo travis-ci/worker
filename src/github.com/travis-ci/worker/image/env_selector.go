@@ -20,13 +20,16 @@ type EnvSelector struct {
 }
 
 // NewEnvSelector builds a new EnvSelector from the given *config.ProviderConfig
-func NewEnvSelector(c *config.ProviderConfig) *EnvSelector {
+func NewEnvSelector(c *config.ProviderConfig) (*EnvSelector, error) {
 	es := &EnvSelector{c: c}
-	es.buildImageAliasMap()
-	return es
+	err := es.buildImageAliasMap()
+	if err != nil {
+		return nil, err
+	}
+	return es, nil
 }
 
-func (es *EnvSelector) buildImageAliasMap() {
+func (es *EnvSelector) buildImageAliasMap() error {
 	aliasNames := es.c.Get("IMAGE_ALIASES")
 
 	aliasNamesSlice := strings.Split(aliasNames, ",")
@@ -44,14 +47,14 @@ func (es *EnvSelector) buildImageAliasMap() {
 
 		key := fmt.Sprintf("IMAGE_ALIAS_%s", normalizedAliasName)
 		if !es.c.IsSet(key) {
-			// TODO: warn?
-			continue
+			return fmt.Errorf("missing config key %q", key)
 		}
 
 		imageAliases[aliasName] = es.c.Get(key)
 	}
 
 	es.imageAliases = imageAliases
+	return nil
 }
 
 func (es *EnvSelector) Select(params *Params) (string, error) {

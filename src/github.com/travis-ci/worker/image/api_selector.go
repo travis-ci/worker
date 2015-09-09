@@ -52,24 +52,28 @@ func (as *APISelector) queryWithTags(infra string, tags [][]string) (string, err
 		qs.Set("infra", infra)
 		qs.Set("fields[images]", "name")
 		qs.Set("limit", "1")
-		if len(tags) > 0 {
+		if len(ts) > 0 {
 			qs.Set("tags", strings.Join(ts, ","))
 		}
 
 		bodyLines = append(bodyLines, qs.Encode())
 	}
 
-	u, _ := url.Parse(as.baseURL.String())
+	u, err := url.Parse(as.baseURL.String())
+	if err != nil {
+		return "", err
+	}
+
 	imageResp, err := as.makeImageRequest(u.String(), bodyLines)
 	if err != nil {
 		return "", err
 	}
 
-	if len(imageResp.Data) > 0 {
-		return imageResp.Data[0].Name, nil
+	if len(imageResp.Data) == 0 {
+		return "", nil
 	}
 
-	return "", nil
+	return imageResp.Data[0].Name, nil
 }
 
 func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*apiSelectorImageResponse, error) {
