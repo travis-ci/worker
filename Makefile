@@ -25,9 +25,10 @@ GOXC_BUILD_CONSTRAINTS ?= amd64 linux,amd64 darwin
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
-	metrics-coverage.coverprofile \
 	config-coverage.coverprofile \
-	context-coverage.coverprofile
+	context-coverage.coverprofile \
+	image-coverage.coverprofile \
+	metrics-coverage.coverprofile
 
 %-coverage.coverprofile:
 	$(GO) test -v -covermode=count -coverprofile=$@ \
@@ -77,7 +78,7 @@ clean:
 
 .PHONY: annotations
 annotations:
-	@git grep -E '(TODO|FIXME|XXX):' | grep -v Makefile
+	@git grep -E '(TODO|FIXME|XXX):' | grep -v -E 'Makefile|vendor/'
 
 .PHONY: fmtpolice
 fmtpolice:
