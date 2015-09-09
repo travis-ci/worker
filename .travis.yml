@@ -21,7 +21,7 @@ addons:
 
 install:
 - go get github.com/constabulary/gb/...
-- go get github.com/alecthomas/gometalinter/...
+- go get github.com/alecthomas/gometalinter
 - gometalinter --install --update
 - gem install package_cloud --no-ri --no-rdoc
 - echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee -a /etc/apt/sources.list
