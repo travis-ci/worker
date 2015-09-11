@@ -1,3 +1,11 @@
+## 1.1.1 (September 10th, 2015)
+
+IMPROVEMENTS:
+
+  * utils/pkg: updated upstart config to copy/run executable as
+    `/var/tmp/run/$UPSTART_JOB`, allowing for multiple worker instances per
+    host.
+
 ## 1.1.0 (September 9th, 2015)
 
 FEATURES:
