@@ -1,6 +1,9 @@
 language: go
-go: 1.5
-sudo: 9000
+
+go: 1.5.1
+
+services:
+- docker
 
 env:
   global:
