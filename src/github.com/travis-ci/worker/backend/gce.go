@@ -764,7 +764,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
 					Key:   "startup-script",
-					Value: startupScript,
+					Value: &startupScript,
 				},
 			},
 		},
