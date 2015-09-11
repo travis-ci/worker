@@ -1,3 +1,39 @@
+## 1.1.1 (September 10th, 2015)
+
+IMPROVEMENTS:
+
+  * utils/pkg: updated upstart config to copy/run executable as
+    `/var/tmp/run/$UPSTART_JOB`, allowing for multiple worker instances per
+    host.
+
+## 1.1.0 (September 9th, 2015)
+
+FEATURES:
+
+  * backend/gce:
+    * Configurable image selector, defaulting to legacy selection
+      method for backward compatibility.
+    * Support for reading account JSON from filename or JSON blob.
+    * Optionally add all instances to configurable instance group.
+  * image/\*: New image selection abstraction with env-based and api-based
+    implementations.
+
+IMPROVEMENTS:
+
+  * vendor/\*: Upgraded all vendored dependencies to latest.
+  * utils/pkg:
+    * Official releases built with go 1.5.
+    * Packagecloud script altered to only use ruby stdlib dependencies,
+      removing the need for bundler.
+  * backend/gce: Lots of additional test coverage.
+  * backend/\*: Introduction of `Setup` func for deferring mutative actions needed
+    for runtime.
+  * config: Addition of `Unset` method on `ProviderConfig`
+
+BUG FIXES:
+
+  * processor: Fix graceful shutdown by using `tryClose` on shutdown channel.
+
 ## 1.0.0 (August 19th, 2015)
 
 FEATURES:

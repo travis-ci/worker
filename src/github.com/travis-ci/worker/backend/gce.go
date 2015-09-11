@@ -8,9 +8,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -19,12 +22,14 @@ import (
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/googleapi"
 )
 
 const (
@@ -37,7 +42,9 @@ const (
 	defaultGCEUploadRetries      = uint64(10)
 	defaultGCEUploadRetrySleep   = 5 * time.Second
 	defaultGCEHardTimeoutMinutes = int64(130)
-	gceImagesFilter              = "name eq ^travis-ci-%s.+"
+	defaultGCEImageSelectorType  = "legacy"
+	defaultGCEImage              = "travis-ci-mega.+"
+	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
 )
 
 var (
@@ -47,11 +54,16 @@ var (
 		"SSH_KEY_PATH":            "[REQUIRED] path to ssh key used to access job vms",
 		"SSH_PUB_KEY_PATH":        "[REQUIRED] path to ssh public key used to access job vms",
 		"SSH_KEY_PASSPHRASE":      "[REQUIRED] passphrase for ssh key given as ssh_key_path",
+		"IMAGE_SELECTOR_TYPE":     fmt.Sprintf("image selector type (\"legacy\", \"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_URL":      "URL for image selector API, used only when image selector is \"api\"",
 		"ZONE":                    fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 		"MACHINE_TYPE":            fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":                 fmt.Sprintf("machine name (default %q)", defaultGCENetwork),
 		"DISK_SIZE":               fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language",
+		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language, used only when image selector type is \"legacy\"",
+		"IMAGE_ALIASES":           "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_[ALIAS_]{ALIAS}":   "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"IMAGE_DEFAULT":           fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"INSTANCE_GROUP":          "instance group name to which all inserted instances will be added (no default)",
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
@@ -69,6 +81,10 @@ cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
 `))
+
+	// FIXME: get rid of the need for this global goop
+	gceCustomHTTPTransport     http.RoundTripper = nil
+	gceCustomHTTPTransportLock sync.Mutex
 )
 
 func init() {
@@ -100,11 +116,14 @@ type gceProvider struct {
 	ic        *gceInstanceConfig
 	cfg       *config.ProviderConfig
 
-	instanceGroup    string
-	bootPollSleep    time.Duration
-	defaultLanguage  string
-	uploadRetries    uint64
-	uploadRetrySleep time.Duration
+	imageSelectorType string
+	imageSelector     image.Selector
+	instanceGroup     string
+	bootPollSleep     time.Duration
+	defaultLanguage   string
+	defaultImage      string
+	uploadRetries     uint64
+	uploadRetrySleep  time.Duration
 }
 
 type gceInstanceConfig struct {
@@ -132,53 +151,52 @@ type gceInstance struct {
 }
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
+	var (
+		imageSelector image.Selector
+		err           error
+	)
+
 	client, err := buildGoogleComputeService(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	if !cfg.IsSet("PROJECT_ID") {
-		return nil, fmt.Errorf("mising PROJECT_ID")
+		return nil, fmt.Errorf("missing PROJECT_ID")
 	}
 
 	projectID := cfg.Get("PROJECT_ID")
 
 	if !cfg.IsSet("SSH_KEY_PATH") {
-		return nil, fmt.Errorf("expected SSH_KEY_PATH config key")
+		return nil, fmt.Errorf("missing SSH_KEY_PATH config key")
 	}
 
-	sshKeyPath := cfg.Get("SSH_KEY_PATH")
+	sshKeyBytes, err := ioutil.ReadFile(cfg.Get("SSH_KEY_PATH"))
+
+	if err != nil {
+		return nil, err
+	}
 
 	if !cfg.IsSet("SSH_PUB_KEY_PATH") {
-		return nil, fmt.Errorf("expected SSH_PUB_KEY_PATH config key")
+		return nil, fmt.Errorf("missing SSH_PUB_KEY_PATH config key")
 	}
 
-	sshKeyBytes, err := ioutil.ReadFile(sshKeyPath)
+	sshPubKeyBytes, err := ioutil.ReadFile(cfg.Get("SSH_PUB_KEY_PATH"))
 
 	if err != nil {
 		return nil, err
 	}
-
-	sshPubKeyPath := cfg.Get("SSH_PUB_KEY_PATH")
-
-	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
-		return nil, fmt.Errorf("expected SSH_KEY_PASSPHRASE config key")
-	}
-
-	sshPubKeyBytes, err := ioutil.ReadFile(sshPubKeyPath)
-
-	if err != nil {
-		return nil, err
-	}
-
-	sshKeyPassphrase := cfg.Get("SSH_KEY_PASSPHRASE")
 
 	block, _ := pem.Decode(sshKeyBytes)
 	if block == nil {
 		return nil, fmt.Errorf("ssh key does not contain a valid PEM block")
 	}
 
-	der, err := x509.DecryptPEMBlock(block, []byte(sshKeyPassphrase))
+	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
+		return nil, fmt.Errorf("missing SSH_KEY_PASSPHRASE config key")
+	}
+
+	der, err := x509.DecryptPEMBlock(block, []byte(cfg.Get("SSH_KEY_PASSPHRASE")))
 	if err != nil {
 		return nil, err
 	}
@@ -198,30 +216,21 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		zoneName = cfg.Get("ZONE")
 	}
 
-	zone, err := client.Zones.Get(projectID, zoneName).Do()
-	if err != nil {
-		return nil, err
-	}
+	cfg.Set("ZONE", zoneName)
 
 	mtName := defaultGCEMachineType
 	if cfg.IsSet("MACHINE_TYPE") {
 		mtName = cfg.Get("MACHINE_TYPE")
 	}
 
-	mt, err := client.MachineTypes.Get(projectID, zone.Name, mtName).Do()
-	if err != nil {
-		return nil, err
-	}
+	cfg.Set("MACHINE_TYPE", mtName)
 
 	nwName := defaultGCENetwork
 	if cfg.IsSet("NETWORK") {
 		nwName = cfg.Get("NETWORK")
 	}
 
-	nw, err := client.Networks.Get(projectID, nwName).Do()
-	if err != nil {
-		return nil, err
-	}
+	cfg.Set("NETWORK", nwName)
 
 	diskSize := defaultGCEDiskSize
 	if cfg.IsSet("DISK_SIZE") {
@@ -263,6 +272,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultLanguage = cfg.Get("DEFAULT_LANGUAGE")
 	}
 
+	defaultImage := defaultGCEImage
+	if cfg.IsSet("IMAGE_DEFAULT") {
+		defaultImage = cfg.Get("IMAGE_DEFAULT")
+	}
+
 	autoImplode := true
 	if cfg.IsSet("AUTO_IMPLODE") {
 		ai, err := strconv.ParseBool(cfg.Get("AUTO_IMPLODE"))
@@ -281,16 +295,28 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		hardTimeoutMinutes = ht
 	}
 
+	imageSelectorType := defaultGCEImageSelectorType
+	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
+		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
+	}
+
+	if imageSelectorType != "legacy" && imageSelectorType != "env" && imageSelectorType != "api" {
+		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
+	}
+
+	if imageSelectorType == "env" || imageSelectorType == "api" {
+		imageSelector, err = buildGCEImageSelector(imageSelectorType, cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
 		cfg:       cfg,
 
 		ic: &gceInstanceConfig{
-			MachineType:        mt,
-			Zone:               zone,
-			Network:            nw,
-			DiskType:           fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
 			DiskSize:           diskSize,
 			SSHKeySigner:       sshKeySigner,
 			SSHPubKey:          string(sshPubKeyBytes),
@@ -298,12 +324,38 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			HardTimeoutMinutes: hardTimeoutMinutes,
 		},
 
-		instanceGroup:    cfg.Get("INSTANCE_GROUP"),
-		bootPollSleep:    bootPollSleep,
-		defaultLanguage:  defaultLanguage,
-		uploadRetries:    uploadRetries,
-		uploadRetrySleep: uploadRetrySleep,
+		imageSelector:     imageSelector,
+		imageSelectorType: imageSelectorType,
+		instanceGroup:     cfg.Get("INSTANCE_GROUP"),
+		bootPollSleep:     bootPollSleep,
+		defaultLanguage:   defaultLanguage,
+		defaultImage:      defaultImage,
+		uploadRetries:     uploadRetries,
+		uploadRetrySleep:  uploadRetrySleep,
 	}, nil
+}
+
+func (p *gceProvider) Setup() error {
+	var err error
+
+	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Do()
+	if err != nil {
+		return err
+	}
+
+	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
+
+	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Do()
+	if err != nil {
+		return err
+	}
+
+	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Do()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
@@ -325,13 +377,29 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 		},
 		TokenURL: "https://accounts.google.com/o/oauth2/token",
 	}
-	return compute.New(config.Client(oauth2.NoContext))
+
+	client := config.Client(oauth2.NoContext)
+
+	if gceCustomHTTPTransport != nil {
+		client.Transport = gceCustomHTTPTransport
+	}
+
+	return compute.New(client)
 }
 
-func loadGoogleAccountJSON(filename string) (*gceAccountJSON, error) {
-	bytes, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
+func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
+	var (
+		bytes []byte
+		err   error
+	)
+
+	if strings.HasPrefix(strings.TrimSpace(filenameOrJSON), "{") {
+		bytes = []byte(filenameOrJSON)
+	} else {
+		bytes, err = ioutil.ReadFile(filenameOrJSON)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	a := &gceAccountJSON{}
@@ -342,44 +410,7 @@ func loadGoogleAccountJSON(filename string) (*gceAccountJSON, error) {
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx)
 
-	var (
-		image *compute.Image
-		err   error
-	)
-
-	candidateLangs := []string{}
-
-	mappedLang := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(startAttributes.Language))
-	if p.cfg.IsSet(mappedLang) {
-		logger.WithFields(logrus.Fields{
-			"original": startAttributes.Language,
-			"mapped":   p.cfg.Get(mappedLang),
-		}).Debug("using mapped language to candidates")
-		candidateLangs = append(candidateLangs, p.cfg.Get(mappedLang))
-	} else {
-		logger.WithFields(logrus.Fields{
-			"original": startAttributes.Language,
-		}).Debug("adding original language to candidates")
-		candidateLangs = append(candidateLangs, startAttributes.Language)
-	}
-	candidateLangs = append(candidateLangs, p.defaultLanguage)
-
-	for _, language := range candidateLangs {
-		logger.WithFields(logrus.Fields{
-			"original":  startAttributes.Language,
-			"candidate": language,
-		}).Debug("searching for image matching language")
-
-		image, err = p.imageForLanguage(language)
-		if err == nil {
-			logger.WithFields(logrus.Fields{
-				"candidate": language,
-				"image":     image,
-			}).Debug("found matching image for language")
-			break
-		}
-	}
-
+	image, err := p.getImage(ctx, startAttributes)
 	if err != nil {
 		return nil, err
 	}
@@ -390,61 +421,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil, err
 	}
 
-	inst := &compute.Instance{
-		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
-		Disks: []*compute.AttachedDisk{
-			&compute.AttachedDisk{
-				Type:       "PERSISTENT",
-				Mode:       "READ_WRITE",
-				Boot:       true,
-				AutoDelete: true,
-				InitializeParams: &compute.AttachedDiskInitializeParams{
-					SourceImage: image.SelfLink,
-					DiskType:    p.ic.DiskType,
-					DiskSizeGb:  p.ic.DiskSize,
-				},
-			},
-		},
-		Scheduling: &compute.Scheduling{
-			Preemptible: true,
-		},
-		MachineType: p.ic.MachineType.SelfLink,
-		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
-		Metadata: &compute.Metadata{
-			Items: []*compute.MetadataItems{
-				&compute.MetadataItems{
-					Key:   "startup-script",
-					Value: scriptBuf.String(),
-				},
-			},
-		},
-		NetworkInterfaces: []*compute.NetworkInterface{
-			&compute.NetworkInterface{
-				AccessConfigs: []*compute.AccessConfig{
-					&compute.AccessConfig{
-						Name: "AccessConfig brought to you by travis-worker",
-						Type: "ONE_TO_ONE_NAT",
-					},
-				},
-				Network: p.ic.Network.SelfLink,
-			},
-		},
-		ServiceAccounts: []*compute.ServiceAccount{
-			&compute.ServiceAccount{
-				Email: "default",
-				Scopes: []string{
-					"https://www.googleapis.com/auth/userinfo.email",
-					compute.DevstorageFullControlScope,
-					compute.ComputeScope,
-				},
-			},
-		},
-		Tags: &compute.Tags{
-			Items: []string{
-				"testing",
-			},
-		},
-	}
+	inst := p.buildInstance(startAttributes, image.SelfLink, scriptBuf.String())
 
 	logger.WithFields(logrus.Fields{
 		"instance": inst,
@@ -642,15 +619,73 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 }
 
-func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) {
+func (p *gceProvider) getImage(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	logger := context.LoggerFromContext(ctx)
+
+	switch p.imageSelectorType {
+	case "env", "api":
+		return p.imageSelect(ctx, startAttributes)
+	default:
+		logger.WithFields(logrus.Fields{
+			"selector_type": p.imageSelectorType,
+		}).Warn("unknown image selector, falling back to legacy image selection")
+		return p.legacyImageSelect(ctx, startAttributes)
+	}
+}
+
+func (p *gceProvider) legacyImageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	logger := context.LoggerFromContext(ctx)
+
+	var (
+		image *compute.Image
+		err   error
+	)
+
+	candidateLangs := []string{}
+
+	mappedLang := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(startAttributes.Language))
+	if p.cfg.IsSet(mappedLang) {
+		logger.WithFields(logrus.Fields{
+			"original": startAttributes.Language,
+			"mapped":   p.cfg.Get(mappedLang),
+		}).Debug("using mapped language to candidates")
+		candidateLangs = append(candidateLangs, p.cfg.Get(mappedLang))
+	} else {
+		logger.WithFields(logrus.Fields{
+			"original": startAttributes.Language,
+		}).Debug("adding original language to candidates")
+		candidateLangs = append(candidateLangs, startAttributes.Language)
+	}
+	candidateLangs = append(candidateLangs, p.defaultLanguage)
+
+	for _, language := range candidateLangs {
+		logger.WithFields(logrus.Fields{
+			"original":  startAttributes.Language,
+			"candidate": language,
+		}).Debug("searching for image matching language")
+
+		image, err = p.imageForLanguage(language)
+		if err == nil {
+			logger.WithFields(logrus.Fields{
+				"candidate": language,
+				"image":     image,
+			}).Debug("found matching image for language")
+			break
+		}
+	}
+
+	return image, err
+}
+
+func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {
 	// TODO: add some TTL cache in here maybe?
-	images, err := p.client.Images.List(p.projectID).Filter(fmt.Sprintf(gceImagesFilter, language)).Do()
+	images, err := p.client.Images.List(p.projectID).Filter(filter).Do()
 	if err != nil {
 		return nil, err
 	}
 
 	if len(images.Items) == 0 {
-		return nil, fmt.Errorf("no image found with language %s", language)
+		return nil, fmt.Errorf("no image found with filter %s", filter)
 	}
 
 	imagesByName := map[string]*compute.Image{}
@@ -663,6 +698,104 @@ func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) 
 	sort.Strings(imageNames)
 
 	return imagesByName[imageNames[len(imageNames)-1]], nil
+}
+
+func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) {
+	return p.imageByFilter(fmt.Sprintf(gceImageTravisCIPrefixFilter, language))
+}
+
+func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	imageName, err := p.imageSelector.Select(&image.Params{
+		Infra:    "gce",
+		Language: startAttributes.Language,
+		OsxImage: startAttributes.OsxImage,
+		Dist:     startAttributes.Dist,
+		Group:    startAttributes.Group,
+		OS:       startAttributes.OS,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if imageName == "default" {
+		imageName = p.defaultImage
+	}
+
+	return p.imageByFilter(fmt.Sprintf("name eq ^%s", imageName))
+}
+
+func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
+	switch selectorType {
+	case "env":
+		return image.NewEnvSelector(cfg)
+	case "api":
+		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
+		if err != nil {
+			return nil, err
+		}
+		return image.NewAPISelector(baseURL), nil
+	default:
+		return nil, fmt.Errorf("invalid image selector type %q", selectorType)
+	}
+}
+
+func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
+	return &compute.Instance{
+		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
+		Disks: []*compute.AttachedDisk{
+			&compute.AttachedDisk{
+				Type:       "PERSISTENT",
+				Mode:       "READ_WRITE",
+				Boot:       true,
+				AutoDelete: true,
+				InitializeParams: &compute.AttachedDiskInitializeParams{
+					SourceImage: imageLink,
+					DiskType:    p.ic.DiskType,
+					DiskSizeGb:  p.ic.DiskSize,
+				},
+			},
+		},
+		Scheduling: &compute.Scheduling{
+			Preemptible: true,
+		},
+		MachineType: p.ic.MachineType.SelfLink,
+		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
+		Metadata: &compute.Metadata{
+			Items: []*compute.MetadataItems{
+				&compute.MetadataItems{
+					Key:   "startup-script",
+					Value: googleapi.String(startupScript),
+				},
+			},
+		},
+		NetworkInterfaces: []*compute.NetworkInterface{
+			&compute.NetworkInterface{
+				AccessConfigs: []*compute.AccessConfig{
+					&compute.AccessConfig{
+						Name: "AccessConfig brought to you by travis-worker",
+						Type: "ONE_TO_ONE_NAT",
+					},
+				},
+				Network: p.ic.Network.SelfLink,
+			},
+		},
+		ServiceAccounts: []*compute.ServiceAccount{
+			&compute.ServiceAccount{
+				Email: "default",
+				Scopes: []string{
+					"https://www.googleapis.com/auth/userinfo.email",
+					compute.DevstorageFullControlScope,
+					compute.ComputeScope,
+				},
+			},
+		},
+		Tags: &compute.Tags{
+			Items: []string{
+				"testing",
+			},
+		},
+	}
 }
 
 func (i *gceInstance) sshClient() (*ssh.Client, error) {
