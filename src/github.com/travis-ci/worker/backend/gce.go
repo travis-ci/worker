@@ -29,6 +29,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
+	"google.golang.org/api/googleapi"
 )
 
 const (
@@ -764,7 +765,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
 					Key:   "startup-script",
-					Value: &startupScript,
+					Value: googleapi.String(startupScript),
 				},
 			},
 		},
