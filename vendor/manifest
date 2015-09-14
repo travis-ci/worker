@@ -14,6 +14,24 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/bugsnag/bugsnag-go",
+			"repository": "https://github.com/bugsnag/bugsnag-go",
+			"revision": "9ee24c1db7e2c5b87e7228acb3e587a35124a041",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/bugsnag/osext",
+			"repository": "https://github.com/bugsnag/osext",
+			"revision": "0dd3f918b21bec95ace9dc86c7e70266cfc5c702",
+			"branch": "master"
+		},
+		{
+			"importpath": "github.com/bugsnag/panicwrap",
+			"repository": "https://github.com/bugsnag/panicwrap",
+			"revision": "e5f9854865b9778a45169fc249e99e338d4d6f27",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/cenkalti/backoff",
 			"repository": "https://github.com/cenkalti/backoff",
 			"revision": "4dc77674aceaabba2c7e3da25d4c823edfb73f99",
@@ -34,7 +52,7 @@
 		{
 			"importpath": "github.com/fsouza/go-dockerclient",
 			"repository": "https://github.com/fsouza/go-dockerclient",
-			"revision": "34eaaf52874d8ce5d57be011a4852eb83d950125",
+			"revision": "c9ad0ce23f68428421adfc6ced9e6123f54788a5",
 			"branch": "master"
 		},
 		{
@@ -80,15 +98,35 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/stathat/go",
+			"repository": "https://github.com/stathat/go",
+			"revision": "01d012b9ee2ecc107cb28b6dd32d9019ed5c1d77",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/streadway/amqp",
 			"repository": "https://github.com/streadway/amqp",
 			"revision": "f4879ba28fffbb576743b03622a9ff20461826b2",
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/stretchr/testify",
+			"importpath": "github.com/stretchr/testify/assert",
 			"repository": "https://github.com/stretchr/testify",
 			"revision": "7c2b1e5640dcf2631213ca962d892bffa1e08860",
+			"branch": "master",
+			"path": "/assert"
+		},
+		{
+			"importpath": "github.com/stretchr/testify/require",
+			"repository": "https://github.com/stretchr/testify",
+			"revision": "7c2b1e5640dcf2631213ca962d892bffa1e08860",
+			"branch": "master",
+			"path": "/require"
+		},
+		{
+			"importpath": "github.com/tobi/airbrake-go",
+			"repository": "https://github.com/tobi/airbrake-go",
+			"revision": "5b5e269e1bc398d43f67e43dafff3414a59cd5a2",
 			"branch": "master"
 		},
 		{

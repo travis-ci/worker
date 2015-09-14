@@ -65,7 +65,6 @@ var (
 		"IMAGE_[ALIAS_]{ALIAS}":   "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"IMAGE_DEFAULT":           fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
-		"INSTANCE_GROUP":          "instance group name to which all inserted instances will be added (no default)",
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
 		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
@@ -118,7 +117,6 @@ type gceProvider struct {
 
 	imageSelectorType string
 	imageSelector     image.Selector
-	instanceGroup     string
 	bootPollSleep     time.Duration
 	defaultLanguage   string
 	defaultImage      string
@@ -326,7 +324,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		imageSelector:     imageSelector,
 		imageSelectorType: imageSelectorType,
-		instanceGroup:     cfg.Get("INSTANCE_GROUP"),
 		bootPollSleep:     bootPollSleep,
 		defaultLanguage:   defaultLanguage,
 		defaultImage:      defaultImage,
@@ -488,109 +485,6 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			time.Sleep(p.bootPollSleep)
 		}
 	}()
-
-	if p.instanceGroup != "" {
-		logger.WithFields(logrus.Fields{
-			"instance":       inst,
-			"instance_group": p.instanceGroup,
-		}).Debug("instance group is non-empty, adding instance to group")
-
-		origInstanceReady := instanceReady
-		instChan = make(chan *compute.Instance)
-
-		err = func() error {
-			for {
-				select {
-				case readyInst := <-origInstanceReady:
-					inst = readyInst
-					logger.WithFields(logrus.Fields{
-						"instance":       inst,
-						"instance_group": p.instanceGroup,
-					}).Debug("inserting instance into group")
-					return nil
-				case <-ctx.Done():
-					if ctx.Err() == gocontext.DeadlineExceeded {
-						metrics.Mark("worker.vm.provider.gce.boot.timeout")
-					}
-					abandonedStart = true
-
-					return ctx.Err()
-				default:
-					logger.Debug("sleeping while waiting for instance to be ready")
-					time.Sleep(p.bootPollSleep)
-				}
-			}
-		}()
-
-		if err != nil {
-			return nil, err
-		}
-
-		inst, err = p.client.Instances.Get(p.projectID, p.ic.Zone.Name, inst.Name).Do()
-		if err != nil {
-			return nil, err
-		}
-
-		ref := &compute.InstanceReference{
-			Instance: inst.SelfLink,
-		}
-
-		logger.WithFields(logrus.Fields{
-			"ref":                ref,
-			"instance_self_link": inst.SelfLink,
-		}).Debug("inserting instance into group with ref")
-
-		op, err := p.client.InstanceGroups.AddInstances(p.projectID, p.ic.Zone.Name, p.instanceGroup, &compute.InstanceGroupsAddInstancesRequest{
-			Instances: []*compute.InstanceReference{ref},
-		}).Do()
-
-		if err != nil {
-			abandonedStart = true
-			return nil, err
-		}
-
-		logger.WithFields(logrus.Fields{
-			"instance":       inst,
-			"instance_group": p.instanceGroup,
-		}).Debug("starting goroutine to poll for instance group addition")
-
-		go func() {
-			for {
-				newOp, err := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name).Do()
-				if err != nil {
-					errChan <- err
-					return
-				}
-
-				if newOp.Status == "DONE" {
-					if newOp.Error != nil {
-						errChan <- &gceOpError{Err: newOp.Error}
-						return
-					}
-
-					instChan <- inst
-					return
-				}
-
-				if newOp.Error != nil {
-					logger.WithFields(logrus.Fields{
-						"err":  newOp.Error,
-						"name": op.Name,
-					}).Error("encountered an error while waiting for instance group addition operation")
-
-					errChan <- &gceOpError{Err: newOp.Error}
-					return
-				}
-
-				logger.WithFields(logrus.Fields{
-					"status": newOp.Status,
-					"name":   op.Name,
-				}).Debug("sleeping before checking instance group addition operation")
-
-				time.Sleep(p.bootPollSleep)
-			}
-		}()
-	}
 
 	logger.Debug("selecting over instance, error, and done channels")
 	select {
