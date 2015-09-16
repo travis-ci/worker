@@ -155,9 +155,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			uploadTimeout: 1 * time.Minute,
 		},
 		&stepUpdateState{},
+		&stepOpenLogWriter{
+			logTimeout:   logTimeout,
+			maxLogLength: 4500000,
+		},
 		&stepRunScript{
 			logTimeout:               logTimeout,
-			maxLogLength:             4500000,
 			hardTimeout:              p.hardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
 		},
