@@ -59,6 +59,14 @@ func (as *APISelector) queryWithTags(infra string, tags [][]string) (string, err
 		bodyLines = append(bodyLines, qs.Encode())
 	}
 
+	qs := url.Values{}
+	qs.Set("infra", infra)
+	qs.Set("is_default", "true")
+	qs.Set("fields[images]", "name")
+	qs.Set("limit", "1")
+
+	bodyLines = append(bodyLines, qs.Encode())
+
 	u, err := url.Parse(as.baseURL.String())
 	if err != nil {
 		return "", err
