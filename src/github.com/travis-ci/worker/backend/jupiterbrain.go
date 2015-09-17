@@ -440,9 +440,12 @@ func (i *jupiterBrainInstance) Stop(ctx context.Context) error {
 	}
 
 	resp, err := i.provider.httpDo(req)
-	io.Copy(ioutil.Discard, resp.Body)
+	if err != nil {
+		return err
+	}
+
 	resp.Body.Close()
-	return err
+	return nil
 }
 
 func (i *jupiterBrainInstance) ID() string {
