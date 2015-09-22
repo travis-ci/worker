@@ -401,8 +401,18 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) 
 		return &RunResult{Completed: false}, err
 	}
 
-	session.Stdout = output
-	session.Stderr = output
+	stdoutPipe, err := session.StdoutPipe()
+	if err != nil {
+		return &RunResult{Completed: false}, err
+	}
+
+	stderrPipe, err := session.StderrPipe()
+	if err != nil {
+		return &RunResult{Completed: false}, err
+	}
+
+	go io.Copy(output, stdoutPipe)
+	go io.Copy(output, stderrPipe)
 
 	errChan := make(chan error, 1)
 
