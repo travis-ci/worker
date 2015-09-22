@@ -411,8 +411,18 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) 
 		return &RunResult{Completed: false}, err
 	}
 
-	go io.Copy(output, stdoutPipe)
-	go io.Copy(output, stderrPipe)
+	stdoutErrChan := make(chan error, 1)
+	stderrErrChan := make(chan error, 1)
+
+	go func() {
+		_, err := io.Copy(output, stdoutPipe)
+		stdoutErrChan <- err
+	}()
+
+	go func() {
+		_, err := io.Copy(output, stderrPipe)
+		stderrErrChan <- err
+	}()
 
 	errChan := make(chan error, 1)
 
@@ -424,6 +434,8 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) 
 	case <-ctx.Done():
 		return &RunResult{Completed: false}, ctx.Err()
 	case err = <-errChan:
+		<-stdoutErrChan
+		<-stderrErrChan
 	}
 
 	if err == nil {
