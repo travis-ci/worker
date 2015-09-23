@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -20,19 +19,25 @@ import (
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/net/context"
 )
 
+const (
+	defaultJupiterBrainImageSelectorType = "env"
+)
+
 var (
-	nonAlphaNumRegexp     = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
 	metricNameCleanRegexp = regexp.MustCompile(`[^A-Za-z0-9.:-_]+`)
 	jupiterBrainHelp      = map[string]string{
 		"ENDPOINT":            "[REQUIRED] url to Jupiter Brain server, including auth",
 		"SSH_KEY_PATH":        "[REQUIRED] path to SSH key used to access job VMs",
 		"SSH_KEY_PASSPHRASE":  "[REQUIRED] passphrase for SSH key given as SSH_KEY_PATH",
 		"KEYCHAIN_PASSWORD":   "[REQUIRED] password used ... somehow",
+		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultJupiterBrainImageSelectorType),
+		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
 		"IMAGE_ALIASES":       "comma-delimited strings used as stable names for images (default: \"\")",
 		"IMAGE_ALIAS_{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"BOOT_POLL_SLEEP":     "sleep interval between polling server for instance status (default 3s)",
@@ -60,11 +65,13 @@ func init() {
 type jupiterBrainProvider struct {
 	client           *http.Client
 	baseURL          *url.URL
-	imageAliases     map[string]string
 	sshKeyPath       string
 	sshKeyPassphrase string
 	keychainPassword string
 	bootPollSleep    time.Duration
+
+	imageSelectorType string
+	imageSelector     image.Selector
 }
 
 type jupiterBrainInstance struct {
@@ -89,30 +96,9 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	if !cfg.IsSet("IMAGE_ALIASES") {
-		return nil, fmt.Errorf("expected IMAGE_ALIASES config key")
-	}
-
-	aliasNames := cfg.Get("IMAGE_ALIASES")
-
 	baseURL, err := url.Parse(cfg.Get("ENDPOINT"))
 	if err != nil {
 		return nil, err
-	}
-
-	aliasNamesSlice := strings.Split(aliasNames, ",")
-
-	imageAliases := make(map[string]string, len(aliasNamesSlice))
-
-	for _, aliasName := range aliasNamesSlice {
-		normalizedAliasName := strings.ToUpper(string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_"))))
-
-		key := fmt.Sprintf("IMAGE_ALIAS_%s", normalizedAliasName)
-		if !cfg.IsSet(key) {
-			return nil, fmt.Errorf("expected image alias %q", aliasName)
-		}
-
-		imageAliases[aliasName] = cfg.Get(key)
 	}
 
 	if !cfg.IsSet("SSH_KEY_PATH") {
@@ -142,15 +128,42 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		bootPollSleep = si
 	}
 
+	imageSelectorType := defaultJupiterBrainImageSelectorType
+	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
+		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
+	}
+
+	imageSelector, err := buildJupiterBrainImageSelector(imageSelectorType, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	return &jupiterBrainProvider{
 		client:           http.DefaultClient,
 		baseURL:          baseURL,
-		imageAliases:     imageAliases,
 		sshKeyPath:       sshKeyPath,
 		sshKeyPassphrase: sshKeyPassphrase,
 		keychainPassword: keychainPassword,
 		bootPollSleep:    bootPollSleep,
+
+		imageSelectorType: imageSelectorType,
+		imageSelector:     imageSelector,
 	}, nil
+}
+
+func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
+	switch selectorType {
+	case "env":
+		return image.NewEnvSelector(cfg)
+	case "api":
+		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
+		if err != nil {
+			return nil, err
+		}
+		return image.NewAPISelector(baseURL), nil
+	default:
+		return nil, fmt.Errorf("invalid image selector type %q", selectorType)
+	}
 }
 
 func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *StartAttributes) (Instance, error) {
@@ -159,10 +172,9 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 		return nil, err
 	}
 
-	imageName := p.getImageName(startAttributes)
-
-	if imageName == "" {
-		return nil, fmt.Errorf("no image alias for %#v", startAttributes)
+	imageName, err := p.getImageName(startAttributes)
+	if err != nil {
+		return nil, err
 	}
 
 	workerctx.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -503,23 +515,13 @@ func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	})
 }
 
-func (p *jupiterBrainProvider) getImageName(startAttributes *StartAttributes) string {
-	for _, key := range []string{
-		startAttributes.OsxImage,
-		fmt.Sprintf("osx_image_%s", startAttributes.OsxImage),
-		fmt.Sprintf("osx_image_%s_%s", startAttributes.OsxImage, startAttributes.Language),
-		fmt.Sprintf("dist_%s_%s", startAttributes.Dist, startAttributes.Language),
-		fmt.Sprintf("dist_%s", startAttributes.Dist),
-		fmt.Sprintf("group_%s_%s", startAttributes.Group, startAttributes.Language),
-		fmt.Sprintf("group_%s", startAttributes.Group),
-		fmt.Sprintf("language_%s", startAttributes.Language),
-		fmt.Sprintf("default_%s", startAttributes.OS),
-	} {
-		imageName, ok := p.imageAliases[key]
-		if ok {
-			return imageName
-		}
-	}
-
-	return ""
+func (p *jupiterBrainProvider) getImageName(startAttributes *StartAttributes) (string, error) {
+	return p.imageSelector.Select(&image.Params{
+		Infra:    "jupiterbrain",
+		Language: startAttributes.Language,
+		OsxImage: startAttributes.OsxImage,
+		Dist:     startAttributes.Dist,
+		Group:    startAttributes.Group,
+		OS:       startAttributes.OS,
+	})
 }
