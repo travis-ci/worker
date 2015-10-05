@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	gocontext "golang.org/x/net/context"
@@ -19,7 +20,6 @@ type stepOpenLogWriter struct {
 func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
-	instance := state.Get("instance").(backend.Instance)
 
 	logWriter, err := buildJob.LogWriter(ctx)
 	if err != nil {
@@ -34,13 +34,18 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter.SetTimeout(s.logTimeout)
 	logWriter.SetMaxLogLength(s.maxLogLength)
 
-	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-		_, _ = logWriter.Write([]byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
-	}
-
+	s.writeUsingWorker(state, logWriter)
 	state.Put("logWriter", logWriter)
 
 	return multistep.ActionContinue
+}
+
+func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w io.Writer) {
+	instance := state.Get("instance").(backend.Instance)
+
+	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
+		_, _ = w.Write([]byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
+	}
 }
 
 func (s *stepOpenLogWriter) Cleanup(state multistep.StateBag) {
