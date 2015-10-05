@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -20,7 +21,16 @@ type fakeWriteFolder struct {
 
 func (w *fakeWriteFolder) WriteFold(name string, b []byte) (int, error) {
 	w.lastFold = name
-	return w.buf.Write(b)
+
+	folded := []byte(fmt.Sprintf("travis_fold start %s\n", name))
+	folded = append(folded, b...)
+
+	if string(folded[len(folded)-1]) != "\n" {
+		folded = append(folded, []byte("\n")...)
+	}
+
+	folded = append(folded, []byte(fmt.Sprintf("travis_fold end %s\n", name))...)
+	return w.buf.Write(folded)
 }
 
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
@@ -77,6 +87,13 @@ func TestStepOpenLogWriter_writeUsingWorker(t *testing.T) {
 
 	w = &fakeWriteFolder{buf: bytes.NewBufferString("")}
 	s.writeUsingWorker(state, w)
-	assert.Equal(t, "Worker summary", w.lastFold)
-	assert.Equal(t, "Using worker: frizzlefry.example.local (fake)\n\n", w.buf.String())
+	out := w.buf.String()
+
+	assert.Equal(t, "worker_summary", w.lastFold)
+	assert.Contains(t, out, "travis_fold start worker_summary\n")
+	assert.Contains(t, out, "\nUsing worker:\n")
+	assert.Contains(t, out, "\nhostname=frizzlefry.example.local\n")
+	assert.Contains(t, out, "\nid=fake\n")
+	assert.Contains(t, out, "\nversion="+VersionString+"\n")
+	assert.Contains(t, out, "\ntravis_fold end worker_summary\n")
 }

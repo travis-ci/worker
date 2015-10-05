@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	gocontext "golang.org/x/net/context"
@@ -46,7 +47,12 @@ func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w writeFo
 	instance := state.Get("instance").(backend.Instance)
 
 	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-		_, _ = w.WriteFold("Worker summary", []byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
+		_, _ = w.WriteFold("worker_summary", []byte(strings.Join([]string{
+			"Using worker:",
+			fmt.Sprintf("hostname=%s", hostname),
+			fmt.Sprintf("version=%s", VersionString),
+			fmt.Sprintf("id=%s", instance.ID()),
+		}, "\n")))
 	}
 }
 

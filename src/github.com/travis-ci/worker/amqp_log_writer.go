@@ -84,8 +84,16 @@ func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64
 	return writer, nil
 }
 
-func (w *amqpLogWriter) WriteFold(_ string, b []byte) (int, error) {
-	return w.Write(b)
+func (w *amqpLogWriter) WriteFold(name string, b []byte) (int, error) {
+	folded := []byte(fmt.Sprintf("travis_fold start %s\n", name))
+	folded = append(folded, b...)
+
+	if string(folded[len(folded)-1]) != "\n" {
+		folded = append(folded, []byte("\n")...)
+	}
+
+	folded = append(folded, []byte(fmt.Sprintf("travis_fold end %s\n", name))...)
+	return w.Write(folded)
 }
 
 func (w *amqpLogWriter) Write(p []byte) (int, error) {
