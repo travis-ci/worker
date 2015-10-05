@@ -2,7 +2,6 @@ package worker
 
 import (
 	"fmt"
-	"io"
 	"time"
 
 	gocontext "golang.org/x/net/context"
@@ -34,17 +33,20 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter.SetTimeout(s.logTimeout)
 	logWriter.SetMaxLogLength(s.maxLogLength)
 
-	s.writeUsingWorker(state, logWriter)
+	if w, ok := logWriter.(writeFolder); ok {
+		s.writeUsingWorker(state, w)
+	}
+
 	state.Put("logWriter", logWriter)
 
 	return multistep.ActionContinue
 }
 
-func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w io.Writer) {
+func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w writeFolder) {
 	instance := state.Get("instance").(backend.Instance)
 
 	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-		_, _ = w.Write([]byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
+		_, _ = w.WriteFold("Worker summary", []byte(fmt.Sprintf("Using worker: %s (%s)\n\n", hostname, instance.ID())))
 	}
 }
 

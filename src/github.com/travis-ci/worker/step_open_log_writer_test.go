@@ -13,6 +13,16 @@ import (
 	"github.com/travis-ci/worker/config"
 )
 
+type fakeWriteFolder struct {
+	lastFold string
+	buf      *bytes.Buffer
+}
+
+func (w *fakeWriteFolder) WriteFold(name string, b []byte) (int, error) {
+	w.lastFold = name
+	return w.buf.Write(b)
+}
+
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
 	s := &stepOpenLogWriter{logTimeout: time.Second, maxLogLength: 4}
 
@@ -58,13 +68,15 @@ func TestStepOpenLogWriter_Run(t *testing.T) {
 func TestStepOpenLogWriter_writeUsingWorker(t *testing.T) {
 	s, state := setupStepOpenLogWriter()
 
-	w := bytes.NewBufferString("")
+	w := &fakeWriteFolder{buf: bytes.NewBufferString("")}
 	s.writeUsingWorker(state, w)
-	assert.Equal(t, "", w.String())
+	assert.Equal(t, "", w.lastFold)
+	assert.Equal(t, "", w.buf.String())
 
 	state.Put("hostname", "frizzlefry.example.local")
 
-	w = bytes.NewBufferString("")
+	w = &fakeWriteFolder{buf: bytes.NewBufferString("")}
 	s.writeUsingWorker(state, w)
-	assert.Equal(t, "Using worker: frizzlefry.example.local (fake)\n\n", w.String())
+	assert.Equal(t, "Worker summary", w.lastFold)
+	assert.Equal(t, "Using worker: frizzlefry.example.local (fake)\n\n", w.buf.String())
 }
