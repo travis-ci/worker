@@ -5,10 +5,6 @@ import (
 	"io"
 )
 
-type writeFolder interface {
-	WriteFold(string, []byte) (int, error)
-}
-
 func writeFold(w io.Writer, name string, b []byte) (int, error) {
 	folded := []byte(fmt.Sprintf("travis_fold start %s\n", name))
 	folded = append(folded, b...)

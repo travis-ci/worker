@@ -86,11 +86,6 @@ type fakeLogWriter struct {
 	lastFold string
 }
 
-func (flw *fakeLogWriter) WriteFold(s string, b []byte) (int, error) {
-	flw.lastFold = s
-	return flw.Write(b)
-}
-
 func (flw *fakeLogWriter) Write(p []byte) (int, error) {
 	return 0, nil
 }

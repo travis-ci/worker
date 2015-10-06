@@ -84,10 +84,6 @@ func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64
 	return writer, nil
 }
 
-func (w *amqpLogWriter) WriteFold(name string, b []byte) (int, error) {
-	return writeFold(w, name, b)
-}
-
 func (w *amqpLogWriter) Write(p []byte) (int, error) {
 	if w.closed() {
 		return 0, fmt.Errorf("attempted write to closed log")

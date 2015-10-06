@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -34,20 +35,18 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter.SetTimeout(s.logTimeout)
 	logWriter.SetMaxLogLength(s.maxLogLength)
 
-	if w, ok := logWriter.(writeFolder); ok {
-		s.writeUsingWorker(state, w)
-	}
+	s.writeUsingWorker(state, logWriter)
 
 	state.Put("logWriter", logWriter)
 
 	return multistep.ActionContinue
 }
 
-func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w writeFolder) {
+func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w io.Writer) {
 	instance := state.Get("instance").(backend.Instance)
 
 	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-		_, _ = w.WriteFold("worker_summary", []byte(strings.Join([]string{
+		_, _ = writeFold(w, "worker_summary", []byte(strings.Join([]string{
 			"Using worker:",
 			fmt.Sprintf("hostname=%s", hostname),
 			fmt.Sprintf("version=%s", VersionString),

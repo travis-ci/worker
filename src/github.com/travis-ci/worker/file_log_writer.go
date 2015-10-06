@@ -32,10 +32,6 @@ func newFileLogWriter(ctx gocontext.Context, logFile string) (LogWriter, error) 
 	}, nil
 }
 
-func (w *fileLogWriter) WriteFold(name string, b []byte) (int, error) {
-	return writeFold(w, name, b)
-}
-
 func (w *fileLogWriter) Write(b []byte) (int, error) {
 	return w.fd.Write(b)
 }

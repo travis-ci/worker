@@ -13,16 +13,6 @@ import (
 	"github.com/travis-ci/worker/config"
 )
 
-type fakeWriteFolder struct {
-	lastFold string
-	buf      *bytes.Buffer
-}
-
-func (w *fakeWriteFolder) WriteFold(name string, b []byte) (int, error) {
-	w.lastFold = name
-	return writeFold(w.buf, name, b)
-}
-
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
 	s := &stepOpenLogWriter{logTimeout: time.Second, maxLogLength: 4}
 
@@ -68,18 +58,16 @@ func TestStepOpenLogWriter_Run(t *testing.T) {
 func TestStepOpenLogWriter_writeUsingWorker(t *testing.T) {
 	s, state := setupStepOpenLogWriter()
 
-	w := &fakeWriteFolder{buf: bytes.NewBufferString("")}
+	w := bytes.NewBufferString("")
 	s.writeUsingWorker(state, w)
-	assert.Equal(t, "", w.lastFold)
-	assert.Equal(t, "", w.buf.String())
+	assert.Equal(t, "", w.String())
 
 	state.Put("hostname", "frizzlefry.example.local")
 
-	w = &fakeWriteFolder{buf: bytes.NewBufferString("")}
+	w = bytes.NewBufferString("")
 	s.writeUsingWorker(state, w)
-	out := w.buf.String()
+	out := w.String()
 
-	assert.Equal(t, "worker_summary", w.lastFold)
 	assert.Contains(t, out, "travis_fold start worker_summary\n")
 	assert.Contains(t, out, "\nUsing worker:\n")
 	assert.Contains(t, out, "\nhostname=frizzlefry.example.local\n")
