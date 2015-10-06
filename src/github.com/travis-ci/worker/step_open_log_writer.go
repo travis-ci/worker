@@ -47,10 +47,10 @@ func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w io.Writ
 
 	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
 		_, _ = writeFold(w, "worker_info", []byte(strings.Join([]string{
-			"Using worker:",
-			fmt.Sprintf("hostname=%s", hostname),
-			fmt.Sprintf("version=%s", VersionString),
-			fmt.Sprintf("id=%s", instance.ID()),
+			"\033[33;1mWorker information\033[0m",
+			fmt.Sprintf("hostname: %s", hostname),
+			fmt.Sprintf("version: %s", VersionString),
+			fmt.Sprintf("instance: %s", instance.ID()),
 		}, "\n")))
 	}
 }

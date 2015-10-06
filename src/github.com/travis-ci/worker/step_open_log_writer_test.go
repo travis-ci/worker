@@ -69,9 +69,9 @@ func TestStepOpenLogWriter_writeUsingWorker(t *testing.T) {
 	out := w.String()
 
 	assert.Contains(t, out, "travis_fold:start:worker_info\r\033[0K")
-	assert.Contains(t, out, "Using worker:\n")
-	assert.Contains(t, out, "\nhostname=frizzlefry.example.local\n")
-	assert.Contains(t, out, "\nid=fake\n")
-	assert.Contains(t, out, "\nversion="+VersionString+"\n")
+	assert.Contains(t, out, "\033[33;1mWorker information\033[0m\n")
+	assert.Contains(t, out, "\nhostname: frizzlefry.example.local\n")
+	assert.Contains(t, out, "\ninstance: fake\n")
+	assert.Contains(t, out, "\nversion: "+VersionString+"\n")
 	assert.Contains(t, out, "\ntravis_fold:end:worker_info\r\033[0K")
 }
