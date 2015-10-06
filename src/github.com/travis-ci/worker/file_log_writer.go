@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -34,15 +33,7 @@ func newFileLogWriter(ctx gocontext.Context, logFile string) (LogWriter, error) 
 }
 
 func (w *fileLogWriter) WriteFold(name string, b []byte) (int, error) {
-	folded := []byte(fmt.Sprintf("travis_fold start %s\n", name))
-	folded = append(folded, b...)
-
-	if string(folded[len(folded)-1]) != "\n" {
-		folded = append(folded, []byte("\n")...)
-	}
-
-	folded = append(folded, []byte(fmt.Sprintf("travis_fold end %s\n", name))...)
-	return w.fd.Write(folded)
+	return writeFold(w, name, b)
 }
 
 func (w *fileLogWriter) Write(b []byte) (int, error) {

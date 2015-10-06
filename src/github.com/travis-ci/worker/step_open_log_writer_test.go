@@ -2,7 +2,6 @@ package worker
 
 import (
 	"bytes"
-	"fmt"
 	"testing"
 	"time"
 
@@ -21,16 +20,7 @@ type fakeWriteFolder struct {
 
 func (w *fakeWriteFolder) WriteFold(name string, b []byte) (int, error) {
 	w.lastFold = name
-
-	folded := []byte(fmt.Sprintf("travis_fold start %s\n", name))
-	folded = append(folded, b...)
-
-	if string(folded[len(folded)-1]) != "\n" {
-		folded = append(folded, []byte("\n")...)
-	}
-
-	folded = append(folded, []byte(fmt.Sprintf("travis_fold end %s\n", name))...)
-	return w.buf.Write(folded)
+	return writeFold(w.buf, name, b)
 }
 
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
