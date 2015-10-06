@@ -82,9 +82,7 @@ func (fj *fakeJob) LogWriter(ctx context.Context) (LogWriter, error) {
 	return &fakeLogWriter{}, nil
 }
 
-type fakeLogWriter struct {
-	lastFold string
-}
+type fakeLogWriter struct{}
 
 func (flw *fakeLogWriter) Write(p []byte) (int, error) {
 	return 0, nil
