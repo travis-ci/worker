@@ -7,23 +7,28 @@ export GOPATH="$PWD:$PWD/vendor:$GOPATH"
 pushd src
 
 : ${CYCLOMAX:=20}
+: ${DEADLINE:=1m}
 : ${PACKAGE:=github.com/travis-ci/worker}
 
 DISABLED_LINTER_FLAGS=''
 
 # FIXME: figure out what's going on with gotype's GOPATH
-DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable gotype"
+DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=gotype"
 
 # FIXME: do we care about shadowing `ctx` everywhere?
-DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable go-nyet"
+DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=go-nyet"
 
 # FIXME: this probably warrants fixing
-DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable errcheck"
+DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=errcheck"
 
-GOMETALINTER_ARGS="${DISABLED_LINTER_FLAGS} --cyclo-over=${CYCLOMAX}"
+# FIXME: this probably warrants fixing
+DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=dupl"
+
+GOMETALINTER_ARGS="${DISABLED_LINTER_FLAGS} --deadline=${DEADLINE} --cyclo-over=${CYCLOMAX}"
 
 if [[ $DEBUG ]] ; then
   GOMETALINTER_ARGS="$GOMETALINTER_ARGS --debug"
 fi
 
+set -o xtrace
 exec gometalinter $GOMETALINTER_ARGS $PACKAGE
