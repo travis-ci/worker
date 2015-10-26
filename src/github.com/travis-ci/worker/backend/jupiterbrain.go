@@ -414,9 +414,8 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) 
 	}
 
 	session.Stdout = output
-	session.Stderr = output
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 
 	go func() {
 		errChan <- session.Run("bash ~/wrapper.sh")
