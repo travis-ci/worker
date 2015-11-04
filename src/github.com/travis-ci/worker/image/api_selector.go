@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -174,7 +175,11 @@ func (as *APISelector) buildCandidateTags(params *Params) [][]string {
 		addTag("os:" + params.OS)
 	}
 
-	return append([][]string{fullTagSet}, candidateTags...)
+	result := append([][]string{fullTagSet}, candidateTags...)
+	for _, tagSet := range result {
+		sort.Strings(tagSet)
+	}
+	return result
 }
 
 type apiSelectorImageResponse struct {
