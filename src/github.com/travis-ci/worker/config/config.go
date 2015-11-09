@@ -109,7 +109,7 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 		"librato-source":        cfg.LibratoSource,
 		"sentry-dsn":            cfg.SentryDSN,
 		"hostname":              cfg.Hostname,
-		"hard-timout":           cfg.HardTimeout,
+		"hard-timeout":          cfg.HardTimeout,
 
 		"build-api-insecure-skip-verify": cfg.BuildAPIInsecureSkipVerify,
 		"skip-shutdown-on-log-timeout":   cfg.SkipShutdownOnLogTimeout,
