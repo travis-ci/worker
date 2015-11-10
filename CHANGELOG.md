@@ -5,13 +5,13 @@ IMPROVEMENTS:
   * utils/pkg: Official releases built with go 1.5.1.
   * vendor/\*: Updated all vendored dependencies
   * utils/lintall: Set 1m deadline for all linters
-
-FEATURES:
-
   * backend/jupiterbrain: switch to env image selector
   * image/api:
     * Add image selection query with dist + group + language
     * Add last-ditch image selection query with `is_default=true`
+
+FEATURES:
+
   * log-writer: Write folded worker info summary
 
 BUG FIXES:
