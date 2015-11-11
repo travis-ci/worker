@@ -181,7 +181,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	startBooting := time.Now()
 
-	err = p.client.StartContainer(container.ID, &docker.HostConfig{})
+	err = p.client.StartContainer(container.ID, dockerHostConfig)
 	if err != nil {
 		return nil, err
 	}
