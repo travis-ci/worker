@@ -188,6 +188,16 @@ var (
 			Usage:  "set log level to debug",
 			EnvVar: twEnvVars("DEBUG"),
 		},
+		cli.BoolFlag{
+			Name:   "always",
+			Usage:  "do it every time",
+			EnvVar: twEnvVars("ALWAYS"),
+		},
+		cli.BoolFlag{
+			Name:   "dirty",
+			Usage:  "even when not clean rly",
+			EnvVar: twEnvVars("DIRTY"),
+		},
 	}
 )
 
