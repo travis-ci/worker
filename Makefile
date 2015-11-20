@@ -37,10 +37,10 @@ COVERPROFILES := \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: all
-all: clean deps test
+all: clean test
 
 .PHONY: test
-test: lintall build fmtpolice .test coverage.html
+test: deps lintall build fmtpolice .test coverage.html
 
 .PHONY: .test
 .test:
@@ -51,7 +51,7 @@ test-no-cover:
 	$(GO) test -v $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 .PHONY: test-race
-test-race:
+test-race: deps
 	$(GO) test -v -race $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
@@ -62,11 +62,11 @@ coverage.coverprofile: $(COVERPROFILES)
 	$(GO) tool cover -func=$@
 
 .PHONY: build
-build:
+build: deps
 	$(GO) build $(GOBUILD_LDFLAGS)
 
 .PHONY: crossbuild
-crossbuild:
+crossbuild: deps
 	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
 
 .PHONY: clean
@@ -93,7 +93,7 @@ fmtpolice:
 	./utils/fmtpolice
 
 .PHONY: lintall
-lintall:
+lintall: deps
 	./utils/lintall
 
 .PHONY:  package
