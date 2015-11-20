@@ -40,3 +40,5 @@ CURRENT_SHA1
 .vagrant/
 
 *_rsa*
+vendor/**
+!vendor/manifest

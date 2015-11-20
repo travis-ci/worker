@@ -1,6 +1,5 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
-PACKAGE_SRC_DIR := src/$(PACKAGE)
 ALL_PACKAGES := $(shell utils/list-packages)
 
 VERSION_VAR := $(PACKAGE).VersionString
@@ -13,8 +12,8 @@ COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 
 GO ?= go
-GB ?= gb
-GOPATH := $(PACKAGE_CHECKOUT):$(PACKAGE_CHECKOUT)/vendor:$(shell echo $${GOPATH%%:*})
+GVT ?= gvt
+GOPATH := $(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -ldflags "\
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
@@ -22,6 +21,8 @@ GOBUILD_LDFLAGS ?= -ldflags "\
 	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)' \
 "
 GOXC_BUILD_CONSTRAINTS ?= amd64 linux,amd64 darwin
+
+export GO15VENDOREXPERIMENT
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
@@ -36,14 +37,14 @@ COVERPROFILES := \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: all
-all: clean test
+all: clean deps test
 
 .PHONY: test
 test: lintall build fmtpolice .test coverage.html
 
 .PHONY: .test
 .test:
-	$(GB) test -v
+	$(GO) test -v
 
 .PHONY: test-no-cover
 test-no-cover:
@@ -62,19 +63,26 @@ coverage.coverprofile: $(COVERPROFILES)
 
 .PHONY: build
 build:
-	$(GB) build $(GOBUILD_LDFLAGS)
+	$(GO) build $(GOBUILD_LDFLAGS)
 
 .PHONY: crossbuild
 crossbuild:
 	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
 
-.PHONY: update
-update:
-	$(GB) vendor update --all
-
 .PHONY: clean
 clean:
 	./utils/clean
+
+.PHONY: distclean
+distclean: clean
+	rm -f vendor/.deps-fetched
+
+.PHONY: deps
+deps: vendor/.deps-fetched
+
+vendor/.deps-fetched:
+	$(GVT) rebuild
+	touch $@
 
 .PHONY: annotations
 annotations:
@@ -82,7 +90,7 @@ annotations:
 
 .PHONY: fmtpolice
 fmtpolice:
-	./utils/fmtpolice $(PACKAGE_SRC_DIR)
+	./utils/fmtpolice
 
 .PHONY: lintall
 lintall:
