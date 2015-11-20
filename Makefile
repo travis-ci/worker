@@ -1,6 +1,6 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
-ALL_PACKAGES := $(shell utils/list-packages)
+ALL_PACKAGES := $(shell utils/list-packages) $(PACKAGE)/cmd/...
 
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
@@ -14,7 +14,7 @@ COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //'
 GO ?= go
 GVT ?= gvt
 GOPATH := $(shell echo $${GOPATH%%:*})
-GOBUILD_LDFLAGS ?= -ldflags "\
+GOBUILD_LDFLAGS ?= -x -ldflags "\
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
 	-X '$(GENERATED_VAR)=$(GENERATED_VALUE)' \
@@ -63,7 +63,7 @@ coverage.coverprofile: $(COVERPROFILES)
 
 .PHONY: build
 build: deps
-	$(GO) build $(GOBUILD_LDFLAGS)
+	$(GO) install $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 .PHONY: crossbuild
 crossbuild: deps
