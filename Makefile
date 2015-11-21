@@ -1,7 +1,6 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
-PACKAGE_SRC_DIR := src/$(PACKAGE)
-ALL_PACKAGES := $(shell utils/list-packages)
+ALL_PACKAGES := $(shell utils/list-packages) $(PACKAGE)/cmd/...
 
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
@@ -13,15 +12,17 @@ COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 
 GO ?= go
-GB ?= gb
-GOPATH := $(PACKAGE_CHECKOUT):$(PACKAGE_CHECKOUT)/vendor:$(shell echo $${GOPATH%%:*})
-GOBUILD_LDFLAGS ?= -ldflags "\
+GVT ?= gvt
+GOPATH := $(shell echo $${GOPATH%%:*})
+GOBUILD_LDFLAGS ?= -x -ldflags "\
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
 	-X '$(GENERATED_VAR)=$(GENERATED_VALUE)' \
 	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)' \
 "
 GOXC_BUILD_CONSTRAINTS ?= amd64 linux,amd64 darwin
+
+export GO15VENDOREXPERIMENT
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
@@ -39,18 +40,18 @@ COVERPROFILES := \
 all: clean test
 
 .PHONY: test
-test: lintall build fmtpolice .test coverage.html
+test: deps lintall build fmtpolice .test coverage.html
 
 .PHONY: .test
 .test:
-	$(GB) test -v
+	$(GO) test -v
 
 .PHONY: test-no-cover
 test-no-cover:
 	$(GO) test -v $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 .PHONY: test-race
-test-race:
+test-race: deps
 	$(GO) test -v -race $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
@@ -61,20 +62,27 @@ coverage.coverprofile: $(COVERPROFILES)
 	$(GO) tool cover -func=$@
 
 .PHONY: build
-build:
-	$(GB) build $(GOBUILD_LDFLAGS)
+build: deps
+	$(GO) install $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 .PHONY: crossbuild
-crossbuild:
+crossbuild: deps
 	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
-
-.PHONY: update
-update:
-	$(GB) vendor update --all
 
 .PHONY: clean
 clean:
 	./utils/clean
+
+.PHONY: distclean
+distclean: clean
+	rm -f vendor/.deps-fetched
+
+.PHONY: deps
+deps: vendor/.deps-fetched
+
+vendor/.deps-fetched:
+	$(GVT) rebuild
+	touch $@
 
 .PHONY: annotations
 annotations:
@@ -82,10 +90,10 @@ annotations:
 
 .PHONY: fmtpolice
 fmtpolice:
-	./utils/fmtpolice $(PACKAGE_SRC_DIR)
+	./utils/fmtpolice
 
 .PHONY: lintall
-lintall:
+lintall: deps
 	./utils/lintall
 
 .PHONY:  package

@@ -12,6 +12,7 @@ env:
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
+  - GO15VENDOREXPERIMENT='1'
 
 addons:
   artifacts:
@@ -23,17 +24,18 @@ addons:
     - 'travis-ci/worker/$TRAVIS_BRANCH'
 
 install:
-- go get github.com/constabulary/gb/...
+- go get github.com/FiloSottile/gvt 
 - go get github.com/alecthomas/gometalinter
 - gometalinter --install --update
 - gem install package_cloud --no-ri --no-rdoc
 - echo 'deb http://www.rabbitmq.com/debian/ testing main' | sudo tee -a /etc/apt/sources.list
-- curl http://www.rabbitmq.com/rabbitmq-signing-key-public.asc | sudo apt-key add -
+- curl 'http://www.rabbitmq.com/rabbitmq-signing-key-public.asc' | sudo apt-key add -
 - sudo apt-get update -y
 - sudo apt-get install -y rabbitmq-server
 - sudo service rabbitmq-server start
 
 script:
+- make deps
 - make lintall
 - make test
 - make test-race
@@ -46,6 +48,8 @@ script:
 - diff -q <(travis-worker --help) <(travis-worker -h)
 - travis-worker --echo-config
 - travis-worker --list-backend-providers
+- mkdir -p bin
+- cp -v ~/gopath/bin/travis-worker ./bin/
 - make package
 
 after_success:

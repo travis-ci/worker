@@ -14,7 +14,7 @@
 
 ### from source
 0. clone this down
-0. install [Go](http://golang.org) and [gb](https://github.com/constabulary/gb).
+0. install [Go](http://golang.org) and [gvt](https://github.com/FiloSottile/gvt).
 0. `make`
 
 ## Configuring Travis Worker
@@ -72,33 +72,28 @@ worker (for example using `kill -TERM`).
 
 ## Go dependency management
 
-Travis Worker is built using [`gb`](http://getgb.io) and dependencies
-are vendored into this repository. They are managed with
-[`gb-vendor`](http://godoc.org/github.com/constabulary/gb/cmd/gb-vendor).
+Travis Worker is built via the standard `go` commands (with
+`GO15VENDOREXPERIMENT=1`), and dependencies managed by
+[`gvt`](https://github.com/FiloSottile/gvt).
 
 To work with the dependencies you need to do the following first
 
 - Have this repository checked out
-- Install `gb` with `go get github.com/constabulary/gb/...`
+- Install `gvt` with `github.com/FiloSottile/gvt`
 
 ### Updating existing vendored dependencies
 
 To update and existing vendored dependency, do the following:
 
 1. `cd ~/code/travis-worker`
-2. `gb vendor update name/of/package` e.g. `gb vendor update github.com/pkg/sftp`
-
-To update all the dependencies, do the following:
-
-1. `cd ~/code/travis-worker`
-2. `gb vendor update --all`
+2. `gvt fetch name/of/dependency` e.g. `gvt fetch github.com/pkg/sftp`
 
 ### Adding a new dependency
 
 To add a new dependency, do the following:
 
 1. `cd ~/code/travis-worker`
-2. `gb vendor fetch name/of/package` e.g. `gb vendor fetch github.com/pkg/sftp`
+2. `gvt fetch name/of/package` e.g. `gvt fetch github.com/pkg/sftp`
 
 ## License and Copyright Information
 

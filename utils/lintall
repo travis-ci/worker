@@ -3,8 +3,6 @@
 set -e
 
 pushd $(dirname $(dirname ${BASH_SOURCE[0]}))
-export GOPATH="$PWD:$PWD/vendor:$GOPATH"
-pushd src
 
 : ${CYCLOMAX:=20}
 : ${DEADLINE:=1m}
@@ -31,4 +29,4 @@ if [[ $DEBUG ]] ; then
 fi
 
 set -o xtrace
-exec gometalinter $GOMETALINTER_ARGS $PACKAGE
+exec gometalinter $GOMETALINTER_ARGS $(git ls-files '*.go')

@@ -4,9 +4,9 @@ set -e
 
 cd $(dirname $(dirname ${BASH_SOURCE[0]}))
 
-for pkg in $(find src/github.com/travis-ci/worker -type d | sed 's@src@@;s@^/@@'); do
-  if [[ "x$(bash -c "shopt -s nullglob; echo src/${pkg}/*.go")" = "x" ]] ; then
+for pkg in $(find . -maxdepth 1 -type d | grep -v '^\.$' | sed 's@./@@'); do
+  if [[ "x$(bash -c "shopt -s nullglob; echo ${pkg}/*.go")" = "x" ]] ; then
     continue
   fi
-  echo "${pkg}"
+  echo "github.com/travis-ci/worker/${pkg}"
 done
