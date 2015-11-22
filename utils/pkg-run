@@ -40,6 +40,7 @@ __build_all_platforms() {
   local test_docker_image='1'
 
   for platform in "${PKG_PLATFORMS[@]}"; do
+    __undef_platform
     __define_platform "${platform}"
 
     if [[ $PLATFORM_FAMILY = ubuntu ]] ; then
@@ -114,7 +115,6 @@ __build_all_platforms() {
     docker run $docker_run_args \
       -d --privileged \
       --name "${test_container_name}" \
-      --rm=false \
       -v $CHECKOUT_ROOT/:/code \
       -w /code \
       "${test_docker_image}"
@@ -125,6 +125,8 @@ __build_all_platforms() {
     docker exec -it \
       "${test_container_name}" \
       /code/utils/pkg-test "${platform}" "${PLATFORM_PACKAGE_TYPE}"
+
+    docker rm --force "${test_container_name}"
 
     if [[ ! -f ${success_file} ]] ; then
       __error "Test failed for ${platform} ${PLATFORM_PACKAGE_TYPE}"

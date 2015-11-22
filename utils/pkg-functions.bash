@@ -26,6 +26,11 @@ __define_shell_flags() {
   fi
 }
 
+__undef_platform() {
+  unset PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PLATFORM_PACKAGE_TYPE
+  unset PLATFORM_ARCH PACKAGECLOUD_OS
+}
+
 __define_platform() {
 	: ${PLATFORM:=${1}}
 	: ${PLATFORM_FAMILY:=${PLATFORM%%:*}}
