@@ -2,7 +2,7 @@
 
 set -e
 
-gofmt_check () {
+gofmt_check() {
   f="$1"
   gofmt ${f} | if ! diff -u ${f} - ; then
   echo fmtpolice:${f} ✗
