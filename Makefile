@@ -98,4 +98,4 @@ lintall: deps
 
 .PHONY:  package
 package:
-	./utils/pkg/pkg_run
+	./utils/pkg-run

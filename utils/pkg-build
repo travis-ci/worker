@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+
+__install_fpm() {
+  local lsb_codename=$(lsb_release -sc)
+
+  if [[ $lsb_codename =~ precise|trusty ]]; then
+    apt-get update
+    if [[ $lsb_codename = precise ]] ; then
+      apt-get install python-software-properties -y
+    else
+      apt-get install software-properties-common -y
+    fi
+    apt-add-repository ppa:brightbox/ruby-ng -y
+    apt-get update
+    apt-get install build-essential ruby2.1 libruby2.1 ruby2.1-dev -y
+  elif [[ -f /etc/redhat-release ]]; then
+    yum groupinstall 'Development Tools' -y
+    yum install ruby ruby-devel -y
+  fi
+
+  gem install fpm --no-ri --no-rdoc
+}
+
+__setup_working_dirs() {
+  mkdir -p tmp/$PACKAGE_TYPE/usr/local/bin
+
+  if [[ $PLATFORM_FAMILY =~ ubuntu$ ]]; then
+    mkdir -p tmp/$PACKAGE_TYPE/etc/init
+    mkdir -p tmp/$PACKAGE_TYPE/etc/default
+  elif [[ $PLATFORM_FAMILY =~ centos$ ]]; then
+    mkdir -p tmp/$PACKAGE_TYPE/lib/systemd/system
+    mkdir -p tmp/$PACKAGE_TYPE/etc/default
+  fi
+
+  mkdir -p tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE
+}
+
+__copy_binary() {
+  cp -v $CHECKOUT_ROOT/bin/travis-worker tmp/$PACKAGE_TYPE/usr/local/bin
+}
+
+__copy_service_scripts() {
+  if [[ $PACKAGE_TYPE = deb ]]; then
+    cp $CHECKOUT_ROOT/utils/templates/default_env_travis_enterprise \
+      tmp/$PACKAGE_TYPE/etc/default/travis-enterprise
+
+    cp $CHECKOUT_ROOT/utils/templates/default_env_travis_worker \
+      tmp/$PACKAGE_TYPE/etc/default/travis-worker
+
+    cp $CHECKOUT_ROOT/utils/templates/upstart_travis_worker.conf \
+      tmp/$PACKAGE_TYPE/etc/init/travis-worker.conf
+
+  elif [[ $PACKAGE_TYPE = rpm ]]; then
+    cp $CHECKOUT_ROOT/utils/templates/default_env_travis_enterprise \
+      tmp/$PACKAGE_TYPE/etc/default/travis-enterprise
+
+    cp $CHECKOUT_ROOT/utils/templates/default_env_travis_worker \
+      tmp/$PACKAGE_TYPE/etc/default/travis-worker
+
+    cp $CHECKOUT_ROOT/utils/templates/systemd_travis_worker.service \
+      tmp/$PACKAGE_TYPE/lib/systemd/system/travis-worker.service
+  fi
+}
+
+__run_fpm() {
+  if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]]; then
+    FULL_GIT_VERSION=$(git describe --always --dirty --tags 2>/dev/null)
+    GIT_INCREMENT=$(echo $FULL_GIT_VERSION|cut -d'-' -f 2)
+    export VERSION="$VERSION".dev."$GIT_INCREMENT"-"$CURRENT_SHA1"
+  fi
+
+  fpm -f -s dir \
+    --log info \
+    -t "$PACKAGE_TYPE" \
+    -p "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
+    --after-install utils/templates/post_install.sh \
+    --before-remove utils/templates/pre_remove.sh \
+    -n travis-worker \
+    --url 'https://github.com/travis-ci/worker' \
+    --description 'Travis Worker' \
+    -v "$VERSION" \
+    -C "tmp/$PACKAGE_TYPE" \
+    .
+
+  chmod -R 777 "$CHECKOUT_ROOT/tmp"
+}
+
+main() {
+  : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
+  source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
+  source ${CHECKOUT_ROOT}/utils/pkg-config.bash
+
+  __define_shell_flags
+  __define_platform "$1"
+
+	: ${PACKAGE_TYPE:=${2}}
+  : ${CURRENT_SHA1:=fafafaf}
+  : ${VERSION_SHA1:=afafafa}
+
+  export CHECKOUT_ROOT PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PACKAGE_TYPE
+  export CURRENT_SHA1 VERSION_SHA1
+
+  if ! ruby -v &>/dev/null ; then
+    __announce 'Installing ruby & fpm'
+    __install_fpm | __indent
+  fi
+
+  __announce 'Setting up directories to build packages'
+  __setup_working_dirs | __indent
+  __announce 'Copying travis-worker binary into build directory'
+  __copy_binary | __indent
+  __announce 'Setting up service scripts'
+  __copy_service_scripts | __indent
+  __announce "Building package for $PLATFORM with fpm"
+  __run_fpm | __indent
+}
+
+main "$@"
