@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 
 __docker_pull_images() {
-  __announce 'Pulling Docker images for builds and testing'
-
   for image in "${PKG_PLATFORMS[@]}"; do
     __log "pulling $image"
     docker pull "${image}" &>/dev/null
   done
 }
 
-__docker_run() {
+__build_all_platforms() {
   local pkgtype='1'
   local build_docker_image='1'
   local test_docker_image='1'
@@ -109,6 +107,7 @@ __docker_run() {
       /code/utils/pkg-test "${platform}" "${pkgtype}"
 
     if [[ ! $NO_PUSH ]] ; then
+      __announce 'Publishing package to packagecloud.io'
       __package_cloud_push
     else
       __log 'NO_PUSH set, so skipping pushing to packagecloud.io'
@@ -117,8 +116,6 @@ __docker_run() {
 }
 
 __package_cloud_push() {
-  __announce 'Publishing package to packagecloud.io'
-
   if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]] ; then
     export PC_REPO='worker-testing'
   fi
@@ -153,10 +150,12 @@ main() {
     exit 1
   fi
 
+  __announce 'Pulling Docker images for builds and testing'
   __docker_pull_images 2>&1 | __indent
 
   if [[ ! $NO_RUN ]] ; then
-    __docker_run 2>&1 | __indent
+    __announce 'Building for all platforms'
+    __build_all_platforms 2>&1 | __indent
   fi
   if [[ ! $NO_CLEANUP ]] ; then
     __announce 'Cleaning up tmp/'
