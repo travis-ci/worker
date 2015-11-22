@@ -50,7 +50,7 @@ __build_all_platforms() {
     )"
 
     if [[ $pub_query ]] ; then
-      if [[ $pub_query == [] ]] ; then
+      if [[ $pub_query = [] ]] ; then
         __log 'No package found for this version, proceeding with build'
       else
         local pub_filename=$(echo "$pub_query" | jq -r .filename)
@@ -60,7 +60,7 @@ __build_all_platforms() {
           pub_version=$(IFS=- vp=($pub_filename) ; echo ${vp[2]//_/-})
         fi
 
-        if [[ $VERSION == $pub_version ]] ; then
+        if [[ $VERSION = $pub_version ]] ; then
           if [[ $VERSION =~ dev ]] ; then
             package_cloud yank \
               "travisci/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE" \
