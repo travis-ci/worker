@@ -20,6 +20,7 @@ __error() {
 
 __define_shell_flags() {
   set -o errexit
+  set -o pipefail
 	if [[ $BUILD_DEBUG ]] ; then
 		set -o xtrace
   fi

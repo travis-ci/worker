@@ -133,7 +133,7 @@ __build_all_platforms() {
 
     if [[ ! $NO_PUSH ]] ; then
       __announce 'Publishing package to packagecloud.io'
-      __package_cloud_push "${PLATFORM_PACKAGE_TYPE}"
+      __package_cloud_push
     else
       __log 'NO_PUSH set, so skipping pushing to packagecloud.io'
     fi
