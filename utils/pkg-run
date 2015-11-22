@@ -92,7 +92,7 @@ __docker_run() {
       -v $CHECKOUT_ROOT/:/code \
       -w /code \
       "${build_docker_image}" \
-      /code/utils/pkg-build "${platform}" "${pkgtype}"
+      /code/utils/pkg-build "${platform}" "${pkgtype}" 2>&1 | __indent
 
     local test_container_name="test-${PLATFORM_RELEASE}-${pkgtype}-${DATE}"
 
@@ -102,7 +102,7 @@ __docker_run() {
       --rm=false \
       -v $CHECKOUT_ROOT/:/code \
       -w /code \
-      "${test_docker_image}"
+      "${test_docker_image}" 2>&1 | __indent
 
     docker exec -it \
       "${test_container_name}" \
@@ -124,9 +124,9 @@ __package_cloud_push() {
   fi
 
   local pc_upload_file=$(
-    echo $CHECKOUT_ROOT/tmp/output/$pkgtype/$PLATFORM_FAMILY/$PLATFORM_RELEASE/*.$pkgtype
+    echo $CHECKOUT_ROOT/tmp/output/$pkgtype/$PLATFORM_FAMILY/$PLATFORM_RELEASE/*.$pkgtype | head -1
   )
-  echo "${pc_upload_file}"
+  __log "uploading ${pc_upload_file}"
 
   pushd $CHECKOUT_ROOT/utils/ &>/dev/null
   ./packagecloud-prune \
@@ -135,7 +135,7 @@ __package_cloud_push() {
 
   package_cloud push \
     "$PC_USER/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE" \
-    "${pc_upload_file}" --verbose
+    "${pc_upload_file}" --verbose 2>&1 | __indent
 }
 
 main() {
