@@ -1,5 +1,31 @@
 #!/usr/bin/env bash
 
+main() {
+  : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
+  source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
+  source ${CHECKOUT_ROOT}/utils/pkg-config.bash
+
+  __define_platform "$1"
+
+	: ${PACKAGE_TYPE:=${2}}
+
+  export CHECKOUT_ROOT PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PACKAGE_TYPE
+
+  if ! ruby -v &>/dev/null ; then
+    __announce 'Installing ruby & fpm'
+    __install_fpm 2>&1 | __indent
+  fi
+
+  __announce 'Setting up directories to build packages'
+  __setup_working_dirs 2>&1 | __indent
+  __announce 'Copying travis-worker binary into build directory'
+  __copy_binary 2>&1 | __indent
+  __announce 'Setting up service scripts'
+  __copy_service_scripts 2>&1 | __indent
+  __announce "Building package for $PLATFORM with fpm"
+  __run_fpm 2>&1 | __indent
+}
+
 __install_fpm() {
   local lsb_codename=$(lsb_release -sc)
 
@@ -77,32 +103,6 @@ __run_fpm() {
     .
 
   chmod -R 777 "$CHECKOUT_ROOT/tmp"
-}
-
-main() {
-  : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
-  source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
-  source ${CHECKOUT_ROOT}/utils/pkg-config.bash
-
-  __define_platform "$1"
-
-	: ${PACKAGE_TYPE:=${2}}
-
-  export CHECKOUT_ROOT PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PACKAGE_TYPE
-
-  if ! ruby -v &>/dev/null ; then
-    __announce 'Installing ruby & fpm'
-    __install_fpm 2>&1 | __indent
-  fi
-
-  __announce 'Setting up directories to build packages'
-  __setup_working_dirs 2>&1 | __indent
-  __announce 'Copying travis-worker binary into build directory'
-  __copy_binary 2>&1 | __indent
-  __announce 'Setting up service scripts'
-  __copy_service_scripts 2>&1 | __indent
-  __announce "Building package for $PLATFORM with fpm"
-  __run_fpm 2>&1 | __indent
 }
 
 main "$@"

@@ -19,54 +19,63 @@ __error() {
 }
 
 __define_shell_flags() {
-	if [[ -n $BUILD_DEBUG ]]; then
-		set -ex
-	else
-		set -e
-	fi
+  set -o errexit
+	if [[ $BUILD_DEBUG ]] ; then
+		set -o xtrace
+  fi
 }
 
 __define_platform() {
 	: ${PLATFORM:=${1}}
 	: ${PLATFORM_FAMILY:=${PLATFORM%%:*}}
 	: ${PLATFORM_RELEASE:=${PLATFORM##${PLATFORM_FAMILY}:}}
-  export PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE
+
+  PLATFORM_PACKAGE_TYPE='deb'
+  PLATFORM_PACKAGE_ARCH='amd64'
+  PACKAGECLOUD_OS='ubuntu'
+
+  if [[ $PLATFORM_FAMILY = centos ]] ; then
+    PLATFORM_PACKAGE_TYPE='rpm'
+    PLATFORM_PACKAGE_ARCH='x86_64'
+    PACKAGECLOUD_OS='el'
+  fi
+
+  export PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PLATFORM_PACKAGE_TYPE
+  export PLATFORM_PACKAGE_ARCH PACKAGECLOUD_OS
 }
 
 __define_version() {
   if [[ ! -f VERSION ]] ; then
     local latest_version_tag="$(git tag | tail -1)"
-
-    export VERSION="${latest_version_tag##v}"
-    echo $VERSION > VERSION
-  else
-    export VERSION="$(cat VERSION)"
+    echo "${latest_version_tag##v}" > VERSION
   fi
+
+  export VERSION="$(cat VERSION)"
 
   if [[ ! -f VERSION_SHA1 ]] ; then
-    export VERSION_SHA1="$(
+    local version_sha1="$(
       git rev-parse --short --no-abbrev-ref "${latest_version_tag}"
     )"
-    echo $VERSION_SHA1 > VERSION_SHA1
-  else
-    export VERSION_SHA1="$(cat VERSION_SHA1)"
+    echo $version_sha1 > VERSION_SHA1
   fi
+
+  export VERSION_SHA1="$(cat VERSION_SHA1)"
 
   if [[ ! -f CURRENT_SHA1 ]] ; then
-    export CURRENT_SHA1="$(
+    local current_sha1="$(
       git rev-parse --short --no-abbrev-ref HEAD
     )"
-    echo $CURRENT_SHA1 > CURRENT_SHA1
-  else
-    export CURRENT_SHA1="$(cat CURRENT_SHA1)"
+    echo $current_sha1 > CURRENT_SHA1
   fi
 
+  export CURRENT_SHA1="$(cat CURRENT_SHA1)"
+
   if [[ ! -f GIT_DESCRIPTION ]] ; then
-    export GIT_DESCRIPTION="$(git describe --always --dirty --tags 2>/dev/null)"
-    echo $GIT_DESCRIPTION > GIT_DESCRIPTION
-  else
-    export GIT_DESCRIPTION="$(cat GIT_DESCRIPTION)"
+    local git_description="$(git describe --always --dirty --tags 2>/dev/null)"
+    echo $git_description > GIT_DESCRIPTION
   fi
+
+  export GIT_DESCRIPTION="$(cat GIT_DESCRIPTION)"
 
   if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]] ; then
     orig_ifs="$IFS"

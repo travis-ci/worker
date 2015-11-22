@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+main() {
+  : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
+  source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
+  source ${CHECKOUT_ROOT}/utils/pkg-config.bash
+
+  __define_shell_flags
+  __define_platform "$1"
+  __package_install 2>&1 | __indent
+  __package_verify 2>&1 | __indent
+}
+
 __package_install () {
   __announce 'Installing package'
 
@@ -47,18 +58,9 @@ __package_verify () {
     __log 'Testing service installation'
     systemctl enable travis-worker &>/dev/null
   fi
+
+  touch "${CHECKOUT_ROOT}/${PLATFORM}-${PLATFORM_PACKAGE_TYPE}-success"
   __log 'Package verified'
-}
-
-main() {
-  : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
-  source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
-  source ${CHECKOUT_ROOT}/utils/pkg-config.bash
-
-  __define_shell_flags
-  __define_platform "$1"
-  __package_install 2>&1 | __indent
-  __package_verify 2>&1 | __indent
 }
 
 main "$@"
