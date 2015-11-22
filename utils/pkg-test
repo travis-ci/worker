@@ -14,12 +14,10 @@ main() {
 __package_install () {
   __announce 'Installing package'
 
-  local lsb_codename=$(lsb_release -sc)
-
-  if [[ $lsb_codename =~ precise|trusty ]] ; then
-    dpkg -i tmp/output/deb/ubuntu/${lsb_codename}/*.deb
-  elif [[ -f /etc/redhat-release ]] ; then
+  if [[ -f /etc/redhat-release ]] ; then
     rpm -i tmp/output/rpm/centos/7/*.rpm
+  elif [[ $(lsb_release -sc) =~ precise|trusty ]] ; then
+    dpkg -i tmp/output/deb/ubuntu/$(lsb_release -sc)/*.deb
   fi
 }
 

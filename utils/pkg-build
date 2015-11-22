@@ -27,11 +27,12 @@ main() {
 }
 
 __install_fpm() {
-  local lsb_codename=$(lsb_release -sc)
-
-  if [[ $lsb_codename =~ precise|trusty ]]; then
+  if [[ -f /etc/redhat-release ]]; then
+    yum groupinstall 'Development Tools' -y
+    yum install ruby ruby-devel -y
+  elif [[ $(lsb_release -sc) =~ precise|trusty ]]; then
     apt-get update
-    if [[ $lsb_codename = precise ]] ; then
+    if [[ $(lsb_release -sc) = precise ]] ; then
       apt-get install python-software-properties -y
     else
       apt-get install software-properties-common -y
@@ -39,9 +40,6 @@ __install_fpm() {
     apt-add-repository ppa:brightbox/ruby-ng -y
     apt-get update
     apt-get install build-essential ruby2.1 libruby2.1 ruby2.1-dev -y
-  elif [[ -f /etc/redhat-release ]]; then
-    yum groupinstall 'Development Tools' -y
-    yum install ruby ruby-devel -y
   fi
 
   gem install fpm --no-ri --no-rdoc
