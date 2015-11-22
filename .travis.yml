@@ -29,7 +29,7 @@ addons:
     - 'travis-ci/worker/$TRAVIS_BRANCH'
 
 install:
-- go get github.com/FiloSottile/gvt 
+- go get github.com/FiloSottile/gvt
 - go get github.com/alecthomas/gometalinter
 - gometalinter --install --update
 - gem install package_cloud --no-ri --no-rdoc
