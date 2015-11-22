@@ -11,7 +11,7 @@ __announce() {
 }
 
 __log() {
-  echo "      " $*
+  echo $*
 }
 
 __error() {
