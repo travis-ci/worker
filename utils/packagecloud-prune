@@ -85,6 +85,7 @@ class PackageCloudPrune
   private
 
   attr_reader :repository, :dist, :user, :api_token, :max_errors
+  attr_reader :limit, :package, :package_type, :package_arch
 
   def yank_file(distro, filename)
     req = Net::HTTP::Delete.new(File.join(url.path, distro, filename))

@@ -144,16 +144,15 @@ __package_cloud_push() {
   local pc_upload_file=$(
     echo $CHECKOUT_ROOT/tmp/output/$PLATFORM_PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE/*.$PLATFORM_PACKAGE_TYPE | head -1
   )
-  __log "uploading ${pc_upload_file}"
+  local pc_push_dest="$PC_USER/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE"
+  __log "Uploading ${pc_upload_file} to ${pc_push_dest}"
 
   pushd $CHECKOUT_ROOT/utils/ &>/dev/null
   ./packagecloud-prune \
     "$PC_REPO" "$PACKAGECLOUD_OS/$PLATFORM_RELEASE" "${PC_LIMIT:-15}"
   popd &>/dev/null
 
-  package_cloud push \
-    "$PC_USER/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE" \
-    "${pc_upload_file}" --verbose
+  package_cloud push "${pc_push_dest}" "${pc_upload_file}" --verbose
 }
 
 main "$@"
