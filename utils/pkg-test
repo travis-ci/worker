@@ -6,9 +6,9 @@ __package_install () {
   local lsb_codename=$(lsb_release -sc)
 
   if [[ $lsb_codename =~ precise|trusty ]] ; then
-    dpkg -i tmp/output/deb/ubuntu/${lsb_codename}/*.deb 2>&1 | __indent
+    dpkg -i tmp/output/deb/ubuntu/${lsb_codename}/*.deb
   elif [[ -f /etc/redhat-release ]] ; then
-    rpm -i tmp/output/rpm/centos/7/*.rpm 2>&1 | __indent
+    rpm -i tmp/output/rpm/centos/7/*.rpm
   fi
 }
 
@@ -25,8 +25,8 @@ __package_verify () {
   if [[ $PLATFORM_FAMILY = ubuntu ]] ; then
     if apt-cache show travis-worker &>/dev/null ; then
       __log 'Package installed successfully'
-      dpkg -c /code/tmp/output/deb/ubuntu/${PLATFORM_RELEASE}/*.deb 2>&1 | __indent
-      apt-cache show travis-worker 2>&1 | __indent
+      dpkg -c /code/tmp/output/deb/ubuntu/${PLATFORM_RELEASE}/*.deb
+      apt-cache show travis-worker
     else
       __error 'Package did not install'
       exit 1
@@ -38,8 +38,8 @@ __package_verify () {
   if [[ $PLATFORM_FAMILY = centos ]] ; then
     if yum info travis-worker &>/dev/null ; then
       __log 'Package installed successfully'
-      rpm -qlp /code/tmp/output/rpm/centos/${PLATFORM_RELEASE}/*.rpm 2>&1 | __indent
-      yum info travis-worker 2>&1 | __indent
+      rpm -qlp /code/tmp/output/rpm/centos/${PLATFORM_RELEASE}/*.rpm
+      yum info travis-worker
     else
       __error 'Package did not install'
       exit 1
@@ -57,8 +57,8 @@ main() {
 
   __define_shell_flags
   __define_platform "$1"
-  __package_install
-  __package_verify
+  __package_install 2>&1 | __indent
+  __package_verify 2>&1 | __indent
 }
 
 main "$@"
