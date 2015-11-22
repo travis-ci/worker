@@ -1,13 +1,13 @@
 : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
 export CHECKOUT_ROOT
+source $CHECKOUT_ROOT/utils/pkg-functions.bash
 
-export DATE=$(date -u +%m-%d-%Y_%H-%M-%S)
+export DATE=$(date -u +%Y%m%dT%H%M%SZ)
 export PC_USER='travisci'
 export PC_REPO='worker'
 
-export VERSION=$(cat $CHECKOUT_ROOT/VERSION)
-export VERSION_SHA1=$(cat $CHECKOUT_ROOT/VERSION_SHA1)
-export CURRENT_SHA1=$(cat $CHECKOUT_ROOT/CURRENT_SHA1)
-
 declare -a PKG_PLATFORMS=('ubuntu:trusty' 'ubuntu:precise' 'centos:7')
 export PKG_PLATFORMS
+
+__define_version
+__define_shell_flags

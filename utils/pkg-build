@@ -90,15 +90,11 @@ main() {
   source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
   source ${CHECKOUT_ROOT}/utils/pkg-config.bash
 
-  __define_shell_flags
   __define_platform "$1"
 
 	: ${PACKAGE_TYPE:=${2}}
-  : ${CURRENT_SHA1:=fafafaf}
-  : ${VERSION_SHA1:=afafafa}
 
   export CHECKOUT_ROOT PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PACKAGE_TYPE
-  export CURRENT_SHA1 VERSION_SHA1
 
   if ! ruby -v &>/dev/null ; then
     __announce 'Installing ruby & fpm'
