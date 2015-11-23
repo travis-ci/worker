@@ -1,8 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -e
+shopt -s nullglob
 
 cd $(dirname $(dirname ${BASH_SOURCE[0]}))
-rm -vf "./bin/travis-worker"
-rm -vf coverage.html *coverage.coverprofile
-find pkg -wholename '*travis-ci/worker*.a' | xargs rm -vf
+
+rm -rvf \
+  ./bin/travis-worker \
+  ${GOPATH%%:*}/bin/travis-worker \
+  coverage.html \
+  *coverage.coverprofile \
+  ./tmp/deb \
+  ./tmp/output
+
+find ${GOPATH%%:*}/pkg -wholename '*travis-ci/worker*.a' | xargs rm -vf
