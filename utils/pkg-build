@@ -7,12 +7,13 @@ main() {
 
   __define_platform "$1"
 
-	: ${PACKAGE_TYPE:=${2}}
+  : ${PACKAGE_TYPE:=${2}}
 
   export CHECKOUT_ROOT PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PACKAGE_TYPE
 
   if ! ruby -v &>/dev/null ; then
     __announce 'Installing ruby & fpm'
+    __install_fpm_prereqs_${PLATFORM_FAMILY} 2>&1 | __indent
     __install_fpm 2>&1 | __indent
   fi
 
@@ -26,36 +27,33 @@ main() {
   __run_fpm 2>&1 | __indent
 }
 
-__install_fpm() {
-  if [[ -f /etc/redhat-release ]]; then
-    yum groupinstall 'Development Tools' -y
-    yum install ruby ruby-devel -y
-  elif [[ $(lsb_release -sc) =~ precise|trusty ]]; then
-    apt-get update
-    if [[ $(lsb_release -sc) = precise ]] ; then
-      apt-get install python-software-properties -y
-    else
-      apt-get install software-properties-common -y
-    fi
-    apt-add-repository ppa:brightbox/ruby-ng -y
-    apt-get update
-    apt-get install build-essential ruby2.1 libruby2.1 ruby2.1-dev -y
-  fi
+__install_fpm_prereqs_centos() {
+  yum groupinstall 'Development Tools' -y
+  yum install ruby ruby-devel -y
+}
 
+__install_fpm_prereqs_ubuntu_precise() {
+  apt-get install python-software-properties -y
+}
+
+__install_fpm_prereqs_ubuntu_trusty() {
+  apt-get install software-properties-common -y
+}
+
+__install_fpm_prereqs_ubuntu() {
+  apt-get update
+  __install_fpm_prereqs_ubuntu_${PLATFORM_RELEASE}
+  apt-add-repository ppa:brightbox/ruby-ng -y
+  apt-get update
+  apt-get install build-essential ruby2.1 libruby2.1 ruby2.1-dev -y
+}
+
+__install_fpm() {
   gem install fpm --no-ri --no-rdoc
 }
 
 __setup_working_dirs() {
   mkdir -p tmp/$PACKAGE_TYPE/usr/local/bin
-
-  if [[ $PLATFORM_FAMILY =~ ubuntu$ ]]; then
-    mkdir -p tmp/$PACKAGE_TYPE/etc/init
-    mkdir -p tmp/$PACKAGE_TYPE/etc/default
-  elif [[ $PLATFORM_FAMILY =~ centos$ ]]; then
-    mkdir -p tmp/$PACKAGE_TYPE/lib/systemd/system
-    mkdir -p tmp/$PACKAGE_TYPE/etc/default
-  fi
-
   mkdir -p tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE
 }
 
@@ -64,26 +62,12 @@ __copy_binary() {
 }
 
 __copy_service_scripts() {
-  if [[ $PACKAGE_TYPE = deb ]]; then
-    cp -v $CHECKOUT_ROOT/utils/templates/default_env_travis_enterprise \
-      tmp/$PACKAGE_TYPE/etc/default/travis-enterprise
-
-    cp -v $CHECKOUT_ROOT/utils/templates/default_env_travis_worker \
-      tmp/$PACKAGE_TYPE/etc/default/travis-worker
-
-    cp -v $CHECKOUT_ROOT/utils/templates/upstart_travis_worker.conf \
-      tmp/$PACKAGE_TYPE/etc/init/travis-worker.conf
-
-  elif [[ $PACKAGE_TYPE = rpm ]]; then
-    cp -v $CHECKOUT_ROOT/utils/templates/default_env_travis_enterprise \
-      tmp/$PACKAGE_TYPE/etc/default/travis-enterprise
-
-    cp -v $CHECKOUT_ROOT/utils/templates/default_env_travis_worker \
-      tmp/$PACKAGE_TYPE/etc/default/travis-worker
-
-    cp -v $CHECKOUT_ROOT/utils/templates/systemd_travis_worker.service \
-      tmp/$PACKAGE_TYPE/lib/systemd/system/travis-worker.service
-  fi
+  rsync -av \
+    $CHECKOUT_ROOT/utils/pkg-overlay.d/common/ \
+    tmp/$PACKAGE_TYPE/
+  rsync -av \
+    $CHECKOUT_ROOT/utils/pkg-overlay.d/$PACKAGE_TYPE/ \
+    tmp/$PACKAGE_TYPE/
 }
 
 __run_fpm() {
@@ -91,8 +75,8 @@ __run_fpm() {
     --log info \
     -t "$PACKAGE_TYPE" \
     -p "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
-    --after-install utils/templates/post_install.sh \
-    --before-remove utils/templates/pre_remove.sh \
+    --after-install utils/pkg-templates.d/post_install.sh \
+    --before-remove utils/pkg-templates.d/pre_remove.sh \
     -n travis-worker \
     --url 'https://github.com/travis-ci/worker' \
     --description 'Travis Worker' \

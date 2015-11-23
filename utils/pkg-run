@@ -22,6 +22,7 @@ main() {
     __announce 'Building for all platforms'
     __build_all_platforms 2>&1 | __indent
   fi
+
   if [[ ! $NO_CLEANUP ]] ; then
     __announce 'Cleaning up tmp/'
     rm -fvr tmp/* 2>&1 | __indent
@@ -29,24 +30,31 @@ main() {
 }
 
 __docker_pull_images() {
-  for image in "${PKG_PLATFORMS[@]}"; do
+  for image in "${PKG_PLATFORMS[@]}" ; do
     __log "pulling $image"
     docker pull "${image}" &>/dev/null
   done
 }
 
 __build_all_platforms() {
-  local build_docker_image='1'
-  local test_docker_image='1'
+  local build_docker_image
+  local docker_run_args
+  local pub_filename
+  local pub_query
+  local pub_version
+  local success_file
+  local test_container_name
+  local test_docker_image
 
   for platform in "${PKG_PLATFORMS[@]}"; do
     __undef_platform
     __define_platform "${platform}"
 
-    if [[ $PLATFORM_FAMILY = ubuntu ]] ; then
-      build_docker_image="solarce/${PLATFORM_RELEASE}-ruby"
-      test_docker_image="ubuntu-upstart:${PLATFORM_RELEASE}"
-    elif [[ $PLATFORM_FAMILY = centos ]] ; then
+    test_container_name="test-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}"
+    build_docker_image="solarce/${PLATFORM_RELEASE}-ruby"
+    test_docker_image="ubuntu-upstart:${PLATFORM_RELEASE}"
+
+    if [[ $PLATFORM_FAMILY = centos ]] ; then
       build_docker_image="solarce/centos${PLATFORM_RELEASE}-ruby"
       test_docker_image="2k0ri/centos${PLATFORM_RELEASE}-systemd"
     fi
@@ -58,12 +66,11 @@ __build_all_platforms() {
     fi
 
     PC_VERSION=$VERSION
-
     if [[ $PLATFORM_PACKAGE_TYPE = rpm ]] ; then
       PC_VERSION=${VERSION//-/_}
     fi
 
-    local pub_query="$(
+    pub_query="$(
       curl -s https://${PACKAGECLOUD_TOKEN}:@packagecloud.io/api/v1/repos/$PC_USER/$PC_REPO/package/$PLATFORM_PACKAGE_TYPE/$PACKAGECLOUD_OS/$PLATFORM_RELEASE/travis-worker/$PLATFORM_PACKAGE_ARCH/$PC_VERSION/1.json
     )"
 
@@ -71,8 +78,8 @@ __build_all_platforms() {
       if [[ $pub_query = [] ]] ; then
         __log 'No package found for this version, proceeding with build'
       else
-        local pub_filename=$(echo "$pub_query" | jq -r .filename)
-        local pub_version=$(IFS=_ pfp=($pub_filename) ; echo ${pfp[1]})
+        pub_filename=$(echo "$pub_query" | jq -r .filename)
+        pub_version=$(IFS=_ pfp=($pub_filename) ; echo ${pfp[1]})
 
         if [[ $PLATFORM_PACKAGE_TYPE = rpm ]] ; then
           pub_version=$(IFS=- vp=($pub_filename) ; echo ${vp[2]//_/-})
@@ -96,7 +103,7 @@ __build_all_platforms() {
       __error 'Check that PACKAGECLOUD_TOKEN is set correctly'
       exit 1
   fi
-    local docker_run_args=''
+    docker_run_args=''
     if [[ $BUILD_DEBUG ]] ; then
       export docker_run_args="--env BUILD_DEBUG=${BUILD_DEBUG}"
     fi
@@ -110,8 +117,6 @@ __build_all_platforms() {
       "${build_docker_image}" \
       /code/utils/pkg-build "${platform}" "${PLATFORM_PACKAGE_TYPE}"
 
-    local test_container_name="test-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}"
-
     docker run $docker_run_args \
       -d --privileged \
       --name "${test_container_name}" \
@@ -119,7 +124,7 @@ __build_all_platforms() {
       -w /code \
       "${test_docker_image}"
 
-    local success_file="$CHECKOUT_ROOT/${platform}-${PLATFORM_PACKAGE_TYPE}-success"
+    success_file="$CHECKOUT_ROOT/${platform}-${PLATFORM_PACKAGE_TYPE}-success"
     rm -vf "${success_file}"
 
     docker exec -it \

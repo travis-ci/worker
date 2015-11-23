@@ -21,67 +21,56 @@ __error() {
 __define_shell_flags() {
   set -o errexit
   set -o pipefail
-	if [[ $BUILD_DEBUG ]] ; then
-		set -o xtrace
+  if [[ $BUILD_DEBUG ]] ; then
+    set -o xtrace
   fi
 }
 
 __undef_platform() {
-  unset PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PLATFORM_PACKAGE_TYPE
-  unset PLATFORM_ARCH PACKAGECLOUD_OS
+  unset PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE
+  unset PLATFORM_PACKAGE_TYPE PLATFORM_ARCH PACKAGECLOUD_OS
+}
+
+__define_platform_centos() {
+  export PLATFORM_PACKAGE_TYPE='rpm'
+  export PLATFORM_PACKAGE_ARCH='x86_64'
+  export PACKAGECLOUD_OS='el'
+}
+
+__define_platform_ubuntu() {
+  export PLATFORM_PACKAGE_TYPE='deb'
+  export PLATFORM_PACKAGE_ARCH='amd64'
+  export PACKAGECLOUD_OS='ubuntu'
 }
 
 __define_platform() {
-	: ${PLATFORM:=${1}}
-	: ${PLATFORM_FAMILY:=${PLATFORM%%:*}}
-	: ${PLATFORM_RELEASE:=${PLATFORM##${PLATFORM_FAMILY}:}}
+  : ${PLATFORM:=${1}}
+  : ${PLATFORM_FAMILY:=${PLATFORM%%:*}}
+  : ${PLATFORM_RELEASE:=${PLATFORM##${PLATFORM_FAMILY}:}}
+  __define_platform_${PLATFORM_FAMILY}
+  export PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE
+}
 
-  PLATFORM_PACKAGE_TYPE='deb'
-  PLATFORM_PACKAGE_ARCH='amd64'
-  PACKAGECLOUD_OS='ubuntu'
+__define_with_file_cache() {
+  local filename="${1}"
+  shift
 
-  if [[ $PLATFORM_FAMILY = centos ]] ; then
-    PLATFORM_PACKAGE_TYPE='rpm'
-    PLATFORM_PACKAGE_ARCH='x86_64'
-    PACKAGECLOUD_OS='el'
+  if [[ ! -f ${filename} ]] ; then
+    echo $(eval "$*") > ${filename}
   fi
 
-  export PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PLATFORM_PACKAGE_TYPE
-  export PLATFORM_PACKAGE_ARCH PACKAGECLOUD_OS
+  eval "export ${filename}=\"\$(cat ${filename})\""
 }
 
 __define_version() {
-  if [[ ! -f VERSION ]] ; then
-    local latest_version_tag="$(git tag | tail -1)"
-    echo "${latest_version_tag##v}" > VERSION
-  fi
-
-  export VERSION="$(cat VERSION)"
-
-  if [[ ! -f VERSION_SHA1 ]] ; then
-    local version_sha1="$(
-      git rev-parse --short --no-abbrev-ref "${latest_version_tag}"
-    )"
-    echo $version_sha1 > VERSION_SHA1
-  fi
-
-  export VERSION_SHA1="$(cat VERSION_SHA1)"
-
-  if [[ ! -f CURRENT_SHA1 ]] ; then
-    local current_sha1="$(
-      git rev-parse --short --no-abbrev-ref HEAD
-    )"
-    echo $current_sha1 > CURRENT_SHA1
-  fi
-
-  export CURRENT_SHA1="$(cat CURRENT_SHA1)"
-
-  if [[ ! -f GIT_DESCRIPTION ]] ; then
-    local git_description="$(git describe --always --dirty --tags 2>/dev/null)"
-    echo $git_description > GIT_DESCRIPTION
-  fi
-
-  export GIT_DESCRIPTION="$(cat GIT_DESCRIPTION)"
+  __define_with_file_cache VERSION_TAG "git tag | tail -1"
+  __define_with_file_cache VERSION "echo \${VERSION_TAG##v}"
+  __define_with_file_cache VERSION_SHA1 \
+    "git rev-parse --short --no-abbrev-ref \"\${VERSION_TAG}\""
+  __define_with_file_cache CURRENT_SHA1 \
+    "git rev-parse --short --no-abbrev-ref HEAD"
+  __define_with_file_cache GIT_DESCRIPTION \
+    "git describe --always --dirty --tags 2>/dev/null"
 
   if [[ $CURRENT_SHA1 != $VERSION_SHA1 ]] ; then
     orig_ifs="$IFS"
