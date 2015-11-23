@@ -22,6 +22,7 @@ main() {
     __announce 'Building for all platforms'
     __build_all_platforms 2>&1 | __indent
   fi
+
   if [[ ! $NO_CLEANUP ]] ; then
     __announce 'Cleaning up tmp/'
     rm -fvr tmp/* 2>&1 | __indent
@@ -29,7 +30,7 @@ main() {
 }
 
 __docker_pull_images() {
-  for image in "${PKG_PLATFORMS[@]}"; do
+  for image in "${PKG_PLATFORMS[@]}" ; do
     __log "pulling $image"
     docker pull "${image}" &>/dev/null
   done
@@ -38,15 +39,15 @@ __docker_pull_images() {
 __build_all_platforms() {
   local build_docker_image='1'
   local test_docker_image='1'
+  local test_container_name="test-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}"
 
   for platform in "${PKG_PLATFORMS[@]}"; do
     __undef_platform
     __define_platform "${platform}"
 
-    if [[ $PLATFORM_FAMILY = ubuntu ]] ; then
-      build_docker_image="solarce/${PLATFORM_RELEASE}-ruby"
-      test_docker_image="ubuntu-upstart:${PLATFORM_RELEASE}"
-    elif [[ $PLATFORM_FAMILY = centos ]] ; then
+    build_docker_image="solarce/${PLATFORM_RELEASE}-ruby"
+    test_docker_image="ubuntu-upstart:${PLATFORM_RELEASE}"
+    if [[ $PLATFORM_FAMILY = centos ]] ; then
       build_docker_image="solarce/centos${PLATFORM_RELEASE}-ruby"
       test_docker_image="2k0ri/centos${PLATFORM_RELEASE}-systemd"
     fi
@@ -58,7 +59,6 @@ __build_all_platforms() {
     fi
 
     PC_VERSION=$VERSION
-
     if [[ $PLATFORM_PACKAGE_TYPE = rpm ]] ; then
       PC_VERSION=${VERSION//-/_}
     fi
@@ -109,8 +109,6 @@ __build_all_platforms() {
       -w /code \
       "${build_docker_image}" \
       /code/utils/pkg-build "${platform}" "${PLATFORM_PACKAGE_TYPE}"
-
-    local test_container_name="test-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}"
 
     docker run $docker_run_args \
       -d --privileged \
