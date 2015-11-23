@@ -1,22 +1,30 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-	echo "This is a pull request. No deployment will be done."
-	exit 0
-fi
-if [ "$TRAVIS_BRANCH" != "master" ]; then
-	echo "Testing on a branch other than master. No deployment will be done."
-	exit 0
-fi
+main() {
+  if [[ $TRAVIS_PULL_REQUEST != false ]] ; then
+    echo 'This is a pull request. No deployment will be done.'
+    exit 0
+  fi
 
-echo "Installing Atlas Upload CLI"
-go get github.com/hashicorp/atlas-upload-cli
-cd ${GOPATH%%:*}/src/github.com/hashicorp/atlas-upload-cli
-make
-cd -
+  if [[ $TRAVIS_BRANCH != master ]] ; then
+    echo 'Testing on a branch other than master. No deployment will be done.'
+    exit 0
+  fi
 
-echo "Building Worker"
-make build
+  local gopath_top="${GOPATH%%:*}"
 
-echo "Uploading Worker"
-${GOPATH%%:*}/src/github.com/hashicorp/atlas-upload-cli/bin/atlas-upload travis-ci/worker ${GOPATH%%:*}/bin/travis-worker
+  echo 'Installing Atlas Upload CLI'
+  go get github.com/hashicorp/atlas-upload-cli
+  pushd ${gopath_top}/src/github.com/hashicorp/atlas-upload-cli
+  make
+  popd
+
+  echo 'Building Worker'
+  make build
+
+  echo 'Uploading Worker'
+  ${gopath_top}/src/github.com/hashicorp/atlas-upload-cli/bin/atlas-upload \
+    travis-ci/worker ${gopath_top}/bin/travis-worker
+}
+
+main "$@"

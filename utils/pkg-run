@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+
+main() {
+  : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
+  source $CHECKOUT_ROOT/utils/pkg-functions.bash
+  source $CHECKOUT_ROOT/utils/pkg-config.bash
+
+  if ! command -v docker &>/dev/null ; then
+    __error 'Docker not found. Please install docker.'
+    exit 1
+  fi
+
+  if [[ ! $PACKAGECLOUD_TOKEN ]] ; then
+    __error 'You must set a PACKAGECLOUD_TOKEN env variable for this to run'
+    exit 1
+  fi
+
+  __announce 'Pulling Docker images for builds and testing'
+  __docker_pull_images 2>&1 | __indent
+
+  if [[ ! $NO_RUN ]] ; then
+    __announce 'Building for all platforms'
+    __build_all_platforms 2>&1 | __indent
+  fi
+  if [[ ! $NO_CLEANUP ]] ; then
+    __announce 'Cleaning up tmp/'
+    rm -fvr tmp/* 2>&1 | __indent
+  fi
+}
+
+__docker_pull_images() {
+  for image in "${PKG_PLATFORMS[@]}"; do
+    __log "pulling $image"
+    docker pull "${image}" &>/dev/null
+  done
+}
+
+__build_all_platforms() {
+  local build_docker_image='1'
+  local test_docker_image='1'
+
+  for platform in "${PKG_PLATFORMS[@]}"; do
+    __undef_platform
+    __define_platform "${platform}"
+
+    if [[ $PLATFORM_FAMILY = ubuntu ]] ; then
+      build_docker_image="solarce/${PLATFORM_RELEASE}-ruby"
+      test_docker_image="ubuntu-upstart:${PLATFORM_RELEASE}"
+    elif [[ $PLATFORM_FAMILY = centos ]] ; then
+      build_docker_image="solarce/centos${PLATFORM_RELEASE}-ruby"
+      test_docker_image="2k0ri/centos${PLATFORM_RELEASE}-systemd"
+    fi
+
+    export PC_REPO='worker'
+
+    if [[ $VERSION =~ dev ]] ; then
+      export PC_REPO='worker-testing'
+    fi
+
+    PC_VERSION=$VERSION
+
+    if [[ $PLATFORM_PACKAGE_TYPE = rpm ]] ; then
+      PC_VERSION=${VERSION//-/_}
+    fi
+
+    local pub_query="$(
+      curl -s https://${PACKAGECLOUD_TOKEN}:@packagecloud.io/api/v1/repos/$PC_USER/$PC_REPO/package/$PLATFORM_PACKAGE_TYPE/$PACKAGECLOUD_OS/$PLATFORM_RELEASE/travis-worker/$PLATFORM_PACKAGE_ARCH/$PC_VERSION/1.json
+    )"
+
+    if [[ $pub_query ]] ; then
+      if [[ $pub_query = [] ]] ; then
+        __log 'No package found for this version, proceeding with build'
+      else
+        local pub_filename=$(echo "$pub_query" | jq -r .filename)
+        local pub_version=$(IFS=_ pfp=($pub_filename) ; echo ${pfp[1]})
+
+        if [[ $PLATFORM_PACKAGE_TYPE = rpm ]] ; then
+          pub_version=$(IFS=- vp=($pub_filename) ; echo ${vp[2]//_/-})
+        fi
+
+        if [[ $VERSION = $pub_version ]] ; then
+          if [[ $VERSION =~ dev ]] ; then
+            package_cloud yank \
+              "travisci/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE" \
+              "$pub_filename"
+          else
+            __error "Stable version $VERSION has already been published"
+            __error 'to packagecloud.io.  Please determine if you want'
+            __error 'to remove the package and republish it'
+            exit 1
+          fi
+        fi
+      fi
+    else
+      __error 'Could not get the current version from packagecloud.io.'
+      __error 'Check that PACKAGECLOUD_TOKEN is set correctly'
+      exit 1
+  fi
+    local docker_run_args=''
+    if [[ $BUILD_DEBUG ]] ; then
+      export docker_run_args="--env BUILD_DEBUG=${BUILD_DEBUG}"
+    fi
+
+    docker run $docker_run_args \
+      -it \
+      --name "build-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}" \
+      --rm \
+      -v $CHECKOUT_ROOT/:/code \
+      -w /code \
+      "${build_docker_image}" \
+      /code/utils/pkg-build "${platform}" "${PLATFORM_PACKAGE_TYPE}"
+
+    local test_container_name="test-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}"
+
+    docker run $docker_run_args \
+      -d --privileged \
+      --name "${test_container_name}" \
+      -v $CHECKOUT_ROOT/:/code \
+      -w /code \
+      "${test_docker_image}"
+
+    local success_file="$CHECKOUT_ROOT/${platform}-${PLATFORM_PACKAGE_TYPE}-success"
+    rm -vf "${success_file}"
+
+    docker exec -it \
+      "${test_container_name}" \
+      /code/utils/pkg-test "${platform}" "${PLATFORM_PACKAGE_TYPE}"
+
+    docker rm --force "${test_container_name}"
+
+    if [[ ! -f ${success_file} ]] ; then
+      __error "Test failed for ${platform} ${PLATFORM_PACKAGE_TYPE}"
+      exit 1
+    fi
+
+    if [[ ! $NO_PUSH ]] ; then
+      __announce 'Publishing package to packagecloud.io'
+      __package_cloud_push
+    else
+      __log 'NO_PUSH set, so skipping pushing to packagecloud.io'
+    fi
+  done
+}
+
+__package_cloud_push() {
+  local pc_upload_file=$(
+    echo $CHECKOUT_ROOT/tmp/output/$PLATFORM_PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE/*.$PLATFORM_PACKAGE_TYPE | head -1
+  )
+  local pc_push_dest="$PC_USER/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE"
+  __log "Uploading ${pc_upload_file} to ${pc_push_dest}"
+
+  pushd $CHECKOUT_ROOT/utils/ &>/dev/null
+  ./packagecloud-prune \
+    "$PC_REPO" "$PACKAGECLOUD_OS/$PLATFORM_RELEASE" "${PC_LIMIT:-15}"
+  popd &>/dev/null
+
+  package_cloud push "${pc_push_dest}" "${pc_upload_file}" --verbose
+}
+
+main "$@"

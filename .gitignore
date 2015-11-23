@@ -37,6 +37,7 @@ tmp/
 VERSION
 VERSION_SHA1
 CURRENT_SHA1
+GIT_DESCRIPTION
 .vagrant/
 
 *_rsa*

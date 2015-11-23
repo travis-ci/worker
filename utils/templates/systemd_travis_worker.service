@@ -1,0 +1,20 @@
+[Unit]
+Description=no description given
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/travis-enterprise
+EnvironmentFile=/etc/default/travis-worker
+EnvironmentFile=/etc/default/travis-worker-local
+User=travis
+Group=travis
+ExecStartPre=mkdir -p /var/tmp/travis-run.d
+ExecStartPre=cp /usr/local/bin/travis-worker /var/tmp/travis-run.d/travis-worker
+ExecStart=/var/tmp/travis-run.d/travis-worker
+ExecStopPost=sleep 5
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# vim:filetype=systemd
