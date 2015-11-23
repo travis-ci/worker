@@ -8,7 +8,7 @@ main() {
   __define_shell_flags
   __define_platform "$1"
   __announce 'Installing package'
-  __package_install_${PLATFORM_RELEASE} 2>&1 | __indent
+  __package_install_${PLATFORM_FAMILY} 2>&1 | __indent
   __announce 'Verifying package installation'
   __package_verify_common 2>&1 | __indent
   __package_verify_${PLATFORM_FAMILY} 2>&1 | __indent
