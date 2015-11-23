@@ -7,7 +7,7 @@ main() {
 
   __define_platform "$1"
 
-	: ${PACKAGE_TYPE:=${2}}
+  : ${PACKAGE_TYPE:=${2}}
 
   export CHECKOUT_ROOT PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PACKAGE_TYPE
 

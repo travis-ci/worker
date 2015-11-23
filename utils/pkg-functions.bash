@@ -21,8 +21,8 @@ __error() {
 __define_shell_flags() {
   set -o errexit
   set -o pipefail
-	if [[ $BUILD_DEBUG ]] ; then
-		set -o xtrace
+  if [[ $BUILD_DEBUG ]] ; then
+    set -o xtrace
   fi
 }
 
@@ -44,9 +44,9 @@ __define_platform_ubuntu() {
 }
 
 __define_platform() {
-	: ${PLATFORM:=${1}}
-	: ${PLATFORM_FAMILY:=${PLATFORM%%:*}}
-	: ${PLATFORM_RELEASE:=${PLATFORM##${PLATFORM_FAMILY}:}}
+  : ${PLATFORM:=${1}}
+  : ${PLATFORM_FAMILY:=${PLATFORM%%:*}}
+  : ${PLATFORM_RELEASE:=${PLATFORM##${PLATFORM_FAMILY}:}}
   __define_platform_${PLATFORM_FAMILY}
   export PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE
 }
