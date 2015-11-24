@@ -52,6 +52,7 @@ script:
 - make package
 - ./bin/travis-worker-install --help
 - ./bin/travis-worker-install --trace
+- ./bin/travis-worker-install --trace --packagecloud-source=travisci/worker-testing
 
 after_success:
 - utils/atlas-push
