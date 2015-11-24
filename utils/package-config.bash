@@ -1,6 +1,6 @@
 : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
 export CHECKOUT_ROOT
-source $CHECKOUT_ROOT/utils/pkg-functions.bash
+source $CHECKOUT_ROOT/utils/package-functions.bash
 
 export DATE=$(date -u +%Y%m%dT%H%M%SZ)
 export PC_USER='travisci'

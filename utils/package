@@ -2,8 +2,8 @@
 
 main() {
   : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
-  source $CHECKOUT_ROOT/utils/pkg-functions.bash
-  source $CHECKOUT_ROOT/utils/pkg-config.bash
+  source $CHECKOUT_ROOT/utils/package-functions.bash
+  source $CHECKOUT_ROOT/utils/package-config.bash
 
   if ! command -v docker &>/dev/null ; then
     __error 'Docker not found. Please install docker.'
@@ -11,7 +11,7 @@ main() {
   fi
 
   if [[ ! $PACKAGECLOUD_TOKEN ]] ; then
-    __error 'You must set a PACKAGECLOUD_TOKEN env variable for this to run'
+    __error 'Missing PACKAGECLOUD_TOKEN env variable'
     exit 1
   fi
 
@@ -115,7 +115,7 @@ __build_all_platforms() {
       -v $CHECKOUT_ROOT/:/code \
       -w /code \
       "${build_docker_image}" \
-      /code/utils/pkg-build "${platform}" "${PLATFORM_PACKAGE_TYPE}"
+      /code/utils/package-build "${platform}" "${PLATFORM_PACKAGE_TYPE}"
 
     docker run $docker_run_args \
       -d --privileged \
@@ -129,7 +129,7 @@ __build_all_platforms() {
 
     docker exec -it \
       "${test_container_name}" \
-      /code/utils/pkg-test "${platform}" "${PLATFORM_PACKAGE_TYPE}"
+      /code/utils/package-test "${platform}" "${PLATFORM_PACKAGE_TYPE}"
 
     docker rm --force "${test_container_name}"
 

@@ -48,9 +48,10 @@ script:
 - diff -q <(travis-worker --help) <(travis-worker -h)
 - travis-worker --echo-config
 - travis-worker --list-backend-providers
-- mkdir -p bin
 - cp -v ~/gopath/bin/travis-worker ./bin/
 - make package
+- ./bin/travis-worker-install --help
+- ./bin/travis-worker-install --trace
 
 after_success:
 - utils/atlas-push

@@ -36,6 +36,10 @@ COVERPROFILES := \
 		$(GOBUILD_LDFLAGS) \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
+.PHONY: %
+%:
+	./utils/$@
+
 .PHONY: all
 all: clean test
 
@@ -69,10 +73,6 @@ build: deps
 crossbuild: deps
 	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
 
-.PHONY: clean
-clean:
-	./utils/clean
-
 .PHONY: distclean
 distclean: clean
 	rm -f vendor/.deps-fetched
@@ -87,15 +87,3 @@ vendor/.deps-fetched:
 .PHONY: annotations
 annotations:
 	@git grep -E '(TODO|FIXME|XXX):' | grep -v -E 'Makefile|vendor/'
-
-.PHONY: fmtpolice
-fmtpolice:
-	./utils/fmtpolice
-
-.PHONY: lintall
-lintall: deps
-	./utils/lintall
-
-.PHONY:  package
-package:
-	./utils/pkg-run
