@@ -39,9 +39,9 @@ script:
 - make lintall
 - make test
 - make test-race
-- utils/smoke
+- make smoke
 - make package
-- utils/smoke-package
+- make smoke-package
 
 after_success:
 - utils/atlas-push
