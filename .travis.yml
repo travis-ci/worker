@@ -51,8 +51,8 @@ script:
 - cp -v ~/gopath/bin/travis-worker ./bin/
 - make package
 - ./bin/travis-worker-install --help
-- sudo ./bin/travis-worker-install --trace
-- sudo ./bin/travis-worker-install --trace --packagecloud-source=travisci/worker-testing
+- sudo ./bin/travis-worker-install --trace --skip-docker-populate
+- sudo ./bin/travis-worker-install --trace --skip-docker-populate --packagecloud-source=travisci/worker-testing
 
 after_success:
 - utils/atlas-push
