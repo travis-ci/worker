@@ -5,15 +5,19 @@ set -o xtrace
 
 cd "$(dirname $(dirname ${BASH_SOURCE[0]}))"
 
+echo '---> Installing travis-worker edge with tracing'
 sudo ./bin/travis-worker-install --trace --skip-docker-populate --edge
 /usr/local/bin/travis-worker --version
 docker version | grep 1.9.0
 sudo apt-get purge -y travis-worker docker-engine
+
+echo '---> Wiping and updating apt sources'
 find /etc/apt/sources.list.d -name '*travisci_worker*' | xargs sudo rm -vf
 sudo apt-get update
+
+echo '---> Installing travis-worker stable'
 sudo ./bin/travis-worker-install --skip-docker-populate --stable
 /usr/local/bin/travis-worker --version
 docker version | grep 1.6.2
-sudo apt-get purge -y travis-worker || {
+sudo apt-get purge -y travis-worker || \
   echo "Suppressing exit $? from purge of travis-worker stable"
-}
