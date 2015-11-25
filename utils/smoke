@@ -3,7 +3,7 @@
 set -o errexit
 set -o xtrace
 
-cd "$(dirname ${BASH_SOURCE[0]})"
+cd "$(dirname $(dirname ${BASH_SOURCE[0]}))"
 
 cp -v ~/gopath/bin/travis-worker ./bin/
 git diff --exit-code

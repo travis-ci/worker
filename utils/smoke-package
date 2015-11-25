@@ -3,7 +3,7 @@
 set -o errexit
 set -o xtrace
 
-cd "$(dirname ${BASH_SOURCE[0]})"
+cd "$(dirname $(dirname ${BASH_SOURCE[0]}))"
 
 sudo ./bin/travis-worker-install --trace --skip-docker-populate --edge
 /usr/local/bin/travis-worker --version
