@@ -55,7 +55,7 @@ script:
 - /usr/local/bin/travis-worker --version
 - find /etc/apt/sources.list.d -name '*packagecloud*' | xargs sudo rm -vf
 - sudo apt-get update
-- sudo ./bin/travis-worker-install --trace --skip-docker-populate
+- sudo ./bin/travis-worker-install --skip-docker-populate
 - /usr/local/bin/travis-worker --version
 
 after_success:
