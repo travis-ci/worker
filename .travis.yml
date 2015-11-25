@@ -53,10 +53,12 @@ script:
 - ./bin/travis-worker-install --help
 - sudo ./bin/travis-worker-install --trace --skip-docker-populate --packagecloud-source=travisci/worker-testing
 - /usr/local/bin/travis-worker --version
-- find /etc/apt/sources.list.d -name '*packagecloud*' | xargs sudo rm -vf
+- sudo apt-get purge -y travis-worker
+- find /etc/apt/sources.list.d -name '*travisci_worker*' | xargs sudo rm -vf
 - sudo apt-get update
 - sudo ./bin/travis-worker-install --skip-docker-populate
 - /usr/local/bin/travis-worker --version
+- sudo apt-get purge -y travis-worker
 
 after_success:
 - utils/atlas-push
