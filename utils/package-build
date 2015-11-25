@@ -2,8 +2,8 @@
 
 main() {
   : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
-  source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
-  source ${CHECKOUT_ROOT}/utils/pkg-config.bash
+  source ${CHECKOUT_ROOT}/utils/package-functions.bash
+  source ${CHECKOUT_ROOT}/utils/package-config.bash
 
   __define_platform "$1"
 
@@ -63,10 +63,10 @@ __copy_binary() {
 
 __copy_service_scripts() {
   rsync -av \
-    $CHECKOUT_ROOT/utils/pkg-overlay.d/common/ \
+    $CHECKOUT_ROOT/utils/package-overlay.d/common/ \
     tmp/$PACKAGE_TYPE/
   rsync -av \
-    $CHECKOUT_ROOT/utils/pkg-overlay.d/$PACKAGE_TYPE/ \
+    $CHECKOUT_ROOT/utils/package-overlay.d/$PACKAGE_TYPE/ \
     tmp/$PACKAGE_TYPE/
 }
 
@@ -75,8 +75,8 @@ __run_fpm() {
     --log info \
     -t "$PACKAGE_TYPE" \
     -p "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
-    --after-install utils/pkg-templates.d/post_install.sh \
-    --before-remove utils/pkg-templates.d/pre_remove.sh \
+    --after-install $CHECKOUT_ROOT/utils/package-templates.d/post_install.sh \
+    --before-remove $CHECKOUT_ROOT/utils/package-templates.d/pre_remove.sh \
     -n travis-worker \
     --url 'https://github.com/travis-ci/worker' \
     --description 'Travis Worker' \

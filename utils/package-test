@@ -2,8 +2,8 @@
 
 main() {
   : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
-  source ${CHECKOUT_ROOT}/utils/pkg-functions.bash
-  source ${CHECKOUT_ROOT}/utils/pkg-config.bash
+  source ${CHECKOUT_ROOT}/utils/package-functions.bash
+  source ${CHECKOUT_ROOT}/utils/package-config.bash
 
   __define_shell_flags
   __define_platform "$1"
