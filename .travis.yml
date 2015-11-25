@@ -58,7 +58,8 @@ script:
 - sudo apt-get update
 - sudo ./bin/travis-worker-install --skip-docker-populate
 - /usr/local/bin/travis-worker --version
-- sudo apt-get purge -y travis-worker
+- sudo apt-get purge -y travis-worker ||
+    echo "Suppressing exit $? from purge of travis-worker stable"
 
 after_success:
 - utils/atlas-push
