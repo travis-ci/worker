@@ -14,6 +14,8 @@ main() {
 
   cd "$(dirname $(dirname ${BASH_SOURCE[0]}))"
 
+  ${sudo_exe} mkdir -p /var/log/upstart
+
   echo '---> Installing travis-worker edge with tracing'
   ${sudo_exe} ./bin/travis-worker-install --trace --skip-docker-populate --edge
   /usr/local/bin/travis-worker --version
@@ -21,7 +23,15 @@ main() {
   if ! docker run hello-world ; then
     ${sudo_exe} tail -n 1000 /var/log/upstart/docker.log
   fi
+
+  echo '---> Uninstalling travis-worker and docker-engine'
   ${sudo_exe} apt-get purge -y travis-worker docker-engine
+
+  echo '---> Wiping logs'
+  ${sudo_exe} touch /var/log/upstart/travis-worker.log
+  ${sudo_exe} touch /var/log/upstart/docker.log
+  ${sudo_exe} dd if=/dev/null of=/var/log/upstart/travis-worker.log
+  ${sudo_exe} dd if=/dev/null of=/var/log/upstart/docker.log
 
   echo '---> Wiping and updating apt sources'
   find /etc/apt/sources.list.d -name '*travisci_worker*' | xargs ${sudo_exe} rm -vf
