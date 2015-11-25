@@ -75,8 +75,8 @@ __run_fpm() {
     --log info \
     -t "$PACKAGE_TYPE" \
     -p "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
-    --after-install utils/package-templates.d/post_install.sh \
-    --before-remove utils/package-templates.d/pre_remove.sh \
+    --after-install $CHECKOUT_ROOT/utils/package-templates.d/post_install.sh \
+    --before-remove $CHECKOUT_ROOT/utils/package-templates.d/pre_remove.sh \
     -n travis-worker \
     --url 'https://github.com/travis-ci/worker' \
     --description 'Travis Worker' \
