@@ -5,19 +5,26 @@ __stop_travis_worker() {
     return
   fi
 
-  if stop travis-worker ; then
+  stop travis-worker
+  exit_code="$?"
+
+  if [ $exit_code -eq 0 ] ; then
     return
   fi
 
-  echo "Failed to stop travis-worker (exit $?)"
+  echo "Failed to stop travis-worker (exit $exit_code)"
   echo 'Sending SIGKILL'
+
   killall -9 travis-worker
 
-  if stop travis-worker ; then
+  stop travis-worker
+  exit_code="$?"
+
+  if [ $exit_code -eq 0 ] ; then
     return
   fi
 
-  echo "Failed to stop travis-worker after sending SIGKILL (exit $?)"
+  echo "Failed to stop travis-worker after sending SIGKILL (exit $exit_code)"
 }
 
 __remove_travis_user() {
@@ -25,12 +32,16 @@ __remove_travis_user() {
     return
   fi
 
-  if userdel travis -r 2>/dev/null ; then
+  userdel travis -r
+  exit_code="$?"
+
+  if [ $exit_code -eq 0 ] ; then
     return
   fi
 
-  echo "Failed to remove travis user (exit $?)"
+  echo "Failed to remove travis user (exit $exit_code)"
 }
 
+set +e
 __remove_travis_user
 __stop_travis_worker
