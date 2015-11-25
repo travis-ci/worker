@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -o errexit
+set -o xtrace
+
+cd "$(dirname ${BASH_SOURCE[0]})"
+
+sudo ./bin/travis-worker-install --trace --skip-docker-populate --edge
+/usr/local/bin/travis-worker --version
+docker version | grep 1.9.0
+sudo apt-get purge -y travis-worker
+find /etc/apt/sources.list.d -name '*travisci_worker*' | xargs sudo rm -vf
+sudo apt-get update
+sudo ./bin/travis-worker-install --skip-docker-populate --stable
+/usr/local/bin/travis-worker --version
+docker version | grep 1.6.2
+sudo apt-get purge -y travis-worker || {
+  echo "Suppressing exit $? from purge of travis-worker stable"
+}

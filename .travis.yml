@@ -39,27 +39,9 @@ script:
 - make lintall
 - make test
 - make test-race
-- git diff --exit-code || echo 'wat is goin on'
-- git diff --cached --exit-code || echo 'wat is goin on'
-- travis-worker --version
-- travis-worker -v
-- travis-worker --help
-- travis-worker -h
-- diff -q <(travis-worker --help) <(travis-worker -h)
-- travis-worker --echo-config
-- travis-worker --list-backend-providers
-- cp -v ~/gopath/bin/travis-worker ./bin/
+- utils/smoke
 - make package
-- ./bin/travis-worker-install --help
-- sudo ./bin/travis-worker-install --trace --skip-docker-populate --packagecloud-source=travisci/worker-testing
-- /usr/local/bin/travis-worker --version
-- sudo apt-get purge -y travis-worker
-- find /etc/apt/sources.list.d -name '*travisci_worker*' | xargs sudo rm -vf
-- sudo apt-get update
-- sudo ./bin/travis-worker-install --skip-docker-populate
-- /usr/local/bin/travis-worker --version
-- sudo apt-get purge -y travis-worker ||
-    echo "Suppressing exit $? from purge of travis-worker stable"
+- utils/smoke-package
 
 after_success:
 - utils/atlas-push

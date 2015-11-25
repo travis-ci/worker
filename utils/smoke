@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -o errexit
+set -o xtrace
+
+cd "$(dirname ${BASH_SOURCE[0]})"
+
+cp -v ~/gopath/bin/travis-worker ./bin/
+git diff --exit-code
+git diff --cached --exit-code
+./bin/travis-worker --version
+./bin/travis-worker -v
+./bin/travis-worker --help
+./bin/travis-worker -h
+diff -q <(./bin/travis-worker --help) <(./bin/travis-worker -h)
+./bin/travis-worker --echo-config
+./bin/travis-worker --list-backend-providers
