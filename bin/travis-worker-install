@@ -168,7 +168,7 @@ __assert_root() {
 }
 
 __install_docker_stable() {
-  __install_docker_version_with_options '1.6.2-0~trusty' '--exec-driver=lxc'
+  __install_docker_version_with_options '1.7.1-0~trusty' '--exec-driver=lxc'
 }
 
 __install_docker_edge() {
