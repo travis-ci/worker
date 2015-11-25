@@ -22,11 +22,11 @@ env:
 addons:
   artifacts:
     paths:
-    - './build/$UNAME/amd64/travis-worker'
+    - "./build/$UNAME/amd64/travis-worker"
     target_paths:
-    - 'travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER'
-    - 'travis-ci/worker/$(git describe --always --dirty --tags)'
-    - 'travis-ci/worker/$TRAVIS_BRANCH'
+    - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+    - travis-ci/worker/$(git describe --always --dirty --tags)
+    - travis-ci/worker/$TRAVIS_BRANCH
 
 install:
 - go get github.com/FiloSottile/gvt
@@ -51,5 +51,4 @@ after_success:
 
 notifications:
   slack:
-    rooms:
-    - secure: "EeyaCTxwBPk17BC55brkWSQ9d8EEhKgJ9KHTIJzJnfGasXeUZWRzV80fT/eXcvWXnpq1GkP01xk1V60EC0G9XxLlHfCXbSJAAAr4vb0vadIB9LmVrWfOr1J2aRh4g5Vtk5zWBp2Qv4DVo8KdOVKR2MHI+bjtLFwZVvYmQSt+tzo="
+    secure: IyWrJhruYYHEIvi4YsN3vV2rycctnRiIolzUMwgiDo275AK6O4h58+fu1EXFjMZmCqdOan98MsF709yW3S9zDaZo2s233dKWzQ95S8+n2RS+pGsxBZacCiEvOh0u1K3f19hpf8zj0ybtpcox+a6yrxK+F3er9WveO39yPZjzwCA=
