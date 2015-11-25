@@ -1,23 +1,37 @@
 #!/usr/bin/env bash
 
-set -o errexit
-set -o xtrace
+main() {
+  set -o errexit
+  if [[ $DEBUG ]] ; then
+    set -o xtrace
+  fi
 
-cd "$(dirname $(dirname ${BASH_SOURCE[0]}))"
+  local sudo_exe='sudo'
 
-echo '---> Installing travis-worker edge with tracing'
-sudo ./bin/travis-worker-install --trace --skip-docker-populate --edge
-/usr/local/bin/travis-worker --version
-docker version | grep 1.9.0
-sudo apt-get purge -y travis-worker docker-engine
+  if ! sudo true &>/dev/null ; then
+    sudo_exe='echo not sudo'
+  fi
 
-echo '---> Wiping and updating apt sources'
-find /etc/apt/sources.list.d -name '*travisci_worker*' | xargs sudo rm -vf
-sudo apt-get update
+  cd "$(dirname $(dirname ${BASH_SOURCE[0]}))"
 
-echo '---> Installing travis-worker stable'
-sudo ./bin/travis-worker-install --skip-docker-populate --stable
-/usr/local/bin/travis-worker --version
-docker version | grep 1.6.2
-sudo apt-get purge -y travis-worker || \
-  echo "Suppressing exit $? from purge of travis-worker stable"
+  echo '---> Installing travis-worker edge with tracing'
+  ${sudo_exe} ./bin/travis-worker-install --trace --skip-docker-populate --edge
+  /usr/local/bin/travis-worker --version
+  docker version | grep 1.9.0
+  docker run hello-world
+  ${sudo_exe} apt-get purge -y travis-worker docker-engine
+
+  echo '---> Wiping and updating apt sources'
+  find /etc/apt/sources.list.d -name '*travisci_worker*' | xargs ${sudo_exe} rm -vf
+  ${sudo_exe} apt-get update
+
+  echo '---> Installing travis-worker stable'
+  ${sudo_exe} ./bin/travis-worker-install --skip-docker-populate --stable
+  /usr/local/bin/travis-worker --version
+  docker version | grep 1.6.2
+  docker run hello-world
+  ${sudo_exe} apt-get purge -y travis-worker || \
+    echo "Suppressing exit $? from purge of travis-worker stable"
+}
+
+main "$@"
