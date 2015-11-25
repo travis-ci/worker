@@ -126,7 +126,10 @@ __install_docker() {
   fi
 
   if [[ ! $(grep icc $DOCKER_CONFIG_FILE) ]] ; then
-    echo 'DOCKER_OPTS="-H tcp://0.0.0.0:4243 --storage-driver=aufs --icc=false '$docker_mount_point'"' >> $DOCKER_CONFIG_FILE
+    DOCKER_OPTS='-H tcp://0.0.0.0:4243 -H unix://var/run/docker.sock'
+    DOCKER_OPTS="$DOCKER_OPTS --storage-driver=aufs --icc=false"
+    DOCKER_OPTS="$DOCKER_OPTS $docker_mount_point"
+    echo "DOCKER_OPTS=\"$DOCKER_OPTS\"" >> $DOCKER_CONFIG_FILE
     restart docker
     sleep 2
   fi
