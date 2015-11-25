@@ -52,7 +52,9 @@ script:
 - make package
 - ./bin/travis-worker-install --help
 - sudo ./bin/travis-worker-install --trace --skip-docker-populate
+- /usr/local/bin/travis-worker --version
 - sudo ./bin/travis-worker-install --trace --skip-docker-populate --packagecloud-source=travisci/worker-testing
+- /usr/local/bin/travis-worker --version
 
 after_success:
 - utils/atlas-push
