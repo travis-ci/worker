@@ -205,8 +205,12 @@ __install_docker_version_with_options() {
     docker_opts="$docker_opts --storage-driver=aufs --icc=false"
     docker_opts="$docker_opts $docker_version_options $docker_mount_point"
     echo "DOCKER_OPTS=\"$docker_opts\"" >> $DOCKER_CONFIG_FILE
-    service docker stop || echo "Failed to stop docker (exit $?)"
-    service docker start || echo "Failed to start docker (exit $?)"
+    if ! service docker stop ; then
+      stop docker || echo "Failed to stop docker (exit $?)"
+    fi
+    if ! service docker start ; then
+      stop docker || echo "Failed to start docker (exit $?)"
+    fi
     sleep 2
   fi
 }
