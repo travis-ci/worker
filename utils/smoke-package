@@ -18,7 +18,9 @@ main() {
   ${sudo_exe} ./bin/travis-worker-install --trace --skip-docker-populate --edge
   /usr/local/bin/travis-worker --version
   docker version | grep 1.9.0
-  docker run hello-world
+  if ! docker run hello-world ; then
+    ${sudo_exe} tail -n 1000 /var/log/upstart/docker.log
+  fi
   ${sudo_exe} apt-get purge -y travis-worker docker-engine
 
   echo '---> Wiping and updating apt sources'
@@ -29,7 +31,9 @@ main() {
   ${sudo_exe} ./bin/travis-worker-install --skip-docker-populate --stable
   /usr/local/bin/travis-worker --version
   docker version | grep 1.6.2
-  docker run hello-world
+  if ! docker run hello-world ; then
+    ${sudo_exe} tail -n 1000 /var/log/upstart/docker.log
+  fi
   ${sudo_exe} apt-get purge -y travis-worker || \
     echo "Suppressing exit $? from purge of travis-worker stable"
 }
