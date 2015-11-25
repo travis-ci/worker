@@ -156,7 +156,7 @@ __package_cloud_push() {
 
   pushd $CHECKOUT_ROOT/utils/ &>/dev/null
   ./packagecloud-prune \
-    "$PC_REPO" "$PACKAGECLOUD_OS/$PLATFORM_RELEASE" "${PC_LIMIT:-15}"
+    "$PC_REPO" "$PACKAGECLOUD_OS/$PLATFORM_RELEASE" "${PC_LIMIT:-14}"
   popd &>/dev/null
 
   package_cloud push "${pc_push_dest}" "${pc_upload_file}" --verbose
