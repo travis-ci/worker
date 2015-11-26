@@ -10,7 +10,7 @@ main() {
     echo 'default configuration values.'
   fi
 
-  : ${DOCKER_VERSION:=1.9.0-0~trusty}
+  : ${INSTALL_MODE:=stable}
   : ${AWS:=false}
 
   while [ $# -gt 0 ]; do
@@ -35,8 +35,16 @@ main() {
       --docker[-_]image[-_]languages=*)
         export DOCKER_IMAGE_LANGUAGES="${1#*=}"
         ;;
-      --docker[-_]version=*)
-        export DOCKER_VERSION="${1#*=}"
+      --stable)
+        export INSTALL_MODE=stable
+        export PACKAGECLOUD_SOURCE='travisci/worker'
+        ;;
+      --edge)
+        export INSTALL_MODE=edge
+        export PACKAGECLOUD_SOURCE='travisci/worker-testing'
+        ;;
+      --docker[-_]install[-_]mode=*)
+        export INSTALL_MODE="${1#*=}"
         ;;
       --packagecloud[-_]source=*)
         export PACKAGECLOUD_SOURCE="${1#*=}"
@@ -83,11 +91,19 @@ main() {
   if [[ $AWS != false ]] ; then
     AWS=true
   fi
-  export DOCKER_VERSION AWS
+
+  export AWS
+
+  if [[ ! $INSTALL_MODE =~ stable|edge ]] ; then
+    echo "ERROR: Invalid \$INSTALL_MODE \"$INSTALL_MODE\"" >&2
+    echo "ERROR: Valid options are 'edge' or 'stable'" >&2
+    __help
+    exit 1
+  fi
 
   __assert_trusty
   __assert_root
-  __install_docker
+  __install_docker_${INSTALL_MODE}
 
   if [[ ! -n $SKIP_DOCKER_POPULATE ]] ; then
     __pull_docker_images
@@ -120,9 +136,11 @@ OPTIONS:
   --docker-config-file - name of docker config file [\$DOCKER_CONFIG_FILE]
   --docker-image-language-mappings - mappings of languages to aliases for docker images [\$DOCKER_IMAGE_LANGUAGE_MAPPINGS]
   --docker-image-languages - travis-specific language docker images to pull [\$DOCKER_IMAGE_LANGUAGES]
-  --docker-version - docker version to install (default: $DOCKER_VERSION) [\$DOCKER_VERSION]
+  --docker-install-mode - install docker "edge" or "stable" (default: $INSTALL_MODE) [\$INSTALL_MODE]
+  --edge - shortcut for --docker-install-mode=edge & --packagecloud-source=travisci/worker-testing
   --packagecloud-source - name of source for travis-worker installation (default: travisci/worker) [\$PACKAGECLOUD_SOURCE]
   --skip-docker-populate - skip pulling docker images for jobs [\$SKIP_DOCKER_POPULATE]
+  --stable - shortcut for --docker-install-mode=stable & --packagecloud-source=travisci/worker
   --trace - run with tracing
   --travis-enterprise-build-endpoint - full hostname of travis-build API [\$TRAVIS_ENTERPRISE_BUILD_ENDPOINT]
   --travis-enterprise-config - path to enterprise-specific config file [\$TRAVIS_ENTERPRISE_CONFIG]
@@ -149,7 +167,18 @@ __assert_root() {
   fi
 }
 
-__install_docker() {
+__install_docker_stable() {
+  __install_docker_version_with_options '1.7.1-0~trusty' '--exec-driver=lxc'
+}
+
+__install_docker_edge() {
+  __install_docker_version_with_options '1.9.0-0~trusty' ''
+}
+
+__install_docker_version_with_options() {
+  local docker_version="${1}"
+  local docker_version_options="${2}"
+
   : ${DOCKER_APT_FILE:=/etc/apt/sources.list.d/docker.list}
   : ${DOCKER_CONFIG_FILE:=/etc/default/docker}
 
@@ -161,19 +190,27 @@ __install_docker() {
   apt-get update
 
   if ! docker version &>/dev/null ; then
-    apt-get install -y linux-image-extra-`uname -r` lxc "docker-engine=$DOCKER_VERSION"
+    apt-get install -y \
+      linux-image-extra-`uname -r` \
+      lxc \
+      "docker-engine=${docker_version}"
   fi
 
   if [[ $AWS == true ]] ; then
-    local docker_mount_point="--graph=/mnt/docker"
+    local docker_mount_point='--graph=/mnt/docker'
   fi
 
   if [[ ! $(grep icc $DOCKER_CONFIG_FILE) ]] ; then
-    DOCKER_OPTS='-H tcp://0.0.0.0:4243 -H unix://var/run/docker.sock'
-    DOCKER_OPTS="$DOCKER_OPTS --storage-driver=aufs --icc=false"
-    DOCKER_OPTS="$DOCKER_OPTS $docker_mount_point"
-    echo "DOCKER_OPTS=\"$DOCKER_OPTS\"" >> $DOCKER_CONFIG_FILE
-    restart docker
+    local docker_opts='-H tcp://0.0.0.0:4243 -H unix://var/run/docker.sock'
+    docker_opts="$docker_opts --storage-driver=aufs --icc=false"
+    docker_opts="$docker_opts $docker_version_options $docker_mount_point"
+    echo "DOCKER_OPTS=\"$docker_opts\"" >> $DOCKER_CONFIG_FILE
+    if ! service docker stop ; then
+      stop docker || echo "Failed to stop docker (exit $?)"
+    fi
+    if ! service docker start ; then
+      stop docker || echo "Failed to start docker (exit $?)"
+    fi
     sleep 2
   fi
 }
