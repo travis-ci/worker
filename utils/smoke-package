@@ -26,7 +26,7 @@ main() {
 
   echo '---> Uninstalling travis-worker and docker-engine'
   ${sudo_exe} apt-get purge -y travis-worker docker-engine
-  ${sudo_exe} rm -rvf /var/lib/docker
+  ${sudo_exe} mv -v /var/lib/docker /var/lib/docker.bak
 
   echo '---> Wiping logs'
   ${sudo_exe} touch /var/log/upstart/travis-worker.log
