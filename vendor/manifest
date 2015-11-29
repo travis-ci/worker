@@ -62,12 +62,6 @@
 			"branch": "master"
 		},
 		{
-			"importpath": "github.com/henrikhodne/goblueboxapi",
-			"repository": "https://github.com/henrikhodne/goblueboxapi",
-			"revision": "4f22069c7d39dd3c479dadc82b36a84a4f922740",
-			"branch": "master"
-		},
-		{
 			"importpath": "github.com/kr/fs",
 			"repository": "https://github.com/kr/fs",
 			"revision": "2788f0dbd16903de03cb8186e5c7d97b69ad387b",
