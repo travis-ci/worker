@@ -14,6 +14,8 @@ import (
 type AMQPJobQueue struct {
 	conn  *amqp.Connection
 	queue string
+
+	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
 
 // NewAMQPJobQueue creates a AMQPJobQueue backed by the given AMQP connections and
@@ -103,6 +105,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 			}
 
 			buildJob.startAttributes = startAttrs.Config
+			buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS)
 			buildJob.conn = q.conn
 			buildJob.delivery = delivery
 

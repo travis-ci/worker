@@ -269,6 +269,11 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 			return err
 		}
 
+		jobQueue.DefaultLanguage = i.Config.DefaultLanguage
+		jobQueue.DefaultDist = i.Config.DefaultDist
+		jobQueue.DefaultGroup = i.Config.DefaultGroup
+		jobQueue.DefaultOS = i.Config.DefaultOS
+
 		i.JobQueue = jobQueue
 		return nil
 	case "file":
@@ -281,6 +286,11 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 		if err != nil {
 			return err
 		}
+
+		jobQueue.DefaultLanguage = i.Config.DefaultLanguage
+		jobQueue.DefaultDist = i.Config.DefaultDist
+		jobQueue.DefaultGroup = i.Config.DefaultGroup
+		jobQueue.DefaultOS = i.Config.DefaultOS
 
 		i.JobQueue = jobQueue
 		return nil

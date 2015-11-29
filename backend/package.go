@@ -53,16 +53,6 @@ type Instance interface {
 	ID() string
 }
 
-// StartAttributes contains some parts of the config which can be used to
-// determine the type of instance to boot up (for example, what image to use)
-type StartAttributes struct {
-	Language string `json:"language"`
-	OsxImage string `json:"osx_image"`
-	Dist     string `json:"dist"`
-	Group    string `json:"group"`
-	OS       string `json:"os"`
-}
-
 // RunResult represents the result of running a script with Instance.RunScript.
 type RunResult struct {
 	// The exit code of the script. Only valid if Completed is true.

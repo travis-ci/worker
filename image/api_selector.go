@@ -2,6 +2,7 @@ package image
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -45,7 +46,7 @@ func (as *APISelector) Select(params *Params) (string, error) {
 	return "default", nil
 }
 
-func (as *APISelector) queryWithTags(infra string, tags [][]string) (string, error) {
+func (as *APISelector) queryWithTags(infra string, tags []*tagSet) (string, error) {
 	bodyLines := []string{}
 
 	for _, ts := range tags {
@@ -53,8 +54,9 @@ func (as *APISelector) queryWithTags(infra string, tags [][]string) (string, err
 		qs.Set("infra", infra)
 		qs.Set("fields[images]", "name")
 		qs.Set("limit", "1")
-		if len(ts) > 0 {
-			qs.Set("tags", strings.Join(ts, ","))
+		qs.Set("is_default", fmt.Sprintf("%v", ts.IsDefault))
+		if len(ts.Tags) > 0 {
+			qs.Set("tags", strings.Join(ts.Tags, ","))
 		}
 
 		bodyLines = append(bodyLines, qs.Encode())
@@ -120,17 +122,26 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 	return imageResp, nil
 }
 
-func (as *APISelector) buildCandidateTags(params *Params) [][]string {
-	fullTagSet := []string{}
-	candidateTags := [][]string{}
+type tagSet struct {
+	Tags      []string
+	IsDefault bool
+}
 
-	addTag := func(tag string) {
-		fullTagSet = append(fullTagSet, tag)
-		candidateTags = append(candidateTags, []string{tag})
+func (ts *tagSet) GoString() string {
+	return fmt.Sprintf("&image.tagSet{IsDefault: %v, Tags: %#v}", ts.IsDefault, ts.Tags)
+}
+
+func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
+	fullTagSet := &tagSet{Tags: []string{}}
+	candidateTags := []*tagSet{}
+
+	addDefaultTag := func(tag string) {
+		fullTagSet.Tags = append(fullTagSet.Tags, tag)
+		candidateTags = append(candidateTags, &tagSet{IsDefault: true, Tags: []string{tag}})
 	}
 
 	addTags := func(tags ...string) {
-		candidateTags = append(candidateTags, tags)
+		candidateTags = append(candidateTags, &tagSet{IsDefault: false, Tags: tags})
 	}
 
 	hasLang := params.Language != ""
@@ -156,29 +167,30 @@ func (as *APISelector) buildCandidateTags(params *Params) [][]string {
 	}
 
 	if hasLang {
-		addTag("language_" + params.Language + ":true")
+		addDefaultTag("language_" + params.Language + ":true")
 	}
 
 	if params.OS == "osx" && params.OsxImage != "" {
-		addTag("osx_image:" + params.OsxImage)
+		addDefaultTag("osx_image:" + params.OsxImage)
 	}
 
 	if params.Dist != "" {
-		addTag("dist:" + params.Dist)
+		addDefaultTag("dist:" + params.Dist)
 	}
 
 	if params.Group != "" {
-		addTag("group:" + params.Group)
+		addDefaultTag("group:" + params.Group)
 	}
 
 	if params.OS != "" {
-		addTag("os:" + params.OS)
+		addDefaultTag("os:" + params.OS)
 	}
 
-	result := append([][]string{fullTagSet}, candidateTags...)
-	for _, tagSet := range result {
-		sort.Strings(tagSet)
+	result := append([]*tagSet{fullTagSet}, candidateTags...)
+	for _, ts := range result {
+		sort.Strings(ts.Tags)
 	}
+
 	return result
 }
 

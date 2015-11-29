@@ -17,6 +17,10 @@ var (
 	defaultBuildCacheFetchTimeout, _ = time.ParseDuration("5m")
 	defaultBuildCachePushTimeout, _  = time.ParseDuration("5m")
 	defaultHostname, _               = os.Hostname()
+	defaultLanguage                  = "default"
+	defaultDist                      = "precise"
+	defaultGroup                     = "stable"
+	defaultOS                        = "linux"
 )
 
 func init() {
