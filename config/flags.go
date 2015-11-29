@@ -83,6 +83,30 @@ var (
 			Usage:  "Host name used in log output to identify the source of a job",
 			EnvVar: twEnvVars("HOSTNAME"),
 		},
+		cli.StringFlag{
+			Name:   "default-language",
+			Value:  defaultLanguage,
+			Usage:  "Default \"language\" value for each job",
+			EnvVar: twEnvVars("DEFAULT_LANGUAGE"),
+		},
+		cli.StringFlag{
+			Name:   "default-dist",
+			Value:  defaultDist,
+			Usage:  "Default \"dist\" value for each job",
+			EnvVar: twEnvVars("DEFAULT_DIST"),
+		},
+		cli.StringFlag{
+			Name:   "default-group",
+			Value:  defaultGroup,
+			Usage:  "Default \"group\" value for each job",
+			EnvVar: twEnvVars("DEFAULT_GROUP"),
+		},
+		cli.StringFlag{
+			Name:   "default-os",
+			Value:  defaultOS,
+			Usage:  "Default \"os\" value for each job",
+			EnvVar: twEnvVars("DEFAULT_OS"),
+		},
 		cli.DurationFlag{
 			Name:   "hard-timeout",
 			Value:  defaultHardTimeout,

@@ -13,4 +13,6 @@ rm -rvf \
   ./tmp/deb \
   ./tmp/output
 
-find ${GOPATH%%:*}/pkg -wholename '*travis-ci/worker*.a' | xargs rm -vf
+find ${GOPATH%%:*}/pkg -wholename '*travis-ci/worker*.a' | \
+  grep -v vendor/ | \
+  xargs rm -vf
