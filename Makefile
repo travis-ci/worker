@@ -44,11 +44,7 @@ COVERPROFILES := \
 all: clean test
 
 .PHONY: test
-test: deps lintall build fmtpolice .test coverage.html
-
-.PHONY: .test
-.test:
-	$(GO) test -v
+test: deps lintall build fmtpolice test-no-cover coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:

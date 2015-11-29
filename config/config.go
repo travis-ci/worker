@@ -26,6 +26,10 @@ type Config struct {
 	LibratoSource       string
 	SentryDSN           string
 	Hostname            string
+	DefaultLanguage     string
+	DefaultDist         string
+	DefaultGroup        string
+	DefaultOS           string
 	HardTimeout         time.Duration
 	LogTimeout          time.Duration
 
@@ -65,6 +69,10 @@ func FromCLIContext(c *cli.Context) *Config {
 		LibratoSource:       c.String("librato-source"),
 		SentryDSN:           c.String("sentry-dsn"),
 		Hostname:            c.String("hostname"),
+		DefaultLanguage:     c.String("default-language"),
+		DefaultDist:         c.String("default-dist"),
+		DefaultGroup:        c.String("default-group"),
+		DefaultOS:           c.String("default-os"),
 		HardTimeout:         c.Duration("hard-timeout"),
 		LogTimeout:          c.Duration("log-timeout"),
 
@@ -109,6 +117,10 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 		"librato-source":        cfg.LibratoSource,
 		"sentry-dsn":            cfg.SentryDSN,
 		"hostname":              cfg.Hostname,
+		"default-language":      cfg.DefaultLanguage,
+		"default-dist":          cfg.DefaultDist,
+		"default-group":         cfg.DefaultGroup,
+		"default-os":            cfg.DefaultOS,
 		"hard-timeout":          cfg.HardTimeout,
 
 		"build-api-insecure-skip-verify": cfg.BuildAPIInsecureSkipVerify,
