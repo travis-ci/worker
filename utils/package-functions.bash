@@ -77,6 +77,8 @@ __define_version() {
     IFS=-
     git_version_parts=($GIT_DESCRIPTION)
     IFS="$orig_ifs"
-    export VERSION="${VERSION}.dev.${git_version_parts[1]}-${CURRENT_SHA1}"
+    if [[ ${git_version_parts[1]} ]] ; then
+      export VERSION="${VERSION}.dev.${git_version_parts[1]}-${CURRENT_SHA1}"
+    fi
   fi
 }

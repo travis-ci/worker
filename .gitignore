@@ -44,3 +44,4 @@ GIT_DESCRIPTION
 *_rsa*
 vendor/**
 !vendor/manifest
+/*-success
