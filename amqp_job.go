@@ -18,6 +18,8 @@ type amqpJob struct {
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
 	startAttributes *backend.StartAttributes
+	received        time.Time
+	started         time.Time
 }
 
 func (j *amqpJob) GoString() string {
@@ -66,18 +68,21 @@ func (j *amqpJob) Requeue() error {
 }
 
 func (j *amqpJob) Received() error {
+	j.received = time.Now()
 	return j.sendStateUpdate("job:test:receive", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       "received",
-		"received_at": time.Now().UTC().Format(time.RFC3339),
+		"received_at": j.received.UTC().Format(time.RFC3339),
 	})
 }
 
 func (j *amqpJob) Started() error {
+	j.started = time.Now()
 	return j.sendStateUpdate("job:test:start", map[string]interface{}{
-		"id":         j.Payload().Job.ID,
-		"state":      "started",
-		"started_at": time.Now().UTC().Format(time.RFC3339),
+		"id":          j.Payload().Job.ID,
+		"state":       "started",
+		"received_at": j.received.UTC().Format(time.RFC3339),
+		"started_at":  j.started.UTC().Format(time.RFC3339),
 	})
 }
 
@@ -85,6 +90,8 @@ func (j *amqpJob) Finish(state FinishState) error {
 	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       state,
+		"received_at": j.received.UTC().Format(time.RFC3339),
+		"started_at":  j.started.UTC().Format(time.RFC3339),
 		"finished_at": time.Now().UTC().Format(time.RFC3339),
 	})
 	if err != nil {
