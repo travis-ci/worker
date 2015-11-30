@@ -1,3 +1,22 @@
+## 1.3.0 (November 30th, 2015)
+
+IMPROVEMENTS:
+
+  * backend/docker: Tests added by @jacobgreenleaf :heart_eyes_cat:
+  * utils/package-\*, bin/travis-worker-install: Rework and integration into
+    base CI suite.
+  * Switch to using `gvt` for dependency management.
+  * backend/bluebox: **Removed**
+  * amqp\_job: Send all known timestamps during state updates.
+  * backend: Set defaults for all `StartAttributes` fields, which are also
+    exposed via CLI.
+
+BUG FIXES:
+
+  * backend/docker: Use correct HostConfig when creating container
+  * image/api\_selector: Set `is_default=true` when queries consist of a single
+    search dimension.
+
 ## 1.2.0 (November 10th, 2015)
 
 IMPROVEMENTS:
