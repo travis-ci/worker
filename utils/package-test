@@ -61,7 +61,7 @@ __package_verify_common() {
 }
   
 __package_verify_report() {
-  touch "${CHECKOUT_ROOT}/${PLATFORM}-${PLATFORM_PACKAGE_TYPE}-success"
+  touch "${CHECKOUT_ROOT}/${PLATFORM/:/-}-${PLATFORM_PACKAGE_TYPE}-success"
 }
 
 main "$@"

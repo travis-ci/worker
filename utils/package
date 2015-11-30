@@ -124,7 +124,7 @@ __build_all_platforms() {
       -w /code \
       "${test_docker_image}"
 
-    success_file="$CHECKOUT_ROOT/${platform}-${PLATFORM_PACKAGE_TYPE}-success"
+    success_file="$CHECKOUT_ROOT/${platform/:/-}-${PLATFORM_PACKAGE_TYPE}-success"
     rm -vf "${success_file}"
 
     docker exec -it \
