@@ -170,14 +170,26 @@ func (i *CLI) Run() {
 }
 
 func (i *CLI) setupSentry() {
-	if i.Config.SentryDSN != "" {
-		sentryHook, err := NewSentryHook(i.Config.SentryDSN, []logrus.Level{logrus.PanicLevel, logrus.FatalLevel, logrus.ErrorLevel})
-		if err != nil {
-			i.logger.WithField("err", err).Error("couldn't create sentry hook")
-		}
-
-		logrus.AddHook(sentryHook)
+	if i.Config.SentryDSN == "" {
+		return
 	}
+
+	levels := []logrus.Level{
+		logrus.PanicLevel,
+		logrus.FatalLevel,
+	}
+
+	if i.Config.SentryHookErrors {
+		levels = append(levels, logrus.ErrorLevel)
+	}
+
+	sentryHook, err := NewSentryHook(i.Config.SentryDSN, levels)
+
+	if err != nil {
+		i.logger.WithField("err", err).Error("couldn't create sentry hook")
+	}
+
+	logrus.AddHook(sentryHook)
 }
 
 func (i *CLI) setupMetrics() {

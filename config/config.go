@@ -33,6 +33,7 @@ type Config struct {
 	HardTimeout         time.Duration
 	LogTimeout          time.Duration
 
+	SentryHookErrors           bool
 	BuildAPIInsecureSkipVerify bool
 	SkipShutdownOnLogTimeout   bool
 
@@ -76,6 +77,7 @@ func FromCLIContext(c *cli.Context) *Config {
 		HardTimeout:         c.Duration("hard-timeout"),
 		LogTimeout:          c.Duration("log-timeout"),
 
+		SentryHookErrors:           c.Bool("sentry-hook-errors"),
 		BuildAPIInsecureSkipVerify: c.Bool("build-api-insecure-skip-verify"),
 		SkipShutdownOnLogTimeout:   c.Bool("skip-shutdown-on-log-timeout"),
 
@@ -123,6 +125,7 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 		"default-os":            cfg.DefaultOS,
 		"hard-timeout":          cfg.HardTimeout,
 
+		"sentry-hook-errors":             cfg.SentryHookErrors,
 		"build-api-insecure-skip-verify": cfg.BuildAPIInsecureSkipVerify,
 		"skip-shutdown-on-log-timeout":   cfg.SkipShutdownOnLogTimeout,
 
