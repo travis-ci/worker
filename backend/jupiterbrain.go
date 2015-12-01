@@ -516,6 +516,7 @@ func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 
 func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttributes *StartAttributes) (string, error) {
 	jobID, _ := context.JobIDFromContext(ctx)
+	repo, _ := context.RepositoryFromContext(ctx)
 
 	return p.imageSelector.Select(&image.Params{
 		Infra:    "jupiterbrain",
@@ -525,5 +526,6 @@ func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttribut
 		Group:    startAttributes.Group,
 		OS:       startAttributes.OS,
 		JobID:    jobID,
+		Repo:     repo,
 	})
 }

@@ -600,6 +600,7 @@ func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) 
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
 	jobID, _ := context.JobIDFromContext(ctx)
+	repo, _ := context.RepositoryFromContext(ctx)
 
 	imageName, err := p.imageSelector.Select(&image.Params{
 		Infra:    "gce",
@@ -609,6 +610,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 		Group:    startAttributes.Group,
 		OS:       startAttributes.OS,
 		JobID:    jobID,
+		Repo:     repo,
 	})
 
 	if err != nil {

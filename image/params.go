@@ -7,5 +7,7 @@ type Params struct {
 	Dist     string
 	Group    string
 	OS       string
-	JobID    uint64
+
+	JobID uint64
+	Repo  string
 }
