@@ -18,11 +18,11 @@ import (
 	"github.com/cenkalti/backoff"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
-	workerctx "github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/net/context"
+	gocontext "golang.org/x/net/context"
 )
 
 const (
@@ -166,18 +166,18 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 	}
 }
 
-func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *StartAttributes) (Instance, error) {
+func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	u, err := p.baseURL.Parse("instances")
 	if err != nil {
 		return nil, err
 	}
 
-	imageName, err := p.getImageName(startAttributes)
+	imageName, err := p.getImageName(ctx, startAttributes)
 	if err != nil {
 		return nil, err
 	}
 
-	workerctx.LoggerFromContext(ctx).WithFields(logrus.Fields{
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"image_name": imageName,
 		"osx_image":  startAttributes.OsxImage,
 		"language":   startAttributes.Language,
@@ -221,7 +221,7 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 	dataPayload := &jupiterBrainDataResponse{}
 	err = json.NewDecoder(resp.Body).Decode(dataPayload)
 	if err != nil {
-		workerctx.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 			"err":     err,
 			"payload": dataPayload,
 			"body":    resp.Body,
@@ -304,7 +304,7 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 		metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
 		normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
 		metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
-		workerctx.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
+		context.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
 		return &jupiterBrainInstance{
 			payload:  payload,
 			provider: p,
@@ -318,7 +318,7 @@ func (p *jupiterBrainProvider) Start(ctx context.Context, startAttributes *Start
 
 		return nil, err
 	case <-ctx.Done():
-		if ctx.Err() == context.DeadlineExceeded {
+		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
 		}
 
@@ -357,7 +357,7 @@ func (p *jupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error)
 	return resp, err
 }
 
-func (i *jupiterBrainInstance) UploadScript(ctx context.Context, script []byte) error {
+func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
@@ -395,7 +395,7 @@ func (i *jupiterBrainInstance) UploadScript(ctx context.Context, script []byte) 
 	return err
 }
 
-func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) (*RunResult, error) {
+func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -439,7 +439,7 @@ func (i *jupiterBrainInstance) RunScript(ctx context.Context, output io.Writer) 
 	}
 }
 
-func (i *jupiterBrainInstance) Stop(ctx context.Context) error {
+func (i *jupiterBrainInstance) Stop(ctx gocontext.Context) error {
 	u, err := i.provider.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(i.payload.ID)))
 	if err != nil {
 		return err
@@ -514,7 +514,10 @@ func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	})
 }
 
-func (p *jupiterBrainProvider) getImageName(startAttributes *StartAttributes) (string, error) {
+func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttributes *StartAttributes) (string, error) {
+	jobID, _ := context.JobIDFromContext(ctx)
+	repo, _ := context.RepositoryFromContext(ctx)
+
 	return p.imageSelector.Select(&image.Params{
 		Infra:    "jupiterbrain",
 		Language: startAttributes.Language,
@@ -522,5 +525,7 @@ func (p *jupiterBrainProvider) getImageName(startAttributes *StartAttributes) (s
 		Dist:     startAttributes.Dist,
 		Group:    startAttributes.Group,
 		OS:       startAttributes.OS,
+		JobID:    jobID,
+		Repo:     repo,
 	})
 }
