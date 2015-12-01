@@ -48,18 +48,21 @@ func (as *APISelector) Select(params *Params) (string, error) {
 
 func (as *APISelector) queryWithTags(infra string, tags []*tagSet) (string, error) {
 	bodyLines := []string{}
+	lastJobID := uint64(0)
 
 	for _, ts := range tags {
 		qs := url.Values{}
 		qs.Set("infra", infra)
 		qs.Set("fields[images]", "name")
 		qs.Set("limit", "1")
+		qs.Set("job_id", fmt.Sprintf("%v", ts.JobID))
 		qs.Set("is_default", fmt.Sprintf("%v", ts.IsDefault))
 		if len(ts.Tags) > 0 {
 			qs.Set("tags", strings.Join(ts.Tags, ","))
 		}
 
 		bodyLines = append(bodyLines, qs.Encode())
+		lastJobID = ts.JobID
 	}
 
 	qs := url.Values{}
@@ -67,6 +70,7 @@ func (as *APISelector) queryWithTags(infra string, tags []*tagSet) (string, erro
 	qs.Set("is_default", "true")
 	qs.Set("fields[images]", "name")
 	qs.Set("limit", "1")
+	qs.Set("job_id", fmt.Sprintf("%v", lastJobID))
 
 	bodyLines = append(bodyLines, qs.Encode())
 
@@ -125,6 +129,7 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 type tagSet struct {
 	Tags      []string
 	IsDefault bool
+	JobID     uint64
 }
 
 func (ts *tagSet) GoString() string {
@@ -132,16 +137,18 @@ func (ts *tagSet) GoString() string {
 }
 
 func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
-	fullTagSet := &tagSet{Tags: []string{}}
+	fullTagSet := &tagSet{Tags: []string{}, JobID: params.JobID}
 	candidateTags := []*tagSet{}
 
 	addDefaultTag := func(tag string) {
 		fullTagSet.Tags = append(fullTagSet.Tags, tag)
-		candidateTags = append(candidateTags, &tagSet{IsDefault: true, Tags: []string{tag}})
+		candidateTags = append(candidateTags,
+			&tagSet{IsDefault: true, Tags: []string{tag}, JobID: params.JobID})
 	}
 
 	addTags := func(tags ...string) {
-		candidateTags = append(candidateTags, &tagSet{IsDefault: false, Tags: tags})
+		candidateTags = append(candidateTags,
+			&tagSet{IsDefault: false, Tags: tags, JobID: params.JobID})
 	}
 
 	hasLang := params.Language != ""
