@@ -3,7 +3,6 @@ package worker
 import (
 	"encoding/json"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
@@ -77,10 +76,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 			err := json.Unmarshal(delivery.Body, buildJob.payload)
 			if err != nil {
-				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-					"err":  err,
-					"body": delivery.Body,
-				}).Error("payload JSON parse error, attempting to nack delivery")
+				context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error, attempting to nack delivery")
 				err := delivery.Ack(false)
 				if err != nil {
 					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
@@ -90,10 +86,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 			err = json.Unmarshal(delivery.Body, &startAttrs)
 			if err != nil {
-				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-					"err":  err,
-					"body": delivery.Body,
-				}).Error("start attributes JSON parse error, attempting to nack delivery")
+				context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
 				err := delivery.Ack(false)
 				if err != nil {
 					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
@@ -103,10 +96,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 			buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
 			if err != nil {
-				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-					"err":  err,
-					"body": delivery.Body,
-				}).Error("raw payload JSON parse error, attempting to nack delivery")
+				context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error, attempting to nack delivery")
 				err := delivery.Ack(false)
 				if err != nil {
 					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")

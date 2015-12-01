@@ -122,28 +122,19 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 
 		err = json.Unmarshal(fb, buildJob.payload)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-				"err":  err,
-				"body": fb,
-			}).Error("payload JSON parse error, skipping")
+			context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error, skipping")
 			continue
 		}
 
 		err = json.Unmarshal(fb, &startAttrs)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-				"err":  err,
-				"body": fb,
-			}).Error("start attributes JSON parse error, skipping")
+			context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error, skipping")
 			continue
 		}
 
 		buildJob.rawPayload, err = simplejson.NewJson(fb)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-				"err":  err,
-				"body": fb,
-			}).Error("raw payload JSON parse error, skipping")
+			context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error, skipping")
 			continue
 		}
 
