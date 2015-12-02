@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/dustin/go-humanize"
+	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
-	"github.com/travis-ci/worker/vendor/github.com/dustin/go-humanize"
-	"github.com/travis-ci/worker/vendor/github.com/fsouza/go-dockerclient"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
 )
