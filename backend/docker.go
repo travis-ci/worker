@@ -10,13 +10,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/dustin/go-humanize"
-	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
+	"github.com/travis-ci/worker/vendor/github.com/dustin/go-humanize"
+	"github.com/travis-ci/worker/vendor/github.com/fsouza/go-dockerclient"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
 )
@@ -26,8 +26,8 @@ var (
 		"ENDPOINT / HOST": "[REQUIRED] tcp or unix address for connecting to Docker",
 		"CERT_PATH":       "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
 		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
-		"MEMORY":          "memory to allocate to each container (default \"4G\")",
-		"CPUS":            "cpu count to allocate to each container (default 2)",
+		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
 )
