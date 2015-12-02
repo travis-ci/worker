@@ -10,7 +10,8 @@
 
 ### from package
 
-See the [packagecloud
+Use the [`./bin/travis-worker-installer`](./bin/travis-worker-installer) script,
+or take a look at the [packagecloud
 instructions](https://packagecloud.io/travisci/worker/install).
 
 ### from source
