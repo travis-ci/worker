@@ -77,6 +77,11 @@ var (
 			Usage:  "The DSN to send Sentry events to",
 			EnvVar: twEnvVars("SENTRY_DSN"),
 		},
+		cli.BoolFlag{
+			Name:   "sentry-hook-errors",
+			Usage:  "Add logrus.ErrorLevel to logrus sentry hook",
+			EnvVar: twEnvVars("SENTRY_HOOK_ERRORS"),
+		},
 		cli.StringFlag{
 			Name:   "hostname",
 			Value:  defaultHostname,

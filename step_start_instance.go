@@ -59,7 +59,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	}
 
 	if err := instance.Stop(ctx); err != nil {
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Error("couldn't stop instance")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
 	} else {
 		context.LoggerFromContext(ctx).Info("stopped instance")
 	}
