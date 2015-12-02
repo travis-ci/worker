@@ -5,12 +5,13 @@
 ### from binary
 
 0. download the [64-bit linux
-   binary](https://travis-worker-artifacts.s3.amazonaws.com/travis-ci/worker/v0.4.3/build/linux/amd64/travis-worker)
+   binary](https://travis-worker-artifacts.s3.amazonaws.com/travis-ci/worker/v1.3.0/build/linux/amd64/travis-worker)
 0. put it somewhere in `$PATH`, e.g. `/usr/local/bin/travis-worker`
 
 ### from package
 
-*coming soon!*
+See the [packagecloud
+instructions](https://packagecloud.io/travisci/worker/install).
 
 ### from source
 0. clone this down
