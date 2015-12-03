@@ -173,8 +173,8 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 
 	hasLang := params.Language != ""
 
-	if params.OS == "osx" && params.OsxImage != "" && hasLang {
-		addTags("osx_image:"+params.OsxImage, "language_"+params.Language+":true")
+	if params.OS == "osx" && params.OsxImage != "" {
+		addTags("osx_image:"+params.OsxImage, "os:osx")
 	}
 
 	if params.Dist != "" && params.Group != "" && hasLang {
