@@ -102,7 +102,7 @@ func (j *amqpJob) Finish(state FinishState) error {
 		"state":       state,
 		"received_at": receivedAt.UTC().Format(time.RFC3339),
 		"started_at":  startedAt.UTC().Format(time.RFC3339),
-		"finished_at": time.Now().UTC().Format(time.RFC3339),
+		"finished_at": finishedAt.UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return err
