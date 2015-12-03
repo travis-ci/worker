@@ -87,12 +87,22 @@ func (j *amqpJob) Started() error {
 }
 
 func (j *amqpJob) Finish(state FinishState) error {
+	finishedAt := time.Now()
+	receivedAt := j.received
+	if receivedAt.IsZero() {
+		receivedAt = finishedAt
+	}
+	startedAt := j.started
+	if startedAt.IsZero() {
+		startedAt = finishedAt
+	}
+
 	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       state,
-		"received_at": j.received.UTC().Format(time.RFC3339),
-		"started_at":  j.started.UTC().Format(time.RFC3339),
-		"finished_at": time.Now().UTC().Format(time.RFC3339),
+		"received_at": receivedAt.UTC().Format(time.RFC3339),
+		"started_at":  startedAt.UTC().Format(time.RFC3339),
+		"finished_at": finishedAt.UTC().Format(time.RFC3339),
 	})
 	if err != nil {
 		return err

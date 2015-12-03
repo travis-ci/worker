@@ -57,7 +57,7 @@ var (
 					Repo:     "corp/frob",
 				},
 				{
-					Infra:    "macstadium6",
+					Infra:    "jupiterbrain",
 					Language: "python",
 					OS:       "osx",
 					OsxImage: "xcode7",
@@ -65,7 +65,7 @@ var (
 					Repo:     "corp/frob",
 				},
 				{
-					Infra:    "macstadium6",
+					Infra:    "jupiterbrain",
 					Language: "objective-c",
 					OS:       "osx",
 					OsxImage: "xcode6.4",
@@ -73,7 +73,7 @@ var (
 					Repo:     "corp/frob",
 				},
 				{
-					Infra:    "macstadium6",
+					Infra:    "jupiterbrain",
 					Language: "node_js",
 					OsxImage: "xcode6.1",
 					Dist:     "yosammity",
@@ -111,7 +111,7 @@ var (
 				},
 				{
 					&tagSet{[]string{"language_python:true", "os:osx", "osx_image:xcode7"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"language_python:true", "osx_image:xcode7"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"os:osx", "osx_image:xcode7"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_python:true", "os:osx"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_python:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"osx_image:xcode7"}, true, uint64(4), "corp/frob"},
@@ -119,7 +119,7 @@ var (
 				},
 				{
 					&tagSet{[]string{"language_objective-c:true", "os:osx", "osx_image:xcode6.4"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"language_objective-c:true", "osx_image:xcode6.4"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"os:osx", "osx_image:xcode6.4"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_objective-c:true", "os:osx"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_objective-c:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"osx_image:xcode6.4"}, true, uint64(4), "corp/frob"},
@@ -127,7 +127,7 @@ var (
 				},
 				{
 					&tagSet{[]string{"dist:yosammity", "group:fancy", "language_node_js:true", "os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"language_node_js:true", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity", "group:fancy", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group:fancy", "language_node_js:true"}, false, uint64(4), "corp/frob"},
