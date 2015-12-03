@@ -26,8 +26,8 @@ var (
 		"ENDPOINT / HOST": "[REQUIRED] tcp or unix address for connecting to Docker",
 		"CERT_PATH":       "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
 		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
-		"MEMORY":          "memory to allocate to each container (default \"4G\")",
-		"CPUS":            "cpu count to allocate to each container (default 2)",
+		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
 )
