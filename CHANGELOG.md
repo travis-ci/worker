@@ -1,3 +1,25 @@
+## 1.4.0 (December 3rd, 2015)
+
+FEATURES:
+
+  * backend/docker: Allow disabling the CPU and RAM allocations by setting the
+	config options to 0 (this was possible in previous versions, but was not
+	documented or supported until now)
+
+IMPROVEMENTS:
+
+  * backend/gce: Send job ID and repository slug to image selector to help in
+	log correlation
+  * sentry: Only send fatal and panic levels to Sentry, with an option for
+	sending errors as well (--sentry-hook-errors)
+  * image/api\_selector: Send os:osx instead of the language when querying for
+	an image matching an osx\_image flag
+
+BUG FIXES:
+
+  * amqp\_job: Send correct received\_at and started\_at timestamps to hub in
+	the case of the job finishing before the received or started event is sent
+
 ## 1.3.0 (November 30th, 2015)
 
 IMPROVEMENTS:
