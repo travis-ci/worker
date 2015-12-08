@@ -458,7 +458,12 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	errChan := make(chan error)
 	go func() {
+		logger.WithFields(logrus.Fields{
+			"duration": p.bootPrePollSleep,
+		}).Debug("sleeping before first checking instance insert operation")
+
 		time.Sleep(p.bootPrePollSleep)
+
 		zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name)
 
 		for {
@@ -494,8 +499,9 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			}
 
 			logger.WithFields(logrus.Fields{
-				"status": newOp.Status,
-				"name":   op.Name,
+				"status":   newOp.Status,
+				"name":     op.Name,
+				"duration": p.bootPollSleep,
 			}).Debug("sleeping before checking instance insert operation")
 
 			time.Sleep(p.bootPollSleep)
