@@ -82,7 +82,7 @@
 		{
 			"importpath": "github.com/pkg/sftp",
 			"repository": "https://github.com/pkg/sftp",
-			"revision": "aee0f780d0e5aed0f633357e619dc38fc06fa23d",
+			"revision": "cbc2879daf7b8cff8faff8c509e4c727ba7291d5",
 			"branch": "master"
 		},
 		{
