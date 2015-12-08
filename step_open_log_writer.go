@@ -51,6 +51,7 @@ func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w io.Writ
 			fmt.Sprintf("hostname: %s", hostname),
 			fmt.Sprintf("version: %s", VersionString),
 			fmt.Sprintf("instance: %s", instance.ID()),
+			fmt.Sprintf("startup: %v", instance.StartupDuration()),
 		}, "\n")))
 	}
 }

@@ -146,6 +146,8 @@ type gceInstance struct {
 
 	projectID string
 	imageName string
+
+	startupDuration time.Duration
 }
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
@@ -490,6 +492,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	select {
 	case inst := <-instChan:
 		metrics.TimeSince("worker.vm.provider.gce.boot", startBooting)
+		createdAt, _ := time.Parse(time.RFC3339, inst.CreationTimestamp)
 		return &gceInstance{
 			client:   p.client,
 			provider: p,
@@ -500,6 +503,8 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 			projectID: p.projectID,
 			imageName: image.Name,
+
+			startupDuration: time.Now().UTC().Sub(createdAt),
 		}, nil
 	case err := <-errChan:
 		abandonedStart = true
@@ -879,4 +884,8 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 
 func (i *gceInstance) ID() string {
 	return fmt.Sprintf("%s:%s", i.instance.Name, i.imageName)
+}
+
+func (i *gceInstance) StartupDuration() time.Duration {
+	return i.startupDuration
 }
