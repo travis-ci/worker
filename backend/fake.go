@@ -2,6 +2,7 @@ package backend
 
 import (
 	"io"
+	"time"
 
 	"github.com/travis-ci/worker/config"
 
@@ -23,13 +24,27 @@ func newFakeProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
-	return &fakeInstance{p: p}, nil
+	var (
+		dur time.Duration
+		err error
+	)
+
+	if p.cfg.IsSet("STARTUP_DURATION") {
+		dur, err = time.ParseDuration(p.cfg.Get("STARTUP_DURATION"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &fakeInstance{p: p, startupDuration: dur}, nil
 }
 
 func (p *fakeProvider) Setup() error { return nil }
 
 type fakeInstance struct {
 	p *fakeProvider
+
+	startupDuration time.Duration
 }
 
 func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
@@ -51,4 +66,8 @@ func (i *fakeInstance) Stop(ctx context.Context) error {
 
 func (i *fakeInstance) ID() string {
 	return "fake"
+}
+
+func (i *fakeInstance) StartupDuration() time.Duration {
+	return i.startupDuration
 }

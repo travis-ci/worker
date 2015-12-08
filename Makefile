@@ -6,6 +6,8 @@ VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
 REV_VAR := $(PACKAGE).RevisionString
 REV_VALUE ?= $(shell git rev-parse HEAD 2>/dev/null || echo "'???'")
+REV_URL_VAR := $(PACKAGE).RevisionURLString
+REV_URL_VALUE ?= https://github.com/travis-ci/worker/tree/$(shell git rev-parse HEAD 2>/dev/null || echo "'???'")
 GENERATED_VAR := $(PACKAGE).GeneratedString
 GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 COPYRIGHT_VAR := $(PACKAGE).CopyrightString
@@ -18,6 +20,7 @@ GOPATH := $(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -x -ldflags "\
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
+	-X '$(REV_URL_VAR)=$(REV_URL_VALUE)' \
 	-X '$(GENERATED_VAR)=$(GENERATED_VALUE)' \
 	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)' \
 "
