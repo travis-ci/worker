@@ -45,3 +45,5 @@ GIT_DESCRIPTION
 vendor/**
 !vendor/manifest
 /*-success
+.crossdeps
+build/
