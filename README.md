@@ -85,17 +85,15 @@ To work with the dependencies you need to do the following first
 
 ### Updating existing vendored dependencies
 
-To update and existing vendored dependency, do the following:
+To update and existing vendored dependency, do the following in *this directory*:
 
-1. `cd ~/code/travis-worker`
-2. `gvt fetch name/of/dependency` e.g. `gvt fetch github.com/pkg/sftp`
+- `gvt update name/of/dependency` e.g. `gvt update github.com/pkg/sftp`
 
 ### Adding a new dependency
 
 To add a new dependency, do the following:
 
-1. `cd ~/code/travis-worker`
-2. `gvt fetch name/of/package` e.g. `gvt fetch github.com/pkg/sftp`
+- `gvt fetch name/of/package` e.g. `gvt fetch github.com/pkg/sftp`
 
 ## License and Copyright Information
 
