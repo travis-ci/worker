@@ -13,6 +13,8 @@ var (
 	VersionString = "?"
 	// RevisionString is the git revision set at build time
 	RevisionString = "?"
+	// RevisionURLString is the full URL to the revision set at build time
+	RevisionURLString = "?"
 	// GeneratedString is the build date set at build time
 	GeneratedString = "?"
 	// CopyrightString is the copyright set at build time
