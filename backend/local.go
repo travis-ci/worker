@@ -116,3 +116,5 @@ func (i *localInstance) Stop(ctx gocontext.Context) error {
 func (i *localInstance) ID() string {
 	return fmt.Sprintf("local:%s", i.scriptPath)
 }
+
+func (i *localInstance) StartupDuration() time.Duration { return zeroDuration }

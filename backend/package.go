@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"time"
 
 	"golang.org/x/net/context"
 )
@@ -20,7 +21,9 @@ var (
 	// ErrMissingEndpointConfig is returned if the provider config was missing
 	// an 'ENDPOINT' configuration, but one is required.
 	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
-	punctRegex               = regexp.MustCompile(`[&+/=\\]`)
+
+	punctRegex   = regexp.MustCompile(`[&+/=\\]`)
+	zeroDuration time.Duration
 )
 
 // Provider represents some kind of instance provider. It can point to an
@@ -51,6 +54,9 @@ type Instance interface {
 
 	// ID is used when identifying the instance in logs and such
 	ID() string
+
+	// StartupDuration is the duration between "created" and "ready"
+	StartupDuration() time.Duration
 }
 
 // RunResult represents the result of running a script with Instance.RunScript.

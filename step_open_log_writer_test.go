@@ -16,7 +16,11 @@ import (
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
 	s := &stepOpenLogWriter{logTimeout: time.Second, maxLogLength: 4}
 
-	bp, _ := backend.NewBackendProvider("fake", config.ProviderConfigFromMap(map[string]string{}))
+	bp, _ := backend.NewBackendProvider("fake",
+		config.ProviderConfigFromMap(map[string]string{
+			"STARTUP_DURATION": "42.17s",
+		}))
+
 	ctx := gocontext.TODO()
 	instance, _ := bp.Start(ctx, nil)
 
@@ -71,7 +75,8 @@ func TestStepOpenLogWriter_writeUsingWorker(t *testing.T) {
 	assert.Contains(t, out, "travis_fold:start:worker_info\r\033[0K")
 	assert.Contains(t, out, "\033[33;1mWorker information\033[0m\n")
 	assert.Contains(t, out, "\nhostname: frizzlefry.example.local\n")
+	assert.Contains(t, out, "\nversion: "+VersionString+" "+RevisionURLString+"\n")
 	assert.Contains(t, out, "\ninstance: fake\n")
-	assert.Contains(t, out, "\nversion: "+VersionString+"\n")
+	assert.Contains(t, out, "\nstartup: 42.17s\n")
 	assert.Contains(t, out, "\ntravis_fold:end:worker_info\r\033[0K")
 }

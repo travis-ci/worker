@@ -77,6 +77,8 @@ type jupiterBrainProvider struct {
 type jupiterBrainInstance struct {
 	payload  *jupiterBrainInstancePayload
 	provider *jupiterBrainProvider
+
+	startupDuration time.Duration
 }
 
 type jupiterBrainInstancePayload struct {
@@ -306,8 +308,9 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
 		context.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
 		return &jupiterBrainInstance{
-			payload:  payload,
-			provider: p,
+			payload:         payload,
+			provider:        p,
+			startupDuration: time.Now().UTC().Sub(startBooting),
 		}, nil
 	case err := <-errChan:
 		instance := &jupiterBrainInstance{
@@ -464,6 +467,10 @@ func (i *jupiterBrainInstance) ID() string {
 		return "{unidentified}"
 	}
 	return fmt.Sprintf("%s:%s", i.payload.ID, i.payload.BaseImage)
+}
+
+func (i *jupiterBrainInstance) StartupDuration() time.Duration {
+	return i.startupDuration
 }
 
 func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {

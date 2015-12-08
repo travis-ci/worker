@@ -52,6 +52,7 @@ type dockerInstance struct {
 	client    *docker.Client
 	provider  *dockerProvider
 	container *docker.Container
+	readyAt   time.Time
 
 	imageName string
 }
@@ -393,4 +394,11 @@ func (i *dockerInstance) ID() string {
 	}
 
 	return fmt.Sprintf("%s:%s", i.container.ID[0:7], i.imageName)
+}
+
+func (i *dockerInstance) StartupDuration() time.Duration {
+	if i.container == nil {
+		return zeroDuration
+	}
+	return i.container.Created.Sub(i.readyAt)
 }
