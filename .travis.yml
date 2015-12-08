@@ -31,6 +31,7 @@ addons:
 install:
 - go get github.com/FiloSottile/gvt
 - go get github.com/alecthomas/gometalinter
+- go get github.com/laher/goxc
 - gometalinter --install --update
 - gem install package_cloud --no-ri --no-rdoc
 
@@ -39,14 +40,13 @@ script:
 - make lintall
 - make test
 - make test-race
+- make crossbuild
 - make smoke
 - make package
 - make smoke-package
 
 after_success:
 - utils/atlas-push
-- mkdir -p build/$UNAME/amd64
-- cp -v $TRAVIS_BUILD_DIR/bin/travis-worker ./build/$UNAME/amd64/travis-worker
 - echo $ARTIFACTS_PATHS
 
 notifications:
