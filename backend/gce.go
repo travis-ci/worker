@@ -39,6 +39,7 @@ const (
 	defaultGCEDiskSize           = int64(20)
 	defaultGCELanguage           = "minimal"
 	defaultGCEBootPollSleep      = 3 * time.Second
+	defaultGCEBootPrePollSleep   = 15 * time.Second
 	defaultGCEUploadRetries      = uint64(10)
 	defaultGCEUploadRetrySleep   = 5 * time.Second
 	defaultGCEHardTimeoutMinutes = int64(130)
@@ -66,6 +67,7 @@ var (
 		"IMAGE_DEFAULT":           fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":     fmt.Sprintf("time to sleep prior to polling server for instance status (default %v)", defaultGCEBootPrePollSleep),
 		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
 		"AUTO_IMPLODE":            "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
@@ -118,6 +120,7 @@ type gceProvider struct {
 	imageSelectorType string
 	imageSelector     image.Selector
 	bootPollSleep     time.Duration
+	bootPrePollSleep  time.Duration
 	defaultLanguage   string
 	defaultImage      string
 	uploadRetries     uint64
@@ -245,8 +248,17 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			return nil, err
 		}
 		bootPollSleep = si
-
 	}
+
+	bootPrePollSleep := defaultGCEBootPrePollSleep
+	if cfg.IsSet("BOOT_PRE_POLL_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("BOOT_PRE_POLL_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		bootPrePollSleep = si
+	}
+
 	uploadRetries := defaultGCEUploadRetries
 	if cfg.IsSet("UPLOAD_RETRIES") {
 		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
@@ -325,6 +337,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageSelector:     imageSelector,
 		imageSelectorType: imageSelectorType,
 		bootPollSleep:     bootPollSleep,
+		bootPrePollSleep:  bootPrePollSleep,
 		defaultLanguage:   defaultLanguage,
 		defaultImage:      defaultImage,
 		uploadRetries:     uploadRetries,
@@ -445,8 +458,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	errChan := make(chan error)
 	go func() {
+		time.Sleep(p.bootPrePollSleep)
+		zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name)
+
 		for {
-			newOp, err := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name).Do()
+			newOp, err := zoneOpCall.Do()
 			if err != nil {
 				errChan <- err
 				return
@@ -848,8 +864,10 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 
 	errChan := make(chan error)
 	go func() {
+		zoneOpCall := i.client.ZoneOperations.Get(i.projectID, i.ic.Zone.Name, op.Name)
+
 		for {
-			newOp, err := i.client.ZoneOperations.Get(i.projectID, i.ic.Zone.Name, op.Name).Do()
+			newOp, err := zoneOpCall.Do()
 			if err != nil {
 				errChan <- err
 				return
