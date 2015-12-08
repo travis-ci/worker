@@ -49,7 +49,7 @@ func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w io.Writ
 		_, _ = writeFold(w, "worker_info", []byte(strings.Join([]string{
 			"\033[33;1mWorker information\033[0m",
 			fmt.Sprintf("hostname: %s", hostname),
-			fmt.Sprintf("version: %s", VersionString),
+			fmt.Sprintf("version: %s https://github.com/travis-ci/worker/tree/%s", VersionString, RevisionString),
 			fmt.Sprintf("instance: %s", instance.ID()),
 			fmt.Sprintf("startup: %v", instance.StartupDuration()),
 		}, "\n")))
