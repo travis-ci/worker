@@ -24,7 +24,19 @@ func newFakeProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
-	return &fakeInstance{p: p, startupDuration: 42170 * time.Millisecond}, nil
+	var (
+		dur time.Duration
+		err error
+	)
+
+	if p.cfg.IsSet("STARTUP_DURATION") {
+		dur, err = time.ParseDuration(p.cfg.Get("STARTUP_DURATION"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &fakeInstance{p: p, startupDuration: dur}, nil
 }
 
 func (p *fakeProvider) Setup() error { return nil }
