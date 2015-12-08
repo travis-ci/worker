@@ -514,7 +514,6 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	select {
 	case inst := <-instChan:
 		metrics.TimeSince("worker.vm.provider.gce.boot", startBooting)
-		createdAt, _ := time.Parse(time.RFC3339, inst.CreationTimestamp)
 		return &gceInstance{
 			client:   p.client,
 			provider: p,
@@ -526,7 +525,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			projectID: p.projectID,
 			imageName: image.Name,
 
-			startupDuration: time.Now().UTC().Sub(createdAt),
+			startupDuration: time.Now().UTC().Sub(startBooting),
 		}, nil
 	case err := <-errChan:
 		abandonedStart = true
