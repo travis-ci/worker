@@ -57,7 +57,7 @@ var (
 		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
 		"SSH_PUB_KEY_PATH":      "[REQUIRED] path to ssh public key used to access job vms",
 		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
-		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"legacy\", \"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
 		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
 		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
