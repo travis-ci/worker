@@ -139,6 +139,28 @@ type gceInstanceConfig struct {
 	HardTimeoutMinutes int64
 }
 
+type gceStartMultistepWrapper struct {
+	f func(*gceStartContext) multistep.StepAction
+}
+
+func (gsmw *gceStartMultistepWrapper) Run(state multistep.StateBag) multistep.StepAction {
+	return gsmw.f(state.Get("c").(*gceStartContext))
+}
+
+func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
+
+type gceStartContext struct {
+	startAttributes  *StartAttributes
+	ctx              gocontext.Context
+	instChan         chan Instance
+	errChan          chan error
+	image            *compute.Image
+	script           string
+	bootStart        time.Time
+	instance         *compute.Instance
+	instanceInsertOp *compute.Operation
+}
+
 type gceInstance struct {
 	client   *compute.Service
 	provider *gceProvider
@@ -423,40 +445,41 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	logger := context.LoggerFromContext(ctx)
 
 	state := &multistep.BasicStateBag{}
-	state.Put("start_attributes", startAttributes)
-	state.Put("ctx", ctx)
 
-	instChan := make(chan Instance)
-	state.Put("inst_chan", instChan)
+	c := &gceStartContext{
+		startAttributes: startAttributes,
+		ctx:             ctx,
+		instChan:        make(chan Instance),
+		errChan:         make(chan error),
+	}
 
-	errChan := make(chan error)
-	state.Put("err_chan", errChan)
+	state.Put("c", c)
 
 	runner := &multistep.BasicRunner{
 		Steps: []multistep.Step{
-			&multistepWrapper{f: p.stepGetImage},
-			&multistepWrapper{f: p.stepRenderScript},
-			&multistepWrapper{f: p.stepInsertInstance},
-			&multistepWrapper{f: p.stepWaitForInstanceIP},
+			&gceStartMultistepWrapper{f: p.stepGetImage},
+			&gceStartMultistepWrapper{f: p.stepRenderScript},
+			&gceStartMultistepWrapper{f: p.stepInsertInstance},
+			&gceStartMultistepWrapper{f: p.stepWaitForInstanceIP},
 		},
 	}
 
 	abandonedStart := false
 
-	defer func() {
-		if inst, ok := state.Get("inst").(*compute.Instance); ok && abandonedStart {
-			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, inst.Name).Do()
+	defer func(c *gceStartContext) {
+		if c.instance != nil && abandonedStart {
+			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, c.instance.Name).Do()
 		}
-	}()
+	}(c)
 
 	logger.Info("starting instance")
 	go runner.Run(state)
 
 	logger.Debug("selecting over instance, error, and done channels")
 	select {
-	case inst := <-instChan:
+	case inst := <-c.instChan:
 		return inst, nil
-	case err := <-errChan:
+	case err := <-c.errChan:
 		abandonedStart = true
 		return nil, err
 	case <-ctx.Done():
@@ -468,70 +491,51 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 }
 
-func (p *gceProvider) stepGetImage(state multistep.StateBag) multistep.StepAction {
-	ctx := state.Get("ctx").(gocontext.Context)
-	startAttributes := state.Get("start_attributes").(*StartAttributes)
-	errChan := state.Get("err_chan").(chan error)
-
-	image, err := p.imageSelect(ctx, startAttributes)
+func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
+	image, err := p.imageSelect(c.ctx, c.startAttributes)
 	if err != nil {
-		errChan <- err
+		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
-	state.Put("image", image)
+	c.image = image
 	return multistep.ActionContinue
 }
 
-func (p *gceProvider) stepRenderScript(state multistep.StateBag) multistep.StepAction {
-	errChan := state.Get("err_chan").(chan error)
-
+func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
 	scriptBuf := bytes.Buffer{}
 	err := gceStartupScript.Execute(&scriptBuf, p.ic)
 	if err != nil {
-		errChan <- err
+		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
-	state.Put("script", scriptBuf.String())
+	c.script = scriptBuf.String()
 	return multistep.ActionContinue
 }
 
-func (p *gceProvider) stepInsertInstance(state multistep.StateBag) multistep.StepAction {
-	errChan := state.Get("err_chan").(chan error)
-	image := state.Get("image").(*compute.Image)
-	script := state.Get("script").(string)
-	startAttributes := state.Get("start_attributes").(*StartAttributes)
-	ctx := state.Get("ctx").(gocontext.Context)
+func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepAction {
+	inst := p.buildInstance(c.startAttributes, c.image.SelfLink, c.script)
 
-	inst := p.buildInstance(startAttributes, image.SelfLink, script)
-
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
 		"instance": inst,
 	}).Debug("inserting instance")
 
-	state.Put("boot_start", time.Now().UTC())
+	c.bootStart = time.Now().UTC()
 
 	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
 	if err != nil {
-		errChan <- err
+		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
-	state.Put("instance", inst)
-	state.Put("instance_insert_op", op)
+	c.instance = inst
+	c.instanceInsertOp = op
 	return multistep.ActionContinue
 }
 
-func (p *gceProvider) stepWaitForInstanceIP(state multistep.StateBag) multistep.StepAction {
-	errChan := state.Get("err_chan").(chan error)
-	instChan := state.Get("inst_chan").(chan Instance)
-	inst := state.Get("inst").(*compute.Instance)
-	image := state.Get("image").(*compute.Image)
-	startBooting := state.Get("boot_start").(time.Time)
-	op := state.Get("instance_insert_op").(*compute.Operation)
-	ctx := state.Get("ctx").(gocontext.Context)
-	logger := context.LoggerFromContext(ctx)
+func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx)
 
 	logger.WithFields(logrus.Fields{
 		"duration": p.bootPrePollSleep,
@@ -539,38 +543,38 @@ func (p *gceProvider) stepWaitForInstanceIP(state multistep.StateBag) multistep.
 
 	time.Sleep(p.bootPrePollSleep)
 
-	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name)
+	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name)
 
 	for {
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
-			errChan <- err
+			c.errChan <- err
 			return multistep.ActionHalt
 		}
 
 		if newOp.Status == "RUNNING" {
 			if newOp.Error != nil {
-				errChan <- &gceOpError{Err: newOp.Error}
+				c.errChan <- &gceOpError{Err: newOp.Error}
 				return multistep.ActionHalt
 			}
 
 			logger.WithFields(logrus.Fields{
 				"status": newOp.Status,
-				"name":   op.Name,
+				"name":   c.instanceInsertOp.Name,
 			}).Debug("instance is ready")
 
-			instChan <- &gceInstance{
+			c.instChan <- &gceInstance{
 				client:   p.client,
 				provider: p,
-				instance: inst,
+				instance: c.instance,
 				ic:       p.ic,
 
 				authUser: "travis",
 
 				projectID: p.projectID,
-				imageName: image.Name,
+				imageName: c.image.Name,
 
-				startupDuration: time.Now().UTC().Sub(startBooting),
+				startupDuration: time.Now().UTC().Sub(c.bootStart),
 			}
 			return multistep.ActionContinue
 		}
@@ -578,16 +582,16 @@ func (p *gceProvider) stepWaitForInstanceIP(state multistep.StateBag) multistep.
 		if newOp.Error != nil {
 			logger.WithFields(logrus.Fields{
 				"err":  newOp.Error,
-				"name": op.Name,
+				"name": c.instanceInsertOp.Name,
 			}).Error("encountered an error while waiting for instance insert operation")
 
-			errChan <- &gceOpError{Err: newOp.Error}
+			c.errChan <- &gceOpError{Err: newOp.Error}
 			return multistep.ActionHalt
 		}
 
 		logger.WithFields(logrus.Fields{
 			"status":   newOp.Status,
-			"name":     op.Name,
+			"name":     c.instanceInsertOp.Name,
 			"duration": p.bootPollSleep,
 		}).Debug("sleeping before checking instance insert operation")
 

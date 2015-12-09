@@ -1,15 +1,10 @@
 package backend
 
 import (
-	"crypto/rand"
-	"crypto/sha1"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"regexp"
 	"time"
-
-	"github.com/mitchellh/multistep"
 
 	"golang.org/x/net/context"
 )
@@ -70,21 +65,3 @@ type RunResult struct {
 	// connection error in the middle of the script run.
 	Completed bool
 }
-
-func generatePassword() string {
-	randomBytes := make([]byte, 30)
-	rand.Read(randomBytes)
-	hash := sha1.New().Sum(randomBytes)
-	str := base64.StdEncoding.EncodeToString(hash)
-	return punctRegex.ReplaceAllLiteralString(str, "")[0:19]
-}
-
-type multistepWrapper struct {
-	f func(multistep.StateBag) multistep.StepAction
-}
-
-func (msw *multistepWrapper) Run(state multistep.StateBag) multistep.StepAction {
-	return msw.f(state)
-}
-
-func (msw *multistepWrapper) Cleanup(multistep.StateBag) { return }
