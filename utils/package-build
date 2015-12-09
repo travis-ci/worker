@@ -58,7 +58,9 @@ __setup_working_dirs() {
 }
 
 __copy_binary() {
-  cp -v $CHECKOUT_ROOT/bin/travis-worker tmp/$PACKAGE_TYPE/usr/local/bin
+  cp -v \
+    $CHECKOUT_ROOT/build/linux/amd64/travis-worker \
+    tmp/$PACKAGE_TYPE/usr/local/bin
 }
 
 __copy_service_scripts() {
