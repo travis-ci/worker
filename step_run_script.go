@@ -44,6 +44,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	case r := <-resultChan:
 		if r.err == ErrWrotePastMaxLogLength {
 			context.LoggerFromContext(ctx).Info("wrote past maximum log length")
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maxmimum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
