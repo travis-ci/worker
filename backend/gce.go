@@ -141,10 +141,11 @@ type gceInstanceConfig struct {
 
 type gceStartMultistepWrapper struct {
 	f func(*gceStartContext) multistep.StepAction
+	c *gceStartContext
 }
 
-func (gsmw *gceStartMultistepWrapper) Run(state multistep.StateBag) multistep.StepAction {
-	return gsmw.f(state.Get("c").(*gceStartContext))
+func (gsmw *gceStartMultistepWrapper) Run(multistep.StateBag) multistep.StepAction {
+	return gsmw.f(gsmw.c)
 }
 
 func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
@@ -453,14 +454,12 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		errChan:         make(chan error),
 	}
 
-	state.Put("c", c)
-
 	runner := &multistep.BasicRunner{
 		Steps: []multistep.Step{
-			&gceStartMultistepWrapper{f: p.stepGetImage},
-			&gceStartMultistepWrapper{f: p.stepRenderScript},
-			&gceStartMultistepWrapper{f: p.stepInsertInstance},
-			&gceStartMultistepWrapper{f: p.stepWaitForInstanceIP},
+			&gceStartMultistepWrapper{c: c, f: p.stepGetImage},
+			&gceStartMultistepWrapper{c: c, f: p.stepRenderScript},
+			&gceStartMultistepWrapper{c: c, f: p.stepInsertInstance},
+			&gceStartMultistepWrapper{c: c, f: p.stepWaitForInstanceIP},
 		},
 	}
 
