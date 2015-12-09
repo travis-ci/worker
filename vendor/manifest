@@ -62,6 +62,13 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/golang/protobuf/proto",
+			"repository": "https://github.com/golang/protobuf",
+			"revision": "68415e7123da32b07eab49c96d2c4d6158360e9b",
+			"branch": "master",
+			"path": "/proto"
+		},
+		{
 			"importpath": "github.com/kr/fs",
 			"repository": "https://github.com/kr/fs",
 			"revision": "2788f0dbd16903de03cb8186e5c7d97b69ad387b",
@@ -145,10 +152,38 @@
 			"path": "/context"
 		},
 		{
+			"importpath": "golang.org/x/net/http2",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "1796f9b8b7178e3c7587dff118d3bb9d37f9b0b3",
+			"branch": "master",
+			"path": "/http2"
+		},
+		{
+			"importpath": "golang.org/x/net/internal/timeseries",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "1796f9b8b7178e3c7587dff118d3bb9d37f9b0b3",
+			"branch": "master",
+			"path": "/internal/timeseries"
+		},
+		{
+			"importpath": "golang.org/x/net/trace",
+			"repository": "https://go.googlesource.com/net",
+			"revision": "1796f9b8b7178e3c7587dff118d3bb9d37f9b0b3",
+			"branch": "master",
+			"path": "/trace"
+		},
+		{
 			"importpath": "golang.org/x/oauth2",
 			"repository": "https://go.googlesource.com/oauth2",
 			"revision": "ad0128250e8fba646a92ca9129716e523d63ef9f",
 			"branch": "master"
+		},
+		{
+			"importpath": "google.golang.org/api/bigquery/v2",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "ece7143efeb53ec1839b960a0849db4e57d3cfa2",
+			"branch": "master",
+			"path": "/bigquery/v2"
 		},
 		{
 			"importpath": "google.golang.org/api/compute/v1",
@@ -158,6 +193,20 @@
 			"path": "/compute/v1"
 		},
 		{
+			"importpath": "google.golang.org/api/container/v1",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "ece7143efeb53ec1839b960a0849db4e57d3cfa2",
+			"branch": "master",
+			"path": "/container/v1"
+		},
+		{
+			"importpath": "google.golang.org/api/gensupport",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "ece7143efeb53ec1839b960a0849db4e57d3cfa2",
+			"branch": "master",
+			"path": "/gensupport"
+		},
+		{
 			"importpath": "google.golang.org/api/googleapi",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"revision": "8cbf97d5e925c857511aedf459affeed490e6861",
@@ -165,18 +214,43 @@
 			"path": "/googleapi"
 		},
 		{
-			"importpath": "google.golang.org/cloud/compute/metadata",
-			"repository": "https://code.googlesource.com/gocloud",
-			"revision": "a128c777c40402d8b287fcd0a614f80c4ee4f7b5",
+			"importpath": "google.golang.org/api/logging/v1beta3",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "ece7143efeb53ec1839b960a0849db4e57d3cfa2",
 			"branch": "master",
-			"path": "/compute/metadata"
+			"path": "/logging/v1beta3"
 		},
 		{
-			"importpath": "google.golang.org/cloud/internal",
-			"repository": "https://code.googlesource.com/gocloud",
-			"revision": "a128c777c40402d8b287fcd0a614f80c4ee4f7b5",
+			"importpath": "google.golang.org/api/pubsub/v1",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "ece7143efeb53ec1839b960a0849db4e57d3cfa2",
 			"branch": "master",
-			"path": "/internal"
+			"path": "/pubsub/v1"
+		},
+		{
+			"importpath": "google.golang.org/api/storage/v1",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"revision": "ece7143efeb53ec1839b960a0849db4e57d3cfa2",
+			"branch": "master",
+			"path": "/storage/v1"
+		},
+		{
+			"importpath": "google.golang.org/appengine",
+			"repository": "https://github.com/golang/appengine",
+			"revision": "7f9f17f358c21d90f402980f83776898c53cb377",
+			"branch": "master"
+		},
+		{
+			"importpath": "google.golang.org/cloud",
+			"repository": "https://code.googlesource.com/gocloud",
+			"revision": "ec5efcc6a7862ae410e34d8de21fdec12e367732",
+			"branch": "master"
+		},
+		{
+			"importpath": "google.golang.org/grpc",
+			"repository": "https://github.com/grpc/grpc-go",
+			"revision": "ecd68681d46b97d7c84e7c7d12ee7a04c138a9fa",
+			"branch": "master"
 		}
 	]
 }
