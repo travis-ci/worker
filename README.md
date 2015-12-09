@@ -104,6 +104,7 @@ The parts of the release process that haven't yet been automated look like this:
 - [ ] update [`./CHANGELOG.md`](./CHANGELOG.md) (in a release prep branch)
 - [ ] tag accordingly after merge
 - [ ] update github release tag with relevant section from [`./CHANGELOG.md`](./CHANGELOG.md)
+- [ ] attach binaries to github release tag
 
 ## License and Copyright Information
 
