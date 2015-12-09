@@ -17,13 +17,12 @@ GO ?= go
 GOXC ?= goxc
 GVT ?= gvt
 GOPATH := $(shell echo $${GOPATH%%:*})
-GOBUILD_LDFLAGS ?= -x -ldflags "\
+GOBUILD_LDFLAGS ?= \
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
 	-X '$(REV_URL_VAR)=$(REV_URL_VALUE)' \
 	-X '$(GENERATED_VAR)=$(GENERATED_VALUE)' \
-	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)' \
-"
+	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)'
 
 export GO15VENDOREXPERIMENT
 
@@ -36,7 +35,7 @@ COVERPROFILES := \
 
 %-coverage.coverprofile:
 	$(GO) test -v -covermode=count -coverprofile=$@ \
-		$(GOBUILD_LDFLAGS) \
+		-x -ldflags "$(GOBUILD_LDFLAGS)" \
 		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
 
 .PHONY: %
@@ -51,11 +50,11 @@ test: deps lintall build fmtpolice test-no-cover coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test -v $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
+	$(GO) test -v -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: test-race
 test-race: deps
-	$(GO) test -v -race $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
+	$(GO) test -v -race -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@
@@ -66,11 +65,11 @@ coverage.coverprofile: $(COVERPROFILES)
 
 .PHONY: build
 build: deps
-	$(GO) install $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
+	$(GO) install -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
 crossbuild: .crossdeps deps
-	$(GOXC) -pv=$(VERSION_VALUE) xc
+	$(GOXC) -pv=$(VERSION_VALUE) -build-ldflags "$(GOBUILD_LDFLAGS)" xc
 
 .crossdeps:
 	GOROOT_BOOTSTRAP=$(GOROOT) $(GOXC) -t
