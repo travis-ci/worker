@@ -6,21 +6,24 @@ VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
 REV_VAR := $(PACKAGE).RevisionString
 REV_VALUE ?= $(shell git rev-parse HEAD 2>/dev/null || echo "'???'")
+REV_URL_VAR := $(PACKAGE).RevisionURLString
+REV_URL_VALUE ?= https://github.com/travis-ci/worker/tree/$(shell git rev-parse HEAD 2>/dev/null || echo "'???'")
 GENERATED_VAR := $(PACKAGE).GeneratedString
 GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 
 GO ?= go
+GOXC ?= goxc
 GVT ?= gvt
 GOPATH := $(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= -x -ldflags "\
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
+	-X '$(REV_URL_VAR)=$(REV_URL_VALUE)' \
 	-X '$(GENERATED_VAR)=$(GENERATED_VALUE)' \
 	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)' \
 "
-GOXC_BUILD_CONSTRAINTS ?= amd64 linux,amd64 darwin
 
 export GO15VENDOREXPERIMENT
 
@@ -66,8 +69,12 @@ build: deps
 	$(GO) install $(GOBUILD_LDFLAGS) $(ALL_PACKAGES)
 
 .PHONY: crossbuild
-crossbuild: deps
-	$(GOXC) -bc='$(GOXC_BUILD_CONSTRAINTS)' -d=.build/ -pv=$(VERSION_VALUE)
+crossbuild: .crossdeps deps
+	$(GOXC) -pv=$(VERSION_VALUE) xc
+
+.crossdeps:
+	GOROOT_BOOTSTRAP=$(GOROOT) $(GOXC) -t
+	touch $@
 
 .PHONY: distclean
 distclean: clean
