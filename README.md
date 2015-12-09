@@ -55,7 +55,7 @@ travis-worker --echo-config
 ## Running Travis Worker
 
 0. `make`
-0. `./bin/travis-worker`
+0. `${GOPATH%%:*}/bin/travis-worker`
 
 C-c will stop the worker. Note that any VMs for builds that were still running
 will have to be cleaned up manually.
