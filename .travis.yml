@@ -36,7 +36,7 @@ install:
 - gem install package_cloud --no-ri --no-rdoc
 
 script:
-- make deps
+- travis_retry make deps
 - make lintall
 - make test
 - make test-race
