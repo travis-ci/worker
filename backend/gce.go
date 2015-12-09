@@ -552,7 +552,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			return multistep.ActionHalt
 		}
 
-		if newOp.Status == "RUNNING" {
+		if newOp.Status == "RUNNING" || newOp.Status == "DONE" {
 			if newOp.Error != nil {
 				c.errChan <- &gceOpError{Err: newOp.Error}
 				return multistep.ActionHalt
