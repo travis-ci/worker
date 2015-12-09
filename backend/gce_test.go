@@ -174,8 +174,10 @@ func (rl *gceTestRequestLog) Add(req *http.Request) {
 func gceTestSetup(t *testing.T, cfg *config.ProviderConfig, resp *gceTestResponseMap) (*gceProvider, *http.Transport, *gceTestRequestLog) {
 	if cfg == nil {
 		cfg = config.ProviderConfigFromMap(map[string]string{
-			"ACCOUNT_JSON": "{}",
-			"PROJECT_ID":   "project_id",
+			"ACCOUNT_JSON":    "{}",
+			"PROJECT_ID":      "project_id",
+			"IMAGE_ALIASES":   "foo",
+			"IMAGE_ALIAS_FOO": "default",
 		})
 	}
 
