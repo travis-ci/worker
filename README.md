@@ -95,6 +95,17 @@ To add a new dependency, do the following:
 
 - `gvt fetch name/of/package` e.g. `gvt fetch github.com/pkg/sftp`
 
+## Release process
+
+The parts of the release process that haven't yet been automated look like this:
+
+- [ ] review the diff since last release for silliness
+- [ ] decide what the version bump should be
+- [ ] update [`./CHANGELOG.md`](./CHANGELOG.md) (in a release prep branch)
+- [ ] tag accordingly after merge
+- [ ] update github release tag with relevant section from [`./CHANGELOG.md`](./CHANGELOG.md)
+- [ ] attach binaries to github release tag
+
 ## License and Copyright Information
 
 See LICENSE file.
