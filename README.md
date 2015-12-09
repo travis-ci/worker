@@ -55,7 +55,7 @@ travis-worker --echo-config
 ## Running Travis Worker
 
 0. `make`
-0. `./bin/travis-worker`
+0. `${GOPATH%%:*}/bin/travis-worker`
 
 C-c will stop the worker. Note that any VMs for builds that were still running
 will have to be cleaned up manually.
@@ -94,6 +94,17 @@ To update and existing vendored dependency, do the following in *this directory*
 To add a new dependency, do the following:
 
 - `gvt fetch name/of/package` e.g. `gvt fetch github.com/pkg/sftp`
+
+## Release process
+
+The parts of the release process that haven't yet been automated look like this:
+
+- [ ] review the diff since last release for silliness
+- [ ] decide what the version bump should be
+- [ ] update [`./CHANGELOG.md`](./CHANGELOG.md) (in a release prep branch)
+- [ ] tag accordingly after merge
+- [ ] update github release tag with relevant section from [`./CHANGELOG.md`](./CHANGELOG.md)
+- [ ] attach binaries to github release tag
 
 ## License and Copyright Information
 

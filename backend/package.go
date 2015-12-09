@@ -1,9 +1,6 @@
 package backend
 
 import (
-	"crypto/rand"
-	"crypto/sha1"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"regexp"
@@ -67,12 +64,4 @@ type RunResult struct {
 	// Whether the script finished running or not. Can be false if there was a
 	// connection error in the middle of the script run.
 	Completed bool
-}
-
-func generatePassword() string {
-	randomBytes := make([]byte, 30)
-	rand.Read(randomBytes)
-	hash := sha1.New().Sum(randomBytes)
-	str := base64.StdEncoding.EncodeToString(hash)
-	return punctRegex.ReplaceAllLiteralString(str, "")[0:19]
 }

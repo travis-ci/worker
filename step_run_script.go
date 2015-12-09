@@ -54,6 +54,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if r.err == gocontext.DeadlineExceeded {
 			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n")
+			return multistep.ActionHalt
 		}
 
 		if r.err != nil {
@@ -77,6 +78,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n")
+			return multistep.ActionHalt
 		} else {
 			context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
 		}
