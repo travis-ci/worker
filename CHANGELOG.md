@@ -1,3 +1,27 @@
+## 2.0.0 (December 9th, 2015)
+
+FEATURES:
+
+  * step/open-log-writer: Display revision URL and startup time in worker info
+    header.
+
+IMPROVEMENTS:
+
+  * Use [goxc](github.com/laher/goxc) for cross-compilation, constrained to
+    `linux amd64` and `darwin amd64`.
+  * backend/gce: Tweaks to minimize API calls, including:
+    * Add a sleep interval for before first zone operation check.
+    * Break out of instance readiness when `RUNNING` *or* `DONE`, depending
+    on script upload SSH connectivity for true instance readiness.
+    * Increase default script upload retries to 120.
+    * Decrease default script upload sleep interval to 1s.
+  * backend/gce: Remove legacy image selection method and configuration.
+
+BUG FIXES:
+
+  * step/run-script: Mark jobs as `errored` when log limit is exceeded,
+    preventing infinite requeue.
+
 ## 1.4.0 (December 3rd, 2015)
 
 FEATURES:
