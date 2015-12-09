@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/mitchellh/multistep"
+
 	"golang.org/x/net/context"
 )
 
@@ -76,3 +78,13 @@ func generatePassword() string {
 	str := base64.StdEncoding.EncodeToString(hash)
 	return punctRegex.ReplaceAllLiteralString(str, "")[0:19]
 }
+
+type multistepWrapper struct {
+	f func(multistep.StateBag) multistep.StepAction
+}
+
+func (msw *multistepWrapper) Run(state multistep.StateBag) multistep.StepAction {
+	return msw.f(state)
+}
+
+func (msw *multistepWrapper) Cleanup(multistep.StateBag) { return }

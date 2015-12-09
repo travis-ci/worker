@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
@@ -40,38 +41,37 @@ const (
 	defaultGCELanguage           = "minimal"
 	defaultGCEBootPollSleep      = 3 * time.Second
 	defaultGCEBootPrePollSleep   = 15 * time.Second
-	defaultGCEUploadRetries      = uint64(10)
-	defaultGCEUploadRetrySleep   = 5 * time.Second
+	defaultGCEUploadRetries      = uint64(120)
+	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEHardTimeoutMinutes = int64(130)
-	defaultGCEImageSelectorType  = "legacy"
+	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci-mega.+"
 	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
 )
 
 var (
 	gceHelp = map[string]string{
-		"PROJECT_ID":              "[REQUIRED] GCE project id",
-		"ACCOUNT_JSON":            "[REQUIRED] account JSON config",
-		"SSH_KEY_PATH":            "[REQUIRED] path to ssh key used to access job vms",
-		"SSH_PUB_KEY_PATH":        "[REQUIRED] path to ssh public key used to access job vms",
-		"SSH_KEY_PASSPHRASE":      "[REQUIRED] passphrase for ssh key given as ssh_key_path",
-		"IMAGE_SELECTOR_TYPE":     fmt.Sprintf("image selector type (\"legacy\", \"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
-		"IMAGE_SELECTOR_URL":      "URL for image selector API, used only when image selector is \"api\"",
-		"ZONE":                    fmt.Sprintf("zone name (default %q)", defaultGCEZone),
-		"MACHINE_TYPE":            fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
-		"NETWORK":                 fmt.Sprintf("machine name (default %q)", defaultGCENetwork),
-		"DISK_SIZE":               fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"LANGUAGE_MAP_{LANGUAGE}": "Map the key specified in the key to the image associated with a different language, used only when image selector type is \"legacy\"",
-		"IMAGE_ALIASES":           "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
-		"IMAGE_[ALIAS_]{ALIAS}":   "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"IMAGE_DEFAULT":           fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
-		"DEFAULT_LANGUAGE":        fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
-		"BOOT_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
-		"BOOT_PRE_POLL_SLEEP":     fmt.Sprintf("time to sleep prior to polling server for instance status (default %v)", defaultGCEBootPrePollSleep),
-		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
-		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"AUTO_IMPLODE":            "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
-		"HARD_TIMEOUT_MINUTES":    fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
+		"PROJECT_ID":            "[REQUIRED] GCE project id",
+		"ACCOUNT_JSON":          "[REQUIRED] account JSON config",
+		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
+		"SSH_PUB_KEY_PATH":      "[REQUIRED] path to ssh public key used to access job vms",
+		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
+		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
+		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"NETWORK":               fmt.Sprintf("machine name (default %q)", defaultGCENetwork),
+		"DISK_SIZE":             fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
+		"DEFAULT_LANGUAGE":      fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance status (default %v)", defaultGCEBootPrePollSleep),
+		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"AUTO_IMPLODE":          "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
+		"HARD_TIMEOUT_MINUTES":  fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
 	}
 
 	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
@@ -312,7 +312,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
 	}
 
-	if imageSelectorType != "legacy" && imageSelectorType != "env" && imageSelectorType != "api" {
+	if imageSelectorType != "env" && imageSelectorType != "api" {
 		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
 	}
 
@@ -422,111 +422,40 @@ func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx)
 
-	image, err := p.getImage(ctx, startAttributes)
-	if err != nil {
-		return nil, err
-	}
+	state := &multistep.BasicStateBag{}
+	state.Put("start_attributes", startAttributes)
+	state.Put("ctx", ctx)
 
-	scriptBuf := bytes.Buffer{}
-	err = gceStartupScript.Execute(&scriptBuf, p.ic)
-	if err != nil {
-		return nil, err
-	}
+	instChan := make(chan Instance)
+	state.Put("inst_chan", instChan)
 
-	inst := p.buildInstance(startAttributes, image.SelfLink, scriptBuf.String())
+	errChan := make(chan error)
+	state.Put("err_chan", errChan)
 
-	logger.WithFields(logrus.Fields{
-		"instance": inst,
-	}).Debug("inserting instance")
-	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
-	if err != nil {
-		return nil, err
+	runner := &multistep.BasicRunner{
+		Steps: []multistep.Step{
+			&multistepWrapper{f: p.stepGetImage},
+			&multistepWrapper{f: p.stepRenderScript},
+			&multistepWrapper{f: p.stepInsertInstance},
+			&multistepWrapper{f: p.stepWaitForInstanceIP},
+		},
 	}
 
 	abandonedStart := false
 
 	defer func() {
-		if abandonedStart {
+		if inst, ok := state.Get("inst").(*compute.Instance); ok && abandonedStart {
 			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, inst.Name).Do()
 		}
 	}()
 
-	startBooting := time.Now()
-
-	var instChan chan *compute.Instance
-
-	instanceReady := make(chan *compute.Instance)
-	instChan = instanceReady
-
-	errChan := make(chan error)
-	go func() {
-		logger.WithFields(logrus.Fields{
-			"duration": p.bootPrePollSleep,
-		}).Debug("sleeping before first checking instance insert operation")
-
-		time.Sleep(p.bootPrePollSleep)
-
-		zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name)
-
-		for {
-			newOp, err := zoneOpCall.Do()
-			if err != nil {
-				errChan <- err
-				return
-			}
-
-			if newOp.Status == "DONE" {
-				if newOp.Error != nil {
-					errChan <- &gceOpError{Err: newOp.Error}
-					return
-				}
-
-				logger.WithFields(logrus.Fields{
-					"status": newOp.Status,
-					"name":   op.Name,
-				}).Debug("instance is ready")
-
-				instanceReady <- inst
-				return
-			}
-
-			if newOp.Error != nil {
-				logger.WithFields(logrus.Fields{
-					"err":  newOp.Error,
-					"name": op.Name,
-				}).Error("encountered an error while waiting for instance insert operation")
-
-				errChan <- &gceOpError{Err: newOp.Error}
-				return
-			}
-
-			logger.WithFields(logrus.Fields{
-				"status":   newOp.Status,
-				"name":     op.Name,
-				"duration": p.bootPollSleep,
-			}).Debug("sleeping before checking instance insert operation")
-
-			time.Sleep(p.bootPollSleep)
-		}
-	}()
+	logger.Info("starting instance")
+	go runner.Run(state)
 
 	logger.Debug("selecting over instance, error, and done channels")
 	select {
 	case inst := <-instChan:
-		metrics.TimeSince("worker.vm.provider.gce.boot", startBooting)
-		return &gceInstance{
-			client:   p.client,
-			provider: p,
-			instance: inst,
-			ic:       p.ic,
-
-			authUser: "travis",
-
-			projectID: p.projectID,
-			imageName: image.Name,
-
-			startupDuration: time.Now().UTC().Sub(startBooting),
-		}, nil
+		return inst, nil
 	case err := <-errChan:
 		abandonedStart = true
 		return nil, err
@@ -539,62 +468,131 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 }
 
-func (p *gceProvider) getImage(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
-	logger := context.LoggerFromContext(ctx)
+func (p *gceProvider) stepGetImage(state multistep.StateBag) multistep.StepAction {
+	ctx := state.Get("ctx").(gocontext.Context)
+	startAttributes := state.Get("start_attributes").(*StartAttributes)
+	errChan := state.Get("err_chan").(chan error)
 
-	switch p.imageSelectorType {
-	case "env", "api":
-		return p.imageSelect(ctx, startAttributes)
-	default:
-		logger.WithFields(logrus.Fields{
-			"selector_type": p.imageSelectorType,
-		}).Warn("unknown image selector, falling back to legacy image selection")
-		return p.legacyImageSelect(ctx, startAttributes)
+	image, err := p.imageSelect(ctx, startAttributes)
+	if err != nil {
+		errChan <- err
+		return multistep.ActionHalt
 	}
+
+	state.Put("image", image)
+	return multistep.ActionContinue
 }
 
-func (p *gceProvider) legacyImageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+func (p *gceProvider) stepRenderScript(state multistep.StateBag) multistep.StepAction {
+	errChan := state.Get("err_chan").(chan error)
+
+	scriptBuf := bytes.Buffer{}
+	err := gceStartupScript.Execute(&scriptBuf, p.ic)
+	if err != nil {
+		errChan <- err
+		return multistep.ActionHalt
+	}
+
+	state.Put("script", scriptBuf.String())
+	return multistep.ActionContinue
+}
+
+func (p *gceProvider) stepInsertInstance(state multistep.StateBag) multistep.StepAction {
+	errChan := state.Get("err_chan").(chan error)
+	image := state.Get("image").(*compute.Image)
+	script := state.Get("script").(string)
+	startAttributes := state.Get("start_attributes").(*StartAttributes)
+	ctx := state.Get("ctx").(gocontext.Context)
+
+	inst := p.buildInstance(startAttributes, image.SelfLink, script)
+
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"instance": inst,
+	}).Debug("inserting instance")
+
+	state.Put("boot_start", time.Now().UTC())
+
+	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
+	if err != nil {
+		errChan <- err
+		return multistep.ActionHalt
+	}
+
+	state.Put("instance", inst)
+	state.Put("instance_insert_op", op)
+	return multistep.ActionContinue
+}
+
+func (p *gceProvider) stepWaitForInstanceIP(state multistep.StateBag) multistep.StepAction {
+	errChan := state.Get("err_chan").(chan error)
+	instChan := state.Get("inst_chan").(chan Instance)
+	inst := state.Get("inst").(*compute.Instance)
+	image := state.Get("image").(*compute.Image)
+	startBooting := state.Get("boot_start").(time.Time)
+	op := state.Get("instance_insert_op").(*compute.Operation)
+	ctx := state.Get("ctx").(gocontext.Context)
 	logger := context.LoggerFromContext(ctx)
 
-	var (
-		image *compute.Image
-		err   error
-	)
+	logger.WithFields(logrus.Fields{
+		"duration": p.bootPrePollSleep,
+	}).Debug("sleeping before first checking instance insert operation")
 
-	candidateLangs := []string{}
+	time.Sleep(p.bootPrePollSleep)
 
-	mappedLang := fmt.Sprintf("LANGUAGE_MAP_%s", strings.ToUpper(startAttributes.Language))
-	if p.cfg.IsSet(mappedLang) {
-		logger.WithFields(logrus.Fields{
-			"original": startAttributes.Language,
-			"mapped":   p.cfg.Get(mappedLang),
-		}).Debug("using mapped language to candidates")
-		candidateLangs = append(candidateLangs, p.cfg.Get(mappedLang))
-	} else {
-		logger.WithFields(logrus.Fields{
-			"original": startAttributes.Language,
-		}).Debug("adding original language to candidates")
-		candidateLangs = append(candidateLangs, startAttributes.Language)
-	}
-	candidateLangs = append(candidateLangs, p.defaultLanguage)
+	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, op.Name)
 
-	for _, language := range candidateLangs {
-		logger.WithFields(logrus.Fields{
-			"original":  startAttributes.Language,
-			"candidate": language,
-		}).Debug("searching for image matching language")
-
-		image, err = p.imageForLanguage(language)
-		if err == nil {
-			logger.WithFields(logrus.Fields{
-				"candidate": language,
-				"image":     image,
-			}).Debug("found matching image for language")
-			break
+	for {
+		newOp, err := zoneOpCall.Do()
+		if err != nil {
+			errChan <- err
+			return multistep.ActionHalt
 		}
-	}
 
-	return image, err
+		if newOp.Status == "RUNNING" {
+			if newOp.Error != nil {
+				errChan <- &gceOpError{Err: newOp.Error}
+				return multistep.ActionHalt
+			}
+
+			logger.WithFields(logrus.Fields{
+				"status": newOp.Status,
+				"name":   op.Name,
+			}).Debug("instance is ready")
+
+			instChan <- &gceInstance{
+				client:   p.client,
+				provider: p,
+				instance: inst,
+				ic:       p.ic,
+
+				authUser: "travis",
+
+				projectID: p.projectID,
+				imageName: image.Name,
+
+				startupDuration: time.Now().UTC().Sub(startBooting),
+			}
+			return multistep.ActionContinue
+		}
+
+		if newOp.Error != nil {
+			logger.WithFields(logrus.Fields{
+				"err":  newOp.Error,
+				"name": op.Name,
+			}).Error("encountered an error while waiting for instance insert operation")
+
+			errChan <- &gceOpError{Err: newOp.Error}
+			return multistep.ActionHalt
+		}
+
+		logger.WithFields(logrus.Fields{
+			"status":   newOp.Status,
+			"name":     op.Name,
+			"duration": p.bootPollSleep,
+		}).Debug("sleeping before checking instance insert operation")
+
+		time.Sleep(p.bootPollSleep)
+	}
 }
 
 func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {

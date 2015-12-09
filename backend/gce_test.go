@@ -176,6 +176,7 @@ func gceTestSetup(t *testing.T, cfg *config.ProviderConfig, resp *gceTestRespons
 		cfg = config.ProviderConfigFromMap(map[string]string{
 			"ACCOUNT_JSON": "{}",
 			"PROJECT_ID":   "project_id",
+			"IMAGE_ALIAS_": "default",
 		})
 	}
 
