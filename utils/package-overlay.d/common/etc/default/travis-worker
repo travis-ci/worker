@@ -8,3 +8,4 @@ export POOL_SIZE='2'
 export PROVIDER_NAME='docker'
 export QUEUE_NAME='builds.linux'
 export TRAVIS_WORKER_DOCKER_ENDPOINT='tcp://localhost:4243'
+export TRAVIS_WORKER_DOCKER_PRIVILEGED="true"
