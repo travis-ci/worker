@@ -79,7 +79,8 @@ var (
 		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
-	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
+	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
+	errGCEInstanceDeletionNotDone = fmt.Erronf("instance deletion not done")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
 {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
@@ -976,16 +977,17 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 			return
 		}
 
-		if newOp.Status == "DONE" && newOp.Error == nil {
+		if newOp.Status == "DONE" {
+			if newOp.Error != nil {
+				err = &gceOpError{Err: newOp.Error}
+				return
+			}
+
 			err = nil
 			return
 		}
 
-		if newOp.Error != nil {
-			err = &gceOpError{Err: newOp.Error}
-			return
-		}
-
+		err = errGCEInstanceDeletionNotDone
 		return
 	}, b)
 
