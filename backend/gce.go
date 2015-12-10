@@ -602,6 +602,8 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name)
 
 	for {
+		metrics.Mark("worker.vm.provider.gce.boot.poll")
+
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
 			c.errChan <- err
