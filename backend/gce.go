@@ -42,6 +42,8 @@ const (
 	defaultGCELanguage           = "minimal"
 	defaultGCEBootPollSleep      = 3 * time.Second
 	defaultGCEBootPrePollSleep   = 15 * time.Second
+	defaultGCEStopPollSleep      = 3 * time.Second
+	defaultGCEStopPrePollSleep   = 15 * time.Second
 	defaultGCEUploadRetries      = uint64(120)
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEHardTimeoutMinutes = int64(130)
@@ -52,27 +54,29 @@ const (
 
 var (
 	gceHelp = map[string]string{
-		"PROJECT_ID":            "[REQUIRED] GCE project id",
 		"ACCOUNT_JSON":          "[REQUIRED] account JSON config",
-		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
-		"SSH_PUB_KEY_PATH":      "[REQUIRED] path to ssh public key used to access job vms",
-		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
+		"AUTO_IMPLODE":          "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
+		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
+		"DEFAULT_LANGUAGE":      fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"DISK_SIZE":             fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"HARD_TIMEOUT_MINUTES":  fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
+		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
 		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
-		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
-		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
-		"NETWORK":               fmt.Sprintf("machine name (default %q)", defaultGCENetwork),
-		"DISK_SIZE":             fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
 		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
-		"DEFAULT_LANGUAGE":      fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
-		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance status (default %v)", defaultGCEBootPollSleep),
-		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance status (default %v)", defaultGCEBootPrePollSleep),
+		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PROJECT_ID":            "[REQUIRED] GCE project id",
+		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
+		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
+		"SSH_PUB_KEY_PATH":      "[REQUIRED] path to ssh public key used to access job vms",
+		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
+		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
 		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"AUTO_IMPLODE":          "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
-		"HARD_TIMEOUT_MINUTES":  fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
+		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError = fmt.Errorf("no IP address found")
@@ -138,6 +142,8 @@ type gceInstanceConfig struct {
 	SSHPubKey          string
 	AutoImplode        bool
 	HardTimeoutMinutes int64
+	StopPollSleep      time.Duration
+	StopPrePollSleep   time.Duration
 }
 
 type gceStartMultistepWrapper struct {
@@ -176,6 +182,23 @@ type gceInstance struct {
 
 	startupDuration time.Duration
 }
+
+type gceInstanceStopContext struct {
+	ctx              gocontext.Context
+	errChan          chan error
+	instanceDeleteOp *compute.Operation
+}
+
+type gceInstanceStopMultistepWrapper struct {
+	f func(*gceInstanceStopContext) multistep.StepAction
+	c *gceInstanceStopContext
+}
+
+func (gismw *gceInstanceStopMultistepWrapper) Run(multistep.StateBag) multistep.StepAction {
+	return gismw.f(gismw.c)
+}
+
+func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { return }
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	var (
@@ -285,6 +308,24 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		bootPrePollSleep = si
 	}
 
+	stopPollSleep := defaultGCEStopPollSleep
+	if cfg.IsSet("STOP_POLL_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("STOP_POLL_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		stopPollSleep = si
+	}
+
+	stopPrePollSleep := defaultGCEStopPrePollSleep
+	if cfg.IsSet("STOP_PRE_POLL_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("STOP_PRE_POLL_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		stopPrePollSleep = si
+	}
+
 	uploadRetries := defaultGCEUploadRetries
 	if cfg.IsSet("UPLOAD_RETRIES") {
 		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
@@ -358,6 +399,8 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			SSHPubKey:          string(sshPubKeyBytes),
 			AutoImplode:        autoImplode,
 			HardTimeoutMinutes: hardTimeoutMinutes,
+			StopPollSleep:      stopPollSleep,
+			StopPrePollSleep:   stopPrePollSleep,
 		},
 
 		imageSelector:     imageSelector,
@@ -869,57 +912,90 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 }
 
 func (i *gceInstance) Stop(ctx gocontext.Context) error {
-	op, err := i.client.Instances.Delete(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
-	if err != nil {
-		return err
+	logger := context.LoggerFromContext(ctx)
+	state := &multistep.BasicStateBag{}
+
+	c := &gceInstanceStopContext{
+		ctx:     ctx,
+		errChan: make(chan error),
 	}
 
-	errChan := make(chan error)
-	errChanSent := false
+	runner := &multistep.BasicRunner{
+		Steps: []multistep.Step{
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepDeleteInstance},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForInstanceDeleted},
+		},
+	}
 
-	go func() {
-		zoneOpCall := i.client.ZoneOperations.Get(i.projectID, i.ic.Zone.Name, op.Name)
+	logger.WithField("instance", i.instance.Name).Info("deleting instance")
+	go runner.Run(state)
 
-		b := backoff.NewExponentialBackOff()
-		b.InitialInterval = i.provider.bootPollSleep
-		b.MaxInterval = 3 * i.provider.bootPollSleep
-		b.MaxElapsedTime = time.Minute
-
-		err := backoff.Retry(func() (err error) {
-			newOp, err := zoneOpCall.Do()
-			if err != nil {
-				errChan <- err
-				errChanSent = true
-				err = nil
-				return
-			}
-
-			if newOp.Status == "DONE" {
-				if newOp.Error != nil {
-					errChan <- &gceOpError{Err: newOp.Error}
-					errChanSent = true
-					err = nil
-					return
-				}
-
-				err = nil
-				return
-			}
-
-			return
-		}, b)
-
-		if !errChanSent {
-			errChan <- err
-		}
-	}()
-
+	logger.Debug("selecting over error and done channels")
 	select {
-	case err := <-errChan:
+	case err := <-c.errChan:
 		return err
 	case <-ctx.Done():
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.gce.delete.timeout")
+		}
 		return ctx.Err()
 	}
+}
+
+func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
+	op, err := i.client.Instances.Delete(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
+	if err != nil {
+		c.errChan <- err
+		return multistep.ActionHalt
+	}
+
+	c.instanceDeleteOp = op
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx)
+
+	logger.WithFields(logrus.Fields{
+		"duration": i.ic.StopPrePollSleep,
+	}).Debug("sleeping before first checking instance delete operation")
+
+	time.Sleep(i.ic.StopPrePollSleep)
+
+	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
+		i.ic.Zone.Name, c.instanceDeleteOp.Name)
+
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = i.ic.StopPollSleep
+	b.MaxInterval = 10 * i.ic.StopPollSleep
+	b.MaxElapsedTime = 2 * time.Minute
+
+	err := backoff.Retry(func() (err error) {
+		newOp, err := zoneOpCall.Do()
+		if err != nil {
+			return
+		}
+
+		if newOp.Status == "DONE" && newOp.Error == nil {
+			err = nil
+			return
+		}
+
+		if newOp.Error != nil {
+			err = &gceOpError{Err: newOp.Error}
+			return
+		}
+
+		return
+	}, b)
+
+	c.errChan <- err
+
+	if err != nil {
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
 }
 
 func (i *gceInstance) ID() string {
