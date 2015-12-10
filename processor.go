@@ -29,6 +29,8 @@ type Processor struct {
 	terminate gocontext.CancelFunc
 
 	ProcessedCount int
+	CurrentStatus  string
+	LastJobID      uint64
 
 	SkipShutdownOnLogTimeout bool
 }
@@ -59,6 +61,8 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
+
+		CurrentStatus: "new",
 	}, nil
 }
 
@@ -83,12 +87,15 @@ func (p *Processor) Run() {
 		select {
 		case <-p.ctx.Done():
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.CurrentStatus = "done"
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.CurrentStatus = "done"
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
+				p.CurrentStatus = "done"
 				return
 			}
 
@@ -102,7 +109,10 @@ func (p *Processor) Run() {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
 			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
+			p.LastJobID = buildJob.Payload().Job.ID
+			p.CurrentStatus = "processing"
 			p.process(ctx, buildJob)
+			p.CurrentStatus = "waiting"
 			cancel()
 		}
 	}
