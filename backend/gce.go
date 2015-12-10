@@ -69,6 +69,7 @@ var (
 		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
+		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
 		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
 		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
 		"SSH_PUB_KEY_PATH":      "[REQUIRED] path to ssh public key used to access job vms",
@@ -80,7 +81,7 @@ var (
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
-	errGCEInstanceDeletionNotDone = fmt.Erronf("instance deletion not done")
+	errGCEInstanceDeletionNotDone = fmt.Errorf("instance deletion not done")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
 {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
@@ -145,6 +146,7 @@ type gceInstanceConfig struct {
 	HardTimeoutMinutes int64
 	StopPollSleep      time.Duration
 	StopPrePollSleep   time.Duration
+	SkipStopPoll       bool
 }
 
 type gceStartMultistepWrapper struct {
@@ -327,6 +329,15 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		stopPrePollSleep = si
 	}
 
+	skipStopPoll := false
+	if cfg.IsSet("SKIP_STOP_POLL") {
+		ssp, err := strconv.ParseBool(cfg.Get("SKIP_STOP_POLL"))
+		if err != nil {
+			return nil, err
+		}
+		skipStopPoll = ssp
+	}
+
 	uploadRetries := defaultGCEUploadRetries
 	if cfg.IsSet("UPLOAD_RETRIES") {
 		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
@@ -402,6 +413,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			HardTimeoutMinutes: hardTimeoutMinutes,
 			StopPollSleep:      stopPollSleep,
 			StopPrePollSleep:   stopPrePollSleep,
+			SkipStopPoll:       skipStopPoll,
 		},
 
 		imageSelector:     imageSelector,
@@ -957,6 +969,12 @@ func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.St
 func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx)
 
+	if i.ic.SkipStopPoll {
+		logger.Debug("skipping instance deletion polling")
+		c.errChan <- nil
+		return multistep.ActionContinue
+	}
+
 	logger.WithFields(logrus.Fields{
 		"duration": i.ic.StopPrePollSleep,
 	}).Debug("sleeping before first checking instance delete operation")
@@ -971,24 +989,21 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	b.MaxInterval = 10 * i.ic.StopPollSleep
 	b.MaxElapsedTime = 2 * time.Minute
 
-	err := backoff.Retry(func() (err error) {
+	err := backoff.Retry(func() error {
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
-			return
+			return err
 		}
 
 		if newOp.Status == "DONE" {
 			if newOp.Error != nil {
-				err = &gceOpError{Err: newOp.Error}
-				return
+				return &gceOpError{Err: newOp.Error}
 			}
 
-			err = nil
-			return
+			return nil
 		}
 
-		err = errGCEInstanceDeletionNotDone
-		return
+		return errGCEInstanceDeletionNotDone
 	}, b)
 
 	c.errChan <- err
