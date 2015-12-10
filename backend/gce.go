@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/cenkalti/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
@@ -874,27 +875,42 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 	}
 
 	errChan := make(chan error)
+	errChanSent := false
+
 	go func() {
 		zoneOpCall := i.client.ZoneOperations.Get(i.projectID, i.ic.Zone.Name, op.Name)
 
-		for {
+		b := backoff.NewExponentialBackOff()
+		b.InitialInterval = i.provider.bootPollSleep
+		b.MaxInterval = 3 * i.provider.bootPollSleep
+		b.MaxElapsedTime = time.Minute
+
+		err := backoff.Retry(func() (err error) {
 			newOp, err := zoneOpCall.Do()
 			if err != nil {
 				errChan <- err
+				errChanSent = true
+				err = nil
 				return
 			}
 
 			if newOp.Status == "DONE" {
 				if newOp.Error != nil {
 					errChan <- &gceOpError{Err: newOp.Error}
+					errChanSent = true
+					err = nil
 					return
 				}
 
-				errChan <- nil
+				err = nil
 				return
 			}
 
-			time.Sleep(i.provider.bootPollSleep)
+			return
+		}, b)
+
+		if !errChanSent {
+			errChan <- err
 		}
 	}()
 
