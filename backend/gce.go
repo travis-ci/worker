@@ -178,7 +178,8 @@ type gceInstance struct {
 	instance *compute.Instance
 	ic       *gceInstanceConfig
 
-	authUser string
+	authUser     string
+	cachedIPAddr string
 
 	projectID string
 	imageName string
@@ -784,17 +785,21 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 }
 
 func (i *gceInstance) sshClient() (*ssh.Client, error) {
-	err := i.refreshInstance()
-	if err != nil {
-		return nil, err
+	if i.cachedIPAddr == "" {
+		err := i.refreshInstance()
+		if err != nil {
+			return nil, err
+		}
+
+		ipAddr := i.getIP()
+		if ipAddr == "" {
+			return nil, errGCEMissingIPAddressError
+		}
+
+		i.cachedIPAddr = ipAddr
 	}
 
-	ipAddr := i.getIP()
-	if ipAddr == "" {
-		return nil, errGCEMissingIPAddressError
-	}
-
-	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ipAddr), &ssh.ClientConfig{
+	return ssh.Dial("tcp", fmt.Sprintf("%s:22", i.cachedIPAddr), &ssh.ClientConfig{
 		User: i.authUser,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(i.ic.SSHKeySigner),
