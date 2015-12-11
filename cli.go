@@ -240,9 +240,11 @@ func (i *CLI) signalHandler() {
 				}).Info("SIGUSR1 received, dumping info")
 				i.ProcessorPool.Each(func(n int, proc *Processor) {
 					i.logger.WithFields(logrus.Fields{
-						"n":         n,
-						"id":        proc.ID,
-						"processed": proc.ProcessedCount,
+						"n":           n,
+						"id":          proc.ID,
+						"processed":   proc.ProcessedCount,
+						"status":      proc.CurrentStatus,
+						"last_job_id": proc.LastJobID,
 					}).Info("processor info")
 				})
 			default:
