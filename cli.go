@@ -200,7 +200,7 @@ func (i *CLI) setupMetrics() {
 
 		go librato.Librato(metrics.DefaultRegistry, time.Minute,
 			i.Config.LibratoEmail, i.Config.LibratoToken, i.Config.LibratoSource,
-			[]float64{0.95}, time.Millisecond)
+			[]float64{0.50, 0.75, 0.90, 0.95, 0.99, 0.999, 1.0}, time.Millisecond)
 	} else if !i.c.Bool("silence-metrics") {
 		i.logger.Info("starting logger metrics reporter")
 
