@@ -15,14 +15,14 @@ env:
   - AMQP_URI="amqp://"
   - GOPATH="$HOME/gopath"
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
-  - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
   - GO15VENDOREXPERIMENT='1'
 
 addons:
   artifacts:
     paths:
-    - "./build/$UNAME/amd64/travis-worker"
+    - "./build/linux/amd64/travis-worker"
+    - "./build/darwin/amd64/travis-worker"
     target_paths:
     - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
     - travis-ci/worker/$(git describe --always --dirty --tags)
