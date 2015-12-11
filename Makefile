@@ -69,7 +69,13 @@ build: deps
 
 .PHONY: crossbuild
 crossbuild: .crossdeps deps
-	$(GOXC) -pv=$(VERSION_VALUE) -build-ldflags "$(GOBUILD_LDFLAGS)" xc
+	$(GOXC) -pv=$(VERSION_VALUE) \
+		-build-ldflags "$(GOBUILD_LDFLAGS) -s -w" \
+		xc
+	$(GOXC) -pv=$(VERSION_VALUE) \
+		-build-ldflags "$(GOBUILD_LDFLAGS)" \
+		-o "{{.Dest}}{{.PS}}{{.Os}}{{.PS}}{{.Arch}}{{.PS}}travis-worker-dbg{{.Ext}}" \
+		xc
 
 .crossdeps:
 	GOROOT_BOOTSTRAP=$(GOROOT) $(GOXC) -t
