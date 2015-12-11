@@ -49,6 +49,7 @@ const (
 	defaultGCEHardTimeoutMinutes = int64(130)
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci-mega.+"
+	defaultGCERateLimitTick      = 5 * time.Second
 	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
 )
 
@@ -69,6 +70,7 @@ var (
 		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
+		"RATE_LIMIT_TICK":       "duration to wait between GCE API calls",
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
 		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
 		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
@@ -132,6 +134,8 @@ type gceProvider struct {
 	defaultImage      string
 	uploadRetries     uint64
 	uploadRetrySleep  time.Duration
+
+	rateLimiter *time.Ticker
 }
 
 type gceInstanceConfig struct {
@@ -401,6 +405,15 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	rateLimitTick := defaultGCERateLimitTick
+	if cfg.IsSet("RATE_LIMIT_TICK") {
+		si, err := time.ParseDuration(cfg.Get("RATE_LIMIT_TICK"))
+		if err != nil {
+			return nil, err
+		}
+		rateLimitTick = si
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
@@ -425,12 +438,19 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultImage:      defaultImage,
 		uploadRetries:     uploadRetries,
 		uploadRetrySleep:  uploadRetrySleep,
+
+		rateLimiter: time.NewTicker(rateLimitTick),
 	}, nil
+}
+
+func (p *gceProvider) apiRateLimit() {
+	<-p.rateLimiter.C
 }
 
 func (p *gceProvider) Setup() error {
 	var err error
 
+	p.apiRateLimit()
 	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Do()
 	if err != nil {
 		return err
@@ -438,11 +458,13 @@ func (p *gceProvider) Setup() error {
 
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
+	p.apiRateLimit()
 	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Do()
 	if err != nil {
 		return err
 	}
 
+	p.apiRateLimit()
 	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Do()
 	if err != nil {
 		return err
@@ -525,6 +547,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	defer func(c *gceStartContext) {
 		if c.instance != nil && abandonedStart {
+			p.apiRateLimit()
 			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, c.instance.Name).Do()
 		}
 	}(c)
@@ -580,6 +603,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	c.bootStart = time.Now().UTC()
 
+	p.apiRateLimit()
 	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
 	if err != nil {
 		c.errChan <- err
@@ -605,6 +629,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
+		p.apiRateLimit()
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
 			c.errChan <- err
@@ -659,6 +684,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 }
 
 func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {
+	p.apiRateLimit()
 	// TODO: add some TTL cache in here maybe?
 	images, err := p.client.Images.List(p.projectID).Filter(filter).Do()
 	if err != nil {
@@ -824,6 +850,7 @@ func (i *gceInstance) getIP() string {
 }
 
 func (i *gceInstance) refreshInstance() error {
+	i.provider.apiRateLimit()
 	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
 	if err != nil {
 		return err
@@ -997,6 +1024,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	b.MaxElapsedTime = 2 * time.Minute
 
 	err := backoff.Retry(func() error {
+		i.provider.apiRateLimit()
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
 			return err
