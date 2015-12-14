@@ -50,7 +50,7 @@ const (
 	defaultGCEHardTimeoutMinutes = int64(130)
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci-mega.+"
-	defaultGCERateLimitTick      = 1 * time.Second
+	defaultGCERateLimitTick      = 5 * time.Second
 	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
 )
 
