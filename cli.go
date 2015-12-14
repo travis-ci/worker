@@ -126,9 +126,16 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.BackendProvider = provider
 
-	pool := NewProcessorPool(cfg.Hostname, ctx,
-		cfg.HardTimeout, cfg.LogTimeout, cfg.ScriptUploadTimeout, cfg.StartupTimeout,
-		i.BackendProvider, i.BuildScriptGenerator, i.Canceller)
+	ppc := &ProcessorPoolConfig{
+		Hostname:            cfg.Hostname,
+		Context:             ctx,
+		HardTimeout:         cfg.HardTimeout,
+		LogTimeout:          cfg.LogTimeout,
+		ScriptUploadTimeout: cfg.ScriptUploadTimeout,
+		StartupTimeout:      cfg.StartupTimeout,
+	}
+
+	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.Canceller)
 
 	pool.SkipShutdownOnLogTimeout = cfg.SkipShutdownOnLogTimeout
 	logger.WithFields(logrus.Fields{

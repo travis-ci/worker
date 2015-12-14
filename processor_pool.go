@@ -32,20 +32,26 @@ type ProcessorPool struct {
 	processorsWG   sync.WaitGroup
 }
 
+type ProcessorPoolConfig struct {
+	Hostname string
+	Context  gocontext.Context
+
+	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+}
+
 // NewProcessorPool creates a new processor pool using the given arguments.
-func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout,
-	logTimeout, scriptUploadTimeout, startupTimeout time.Duration,
+func NewProcessorPool(ppc *ProcessorPoolConfig,
 	provider backend.Provider, generator BuildScriptGenerator,
 	canceller Canceller) *ProcessorPool {
 
 	return &ProcessorPool{
-		Hostname: hostname,
-		Context:  ctx,
+		Hostname: ppc.Hostname,
+		Context:  ppc.Context,
 
-		HardTimeout:         hardTimeout,
-		LogTimeout:          logTimeout,
-		ScriptUploadTimeout: scriptUploadTimeout,
-		StartupTimeout:      startupTimeout,
+		HardTimeout:         ppc.HardTimeout,
+		LogTimeout:          ppc.LogTimeout,
+		ScriptUploadTimeout: ppc.ScriptUploadTimeout,
+		StartupTimeout:      ppc.StartupTimeout,
 
 		Provider:  provider,
 		Generator: generator,
