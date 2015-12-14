@@ -21,3 +21,8 @@ func TimeSince(name string, since time.Time) {
 func TimeDuration(name string, duration time.Duration) {
 	metrics.GetOrRegisterTimer(name, metrics.DefaultRegistry).Update(duration)
 }
+
+// Gauge sets a gauge metric to a given value
+func Gauge(name string, value int64) {
+	metrics.GetOrRegisterGauge(name, metrics.DefaultRegistry).Update(value)
+}

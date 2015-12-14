@@ -15,8 +15,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/mihasya/go-metrics-librato"
 	"github.com/rcrowley/go-metrics"
-	"github.com/rcrowley/go-metrics/librato"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
@@ -200,7 +200,7 @@ func (i *CLI) setupMetrics() {
 
 		go librato.Librato(metrics.DefaultRegistry, time.Minute,
 			i.Config.LibratoEmail, i.Config.LibratoToken, i.Config.LibratoSource,
-			[]float64{0.95}, time.Millisecond)
+			[]float64{0.50, 0.75, 0.90, 0.95, 0.99, 0.999, 1.0}, time.Millisecond)
 	} else if !i.c.Bool("silence-metrics") {
 		i.logger.Info("starting logger metrics reporter")
 
@@ -240,9 +240,11 @@ func (i *CLI) signalHandler() {
 				}).Info("SIGUSR1 received, dumping info")
 				i.ProcessorPool.Each(func(n int, proc *Processor) {
 					i.logger.WithFields(logrus.Fields{
-						"n":         n,
-						"id":        proc.ID,
-						"processed": proc.ProcessedCount,
+						"n":           n,
+						"id":          proc.ID,
+						"processed":   proc.ProcessedCount,
+						"status":      proc.CurrentStatus,
+						"last_job_id": proc.LastJobID,
 					}).Info("processor info")
 				})
 			default:
