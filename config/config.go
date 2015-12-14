@@ -30,8 +30,11 @@ type Config struct {
 	DefaultDist         string
 	DefaultGroup        string
 	DefaultOS           string
+
 	HardTimeout         time.Duration
 	LogTimeout          time.Duration
+	ScriptUploadTimeout time.Duration
+	StartupTimeout      time.Duration
 
 	SentryHookErrors           bool
 	BuildAPIInsecureSkipVerify bool
@@ -74,8 +77,11 @@ func FromCLIContext(c *cli.Context) *Config {
 		DefaultDist:         c.String("default-dist"),
 		DefaultGroup:        c.String("default-group"),
 		DefaultOS:           c.String("default-os"),
+
 		HardTimeout:         c.Duration("hard-timeout"),
 		LogTimeout:          c.Duration("log-timeout"),
+		ScriptUploadTimeout: c.Duration("script-upload-timeout"),
+		StartupTimeout:      c.Duration("startup-timeout"),
 
 		SentryHookErrors:           c.Bool("sentry-hook-errors"),
 		BuildAPIInsecureSkipVerify: c.Bool("build-api-insecure-skip-verify"),
@@ -123,7 +129,11 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 		"default-dist":          cfg.DefaultDist,
 		"default-group":         cfg.DefaultGroup,
 		"default-os":            cfg.DefaultOS,
+
 		"hard-timeout":          cfg.HardTimeout,
+		"log-timeout":           cfg.LogTimeout,
+		"script-upload-timeout": cfg.ScriptUploadTimeout,
+		"startup-timeout":       cfg.StartupTimeout,
 
 		"sentry-hook-errors":             cfg.SentryHookErrors,
 		"build-api-insecure-skip-verify": cfg.BuildAPIInsecureSkipVerify,
