@@ -41,11 +41,6 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 	return &AMQPJobQueue{
 		conn:  conn,
 		queue: queue,
-
-		DefaultLanguage: "default",
-		DefaultDist:     "precise",
-		DefaultGroup:    "stabel",
-		DefaultOS:       "linux",
 	}, nil
 }
 
