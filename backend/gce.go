@@ -51,7 +51,6 @@ const (
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci-mega.+"
 	defaultGCERateLimitTick      = 1 * time.Second
-	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
 )
 
 var (
@@ -71,7 +70,7 @@ var (
 		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
-		"RATE_LIMIT_TICK":       "duration to wait between GCE API calls",
+		"RATE_LIMIT_TICK":       fmt.Sprintf("duration to wait between GCE API calls (default %v)", defaultGCERateLimitTick),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
 		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
 		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
@@ -713,10 +712,6 @@ func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {
 	sort.Strings(imageNames)
 
 	return imagesByName[imageNames[len(imageNames)-1]], nil
-}
-
-func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) {
-	return p.imageByFilter(fmt.Sprintf(gceImageTravisCIPrefixFilter, language))
 }
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
