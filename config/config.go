@@ -304,7 +304,7 @@ type Config struct {
 // from the flags in the context.
 func FromCLIContext(c *cli.Context) *Config {
 	cfg := &Config{}
-	cfgVal := reflect.ValueOf(cfg)
+	cfgVal := reflect.ValueOf(cfg).Elem()
 
 	for _, def := range defs {
 		field := cfgVal.FieldByName(def.FieldName)
@@ -334,9 +334,19 @@ func FromCLIContext(c *cli.Context) *Config {
 // by a Bourne-like shell.
 func WriteEnvConfig(cfg *Config, out io.Writer) {
 	cfgMap := map[string]interface{}{}
+	cfgElem := reflect.ValueOf(cfg).Elem()
 
 	for _, def := range defs {
-		cfgMap[def.Name] = reflect.ValueOf(cfg).FieldByName(def.FieldName).Interface()
+		if def.FieldName == "" || (string(def.FieldName[0]) == strings.ToLower(string(def.FieldName[0]))) {
+			continue
+		}
+
+		field := cfgElem.FieldByName(def.FieldName)
+		if field == zeroStringValue {
+			return
+		}
+
+		cfgMap[def.Name] = field.Interface()
 	}
 
 	sortedCfgMapKeys := []string{}
