@@ -307,6 +307,11 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
 		metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
 		context.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
+
+		if payload.BaseImage == "" {
+			payload.BaseImage = imageName
+		}
+
 		return &jupiterBrainInstance{
 			payload:         payload,
 			provider:        p,

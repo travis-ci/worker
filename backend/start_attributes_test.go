@@ -19,14 +19,16 @@ var (
 				{Language: "python", Dist: "trusty", Group: "edge"},
 				{Language: "python", Dist: "frob", Group: "edge", OS: "flob"},
 				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob"},
+				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob", VMType: "premium"},
 			},
 			O: []*StartAttributes{
-				{Language: "default", Dist: "precise", Group: "stable", OS: "linux"},
-				{Language: "ruby", Dist: "precise", Group: "stable", OS: "linux"},
-				{Language: "python", Dist: "trusty", Group: "stable", OS: "linux"},
-				{Language: "python", Dist: "trusty", Group: "edge", OS: "linux"},
-				{Language: "python", Dist: "frob", Group: "edge", OS: "flob"},
-				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob"},
+				{Language: "default", Dist: "precise", Group: "stable", OS: "linux", VMType: "default"},
+				{Language: "ruby", Dist: "precise", Group: "stable", OS: "linux", VMType: "default"},
+				{Language: "python", Dist: "trusty", Group: "stable", OS: "linux", VMType: "default"},
+				{Language: "python", Dist: "trusty", Group: "edge", OS: "linux", VMType: "default"},
+				{Language: "python", Dist: "frob", Group: "edge", OS: "flob", VMType: "default"},
+				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob", VMType: "default"},
+				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob", VMType: "premium"},
 			},
 		},
 	}
@@ -39,13 +41,14 @@ func TestStartAttributes(t *testing.T) {
 	assert.Equal(t, "", sa.Language)
 	assert.Equal(t, "", sa.OS)
 	assert.Equal(t, "", sa.OsxImage)
+	assert.Equal(t, "", sa.VMType)
 }
 
 func TestStartAttributes_SetDefaults(t *testing.T) {
 	for _, tc := range testStartAttributesTestCases {
 		for i, sa := range tc.A {
 			expected := tc.O[i]
-			sa.SetDefaults("default", "precise", "stable", "linux")
+			sa.SetDefaults("default", "precise", "stable", "linux", "default")
 			assert.Equal(t, expected, sa)
 		}
 	}

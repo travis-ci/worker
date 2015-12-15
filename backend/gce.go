@@ -2,9 +2,9 @@ package backend
 
 import (
 	"bytes"
-	"crypto/x509"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"text/template"
 	"time"
 
@@ -37,6 +38,7 @@ import (
 const (
 	defaultGCEZone               = "us-central1-a"
 	defaultGCEMachineType        = "n1-standard-2"
+	defaultGCEPremiumMachineType = "n1-standard-4"
 	defaultGCENetwork            = "default"
 	defaultGCEDiskSize           = int64(20)
 	defaultGCELanguage           = "minimal"
@@ -49,7 +51,7 @@ const (
 	defaultGCEHardTimeoutMinutes = int64(130)
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci-mega.+"
-	gceImageTravisCIPrefixFilter = "name eq ^travis-ci-%s.+"
+	defaultGCERateLimitTick      = 1 * time.Second
 )
 
 var (
@@ -68,11 +70,10 @@ var (
 		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
+		"RATE_LIMIT_TICK":       fmt.Sprintf("duration to wait between GCE API calls (default %v)", defaultGCERateLimitTick),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
-		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
-		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
-		"SSH_PUB_KEY_PATH":      "[REQUIRED] path to ssh public key used to access job vms",
 		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
 		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
 		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
@@ -132,10 +133,14 @@ type gceProvider struct {
 	defaultImage      string
 	uploadRetries     uint64
 	uploadRetrySleep  time.Duration
+
+	rateLimiter         *time.Ticker
+	rateLimitQueueDepth uint64
 }
 
 type gceInstanceConfig struct {
 	MachineType        *compute.MachineType
+	PremiumMachineType *compute.MachineType
 	Zone               *compute.Zone
 	Network            *compute.Network
 	DiskType           string
@@ -221,50 +226,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	projectID := cfg.Get("PROJECT_ID")
 
-	if !cfg.IsSet("SSH_KEY_PATH") {
-		return nil, fmt.Errorf("missing SSH_KEY_PATH config key")
-	}
-
-	sshKeyBytes, err := ioutil.ReadFile(cfg.Get("SSH_KEY_PATH"))
-
-	if err != nil {
-		return nil, err
-	}
-
-	if !cfg.IsSet("SSH_PUB_KEY_PATH") {
-		return nil, fmt.Errorf("missing SSH_PUB_KEY_PATH config key")
-	}
-
-	sshPubKeyBytes, err := ioutil.ReadFile(cfg.Get("SSH_PUB_KEY_PATH"))
-
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(sshKeyBytes)
-	if block == nil {
-		return nil, fmt.Errorf("ssh key does not contain a valid PEM block")
-	}
-
-	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
-		return nil, fmt.Errorf("missing SSH_KEY_PASSPHRASE config key")
-	}
-
-	der, err := x509.DecryptPEMBlock(block, []byte(cfg.Get("SSH_KEY_PASSPHRASE")))
-	if err != nil {
-		return nil, err
-	}
-
-	parsedKey, err := x509.ParsePKCS1PrivateKey(der)
-	if err != nil {
-		return nil, err
-	}
-
-	sshKeySigner, err := ssh.NewSignerFromKey(parsedKey)
-	if err != nil {
-		return nil, err
-	}
-
 	zoneName := defaultGCEZone
 	if cfg.IsSet("ZONE") {
 		zoneName = cfg.Get("ZONE")
@@ -278,6 +239,13 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	cfg.Set("MACHINE_TYPE", mtName)
+
+	premiumMTName := defaultGCEPremiumMachineType
+	if cfg.IsSet("PREMIUM_MACHINE_TYPE") {
+		premiumMTName = cfg.Get("PREMIUM_MACHINE_TYPE")
+	}
+
+	cfg.Set("PREMIUM_MACHINE_TYPE", premiumMTName)
 
 	nwName := defaultGCENetwork
 	if cfg.IsSet("NETWORK") {
@@ -401,6 +369,31 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	rateLimitTick := defaultGCERateLimitTick
+	if cfg.IsSet("RATE_LIMIT_TICK") {
+		si, err := time.ParseDuration(cfg.Get("RATE_LIMIT_TICK"))
+		if err != nil {
+			return nil, err
+		}
+		rateLimitTick = si
+	}
+
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, err := ssh.NewPublicKey(&privKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	sshKeySigner, err := ssh.NewSignerFromKey(privKey)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
@@ -409,7 +402,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		ic: &gceInstanceConfig{
 			DiskSize:           diskSize,
 			SSHKeySigner:       sshKeySigner,
-			SSHPubKey:          string(sshPubKeyBytes),
+			SSHPubKey:          string(ssh.MarshalAuthorizedKey(pubKey)),
 			AutoImplode:        autoImplode,
 			HardTimeoutMinutes: hardTimeoutMinutes,
 			StopPollSleep:      stopPollSleep,
@@ -425,12 +418,25 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultImage:      defaultImage,
 		uploadRetries:     uploadRetries,
 		uploadRetrySleep:  uploadRetrySleep,
+
+		rateLimiter: time.NewTicker(rateLimitTick),
 	}, nil
+}
+
+func (p *gceProvider) apiRateLimit() {
+	atomic.AddUint64(&p.rateLimitQueueDepth, 1)
+	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
+	startWait := time.Now()
+	<-p.rateLimiter.C
+	metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
+	// This decrements the counter, see the docs for atomic.AddUint64
+	atomic.AddUint64(&p.rateLimitQueueDepth, ^uint64(0))
 }
 
 func (p *gceProvider) Setup() error {
 	var err error
 
+	p.apiRateLimit()
 	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Do()
 	if err != nil {
 		return err
@@ -438,11 +444,19 @@ func (p *gceProvider) Setup() error {
 
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
+	p.apiRateLimit()
 	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Do()
 	if err != nil {
 		return err
 	}
 
+	p.apiRateLimit()
+	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Do()
+	if err != nil {
+		return err
+	}
+
+	p.apiRateLimit()
 	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Do()
 	if err != nil {
 		return err
@@ -525,6 +539,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	defer func(c *gceStartContext) {
 		if c.instance != nil && abandonedStart {
+			p.apiRateLimit()
 			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, c.instance.Name).Do()
 		}
 	}(c)
@@ -580,6 +595,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	c.bootStart = time.Now().UTC()
 
+	p.apiRateLimit()
 	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
 	if err != nil {
 		c.errChan <- err
@@ -605,6 +621,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
+		p.apiRateLimit()
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
 			c.errChan <- err
@@ -659,6 +676,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 }
 
 func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {
+	p.apiRateLimit()
 	// TODO: add some TTL cache in here maybe?
 	images, err := p.client.Images.List(p.projectID).Filter(filter).Do()
 	if err != nil {
@@ -679,10 +697,6 @@ func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {
 	sort.Strings(imageNames)
 
 	return imagesByName[imageNames[len(imageNames)-1]], nil
-}
-
-func (p *gceProvider) imageForLanguage(language string) (*compute.Image, error) {
-	return p.imageByFilter(fmt.Sprintf(gceImageTravisCIPrefixFilter, language))
 }
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
@@ -727,6 +741,14 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 }
 
 func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
+	var machineType *compute.MachineType
+	switch startAttributes.VMType {
+	case "premium":
+		machineType = p.ic.PremiumMachineType
+	default:
+		machineType = p.ic.MachineType
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -745,7 +767,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		Scheduling: &compute.Scheduling{
 			Preemptible: true,
 		},
-		MachineType: p.ic.MachineType.SelfLink,
+		MachineType: machineType.SelfLink,
 		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
@@ -824,6 +846,7 @@ func (i *gceInstance) getIP() string {
 }
 
 func (i *gceInstance) refreshInstance() error {
+	i.provider.apiRateLimit()
 	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
 	if err != nil {
 		return err
@@ -997,6 +1020,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	b.MaxElapsedTime = 2 * time.Minute
 
 	err := backoff.Retry(func() error {
+		i.provider.apiRateLimit()
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
 			return err
