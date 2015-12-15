@@ -14,10 +14,13 @@ import (
 // A Processor will process build jobs on a channel, one by one, until it is
 // told to shut down or the channel of build jobs closes.
 type Processor struct {
-	ID          uuid.UUID
-	hostname    string
-	hardTimeout time.Duration
-	logTimeout  time.Duration
+	ID       uuid.UUID
+	hostname string
+
+	hardTimeout         time.Duration
+	logTimeout          time.Duration
+	scriptUploadTimeout time.Duration
+	startupTimeout      time.Duration
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -29,6 +32,8 @@ type Processor struct {
 	terminate gocontext.CancelFunc
 
 	ProcessedCount int
+	CurrentStatus  string
+	LastJobID      uint64
 
 	SkipShutdownOnLogTimeout bool
 }
@@ -38,7 +43,7 @@ type Processor struct {
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan Job,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
-	hardTimeout time.Duration, logTimeout time.Duration) (*Processor, error) {
+	hardTimeout, logTimeout, scriptUploadTimeout, startupTimeout time.Duration) (*Processor, error) {
 
 	uuidString, _ := context.ProcessorFromContext(ctx)
 	processorUUID := uuid.Parse(uuidString)
@@ -46,10 +51,13 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 	ctx, cancel := gocontext.WithCancel(ctx)
 
 	return &Processor{
-		ID:          processorUUID,
-		hostname:    hostname,
-		hardTimeout: hardTimeout,
-		logTimeout:  logTimeout,
+		ID:       processorUUID,
+		hostname: hostname,
+
+		hardTimeout:         hardTimeout,
+		logTimeout:          logTimeout,
+		scriptUploadTimeout: scriptUploadTimeout,
+		startupTimeout:      startupTimeout,
 
 		ctx:           ctx,
 		buildJobsChan: buildJobsChan,
@@ -59,6 +67,8 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
+
+		CurrentStatus: "new",
 	}, nil
 }
 
@@ -83,12 +93,15 @@ func (p *Processor) Run() {
 		select {
 		case <-p.ctx.Done():
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.CurrentStatus = "done"
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.CurrentStatus = "done"
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
+				p.CurrentStatus = "done"
 				return
 			}
 
@@ -102,7 +115,10 @@ func (p *Processor) Run() {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
 			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
+			p.LastJobID = buildJob.Payload().Job.ID
+			p.CurrentStatus = "processing"
 			p.process(ctx, buildJob)
+			p.CurrentStatus = "waiting"
 			cancel()
 		}
 	}
@@ -149,10 +165,10 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepSendReceived{},
 		&stepStartInstance{
 			provider:     p.provider,
-			startTimeout: 4 * time.Minute,
+			startTimeout: p.startupTimeout,
 		},
 		&stepUploadScript{
-			uploadTimeout: 1 * time.Minute,
+			uploadTimeout: p.scriptUploadTimeout,
 		},
 		&stepUpdateState{},
 		&stepOpenLogWriter{
