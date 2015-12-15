@@ -2,9 +2,9 @@ package backend
 
 import (
 	"bytes"
-	"crypto/x509"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -72,9 +72,6 @@ var (
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
 		"RATE_LIMIT_TICK":       fmt.Sprintf("duration to wait between GCE API calls (default %v)", defaultGCERateLimitTick),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
-		"SSH_KEY_PASSPHRASE":    "[REQUIRED] passphrase for ssh key given as ssh_key_path",
-		"SSH_KEY_PATH":          "[REQUIRED] path to ssh key used to access job vms",
-		"SSH_PUB_KEY_PATH":      "[REQUIRED] path to ssh public key used to access job vms",
 		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
 		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
 		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
@@ -226,50 +223,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	projectID := cfg.Get("PROJECT_ID")
 
-	if !cfg.IsSet("SSH_KEY_PATH") {
-		return nil, fmt.Errorf("missing SSH_KEY_PATH config key")
-	}
-
-	sshKeyBytes, err := ioutil.ReadFile(cfg.Get("SSH_KEY_PATH"))
-
-	if err != nil {
-		return nil, err
-	}
-
-	if !cfg.IsSet("SSH_PUB_KEY_PATH") {
-		return nil, fmt.Errorf("missing SSH_PUB_KEY_PATH config key")
-	}
-
-	sshPubKeyBytes, err := ioutil.ReadFile(cfg.Get("SSH_PUB_KEY_PATH"))
-
-	if err != nil {
-		return nil, err
-	}
-
-	block, _ := pem.Decode(sshKeyBytes)
-	if block == nil {
-		return nil, fmt.Errorf("ssh key does not contain a valid PEM block")
-	}
-
-	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
-		return nil, fmt.Errorf("missing SSH_KEY_PASSPHRASE config key")
-	}
-
-	der, err := x509.DecryptPEMBlock(block, []byte(cfg.Get("SSH_KEY_PASSPHRASE")))
-	if err != nil {
-		return nil, err
-	}
-
-	parsedKey, err := x509.ParsePKCS1PrivateKey(der)
-	if err != nil {
-		return nil, err
-	}
-
-	sshKeySigner, err := ssh.NewSignerFromKey(parsedKey)
-	if err != nil {
-		return nil, err
-	}
-
 	zoneName := defaultGCEZone
 	if cfg.IsSet("ZONE") {
 		zoneName = cfg.Get("ZONE")
@@ -415,6 +368,22 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimitTick = si
 	}
 
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, err
+	}
+
+	pubKey, err := ssh.NewPublicKey(&privKey.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	sshKeySigner, err := ssh.NewSignerFromKey(privKey)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
@@ -423,7 +392,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		ic: &gceInstanceConfig{
 			DiskSize:           diskSize,
 			SSHKeySigner:       sshKeySigner,
-			SSHPubKey:          string(sshPubKeyBytes),
+			SSHPubKey:          string(ssh.MarshalAuthorizedKey(pubKey)),
 			AutoImplode:        autoImplode,
 			HardTimeoutMinutes: hardTimeoutMinutes,
 			StopPollSleep:      stopPollSleep,
