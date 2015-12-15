@@ -149,10 +149,12 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	dockerHostConfig := &docker.HostConfig{
 		Privileged: p.runPrivileged,
+		Memory:     int64(p.runMemory),
 	}
 
 	if cpuSets != "" {
 		dockerConfig.CPUSet = cpuSets
+		dockerHostConfig.CPUSet = cpuSets
 	}
 
 	logger.WithFields(logrus.Fields{
