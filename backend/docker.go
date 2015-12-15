@@ -233,13 +233,13 @@ func (p *dockerProvider) imageForLanguage(language string) (string, string, erro
 		return "", "", err
 	}
 
-	for _, image := range images {
-		for _, searchTag := range []string{
-			"travis:" + language,
-			language,
-			"travis:default",
-			"default",
-		} {
+	for _, searchTag := range []string{
+		"travis:" + language,
+		language,
+		"travis:default",
+		"default",
+	} {
+		for _, image := range images {
 			for _, tag := range image.RepoTags {
 				if tag == searchTag {
 					return image.ID, tag, nil
