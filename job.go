@@ -6,6 +6,11 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
+const (
+	VMTypeDefault = "default"
+	VMTypePremium = "premium"
+)
+
 type jobPayloadStartAttrs struct {
 	Config *backend.StartAttributes `json:"config"`
 }
@@ -19,6 +24,7 @@ type JobPayload struct {
 	UUID       string                 `json:"uuid"`
 	Config     map[string]interface{} `json:"config"`
 	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
+	VMType     string                 `json:"vm_type"`
 }
 
 // JobJobPayload contains information about the job.

@@ -38,6 +38,7 @@ import (
 const (
 	defaultGCEZone               = "us-central1-a"
 	defaultGCEMachineType        = "n1-standard-2"
+	defaultGCEPremiumMachineType = "n1-standard-4"
 	defaultGCENetwork            = "default"
 	defaultGCEDiskSize           = int64(20)
 	defaultGCELanguage           = "minimal"
@@ -69,6 +70,7 @@ var (
 		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
 		"RATE_LIMIT_TICK":       fmt.Sprintf("duration to wait between GCE API calls (default %v)", defaultGCERateLimitTick),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
@@ -138,6 +140,7 @@ type gceProvider struct {
 
 type gceInstanceConfig struct {
 	MachineType        *compute.MachineType
+	PremiumMachineType *compute.MachineType
 	Zone               *compute.Zone
 	Network            *compute.Network
 	DiskType           string
@@ -236,6 +239,13 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	cfg.Set("MACHINE_TYPE", mtName)
+
+	premiumMTName := defaultGCEPremiumMachineType
+	if cfg.IsSet("PREMIUM_MACHINE_TYPE") {
+		premiumMTName = cfg.Get("PREMIUM_MACHINE_TYPE")
+	}
+
+	cfg.Set("PREMIUM_MACHINE_TYPE", premiumMTName)
 
 	nwName := defaultGCENetwork
 	if cfg.IsSet("NETWORK") {
@@ -436,6 +446,12 @@ func (p *gceProvider) Setup() error {
 
 	p.apiRateLimit()
 	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Do()
+	if err != nil {
+		return err
+	}
+
+	p.apiRateLimit()
+	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Do()
 	if err != nil {
 		return err
 	}
@@ -725,6 +741,14 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 }
 
 func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
+	var machineType *compute.MachineType
+	switch startAttributes.VMType {
+	case "premium":
+		machineType = p.ic.PremiumMachineType
+	default:
+		machineType = p.ic.MachineType
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -743,7 +767,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		Scheduling: &compute.Scheduling{
 			Preemptible: true,
 		},
-		MachineType: p.ic.MachineType.SelfLink,
+		MachineType: machineType.SelfLink,
 		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
