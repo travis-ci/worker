@@ -146,7 +146,7 @@ var (
 		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
 
 		// non-config and special case flags
-		NewConfigDef("SkipShutdownOnLogTimeout", &cli.StringFlag{
+		NewConfigDef("SkipShutdownOnLogTimeout", &cli.BoolFlag{
 			Usage: "Special-case mode to aid with debugging timed out jobs",
 		}),
 		NewConfigDef("BuildAPIInsecureSkipVerify", &cli.BoolFlag{
@@ -208,6 +208,7 @@ type ConfigDef struct {
 	Name      string
 	EnvVar    string
 	Flag      cli.Flag
+	HasField  bool
 }
 
 func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
@@ -230,6 +231,7 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 		FieldName: fieldName,
 		Name:      name,
 		EnvVar:    env,
+		HasField:  fieldName != name,
 	}
 
 	envPrefixed := twEnvVars(env)
@@ -307,19 +309,19 @@ func FromCLIContext(c *cli.Context) *Config {
 	cfgVal := reflect.ValueOf(cfg).Elem()
 
 	for _, def := range defs {
-		field := cfgVal.FieldByName(def.FieldName)
-		if field == zeroStringValue {
+		if !def.HasField {
 			continue
 		}
 
-		switch reflect.TypeOf(def.Flag) {
-		case boolFlagType:
+		field := cfgVal.FieldByName(def.FieldName)
+
+		if _, ok := def.Flag.(*cli.BoolFlag); ok {
 			field.SetBool(c.Bool(def.Name))
-		case durationFlagType:
+		} else if _, ok := def.Flag.(*cli.DurationFlag); ok {
 			field.Set(reflect.ValueOf(c.Duration(def.Name)))
-		case intFlagType:
+		} else if _, ok := def.Flag.(*cli.IntFlag); ok {
 			field.SetInt(int64(c.Int(def.Name)))
-		case stringFlagType:
+		} else if _, ok := def.Flag.(*cli.StringFlag); ok {
 			field.SetString(c.String(def.Name))
 		}
 	}
@@ -337,15 +339,11 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 	cfgElem := reflect.ValueOf(cfg).Elem()
 
 	for _, def := range defs {
-		if def.FieldName == "" || (string(def.FieldName[0]) == strings.ToLower(string(def.FieldName[0]))) {
+		if !def.HasField {
 			continue
 		}
 
 		field := cfgElem.FieldByName(def.FieldName)
-		if field == zeroStringValue {
-			return
-		}
-
 		cfgMap[def.Name] = field.Interface()
 	}
 
