@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"io"
+	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -10,96 +12,316 @@ import (
 	"github.com/codegangsta/cli"
 )
 
+var (
+	defaultAmqpURI                = "amqp://"
+	defaultBaseDir                = "."
+	defaultFilePollingInterval, _ = time.ParseDuration("5s")
+	defaultPoolSize               = 1
+	defaultProviderName           = "docker"
+	defaultQueueType              = "amqp"
+
+	defaultHardTimeout, _            = time.ParseDuration("50m")
+	defaultLogTimeout, _             = time.ParseDuration("10m")
+	defaultScriptUploadTimeout, _    = time.ParseDuration("3m30s")
+	defaultStartupTimeout, _         = time.ParseDuration("4m")
+	defaultBuildCacheFetchTimeout, _ = time.ParseDuration("5m")
+	defaultBuildCachePushTimeout, _  = time.ParseDuration("5m")
+
+	defaultHostname, _ = os.Hostname()
+	defaultLanguage    = "default"
+	defaultDist        = "precise"
+	defaultGroup       = "stable"
+	defaultOS          = "linux"
+
+	configType = reflect.ValueOf(Config{}).Type()
+
+	boolFlagType     = reflect.ValueOf(cli.BoolFlag{}).Type()
+	durationFlagType = reflect.ValueOf(cli.DurationFlag{}).Type()
+	intFlagType      = reflect.ValueOf(cli.IntFlag{}).Type()
+	stringFlagType   = reflect.ValueOf(cli.StringFlag{}).Type()
+
+	zeroStringValue = reflect.Zero(reflect.ValueOf("").Type())
+
+	defs = []*ConfigDef{
+		NewConfigDef("ProviderName", &cli.StringFlag{
+			Value: defaultProviderName,
+			Usage: "The name of the provider to use. See below for provider-specific configuration",
+		}),
+		NewConfigDef("QueueType", &cli.StringFlag{
+			Value: defaultQueueType,
+			Usage: `The name of the queue type to use ("amqp" or "file")`,
+		}),
+		NewConfigDef("AmqpURI", &cli.StringFlag{
+			Value: defaultAmqpURI,
+			Usage: `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
+		}),
+		NewConfigDef("BaseDir", &cli.StringFlag{
+			Value: defaultBaseDir,
+			Usage: `The base directory for file-based queues (only valid for "file" queue type)`,
+		}),
+		NewConfigDef("FilePollingInterval", &cli.DurationFlag{
+			Value: defaultFilePollingInterval,
+			Usage: `The interval at which file-based queues are checked (only valid for "file" queue type)`,
+		}),
+		NewConfigDef("PoolSize", &cli.IntFlag{
+			Value: defaultPoolSize,
+			Usage: "The size of the processor pool, affecting the number of jobs this worker can run in parallel",
+		}),
+		NewConfigDef("BuildAPIURI", &cli.StringFlag{
+			Usage: "The full URL to the build API endpoint to use. Note that this also requires the path of the URL. If a username is included in the URL, this will be translated to a token passed in the Authorization header",
+		}),
+		NewConfigDef("QueueName", &cli.StringFlag{
+			Usage: "The AMQP queue to subscribe to for jobs",
+		}),
+		NewConfigDef("LibratoEmail", &cli.StringFlag{
+			Usage: "Librato metrics account email",
+		}),
+		NewConfigDef("LibratoToken", &cli.StringFlag{
+			Usage: "Librato metrics account token",
+		}),
+		NewConfigDef("LibratoSource", &cli.StringFlag{
+			Value: defaultHostname,
+			Usage: "Librato metrics source name",
+		}),
+		NewConfigDef("SentryDSN", &cli.StringFlag{
+			Usage: "The DSN to send Sentry events to",
+		}),
+		NewConfigDef("SentryHookErrors", &cli.BoolFlag{
+			Usage: "Add logrus.ErrorLevel to logrus sentry hook",
+		}),
+		NewConfigDef("Hostname", &cli.StringFlag{
+			Value: defaultHostname,
+			Usage: "Host name used in log output to identify the source of a job",
+		}),
+		NewConfigDef("DefaultLanguage", &cli.StringFlag{
+			Value: defaultLanguage,
+			Usage: "Default \"language\" value for each job",
+		}),
+		NewConfigDef("DefaultDist", &cli.StringFlag{
+			Value: defaultDist,
+			Usage: "Default \"dist\" value for each job",
+		}),
+		NewConfigDef("DefaultGroup", &cli.StringFlag{
+			Value: defaultGroup,
+			Usage: "Default \"group\" value for each job",
+		}),
+		NewConfigDef("DefaultOS", &cli.StringFlag{
+			Value: defaultOS,
+			Usage: "Default \"os\" value for each job",
+		}),
+		NewConfigDef("HardTimeout", &cli.DurationFlag{
+			Value: defaultHardTimeout,
+			Usage: "The outermost (maximum) timeout for a given job, at which time the job is cancelled",
+		}),
+		NewConfigDef("LogTimeout", &cli.DurationFlag{
+			Value: defaultLogTimeout,
+			Usage: "The timeout for a job that's not outputting anything",
+		}),
+		NewConfigDef("ScriptUploadTimeout", &cli.DurationFlag{
+			Value: defaultScriptUploadTimeout,
+			Usage: "The timeout for the script upload step",
+		}),
+		NewConfigDef("StartupTimeout", &cli.DurationFlag{
+			Value: defaultStartupTimeout,
+			Usage: "The timeout for execution environment to be ready",
+		}),
+
+		// build script generator flags
+		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
+			Value: defaultBuildCacheFetchTimeout,
+		}),
+		NewConfigDef("BuildCachePushTimeout", &cli.DurationFlag{
+			Value: defaultBuildCachePushTimeout,
+		}),
+		NewConfigDef("BuildAptCache", &cli.StringFlag{}),
+		NewConfigDef("BuildNpmCache", &cli.StringFlag{}),
+		NewConfigDef("BuildParanoid", &cli.BoolFlag{}),
+		NewConfigDef("BuildFixResolvConf", &cli.BoolFlag{}),
+		NewConfigDef("BuildFixEtcHosts", &cli.BoolFlag{}),
+		NewConfigDef("BuildCacheType", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3Scheme", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3Region", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3Bucket", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3AccessKeyID", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
+
+		// non-config and special case flags
+		NewConfigDef("SkipShutdownOnLogTimeout", &cli.StringFlag{
+			Usage: "Special-case mode to aid with debugging timed out jobs",
+		}),
+		NewConfigDef("BuildAPIInsecureSkipVerify", &cli.BoolFlag{
+			Usage: "Skip build API TLS verification (useful for Enterprise and testing)",
+		}),
+		NewConfigDef("pprof-port", &cli.StringFlag{
+			Usage: "enable pprof http endpoint at port",
+		}),
+		NewConfigDef("silence-metrics", &cli.BoolFlag{
+			Usage: "silence metrics logging in case no Librato creds have been provided",
+		}),
+		NewConfigDef("echo-config", &cli.BoolFlag{
+			Usage: "echo parsed config and exit",
+		}),
+		NewConfigDef("list-backend-providers", &cli.BoolFlag{
+			Usage: "echo backend provider list and exit",
+		}),
+		NewConfigDef("debug", &cli.BoolFlag{
+			Usage: "set log level to debug",
+		}),
+	}
+
+	// Flags is the list of all CLI flags accepted by travis-worker
+	Flags = defFlags(defs)
+)
+
+func twEnvVars(key string) string {
+	return strings.ToUpper(strings.Join(twEnvVarsSlice(key), ","))
+}
+
+func twEnvVarsSlice(key string) []string {
+	return []string{
+		fmt.Sprintf("TRAVIS_WORKER_%s", key),
+		key,
+	}
+}
+
+func init() {
+	wd, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	defaultBaseDir = wd
+}
+
+func defFlags(defs []*ConfigDef) []cli.Flag {
+	f := []cli.Flag{}
+
+	for _, def := range defs {
+		f = append(f, def.Flag)
+	}
+
+	return f
+}
+
+type ConfigDef struct {
+	FieldName string
+	Name      string
+	EnvVar    string
+	Flag      cli.Flag
+}
+
+func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
+	if fieldName == "" {
+		panic("empty field name")
+	}
+
+	name := ""
+
+	if string(fieldName[0]) == strings.ToLower(string(fieldName[0])) {
+		name = fieldName
+	} else {
+		field, _ := configType.FieldByName(fieldName)
+		name = field.Tag.Get("config")
+	}
+
+	env := strings.ToUpper(strings.Replace(name, "-", "_", -1))
+
+	def := &ConfigDef{
+		FieldName: fieldName,
+		Name:      name,
+		EnvVar:    env,
+	}
+
+	envPrefixed := twEnvVars(env)
+
+	if f, ok := flag.(*cli.BoolFlag); ok {
+		def.Flag, f.Name, f.EnvVar = f, name, envPrefixed
+		return def
+	} else if f, ok := flag.(*cli.StringFlag); ok {
+		def.Flag, f.Name, f.EnvVar = f, name, envPrefixed
+		return def
+	} else if f, ok := flag.(*cli.IntFlag); ok {
+		def.Flag, f.Name, f.EnvVar = f, name, envPrefixed
+		return def
+	} else if f, ok := flag.(*cli.DurationFlag); ok {
+		def.Flag, f.Name, f.EnvVar = f, name, envPrefixed
+		return def
+	} else {
+		return def
+	}
+}
+
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	ProviderName        string
-	QueueType           string
-	AmqpURI             string
-	BaseDir             string
-	FilePollingInterval time.Duration
-	PoolSize            int
-	BuildAPIURI         string
-	ProviderConfig      *ProviderConfig
-	QueueName           string
-	LibratoEmail        string
-	LibratoToken        string
-	LibratoSource       string
-	SentryDSN           string
-	Hostname            string
-	DefaultLanguage     string
-	DefaultDist         string
-	DefaultGroup        string
-	DefaultOS           string
+	ProviderName    string `config:"provider-name"`
+	QueueType       string `config:"queue-type"`
+	AmqpURI         string `config:"amqp-uri"`
+	BaseDir         string `config:"base-dir"`
+	PoolSize        int    `config:"pool-size"`
+	BuildAPIURI     string `config:"build-api-uri"`
+	QueueName       string `config:"queue-name"`
+	LibratoEmail    string `config:"librato-email"`
+	LibratoToken    string `config:"librato-token"`
+	LibratoSource   string `config:"librato-source"`
+	SentryDSN       string `config:"sentry-dsn"`
+	Hostname        string `config:"hostname"`
+	DefaultLanguage string `config:"default-language"`
+	DefaultDist     string `config:"default-dist"`
+	DefaultGroup    string `config:"default-group"`
+	DefaultOS       string `config:"default-os"`
 
-	HardTimeout         time.Duration
-	LogTimeout          time.Duration
-	ScriptUploadTimeout time.Duration
-	StartupTimeout      time.Duration
+	FilePollingInterval time.Duration `config:"file-polling-interval"`
+	HardTimeout         time.Duration `config:"hard-timeout"`
+	LogTimeout          time.Duration `config:"log-timeout"`
+	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
+	StartupTimeout      time.Duration `config:"startup-timeout"`
 
-	SentryHookErrors           bool
-	BuildAPIInsecureSkipVerify bool
-	SkipShutdownOnLogTimeout   bool
+	SentryHookErrors           bool `config:"sentry-hook-errors"`
+	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`
+	SkipShutdownOnLogTimeout   bool `config:"skip-shutdown-on-log-timeout"`
 
 	// build script generator options
-	BuildCacheFetchTimeout      time.Duration
-	BuildCachePushTimeout       time.Duration
-	BuildAptCache               string
-	BuildNpmCache               string
-	BuildParanoid               bool
-	BuildFixResolvConf          bool
-	BuildFixEtcHosts            bool
-	BuildCacheType              string
-	BuildCacheS3Scheme          string
-	BuildCacheS3Region          string
-	BuildCacheS3Bucket          string
-	BuildCacheS3AccessKeyID     string
-	BuildCacheS3SecretAccessKey string
+	BuildCacheFetchTimeout time.Duration `config:"build-cache-fetch-timeout"`
+	BuildCachePushTimeout  time.Duration `config:"build-cache-push-timeout"`
+
+	BuildParanoid      bool `config:"build-paranoid"`
+	BuildFixResolvConf bool `config:"build-fix-resolv-conf"`
+	BuildFixEtcHosts   bool `config:"build-fix-etc-hosts"`
+
+	BuildAptCache               string `config:"build-apt-cache"`
+	BuildNpmCache               string `config:"build-npm-cache"`
+	BuildCacheType              string `config:"build-cache-type"`
+	BuildCacheS3Scheme          string `config:"build-cache-s3-scheme"`
+	BuildCacheS3Region          string `config:"build-cache-s3-region"`
+	BuildCacheS3Bucket          string `config:"build-cache-s3-bucket"`
+	BuildCacheS3AccessKeyID     string `config:"build-cache-s3-access-key-id"`
+	BuildCacheS3SecretAccessKey string `config:"build-cache-s3-secret-access-key"`
+
+	ProviderConfig *ProviderConfig
 }
 
 // FromCLIContext creates a Config using a cli.Context by pulling configuration
 // from the flags in the context.
 func FromCLIContext(c *cli.Context) *Config {
-	cfg := &Config{
-		ProviderName:        c.String("provider-name"),
-		QueueType:           c.String("queue-type"),
-		AmqpURI:             c.String("amqp-uri"),
-		BaseDir:             c.String("base-dir"),
-		FilePollingInterval: c.Duration("file-polling-interval"),
-		PoolSize:            c.Int("pool-size"),
-		BuildAPIURI:         c.String("build-api-uri"),
-		QueueName:           c.String("queue-name"),
-		LibratoEmail:        c.String("librato-email"),
-		LibratoToken:        c.String("librato-token"),
-		LibratoSource:       c.String("librato-source"),
-		SentryDSN:           c.String("sentry-dsn"),
-		Hostname:            c.String("hostname"),
-		DefaultLanguage:     c.String("default-language"),
-		DefaultDist:         c.String("default-dist"),
-		DefaultGroup:        c.String("default-group"),
-		DefaultOS:           c.String("default-os"),
+	cfg := &Config{}
+	cfgVal := reflect.ValueOf(cfg)
 
-		HardTimeout:         c.Duration("hard-timeout"),
-		LogTimeout:          c.Duration("log-timeout"),
-		ScriptUploadTimeout: c.Duration("script-upload-timeout"),
-		StartupTimeout:      c.Duration("startup-timeout"),
+	for _, def := range defs {
+		field := cfgVal.FieldByName(def.FieldName)
+		if field == zeroStringValue {
+			continue
+		}
 
-		SentryHookErrors:           c.Bool("sentry-hook-errors"),
-		BuildAPIInsecureSkipVerify: c.Bool("build-api-insecure-skip-verify"),
-		SkipShutdownOnLogTimeout:   c.Bool("skip-shutdown-on-log-timeout"),
-
-		BuildCacheFetchTimeout:      c.Duration("build-cache-fetch-timeout"),
-		BuildCachePushTimeout:       c.Duration("build-cache-push-timeout"),
-		BuildAptCache:               c.String("build-apt-cache"),
-		BuildNpmCache:               c.String("build-npm-cache"),
-		BuildParanoid:               c.Bool("build-paranoid"),
-		BuildFixResolvConf:          c.Bool("build-fix-resolv-conf"),
-		BuildFixEtcHosts:            c.Bool("build-fix-etc-hosts"),
-		BuildCacheType:              c.String("build-cache-type"),
-		BuildCacheS3Scheme:          c.String("build-cache-s3-scheme"),
-		BuildCacheS3Region:          c.String("build-cache-s3-region"),
-		BuildCacheS3Bucket:          c.String("build-cache-s3-bucket"),
-		BuildCacheS3AccessKeyID:     c.String("build-cache-s3-access-key-id"),
-		BuildCacheS3SecretAccessKey: c.String("build-cache-s3-secret-access-key"),
+		switch reflect.TypeOf(def.Flag) {
+		case boolFlagType:
+			field.SetBool(c.Bool(def.Name))
+		case durationFlagType:
+			field.Set(reflect.ValueOf(c.Duration(def.Name)))
+		case intFlagType:
+			field.SetInt(int64(c.Int(def.Name)))
+		case stringFlagType:
+			field.SetString(c.String(def.Name))
+		}
 	}
 
 	cfg.ProviderConfig = ProviderConfigFromEnviron(cfg.ProviderName)
@@ -111,47 +333,10 @@ func FromCLIContext(c *cli.Context) *Config {
 // output is a list of environment variables settings suitable to be sourced
 // by a Bourne-like shell.
 func WriteEnvConfig(cfg *Config, out io.Writer) {
-	cfgMap := map[string]interface{}{
-		"provider-name":         cfg.ProviderName,
-		"queue-type":            cfg.QueueType,
-		"amqp-uri":              cfg.AmqpURI,
-		"base-dir":              cfg.BaseDir,
-		"file-polling-interval": cfg.FilePollingInterval,
-		"pool-size":             cfg.PoolSize,
-		"build-api-uri":         cfg.BuildAPIURI,
-		"queue-name":            cfg.QueueName,
-		"librato-email":         cfg.LibratoEmail,
-		"librato-token":         cfg.LibratoToken,
-		"librato-source":        cfg.LibratoSource,
-		"sentry-dsn":            cfg.SentryDSN,
-		"hostname":              cfg.Hostname,
-		"default-language":      cfg.DefaultLanguage,
-		"default-dist":          cfg.DefaultDist,
-		"default-group":         cfg.DefaultGroup,
-		"default-os":            cfg.DefaultOS,
+	cfgMap := map[string]interface{}{}
 
-		"hard-timeout":          cfg.HardTimeout,
-		"log-timeout":           cfg.LogTimeout,
-		"script-upload-timeout": cfg.ScriptUploadTimeout,
-		"startup-timeout":       cfg.StartupTimeout,
-
-		"sentry-hook-errors":             cfg.SentryHookErrors,
-		"build-api-insecure-skip-verify": cfg.BuildAPIInsecureSkipVerify,
-		"skip-shutdown-on-log-timeout":   cfg.SkipShutdownOnLogTimeout,
-
-		"build-cache-fetch-timeout":        cfg.BuildCacheFetchTimeout,
-		"build-cache-push-timeout":         cfg.BuildCachePushTimeout,
-		"build-apt-cache":                  cfg.BuildAptCache,
-		"build-npm-cache":                  cfg.BuildNpmCache,
-		"build-paranoid":                   cfg.BuildParanoid,
-		"build-fix-resolv-conf":            cfg.BuildFixResolvConf,
-		"build-fix-etc-hosts":              cfg.BuildFixEtcHosts,
-		"build-cache-type":                 cfg.BuildCacheType,
-		"build-cache-s3-scheme":            cfg.BuildCacheS3Scheme,
-		"build-cache-s3-region":            cfg.BuildCacheS3Region,
-		"build-cache-s3-bucket":            cfg.BuildCacheS3Bucket,
-		"build-cache-s3-access-key-id":     cfg.BuildCacheS3AccessKeyID,
-		"build-cache-s3-secret-access-key": cfg.BuildCacheS3SecretAccessKey,
+	for _, def := range defs {
+		cfgMap[def.Name] = reflect.ValueOf(cfg).FieldByName(def.FieldName).Interface()
 	}
 
 	sortedCfgMapKeys := []string{}
