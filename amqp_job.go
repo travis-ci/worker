@@ -78,6 +78,9 @@ func (j *amqpJob) Received() error {
 
 func (j *amqpJob) Started() error {
 	j.started = time.Now()
+
+	metrics.TimeSince("travis.worker.job.start_time", j.received)
+
 	return j.sendStateUpdate("job:test:start", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       "started",
