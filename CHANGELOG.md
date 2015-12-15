@@ -1,3 +1,33 @@
+## 2.1.0 (December 15th, 2015)
+
+FEATURES:
+
+  * backend/gce: Add support for a "premium" VM type.
+
+IMPROVEMENTS:
+
+  * cli: Show current status and last job id via `SIGUSR1`.
+  * backend/gce: Use [`multistep`](https://github.com/mitchellh/multistep)
+  during instance creation and deletion.
+  * backend/gce: Allow configuration of script upload and startup timeouts.
+  * backend/gce: Various improvements to minimize API usage:
+    * Exponential backoff while stopping instance.
+    * Add option to skip API polling after initial instance delete call.
+    * Add metrics to track API polling for instance readiness.
+    * Cache the instance IP address as soon as it is available.
+    * Add ticker-based rate limiting.
+  * backend/gce: Generate SSH key pair internally.
+  * amqp-job: Track metrics for (started - received) duration.
+  * cli: Add more percentiles to Librato config.
+  * config: DRY up the relationship between config struct & cli flags.
+
+BUG FIXES:
+
+  * backend/jupiterbrain: Ensure image name is present in instance line of
+    worker summary.
+  * backend/docker: Pass resource limitations in `HostConfig`.
+  * backend/docker: Prioritize language tags over default image.
+
 ## 2.0.0 (December 9th, 2015)
 
 FEATURES:
