@@ -68,6 +68,12 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/mihasya/go-metrics-librato",
+			"repository": "https://github.com/mihasya/go-metrics-librato",
+			"revision": "742811266180500ea5934ea6ed3313f90d806a20",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/mitchellh/multistep",
 			"repository": "https://github.com/mitchellh/multistep",
 			"revision": "162146fc57112954184d90266f4733e900ed05a5",

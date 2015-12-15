@@ -124,6 +124,18 @@ var (
 			Usage:  "The timeout for a job that's not outputting anything",
 			EnvVar: twEnvVars("LOG_TIMEOUT"),
 		},
+		cli.DurationFlag{
+			Name:   "script-upload-timeout",
+			Value:  defaultScriptUploadTimeout,
+			Usage:  "The timeout for the script upload step",
+			EnvVar: twEnvVars("SCRIPT_UPLOAD_TIMEOUT"),
+		},
+		cli.DurationFlag{
+			Name:   "startup-timeout",
+			Value:  defaultStartupTimeout,
+			Usage:  "The timeout for execution environment to be ready",
+			EnvVar: twEnvVars("STARTUP_TIMEOUT"),
+		},
 
 		// build script generator flags
 		cli.DurationFlag{

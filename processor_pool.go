@@ -15,13 +15,13 @@ import (
 // A ProcessorPool spins up multiple Processors handling build jobs from the
 // same queue.
 type ProcessorPool struct {
-	Context     gocontext.Context
-	Provider    backend.Provider
-	Generator   BuildScriptGenerator
-	Canceller   Canceller
-	Hostname    string
-	HardTimeout time.Duration
-	LogTimeout  time.Duration
+	Context   gocontext.Context
+	Provider  backend.Provider
+	Generator BuildScriptGenerator
+	Canceller Canceller
+	Hostname  string
+
+	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
 
 	SkipShutdownOnLogTimeout bool
 
@@ -32,19 +32,30 @@ type ProcessorPool struct {
 	processorsWG   sync.WaitGroup
 }
 
+type ProcessorPoolConfig struct {
+	Hostname string
+	Context  gocontext.Context
+
+	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+}
+
 // NewProcessorPool creates a new processor pool using the given arguments.
-func NewProcessorPool(hostname string, ctx gocontext.Context, hardTimeout time.Duration,
-	logTimeout time.Duration, provider backend.Provider,
-	generator BuildScriptGenerator, canceller Canceller) *ProcessorPool {
+func NewProcessorPool(ppc *ProcessorPoolConfig,
+	provider backend.Provider, generator BuildScriptGenerator,
+	canceller Canceller) *ProcessorPool {
 
 	return &ProcessorPool{
-		Hostname:    hostname,
-		Context:     ctx,
-		HardTimeout: hardTimeout,
-		LogTimeout:  logTimeout,
-		Provider:    provider,
-		Generator:   generator,
-		Canceller:   canceller,
+		Hostname: ppc.Hostname,
+		Context:  ppc.Context,
+
+		HardTimeout:         ppc.HardTimeout,
+		LogTimeout:          ppc.LogTimeout,
+		ScriptUploadTimeout: ppc.ScriptUploadTimeout,
+		StartupTimeout:      ppc.StartupTimeout,
+
+		Provider:  provider,
+		Generator: generator,
+		Canceller: canceller,
 	}
 }
 
@@ -139,7 +150,10 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 		return err
 	}
 
-	proc, err := NewProcessor(ctx, p.Hostname, jobsChan, p.Provider, p.Generator, p.Canceller, p.HardTimeout, p.LogTimeout)
+	proc, err := NewProcessor(ctx, p.Hostname,
+		jobsChan, p.Provider, p.Generator, p.Canceller,
+		p.HardTimeout, p.LogTimeout, p.ScriptUploadTimeout, p.StartupTimeout)
+
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
 		return err
