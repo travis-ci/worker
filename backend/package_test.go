@@ -19,16 +19,17 @@ func (t *recordingHTTPTransport) RoundTrip(req *http.Request) (*http.Response, e
 
 func TestAsBool(t *testing.T) {
 	for s, b := range map[string]bool{
-		"yes": true,
-		"on":  true,
-		"1":   true,
-		"boo": true,
-		"0":   false,
-		"99":  true,
-		"a":   true,
-		"off": false,
-		"no":  false,
-		"":    false,
+		"yes":     true,
+		"on":      true,
+		"1":       true,
+		"boo":     true,
+		"0":       false,
+		"99":      true,
+		"a":       true,
+		"off":     false,
+		"no":      false,
+		"fafafaf": true,
+		"":        false,
 	} {
 		assert.Equal(t, b, asBool(s))
 	}
