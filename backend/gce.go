@@ -70,6 +70,7 @@ var (
 		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PREEMPTIBLE":           "boot job instances with preemptible flag enabled (default true)",
 		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
 		"RATE_LIMIT_TICK":       fmt.Sprintf("duration to wait between GCE API calls (default %v)", defaultGCERateLimitTick),
@@ -152,6 +153,7 @@ type gceInstanceConfig struct {
 	StopPollSleep      time.Duration
 	StopPrePollSleep   time.Duration
 	SkipStopPoll       bool
+	Preemptible        bool
 }
 
 type gceStartMultistepWrapper struct {
@@ -394,12 +396,18 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
+	preemptible := true
+	if cfg.IsSet("PREEMPTIBLE") {
+		preemptible = asBool(cfg.Get("PREEMPTIBLE"))
+	}
+
 	return &gceProvider{
 		client:    client,
 		projectID: projectID,
 		cfg:       cfg,
 
 		ic: &gceInstanceConfig{
+			Preemptible:        preemptible,
 			DiskSize:           diskSize,
 			SSHKeySigner:       sshKeySigner,
 			SSHPubKey:          string(ssh.MarshalAuthorizedKey(pubKey)),
@@ -765,7 +773,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			},
 		},
 		Scheduling: &compute.Scheduling{
-			Preemptible: true,
+			Preemptible: p.ic.Preemptible,
 		},
 		MachineType: machineType.SelfLink,
 		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),

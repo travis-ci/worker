@@ -1,6 +1,6 @@
 language: go
 
-go: 1.5.1
+go: 1.5.2
 
 dist: trusty
 

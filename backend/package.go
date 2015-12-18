@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"time"
 
 	"golang.org/x/net/context"
@@ -64,4 +65,13 @@ type RunResult struct {
 	// Whether the script finished running or not. Can be false if there was a
 	// connection error in the middle of the script run.
 	Completed bool
+}
+
+func asBool(s string) bool {
+	switch strings.ToLower(s) {
+	case "0", "no", "off", "":
+		return false
+	default:
+		return true
+	}
 }
