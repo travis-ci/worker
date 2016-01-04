@@ -73,12 +73,16 @@ __copy_service_scripts() {
 }
 
 __run_fpm() {
-  fpm -f -s dir \
+  local etc_default="$CHECKOUT_ROOT/utils/package-overlay.d/common/etc/default"
+  fpm -f \
+    -s dir \
     --log info \
     -t "$PACKAGE_TYPE" \
     -p "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
-    --after-install $CHECKOUT_ROOT/utils/package-templates.d/post_install.sh \
-    --before-remove $CHECKOUT_ROOT/utils/package-templates.d/pre_remove.sh \
+    --default "$etc_default/travis-worker" \
+    --default "$etc_default/travis-enterprise" \
+    --after-install "$CHECKOUT_ROOT/utils/package-templates.d/post_install.sh" \
+    --before-remove "$CHECKOUT_ROOT/utils/package-templates.d/pre_remove.sh" \
     -n travis-worker \
     --url 'https://github.com/travis-ci/worker' \
     --description 'Travis Worker' \
