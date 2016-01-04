@@ -93,10 +93,12 @@ __run_fpm() {
     -t "$PACKAGE_TYPE" \
     -C "tmp/$PACKAGE_TYPE" \
     --force \
+    --log info \
     --license MIT \
+    --no-depends \
+    --no-auto-depends \
     --maintainer "<contact+travis-worker@travis-ci.org>" \
     --vendor 'Travis CI GmbH' \
-    --log info \
     --package "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
     --config-files etc/default/ \
     --after-install "$templates_d/post_install.sh" \
