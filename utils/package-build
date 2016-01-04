@@ -21,10 +21,8 @@ main() {
   __setup_working_dirs 2>&1 | __indent
   __announce 'Copying travis-worker binary into build directory'
   __copy_binary 2>&1 | __indent
-  __announce 'Setting up service scripts'
-  __copy_service_scripts 2>&1 | __indent
   __announce "Building package for $PLATFORM with fpm"
-  __run_fpm 2>&1 | __indent
+  __run_fpm_${PACKAGE_TYPE} 2>&1 | __indent
 }
 
 __install_fpm_prereqs_centos() {
@@ -72,22 +70,45 @@ __copy_service_scripts() {
     tmp/$PACKAGE_TYPE/
 }
 
-__run_fpm() {
-  local etc_default="$CHECKOUT_ROOT/utils/package-overlay.d/common/etc/default"
+__run_fpm_deb() {
+  local overlay_d="$CHECKOUT_ROOT/utils/package-overlay.d"
+  local templates_d="$CHECKOUT_ROOT/utils/package-templates.d"
+
   fpm -f \
     -s dir \
     --log info \
-    -t "$PACKAGE_TYPE" \
-    -p "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
-    --default "$etc_default/travis-worker" \
-    --default "$etc_default/travis-enterprise" \
+    -t deb \
+    -p "tmp/output/deb/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
+    --deb-default "$overlay_d/common/etc/default/travis-worker" \
+    --deb-default "$overlay_d/common/etc/default/travis-enterprise" \
+    --deb-upstart "$overlay_d/deb/etc/init/travis-worker.conf" \
+    --after-install "$templates_d/post_install.sh" \
+    --before-remove "$templates_d/pre_remove.sh" \
+    -n travis-worker \
+    --url 'https://github.com/travis-ci/worker' \
+    --description 'Travis Worker' \
+    -v "$VERSION" \
+    -C 'tmp/deb' \
+    .
+
+  chmod -R 777 "$CHECKOUT_ROOT/tmp"
+}
+
+__run_fpm_rpm() {
+  __copy_service_scripts
+
+  fpm -f \
+    -s dir \
+    --log info \
+    -t rpm \
+    -p "tmp/output/rpm/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
     --after-install "$CHECKOUT_ROOT/utils/package-templates.d/post_install.sh" \
     --before-remove "$CHECKOUT_ROOT/utils/package-templates.d/pre_remove.sh" \
     -n travis-worker \
     --url 'https://github.com/travis-ci/worker' \
     --description 'Travis Worker' \
     -v "$VERSION" \
-    -C "tmp/$PACKAGE_TYPE" \
+    -C 'tmp/rpm' \
     .
 
   chmod -R 777 "$CHECKOUT_ROOT/tmp"
