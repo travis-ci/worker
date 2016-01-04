@@ -22,11 +22,15 @@ DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=errcheck"
 # FIXME: this probably warrants fixing
 DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=dupl"
 
-GOMETALINTER_ARGS="${DISABLED_LINTER_FLAGS} --deadline=${DEADLINE} --cyclo-over=${CYCLOMAX}"
+GOMETALINTER_ARGS="${DISABLED_LINTER_FLAGS} --deadline=${DEADLINE}"
+GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --cyclo-over=${CYCLOMAX} --vendor"
+GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --tests"
 
 if [[ $DEBUG ]] ; then
   GOMETALINTER_ARGS="$GOMETALINTER_ARGS --debug"
+else
+  GOMETALINTER_ARGS="$GOMETALINTER_ARGS --errors"
 fi
 
 set -o xtrace
-exec gometalinter $GOMETALINTER_ARGS $(git ls-files '*.go')
+exec gometalinter $GOMETALINTER_ARGS ./...
