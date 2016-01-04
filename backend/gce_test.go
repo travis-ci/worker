@@ -126,7 +126,7 @@ func TestNewGCEProvider_RequiresProjectID(t *testing.T) {
 	}))
 
 	if !assert.NotNil(t, err) {
-		t.Fatal(fmt.Error("unexpected nil error"))
+		t.Fatal(fmt.Errorf("unexpected nil error"))
 	}
 
 	assert.Equal(t, err.Error(), "missing PROJECT_ID")
