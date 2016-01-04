@@ -81,7 +81,7 @@ __run_fpm_deb() {
     -p "tmp/output/deb/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
     --deb-default "$overlay_d/common/etc/default/travis-worker" \
     --deb-default "$overlay_d/common/etc/default/travis-enterprise" \
-    --deb-upstart "$overlay_d/deb/etc/init/travis-worker.conf" \
+    --deb-upstart "$templates_d/upstart/travis-worker" \
     --after-install "$templates_d/post_install.sh" \
     --before-remove "$templates_d/pre_remove.sh" \
     -n travis-worker \
