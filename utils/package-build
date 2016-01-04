@@ -89,20 +89,22 @@ __run_fpm() {
   local templates_d="$CHECKOUT_ROOT/utils/package-templates.d"
 
   fpm \
-    -f \
     -s dir \
-    --license MIT \
-    --log info \
     -t "$PACKAGE_TYPE" \
-    -p "tmp/output/deb/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
+    -C "tmp/$PACKAGE_TYPE" \
+    --force \
+    --license MIT \
+    --maintainer "<contact+travis-worker@travis-ci.org>" \
+    --vendor 'Travis CI GmbH' \
+    --log info \
+    --package "tmp/output/deb/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
     --config-files etc/default/ \
     --after-install "$templates_d/post_install.sh" \
     --before-remove "$templates_d/pre_remove.sh" \
-    -n travis-worker \
+    --name travis-worker \
     --url 'https://github.com/travis-ci/worker' \
     --description 'Travis Worker' \
-    -v "$VERSION" \
-    -C "tmp/$PACKAGE_TYPE" \
+    --version "$VERSION" \
     "$@" \
     .
 
