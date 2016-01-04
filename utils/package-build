@@ -97,7 +97,7 @@ __run_fpm() {
     --maintainer "<contact+travis-worker@travis-ci.org>" \
     --vendor 'Travis CI GmbH' \
     --log info \
-    --package "tmp/output/deb/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
+    --package "tmp/output/$PACKAGE_TYPE/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
     --config-files etc/default/ \
     --after-install "$templates_d/post_install.sh" \
     --before-remove "$templates_d/pre_remove.sh" \
