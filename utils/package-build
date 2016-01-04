@@ -21,6 +21,8 @@ main() {
   __setup_working_dirs 2>&1 | __indent
   __announce 'Copying travis-worker binary into build directory'
   __copy_binary 2>&1 | __indent
+  __announce 'Syncing file overlay'
+  __copy_overlay_files 2>&1 | __indent
   __announce "Building package for $PLATFORM with fpm"
   __run_fpm_${PACKAGE_TYPE} 2>&1 | __indent
 }
@@ -61,54 +63,47 @@ __copy_binary() {
     tmp/$PACKAGE_TYPE/usr/local/bin
 }
 
-__copy_service_scripts() {
+__copy_overlay_files() {
   rsync -av \
-    $CHECKOUT_ROOT/utils/package-overlay.d/common/ \
-    tmp/$PACKAGE_TYPE/
-  rsync -av \
-    $CHECKOUT_ROOT/utils/package-overlay.d/$PACKAGE_TYPE/ \
-    tmp/$PACKAGE_TYPE/
+    "$CHECKOUT_ROOT/utils/package-overlay.d/common/" \
+    "tmp/$PACKAGE_TYPE/"
+
+  if [[ -d "$CHECKOUT_ROOT/utils/package-overlay.d/$PACKAGE_TYPE/" ]] ; then
+    rsync -av \
+      "$CHECKOUT_ROOT/utils/package-overlay.d/$PACKAGE_TYPE/" \
+      "tmp/$PACKAGE_TYPE/"
+  fi
 }
 
 __run_fpm_deb() {
+  local templates_d="$CHECKOUT_ROOT/utils/package-templates.d"
+  __run_fpm --deb-upstart "$templates_d/upstart/travis-worker"
+}
+
+__run_fpm_rpm() {
+  __run_fpm
+}
+
+__run_fpm() {
   local overlay_d="$CHECKOUT_ROOT/utils/package-overlay.d"
   local templates_d="$CHECKOUT_ROOT/utils/package-templates.d"
 
-  fpm -f \
+  fpm \
+    -f \
     -s dir \
+    --license MIT \
     --log info \
-    -t deb \
+    -t "$PACKAGE_TYPE" \
     -p "tmp/output/deb/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
-    --deb-default "$overlay_d/common/etc/default/travis-worker" \
-    --deb-default "$overlay_d/common/etc/default/travis-enterprise" \
-    --deb-upstart "$templates_d/upstart/travis-worker" \
+    --config-files etc/default/ \
     --after-install "$templates_d/post_install.sh" \
     --before-remove "$templates_d/pre_remove.sh" \
     -n travis-worker \
     --url 'https://github.com/travis-ci/worker' \
     --description 'Travis Worker' \
     -v "$VERSION" \
-    -C 'tmp/deb' \
-    .
-
-  chmod -R 777 "$CHECKOUT_ROOT/tmp"
-}
-
-__run_fpm_rpm() {
-  __copy_service_scripts
-
-  fpm -f \
-    -s dir \
-    --log info \
-    -t rpm \
-    -p "tmp/output/rpm/$PLATFORM_FAMILY/$PLATFORM_RELEASE" \
-    --after-install "$CHECKOUT_ROOT/utils/package-templates.d/post_install.sh" \
-    --before-remove "$CHECKOUT_ROOT/utils/package-templates.d/pre_remove.sh" \
-    -n travis-worker \
-    --url 'https://github.com/travis-ci/worker' \
-    --description 'Travis Worker' \
-    -v "$VERSION" \
-    -C 'tmp/rpm' \
+    -C "tmp/$PACKAGE_TYPE" \
+    "$@" \
     .
 
   chmod -R 777 "$CHECKOUT_ROOT/tmp"
