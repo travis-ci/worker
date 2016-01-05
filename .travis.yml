@@ -12,7 +12,6 @@ services:
 
 env:
   global:
-  - DEBUG='1'
   - AMQP_URI="amqp://"
   - GOPATH="$HOME/gopath"
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
