@@ -941,7 +941,7 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	}
 	defer session.Close()
 
-	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
+	err = session.RequestPty("xterm", 40, 80, ssh.TerminalModes{})
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
