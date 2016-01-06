@@ -18,8 +18,14 @@ main() {
 
   echo '---> Installing travis-worker edge with tracing'
   ${sudo_exe} ./bin/travis-worker-install --trace --skip-docker-populate --edge
+
   /usr/local/bin/travis-worker --version
-  docker version | grep '1.9.0'
+  docker version | if ! grep -q '1.9.1' ; then
+    echo '     ERROR: unexpected docker version' >&2
+    docker version
+    exit 1
+  fi
+
   if ! docker run hello-world ; then
     ${sudo_exe} tail -n 1000 /var/log/upstart/docker.log
   fi
@@ -40,8 +46,14 @@ main() {
 
   echo '---> Installing travis-worker stable'
   ${sudo_exe} ./bin/travis-worker-install --skip-docker-populate --stable
+
   /usr/local/bin/travis-worker --version
-  docker version | grep '1.7.1'
+  docker version | if ! grep -q '1.7.1' ; then
+    echo '     ERROR: unexpected docker version' >&2
+    docker version
+    exit 1
+  fi
+
   if ! docker run hello-world ; then
     ${sudo_exe} tail -n 1000 /var/log/upstart/docker.log
   fi
