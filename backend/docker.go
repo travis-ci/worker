@@ -24,23 +24,17 @@ import (
 var (
 	dockerFlags = []cli.Flag{
 		backendStringFlag("docker", "endpoint, host", "unix:///var/run/docker.sock",
-			"TCP or unix address for connecting to Docker",
-			[]string{"ENDPOINT", "HOST"}),
+			"ENDPOINT", "TCP or unix address for connecting to Docker"),
 		backendStringFlag("docker", "cert-path", "",
-			"Directory where ca.pem, cert.pem, and key.pem are located",
-			[]string{"CERT_PATH"}),
+			"CERT_PATH", "Directory where ca.pem, cert.pem, and key.pem are located"),
 		backendStringFlag("docker", "cmd", "/sbin/init",
-			"Command (CMD) to run when creating containers",
-			[]string{"CMD"}),
+			"CMD", "Command (CMD) to run when creating containers"),
 		backendStringFlag("docker", "memory", "4G",
-			"Memory to allocate to each container (0 disables allocation)",
-			[]string{"MEMORY"}),
+			"MEMORY", "Memory to allocate to each container (0 disables allocation)"),
 		backendStringFlag("docker", "cpus", "2",
-			"CPU count to allocate to each container (0 disables allocation)",
-			[]string{"CPUS"}),
+			"CPUS", "CPU count to allocate to each container (0 disables allocation)"),
 		backendStringFlag("docker", "privileged", "false",
-			"Run containers in privileged mode (default false)",
-			[]string{"PRIVILEGED"}),
+			"PRIVILEGED", "Run containers in privileged mode (default false)"),
 	}
 )
 

@@ -11,9 +11,7 @@ import (
 
 func init() {
 	Register("fake", "Fake", []cli.Flag{
-		backendStringFlag("fake", "log-output", "",
-			"Faked log output to write",
-			[]string{"LOG_OUTPUT"}),
+		backendStringFlag("fake", "log-output", "", "LOG_OUTPUT", "Faked log output to write"),
 	}, newFakeProvider)
 }
 

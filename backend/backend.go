@@ -14,20 +14,20 @@ var (
 	backendRegistryMutex sync.Mutex
 )
 
-func backendStringFlag(alias, flagName, flagValue, flagUsage string, envVars []string) *cli.StringFlag {
-	prefixedEnvVars := []string{}
-	for _, e := range envVars {
-		prefixedEnvVars = append(prefixedEnvVars,
-			fmt.Sprintf("%s_%s", strings.ToUpper(alias), e),
-			fmt.Sprintf("TRAVIS_WORKER_%s_%s", strings.ToUpper(alias), e))
-	}
-
+func backendStringFlag(alias, flagName, flagValue, envVar, flagUsage string) *cli.StringFlag {
 	return &cli.StringFlag{
 		Name:   flagName,
 		Value:  flagValue,
 		Usage:  flagUsage,
-		EnvVar: strings.Join(prefixedEnvVars, ","),
+		EnvVar: beEnv(alias, envVar),
 	}
+}
+
+func beEnv(alias, envVar string) string {
+	return strings.Join([]string{
+		fmt.Sprintf("%s_%s", strings.ToUpper(alias), envVar),
+		fmt.Sprintf("TRAVIS_WORKER_%s_%s", strings.ToUpper(alias), envVar),
+	}, ",")
 }
 
 // Backend wraps up an alias, backend provider help, and a factory func for a
