@@ -4,23 +4,25 @@ import (
 	"io"
 	"time"
 
-	"github.com/travis-ci/worker/config"
+	"github.com/codegangsta/cli"
 
 	"golang.org/x/net/context"
 )
 
 func init() {
-	Register("fake", "Fake", map[string]string{
-		"LOG_OUTPUT": "faked log output to write",
+	Register("fake", "Fake", []cli.Flag{
+		backendStringFlag("fake", "log-output", "",
+			"Faked log output to write",
+			[]string{"LOG_OUTPUT"}),
 	}, newFakeProvider)
 }
 
 type fakeProvider struct {
-	cfg *config.ProviderConfig
+	c *cli.Context
 }
 
-func newFakeProvider(cfg *config.ProviderConfig) (Provider, error) {
-	return &fakeProvider{cfg: cfg}, nil
+func newFakeProvider(c *cli.Context) (Provider, error) {
+	return &fakeProvider{c: c}, nil
 }
 
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
@@ -29,8 +31,8 @@ func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance,
 		err error
 	)
 
-	if p.cfg.IsSet("STARTUP_DURATION") {
-		dur, err = time.ParseDuration(p.cfg.Get("STARTUP_DURATION"))
+	if p.c.String("startup-duration") != "" {
+		dur, err = time.ParseDuration(p.c.String("startup-duration"))
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +54,7 @@ func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 }
 
 func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunResult, error) {
-	_, err := writer.Write([]byte(i.p.cfg.Get("LOG_OUTPUT")))
+	_, err := writer.Write([]byte(i.p.c.String("log-output")))
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}

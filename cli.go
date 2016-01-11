@@ -50,6 +50,11 @@ func NewCLI(c *cli.Context) *CLI {
 	}
 }
 
+// Configure parses and sets configuration from the CLI context
+func (i *CLI) Configure() {
+	i.Config = config.FromCLIContext(i.c)
+}
+
 // Setup runs one-time preparatory actions and returns a boolean success value
 // that is used to determine if it is safe to invoke the Run func
 func (i *CLI) Setup() (bool, error) {
@@ -73,20 +78,8 @@ func (i *CLI) Setup() (bool, error) {
 
 	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true})
 
-	cfg := config.FromCLIContext(i.c)
-	i.Config = cfg
-
-	if i.c.Bool("echo-config") {
-		config.WriteEnvConfig(cfg, os.Stdout)
-		return false, nil
-	}
-
-	if i.c.Bool("list-backend-providers") {
-		backend.EachBackend(func(b *backend.Backend) {
-			fmt.Println(b.Alias)
-		})
-		return false, nil
-	}
+	i.Configure()
+	cfg := i.Config
 
 	logger.WithFields(logrus.Fields{
 		"cfg": fmt.Sprintf("%#v", cfg),
@@ -108,7 +101,7 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.BuildScriptGenerator = generator
 
-	provider, err := backend.NewBackendProvider(cfg.ProviderName, cfg.ProviderConfig)
+	provider, err := backend.NewBackendProvider(cfg.ProviderName, i.c)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create backend provider")
 		return false, err

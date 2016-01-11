@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/travis-ci/worker/config"
+	"github.com/codegangsta/cli"
 )
 
 var (
@@ -14,13 +14,13 @@ var (
 
 // EnvSelector implements Selector for environment-based mappings
 type EnvSelector struct {
-	c *config.ProviderConfig
+	c *cli.Context
 
 	imageAliases map[string]string
 }
 
-// NewEnvSelector builds a new EnvSelector from the given *config.ProviderConfig
-func NewEnvSelector(c *config.ProviderConfig) (*EnvSelector, error) {
+// NewEnvSelector builds a new EnvSelector from the given *cli.Context
+func NewEnvSelector(c *cli.Context) (*EnvSelector, error) {
 	es := &EnvSelector{c: c}
 	err := es.buildImageAliasMap()
 	if err != nil {
@@ -30,27 +30,30 @@ func NewEnvSelector(c *config.ProviderConfig) (*EnvSelector, error) {
 }
 
 func (es *EnvSelector) buildImageAliasMap() error {
-	aliasNames := es.c.Get("IMAGE_ALIASES")
-
-	aliasNamesSlice := strings.Split(aliasNames, ",")
-
+	aliasNamesSlice := es.c.StringSlice("image-aliases")
 	imageAliases := map[string]string{}
 
-	es.c.Each(func(key, value string) {
-		if strings.HasPrefix(key, "IMAGE_") {
-			imageAliases[strings.ToLower(strings.Replace(key, "IMAGE_", "", -1))] = value
-		}
-	})
-
-	for _, aliasName := range aliasNamesSlice {
-		normalizedAliasName := strings.ToUpper(string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_"))))
-
-		key := fmt.Sprintf("IMAGE_ALIAS_%s", normalizedAliasName)
-		if !es.c.IsSet(key) {
-			return fmt.Errorf("missing config key %q", key)
+	for _, i := range es.c.StringSlice("images") {
+		imageParts := strings.Split(i, "=")
+		if len(imageParts) < 2 {
+			continue
 		}
 
-		imageAliases[aliasName] = es.c.Get(key)
+		imageAliases[strings.ToLower(imageParts[0])] = imageParts[1]
+	}
+
+	for _, aliasNamePair := range aliasNamesSlice {
+		aliasNamePairParts := strings.Split(aliasNamePair, "=")
+		if len(aliasNamePairParts) < 2 {
+			continue
+		}
+
+		value, ok := imageAliases[aliasNamePairParts[1]]
+		if !ok {
+			return fmt.Errorf("missing alias key %q", aliasNamePairParts[1])
+		}
+
+		imageAliases[aliasNamePairParts[0]] = value
 	}
 
 	es.imageAliases = imageAliases

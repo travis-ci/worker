@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/codegangsta/cli"
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
-	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
@@ -22,18 +22,30 @@ import (
 )
 
 var (
-	dockerHelp = map[string]string{
-		"ENDPOINT / HOST": "[REQUIRED] tcp or unix address for connecting to Docker",
-		"CERT_PATH":       "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
-		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
-		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
-		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
-		"PRIVILEGED":      "run containers in privileged mode (default false)",
+	dockerFlags = []cli.Flag{
+		backendStringFlag("docker", "endpoint, host", "unix:///var/run/docker.sock",
+			"TCP or unix address for connecting to Docker",
+			[]string{"ENDPOINT", "HOST"}),
+		backendStringFlag("docker", "cert-path", "",
+			"Directory where ca.pem, cert.pem, and key.pem are located",
+			[]string{"CERT_PATH"}),
+		backendStringFlag("docker", "cmd", "/sbin/init",
+			"Command (CMD) to run when creating containers",
+			[]string{"CMD"}),
+		backendStringFlag("docker", "memory", "4G",
+			"Memory to allocate to each container (0 disables allocation)",
+			[]string{"MEMORY"}),
+		backendStringFlag("docker", "cpus", "2",
+			"CPU count to allocate to each container (0 disables allocation)",
+			[]string{"CPUS"}),
+		backendStringFlag("docker", "privileged", "false",
+			"Run containers in privileged mode (default false)",
+			[]string{"PRIVILEGED"}),
 	}
 )
 
 func init() {
-	Register("docker", "Docker", dockerHelp, newDockerProvider)
+	Register("docker", "Docker", dockerFlags, newDockerProvider)
 }
 
 type dockerProvider struct {
@@ -57,8 +69,8 @@ type dockerInstance struct {
 	imageName string
 }
 
-func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
-	client, err := buildDockerClient(cfg)
+func newDockerProvider(c *cli.Context) (Provider, error) {
+	client, err := buildDockerClient(c)
 	if err != nil {
 		return nil, err
 	}
@@ -68,28 +80,18 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		cpuSetSize = 2
 	}
 
-	privileged := false
-	if cfg.IsSet("PRIVILEGED") {
-		privileged = (cfg.Get("PRIVILEGED") == "true")
-	}
+	privileged := c.String("privileged") == "true"
 
-	cmd := []string{"/sbin/init"}
-	if cfg.IsSet("CMD") {
-		cmd = strings.Split(cfg.Get("CMD"), " ")
-	}
+	cmd := strings.Split(c.String("cmd"), " ")
 
 	memory := uint64(1024 * 1024 * 1024 * 4)
-	if cfg.IsSet("MEMORY") {
-		if parsedMemory, err := humanize.ParseBytes(cfg.Get("MEMORY")); err == nil {
-			memory = parsedMemory
-		}
+	if parsedMemory, err := humanize.ParseBytes(c.String("memory")); err == nil {
+		memory = parsedMemory
 	}
 
 	cpus := uint64(2)
-	if cfg.IsSet("CPUS") {
-		if parsedCPUs, err := strconv.ParseUint(cfg.Get("CPUS"), 10, 64); err == nil {
-			cpus = parsedCPUs
-		}
+	if parsedCPUs, err := strconv.ParseUint(c.String("cpus"), 10, 64); err == nil {
+		cpus = parsedCPUs
 	}
 
 	return &dockerProvider{
@@ -104,20 +106,17 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}, nil
 }
 
-func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
+func buildDockerClient(c *cli.Context) (*docker.Client, error) {
 	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
 	// compatibility with docker's own env vars.
-	if !cfg.IsSet("ENDPOINT") && !cfg.IsSet("HOST") {
+	if c.String("endpoint") == "" {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	endpoint := cfg.Get("ENDPOINT")
-	if endpoint == "" {
-		endpoint = cfg.Get("HOST")
-	}
+	endpoint := c.String("endpoint")
 
-	if cfg.IsSet("CERT_PATH") {
-		path := cfg.Get("CERT_PATH")
+	if c.String("cert-path") != "" {
+		path := c.String("cert-path")
 		ca := fmt.Sprintf("%s/ca.pem", path)
 		cert := fmt.Sprintf("%s/cert.pem", path)
 		key := fmt.Sprintf("%s/key.pem", path)

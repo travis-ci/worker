@@ -3,9 +3,10 @@ package backend
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
-	"github.com/travis-ci/worker/config"
+	"github.com/codegangsta/cli"
 )
 
 var (
@@ -13,40 +14,56 @@ var (
 	backendRegistryMutex sync.Mutex
 )
 
+func backendStringFlag(alias, flagName, flagValue, flagUsage string, envVars []string) *cli.StringFlag {
+	prefixedEnvVars := []string{}
+	for _, e := range envVars {
+		prefixedEnvVars = append(prefixedEnvVars,
+			fmt.Sprintf("%s_%s", strings.ToUpper(alias), e),
+			fmt.Sprintf("TRAVIS_WORKER_%s_%s", strings.ToUpper(alias), e))
+	}
+
+	return &cli.StringFlag{
+		Name:   flagName,
+		Value:  flagValue,
+		Usage:  flagUsage,
+		EnvVar: strings.Join(prefixedEnvVars, ","),
+	}
+}
+
 // Backend wraps up an alias, backend provider help, and a factory func for a
 // given backend provider wheee
 type Backend struct {
 	Alias             string
 	HumanReadableName string
-	ProviderHelp      map[string]string
-	ProviderFunc      func(*config.ProviderConfig) (Provider, error)
+	Flags             []cli.Flag
+	ProviderFunc      func(*cli.Context) (Provider, error)
 }
 
 // Register adds a backend to the registry!
-func Register(alias, humanReadableName string, providerHelp map[string]string, providerFunc func(*config.ProviderConfig) (Provider, error)) {
+func Register(alias, humanReadableName string, flags []cli.Flag, providerFunc func(*cli.Context) (Provider, error)) {
 	backendRegistryMutex.Lock()
 	defer backendRegistryMutex.Unlock()
 
 	backendRegistry[alias] = &Backend{
 		Alias:             alias,
 		HumanReadableName: humanReadableName,
-		ProviderHelp:      providerHelp,
+		Flags:             flags,
 		ProviderFunc:      providerFunc,
 	}
 }
 
 // NewBackendProvider looks up a backend by its alias and returns a provider via
 // the factory func on the registered *Backend
-func NewBackendProvider(alias string, cfg *config.ProviderConfig) (Provider, error) {
+func NewBackendProvider(alias string, c *cli.Context) (Provider, error) {
 	backendRegistryMutex.Lock()
 	defer backendRegistryMutex.Unlock()
 
-	backend, ok := backendRegistry[alias]
+	b, ok := backendRegistry[alias]
 	if !ok {
 		return nil, fmt.Errorf("unknown backend provider: %s", alias)
 	}
 
-	return backend.ProviderFunc(cfg)
+	return b.ProviderFunc(c)
 }
 
 // EachBackend calls a given function for each registered backend

@@ -1,9 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"math/rand"
-	"os"
 	"testing"
 	"time"
 
@@ -13,7 +10,7 @@ import (
 
 func runAppTest(t *testing.T, args []string, action func(*cli.Context)) {
 	app := cli.NewApp()
-	app.Flags = Flags
+	app.Flags = WorkAMQPFlags
 	app.Action = action
 	app.Run(append([]string{"whatever"}, args...))
 }
@@ -128,19 +125,5 @@ func TestFromCLIContext_SetsDurationFlags(t *testing.T) {
 		assert.Equal(t, 3*time.Minute, cfg.StartupTimeout, "StartupTimeout")
 		assert.Equal(t, 7*time.Minute, cfg.BuildCacheFetchTimeout, "BuildCacheFetchTimeout")
 		assert.Equal(t, 8*time.Minute, cfg.BuildCachePushTimeout, "BuildCachePushTimeout")
-	})
-}
-
-func TestFromCLIContext_SetsProviderConfig(t *testing.T) {
-	i := fmt.Sprintf("%v", rand.Int())
-	os.Setenv("TRAVIS_WORKER_FAKE_FOO", i)
-
-	runAppTest(t, []string{
-		"--provider-name=fake",
-	}, func(c *cli.Context) {
-		cfg := FromCLIContext(c)
-
-		assert.NotNil(t, cfg.ProviderConfig)
-		assert.Equal(t, i, cfg.ProviderConfig.Get("FOO"))
 	})
 }
