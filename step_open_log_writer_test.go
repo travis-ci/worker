@@ -16,7 +16,7 @@ import (
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
 	s := &stepOpenLogWriter{logTimeout: time.Second, maxLogLength: 4}
 
-	bp, _ := backend.NewBackendProvider("fake", &cli.Context{})
+	bp, _ := backend.NewBackendProvider("fake", cli.NewContext(nil, nil, nil))
 
 	ctx := gocontext.TODO()
 	instance, _ := bp.Start(ctx, nil)

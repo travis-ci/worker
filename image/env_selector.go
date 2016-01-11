@@ -2,10 +2,9 @@ package image
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
-
-	"github.com/codegangsta/cli"
 )
 
 var (
@@ -14,14 +13,15 @@ var (
 
 // EnvSelector implements Selector for environment-based mappings
 type EnvSelector struct {
-	c *cli.Context
+	rawImages       map[string]string
+	rawImageAliases map[string]string
 
 	imageAliases map[string]string
 }
 
-// NewEnvSelector builds a new EnvSelector from the given *cli.Context
-func NewEnvSelector(c *cli.Context) (*EnvSelector, error) {
-	es := &EnvSelector{c: c}
+// NewEnvSelector builds a new EnvSelector from the given images and aliases
+func NewEnvSelector(images, imageAliases map[string]string) (*EnvSelector, error) {
+	es := &EnvSelector{rawImages: images, rawImageAliases: imageAliases}
 	err := es.buildImageAliasMap()
 	if err != nil {
 		return nil, err
@@ -30,32 +30,22 @@ func NewEnvSelector(c *cli.Context) (*EnvSelector, error) {
 }
 
 func (es *EnvSelector) buildImageAliasMap() error {
-	aliasNamesSlice := es.c.StringSlice("image-aliases")
 	imageAliases := map[string]string{}
 
-	for _, i := range es.c.StringSlice("images") {
-		imageParts := strings.Split(i, "=")
-		if len(imageParts) < 2 {
-			continue
-		}
-
-		imageAliases[strings.ToLower(imageParts[0])] = imageParts[1]
+	for k, v := range es.rawImages {
+		imageAliases[k] = v
 	}
 
-	for _, aliasNamePair := range aliasNamesSlice {
-		aliasNamePairParts := strings.Split(aliasNamePair, "=")
-		if len(aliasNamePairParts) < 2 {
-			continue
+	for k, v := range es.rawImageAliases {
+		value, ok := imageAliases[v]
+		if ok {
+			imageAliases[k] = value
 		}
 
-		value, ok := imageAliases[aliasNamePairParts[1]]
-		if !ok {
-			return fmt.Errorf("missing alias key %q", aliasNamePairParts[1])
-		}
-
-		imageAliases[aliasNamePairParts[0]] = value
+		imageAliases[k] = v
 	}
 
+	fmt.Fprintf(os.Stderr, "IMAGE ALIASES: %#v\n", imageAliases)
 	es.imageAliases = imageAliases
 	return nil
 }

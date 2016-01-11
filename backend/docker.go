@@ -64,7 +64,7 @@ type dockerInstance struct {
 }
 
 func newDockerProvider(c *cli.Context) (Provider, error) {
-	client, err := buildDockerClient(c)
+	client, err := buildDockerClient(c.String("endpoint"), c.String("cert-path"))
 	if err != nil {
 		return nil, err
 	}
@@ -100,20 +100,15 @@ func newDockerProvider(c *cli.Context) (Provider, error) {
 	}, nil
 }
 
-func buildDockerClient(c *cli.Context) (*docker.Client, error) {
-	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
-	// compatibility with docker's own env vars.
-	if c.String("endpoint") == "" {
+func buildDockerClient(endpoint, certPath string) (*docker.Client, error) {
+	if endpoint == "" {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	endpoint := c.String("endpoint")
-
-	if c.String("cert-path") != "" {
-		path := c.String("cert-path")
-		ca := fmt.Sprintf("%s/ca.pem", path)
-		cert := fmt.Sprintf("%s/cert.pem", path)
-		key := fmt.Sprintf("%s/key.pem", path)
+	if certPath != "" {
+		ca := fmt.Sprintf("%s/ca.pem", certPath)
+		cert := fmt.Sprintf("%s/cert.pem", certPath)
+		key := fmt.Sprintf("%s/key.pem", certPath)
 		return docker.NewTLSClient(endpoint, cert, key, ca)
 	}
 

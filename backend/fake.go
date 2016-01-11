@@ -16,35 +16,29 @@ func init() {
 }
 
 type fakeProvider struct {
-	c *cli.Context
+	startupDuration time.Duration
+	logOutput       string
 }
 
 func newFakeProvider(c *cli.Context) (Provider, error) {
-	return &fakeProvider{c: c}, nil
+	return &fakeProvider{
+		startupDuration: c.Duration("startup-duration"),
+		logOutput:       c.String("log-output"),
+	}, nil
 }
 
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
-	var (
-		dur time.Duration
-		err error
-	)
-
-	if p.c.String("startup-duration") != "" {
-		dur, err = time.ParseDuration(p.c.String("startup-duration"))
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &fakeInstance{p: p, startupDuration: dur}, nil
+	return &fakeInstance{
+		startupDuration: p.startupDuration,
+		logOutput:       p.logOutput,
+	}, nil
 }
 
 func (p *fakeProvider) Setup() error { return nil }
 
 type fakeInstance struct {
-	p *fakeProvider
-
 	startupDuration time.Duration
+	logOutput       string
 }
 
 func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
@@ -52,7 +46,7 @@ func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 }
 
 func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunResult, error) {
-	_, err := writer.Write([]byte(i.p.c.String("log-output")))
+	_, err := writer.Write([]byte(i.logOutput))
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}

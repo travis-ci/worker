@@ -195,8 +195,13 @@ type gceAccountJSON struct {
 type gceProvider struct {
 	client    *compute.Service
 	projectID string
-	ic        *gceInstanceConfig
-	c         *cli.Context
+
+	zoneName               string
+	machineTypeName        string
+	premiumMachineTypeName string
+	networkName            string
+
+	ic *gceInstanceConfig
 
 	imageSelectorType string
 	imageSelector     image.Selector
@@ -289,7 +294,7 @@ func newGCEProvider(c *cli.Context) (Provider, error) {
 		err           error
 	)
 
-	client, err := buildGoogleComputeService(c)
+	client, err := buildGoogleComputeService(c.String("account-json"))
 	if err != nil {
 		return nil, err
 	}
@@ -298,19 +303,6 @@ func newGCEProvider(c *cli.Context) (Provider, error) {
 		return nil, fmt.Errorf("missing project-id")
 	}
 
-	projectID := c.String("project-id")
-	diskSize := int64(c.Int("disk-size"))
-	bootPollSleep := c.Duration("boot-poll-sleep")
-	bootPrePollSleep := c.Duration("boot-pre-poll-sleep")
-	stopPollSleep := c.Duration("stop-poll-sleep")
-	stopPrePollSleep := c.Duration("stop-pre-poll-sleep")
-	skipStopPoll := c.Bool("skip-stop-poll")
-	uploadRetries := uint64(c.Int("upload-retries"))
-	uploadRetrySleep := c.Duration("upload-retry-sleep")
-	defaultLanguage := c.String("default-image-language")
-	defaultImage := c.String("image-default")
-	autoImplode := c.Bool("auto-implode")
-	hardTimeoutMinutes := int64(c.Int("hard-timeout-minutes"))
 	imageSelectorType := c.String("image-selector-type")
 
 	if imageSelectorType != "env" && imageSelectorType != "api" {
@@ -318,13 +310,14 @@ func newGCEProvider(c *cli.Context) (Provider, error) {
 	}
 
 	if imageSelectorType == "env" || imageSelectorType == "api" {
-		imageSelector, err = buildGCEImageSelector(imageSelectorType, c)
+		imageSelector, err = buildGCEImageSelector(imageSelectorType,
+			c.String("image-selector-url"), sliceToMap(c.StringSlice("images")),
+			sliceToMap(c.StringSlice("image-aliases")))
+
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	rateLimitTick := c.Duration("rate-limit-tick")
 
 	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -342,35 +335,36 @@ func newGCEProvider(c *cli.Context) (Provider, error) {
 		return nil, err
 	}
 
-	preemptible := c.Bool("preemptible")
-
 	return &gceProvider{
 		client:    client,
-		projectID: projectID,
-		c:         c,
+		projectID: c.String("project-id"),
+
+		zoneName:               c.String("zone"),
+		machineTypeName:        c.String("machine-type"),
+		premiumMachineTypeName: c.String("premium-machine-type"),
 
 		ic: &gceInstanceConfig{
-			Preemptible:        preemptible,
-			DiskSize:           diskSize,
+			Preemptible:        c.Bool("preemptible"),
+			DiskSize:           int64(c.Int("disk-size")),
 			SSHKeySigner:       sshKeySigner,
 			SSHPubKey:          string(ssh.MarshalAuthorizedKey(pubKey)),
-			AutoImplode:        autoImplode,
-			HardTimeoutMinutes: hardTimeoutMinutes,
-			StopPollSleep:      stopPollSleep,
-			StopPrePollSleep:   stopPrePollSleep,
-			SkipStopPoll:       skipStopPoll,
+			AutoImplode:        c.Bool("auto-implode"),
+			HardTimeoutMinutes: int64(c.Int("hard-timeout-minutes")),
+			StopPollSleep:      c.Duration("stop-poll-sleep"),
+			StopPrePollSleep:   c.Duration("stop-pre-poll-sleep"),
+			SkipStopPoll:       c.Bool("skip-stop-poll"),
 		},
 
 		imageSelector:     imageSelector,
 		imageSelectorType: imageSelectorType,
-		bootPollSleep:     bootPollSleep,
-		bootPrePollSleep:  bootPrePollSleep,
-		defaultLanguage:   defaultLanguage,
-		defaultImage:      defaultImage,
-		uploadRetries:     uploadRetries,
-		uploadRetrySleep:  uploadRetrySleep,
+		bootPollSleep:     c.Duration("boot-poll-sleep"),
+		bootPrePollSleep:  c.Duration("boot-pre-poll-sleep"),
+		defaultLanguage:   c.String("default-image-language"),
+		defaultImage:      c.String("image-default"),
+		uploadRetries:     uint64(c.Int("upload-retries")),
+		uploadRetrySleep:  c.Duration("upload-retry-sleep"),
 
-		rateLimiter: time.NewTicker(rateLimitTick),
+		rateLimiter: time.NewTicker(c.Duration("rate-limit-tick")),
 	}, nil
 }
 
@@ -388,7 +382,7 @@ func (p *gceProvider) Setup() error {
 	var err error
 
 	p.apiRateLimit()
-	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.c.String("zone")).Do()
+	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.zoneName).Do()
 	if err != nil {
 		return err
 	}
@@ -396,19 +390,19 @@ func (p *gceProvider) Setup() error {
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
 	p.apiRateLimit()
-	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.c.String("machine-type")).Do()
+	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.machineTypeName).Do()
 	if err != nil {
 		return err
 	}
 
 	p.apiRateLimit()
-	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.c.String("premium-machine-type")).Do()
+	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.premiumMachineTypeName).Do()
 	if err != nil {
 		return err
 	}
 
 	p.apiRateLimit()
-	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.c.String("network")).Do()
+	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.networkName).Do()
 	if err != nil {
 		return err
 	}
@@ -416,12 +410,12 @@ func (p *gceProvider) Setup() error {
 	return nil
 }
 
-func buildGoogleComputeService(c *cli.Context) (*compute.Service, error) {
-	if c.String("account-json") == "" {
+func buildGoogleComputeService(accountJSON string) (*compute.Service, error) {
+	if accountJSON == "" {
 		return nil, fmt.Errorf("missing account-json")
 	}
 
-	a, err := loadGoogleAccountJSON(c.String("account-json"))
+	a, err := loadGoogleAccountJSON(accountJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -676,12 +670,12 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	return p.imageByFilter(fmt.Sprintf("name eq ^%s", imageName))
 }
 
-func buildGCEImageSelector(selectorType string, c *cli.Context) (image.Selector, error) {
+func buildGCEImageSelector(selectorType, imageSelectorURL string, images, imageAliases map[string]string) (image.Selector, error) {
 	switch selectorType {
 	case "env":
-		return image.NewEnvSelector(c)
+		return image.NewEnvSelector(images, imageAliases)
 	case "api":
-		baseURL, err := url.Parse(c.String("image-selector-url"))
+		baseURL, err := url.Parse(imageSelectorURL)
 		if err != nil {
 			return nil, err
 		}

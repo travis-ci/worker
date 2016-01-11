@@ -144,7 +144,9 @@ func newJupiterBrainProvider(c *cli.Context) (Provider, error) {
 
 	imageSelectorType := c.String("image-selector-type")
 
-	imageSelector, err := buildJupiterBrainImageSelector(imageSelectorType, c)
+	imageSelector, err := buildJupiterBrainImageSelector(imageSelectorType,
+		c.String("image-selector-url"), sliceToMap(c.StringSlice("images")),
+		sliceToMap(c.StringSlice("image-aliases")))
 	if err != nil {
 		return nil, err
 	}
@@ -162,12 +164,12 @@ func newJupiterBrainProvider(c *cli.Context) (Provider, error) {
 	}, nil
 }
 
-func buildJupiterBrainImageSelector(selectorType string, c *cli.Context) (image.Selector, error) {
+func buildJupiterBrainImageSelector(selectorType, imageSelectorURL string, images, imageAliases map[string]string) (image.Selector, error) {
 	switch selectorType {
 	case "env":
-		return image.NewEnvSelector(c)
+		return image.NewEnvSelector(images, imageAliases)
 	case "api":
-		baseURL, err := url.Parse(c.String("image-selector-url"))
+		baseURL, err := url.Parse(imageSelectorURL)
 		if err != nil {
 			return nil, err
 		}

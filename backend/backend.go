@@ -30,6 +30,21 @@ func beEnv(alias, envVar string) string {
 	}, ",")
 }
 
+func sliceToMap(sl []string) map[string]string {
+	m := map[string]string{}
+
+	for _, s := range sl {
+		parts := strings.Split(s, "=")
+		if len(parts) < 2 {
+			continue
+		}
+
+		m[parts[0]] = parts[1]
+	}
+
+	return m
+}
+
 // Backend wraps up an alias, backend provider help, and a factory func for a
 // given backend provider wheee
 type Backend struct {
