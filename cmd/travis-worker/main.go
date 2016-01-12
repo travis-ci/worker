@@ -33,6 +33,7 @@ func main() {
 			Name:    "echo-config",
 			Aliases: []string{"e"},
 			Usage:   "echo the parsed config as env vars",
+			Flags:   config.AllFlags,
 			Action:  echoConfig,
 		},
 		{
@@ -53,29 +54,24 @@ func main() {
 }
 
 func runWorker(c *cli.Context) {
-	if config.DefaultConfig.ProviderName == "" {
-		config.DefaultConfig.ProviderName = "docker"
-	}
-
-	if config.DefaultConfig.QueueType == "" {
-		config.DefaultConfig.QueueType = "amqp"
-	}
-
 	workerCLI := worker.NewCLI(c)
 	canRun, err := workerCLI.Setup()
-	if !canRun {
-		if err != nil {
-			os.Exit(exitAlarm)
-		}
+
+	if canRun {
+		workerCLI.Run()
 		return
 	}
-	workerCLI.Run()
+
+	if err != nil {
+		os.Exit(exitAlarm)
+	}
 }
 
 func echoConfig(c *cli.Context) {
 	workerCLI := worker.NewCLI(c)
 	workerCLI.Configure()
 	config.WriteEnvConfig(workerCLI.Config, os.Stdout)
+	backend.WriteProviderEnvConfig(workerCLI.Config.ProviderName, os.Stdout)
 }
 
 func listBackendProviders(c *cli.Context) {

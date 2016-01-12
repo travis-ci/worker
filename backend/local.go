@@ -16,10 +16,10 @@ import (
 var (
 	errNoScriptUploaded = fmt.Errorf("no script uploaded")
 
-	localFlags = []cli.Flag{}
-
-	localHelp = map[string]string{
-		"SCRIPTS_DIR": "directory where generated scripts will be written",
+	localFlags = []cli.Flag{
+		backendStringFlag("local", "scripts-dir", "", "SCRIPTS_DIR",
+			"directory where generated scripts will be written",
+		),
 	}
 )
 

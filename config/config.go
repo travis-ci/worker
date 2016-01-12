@@ -14,6 +14,8 @@ import (
 
 var (
 	DefaultConfig = &Config{
+		ProviderName:    "docker",
+		QueueType:       "amqp",
 		BaseDir:         ".",
 		AmqpURI:         "amqp://",
 		PoolSize:        1,
@@ -35,15 +37,23 @@ var (
 	zeroStringValue = reflect.Zero(reflect.ValueOf("").Type())
 
 	defs = []*ConfigDef{
-		NewConfigDef("AmqpURI", []string{"amqp"}, &cli.StringFlag{
+		NewConfigDef("ProviderName", []string{"hidden"}, &cli.StringFlag{
+			Value: DefaultConfig.ProviderName,
+			Usage: `The name of the backend provider to use`,
+		}),
+		NewConfigDef("QueueType", []string{"hidden"}, &cli.StringFlag{
+			Value: DefaultConfig.QueueType,
+			Usage: fmt.Sprintf(`The name of the queue type to use (%v)`, strings.Join(QueueTypes, ", ")),
+		}),
+		NewConfigDef("AmqpURI", []string{"amqp", "hidden"}, &cli.StringFlag{
 			Value: DefaultConfig.AmqpURI,
 			Usage: `The URI to the AMQP server to connect to`,
 		}),
-		NewConfigDef("BaseDir", []string{"file"}, &cli.StringFlag{
+		NewConfigDef("BaseDir", []string{"file", "hidden"}, &cli.StringFlag{
 			Value: DefaultConfig.BaseDir,
 			Usage: `The base directory for file-based queues`,
 		}),
-		NewConfigDef("FilePollingInterval", []string{"file"}, &cli.DurationFlag{
+		NewConfigDef("FilePollingInterval", []string{"file", "hidden"}, &cli.DurationFlag{
 			Value: DefaultConfig.FilePollingInterval,
 			Usage: `The interval at which file-based queues are checked`,
 		}),
@@ -146,6 +156,9 @@ var (
 			Usage: "set log level to debug",
 		}),
 	}
+
+	// AllFlags is all CLI flags, hidden or not, for science
+	AllFlags = defFlags(defs, "hidden")
 
 	// WorkAMQPFlags is all CLI flags accepted by `travis-worker work amqp`
 	WorkAMQPFlags = defFlags(defs, "amqp")
@@ -356,7 +369,7 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 
 	sort.Strings(sortedCfgMapKeys)
 
-	fmt.Fprintf(out, "# travis-worker env config generated %s\n", time.Now().UTC())
+	fmt.Fprintf(out, "# travis-worker env config generated %s\n", time.Now().UTC().Format(time.RFC3339))
 	for _, key := range sortedCfgMapKeys {
 		envKey := fmt.Sprintf("TRAVIS_WORKER_%s", strings.ToUpper(strings.Replace(key, "-", "_", -1)))
 		fmt.Fprintf(out, "export %s=%q\n", envKey, fmt.Sprintf("%v", cfgMap[key]))

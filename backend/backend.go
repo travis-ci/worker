@@ -2,6 +2,8 @@ package backend
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -105,4 +107,29 @@ func EachBackend(f func(*Backend)) {
 	for _, backendAlias := range backendAliases {
 		f(backendRegistry[backendAlias])
 	}
+}
+
+func WriteProviderEnvConfig(alias string, out io.Writer) {
+	backendRegistryMutex.Lock()
+	b, ok := backendRegistry[alias]
+	backendRegistryMutex.Unlock()
+	if !ok {
+		fmt.Fprintf(out, "# ERROR: unknown backend provider: %s", alias)
+		return
+	}
+	app := cli.NewApp()
+	app.Flags = b.Flags
+	app.Action = func(c *cli.Context) {
+		fmt.Fprintf(out, "# %v provider config\n", alias)
+		for _, name := range c.GlobalFlagNames() {
+			envKey := strings.ToUpper(fmt.Sprintf("TRAVIS_WORKER_%s_%s", alias, strings.Replace(name, "-", "_", -1)))
+			stringVal := fmt.Sprintf("%q", c.Generic(name))
+			if strings.HasPrefix(stringVal, "\"[") {
+				stringVal = fmt.Sprintf("%q", strings.Join(c.StringSlice(name), ","))
+			}
+			fmt.Fprintf(out, "export %s=%s\n", envKey, stringVal)
+		}
+		fmt.Fprintf(out, "# end %v provider config\n", alias)
+	}
+	app.Run(os.Args)
 }

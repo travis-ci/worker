@@ -11,19 +11,30 @@ main() {
 
   cd "$(dirname $(dirname ${BASH_SOURCE[0]}))"
 
-  local worker="./build/${OS}/${ARCH}/travis-worker"
+  local worker=./build/${OS}/${ARCH}/travis-worker
 
-  git diff --exit-code
-  git diff --cached --exit-code
-  $worker --version
-  $worker -v | grep -v '\?'
-  $worker --help
-  $worker -h
+  if [[ ! ${SMOKE_SKIP_DIFF} ]] ; then
+    git diff --exit-code &>/dev/null
+    git diff --cached --exit-code &>/dev/null
+  fi
+
+  $worker --version &>/dev/null
+  $worker -v | grep -v '\?' &>/dev/null
+  $worker --help &>/dev/null
+  $worker -h &>/dev/null
+
   diff -q <($worker --help) <($worker -h)
-  $worker echo-config | grep '^export TRAVIS_WORKER'
-  $worker echo-config
-  $worker list-backend-providers | grep '^docker'
-  $worker list-backend-providers
+
+  N=$RANDOM
+  export TRAVIS_WORKER_HOSTNAME=$N
+  export TRAVIS_WORKER_DOCKER_MEMORY="${N}M"
+  export TRAVIS_WORKER_PROVIDER_NAME=docker
+
+  $worker echo-config | grep "^export TRAVIS_WORKER_HOSTNAME=\"$N\"" &>/dev/null
+  $worker echo-config | grep "^export TRAVIS_WORKER_DOCKER_MEMORY=\"${N}M\"" &>/dev/null
+  $worker echo-config &>/dev/null
+  $worker list-backend-providers | grep '^docker' &>/dev/null
+  $worker list-backend-providers &>/dev/null
 }
 
 main "$@"
