@@ -7,7 +7,6 @@ import (
 
 	gocontext "golang.org/x/net/context"
 
-	"github.com/codegangsta/cli"
 	"github.com/mitchellh/multistep"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/backend"
@@ -16,7 +15,11 @@ import (
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
 	s := &stepOpenLogWriter{logTimeout: time.Second, maxLogLength: 4}
 
-	bp, _ := backend.NewBackendProvider("fake", cli.NewContext(nil, nil, nil))
+	bp, _ := backend.NewBackendProvider("fake", &testConfigGetter{
+		m: map[string]interface{}{
+			"startup-duration": 42170 * time.Millisecond,
+		},
+	})
 
 	ctx := gocontext.TODO()
 	instance, _ := bp.Start(ctx, nil)
@@ -51,14 +54,12 @@ func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
 }
 
 func TestStepOpenLogWriter_Run(t *testing.T) {
-	t.SkipNow()
 	s, state := setupStepOpenLogWriter()
 	action := s.Run(state)
 	assert.Equal(t, multistep.ActionContinue, action)
 }
 
 func TestStepOpenLogWriter_writeUsingWorker(t *testing.T) {
-	t.SkipNow()
 	s, state := setupStepOpenLogWriter()
 
 	w := bytes.NewBufferString("")

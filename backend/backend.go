@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/codegangsta/cli"
 )
@@ -45,17 +46,25 @@ func sliceToMap(sl []string) map[string]string {
 	return m
 }
 
+type ConfigGetter interface {
+	String(string) string
+	StringSlice(string) []string
+	Bool(string) bool
+	Int(string) int
+	Duration(string) time.Duration
+}
+
 // Backend wraps up an alias, backend provider help, and a factory func for a
 // given backend provider wheee
 type Backend struct {
 	Alias             string
 	HumanReadableName string
 	Flags             []cli.Flag
-	ProviderFunc      func(*cli.Context) (Provider, error)
+	ProviderFunc      func(ConfigGetter) (Provider, error)
 }
 
 // Register adds a backend to the registry!
-func Register(alias, humanReadableName string, flags []cli.Flag, providerFunc func(*cli.Context) (Provider, error)) {
+func Register(alias, humanReadableName string, flags []cli.Flag, providerFunc func(ConfigGetter) (Provider, error)) {
 	backendRegistryMutex.Lock()
 	defer backendRegistryMutex.Unlock()
 
@@ -69,7 +78,7 @@ func Register(alias, humanReadableName string, flags []cli.Flag, providerFunc fu
 
 // NewBackendProvider looks up a backend by its alias and returns a provider via
 // the factory func on the registered *Backend
-func NewBackendProvider(alias string, c *cli.Context) (Provider, error) {
+func NewBackendProvider(alias string, c ConfigGetter) (Provider, error) {
 	backendRegistryMutex.Lock()
 	defer backendRegistryMutex.Unlock()
 

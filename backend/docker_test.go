@@ -1,20 +1,15 @@
 package backend
 
 import (
+	"encoding/json"
 	"fmt"
-	//"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	//"net/url"
-	//"os"
-	//"path/filepath"
-	"encoding/json"
 	"testing"
 
-	//"github.com/stretchr/testify/assert"
-	"github.com/codegangsta/cli"
 	"github.com/fsouza/go-dockerclient"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -24,12 +19,14 @@ var (
 	dockerTestServer   *httptest.Server
 )
 
-func dockerTestSetup(t *testing.T, c *cli.Context) {
-	t.SkipNow()
+func dockerTestSetup(t *testing.T, c *testConfigGetter) {
 	dockerTestMux = http.NewServeMux()
 	dockerTestServer = httptest.NewServer(dockerTestMux)
-	// c.Set("ENDPOINT", dockerTestServer.URL)
-	provider, _ := newDockerProvider(c)
+	c.Set("endpoint", dockerTestServer.URL)
+	provider, err := newDockerProvider(c)
+	if !assert.Nil(t, err) {
+		t.Fatal(err)
+	}
 	dockerTestProvider = provider.(*dockerProvider)
 }
 
@@ -46,8 +43,11 @@ type containerCreateRequest struct {
 }
 
 func TestDockerStart(t *testing.T) {
-	t.SkipNow()
-	// dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{}))
+	dockerTestSetup(t, &testConfigGetter{
+		m: map[string]interface{}{
+			"endpoint": "unix:///var/run/docker.sock",
+		},
+	})
 	defer dockerTestTeardown()
 
 	// The client expects this to be sufficiently long
@@ -98,19 +98,20 @@ func TestDockerStart(t *testing.T) {
 
 	instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{Language: "jvm", Group: ""})
 	if err != nil {
-		t.Errorf("provider.Start() returned error: %v", err)
+		t.Fatalf("provider.Start() returned error: %v", err)
 	}
 
 	if instance.ID() != "f2e475c:travis:jvm" {
-		t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
+		t.Fatalf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
 	}
 }
 
 func TestDockerStartWithPrivilegedFlag(t *testing.T) {
-	t.SkipNow()
-	// 	dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
-	// 		"PRIVILEGED": "true",
-	// 	}))
+	dockerTestSetup(t, &testConfigGetter{
+		m: map[string]interface{}{
+			"privileged": true,
+		},
+	})
 	defer dockerTestTeardown()
 
 	// The client expects this to be sufficiently long
@@ -176,10 +177,10 @@ func TestDockerStartWithPrivilegedFlag(t *testing.T) {
 
 	instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{Language: "jvm", Group: ""})
 	if err != nil {
-		t.Errorf("provider.Start() returned error: %v", err)
+		t.Fatalf("provider.Start() returned error: %v", err)
 	}
 
 	if instance.ID() != "f2e475c:travis:jvm" {
-		t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
+		t.Fatalf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
 	}
 }

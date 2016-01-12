@@ -1,8 +1,6 @@
 package image
 
 import (
-	"fmt"
-	"os"
 	"regexp"
 	"strings"
 )
@@ -45,7 +43,6 @@ func (es *EnvSelector) buildImageAliasMap() error {
 		imageAliases[k] = v
 	}
 
-	fmt.Fprintf(os.Stderr, "IMAGE ALIASES: %#v\n", imageAliases)
 	es.imageAliases = imageAliases
 	return nil
 }

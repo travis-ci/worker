@@ -288,7 +288,7 @@ func (gismw *gceInstanceStopMultistepWrapper) Run(multistep.StateBag) multistep.
 
 func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { return }
 
-func newGCEProvider(c *cli.Context) (Provider, error) {
+func newGCEProvider(c ConfigGetter) (Provider, error) {
 	var (
 		imageSelector image.Selector
 		err           error

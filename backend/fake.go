@@ -20,7 +20,7 @@ type fakeProvider struct {
 	logOutput       string
 }
 
-func newFakeProvider(c *cli.Context) (Provider, error) {
+func newFakeProvider(c ConfigGetter) (Provider, error) {
 	return &fakeProvider{
 		startupDuration: c.Duration("startup-duration"),
 		logOutput:       c.String("log-output"),

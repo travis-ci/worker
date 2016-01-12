@@ -113,7 +113,7 @@ type jupiterBrainDataResponse struct {
 	Data []*jupiterBrainInstancePayload `json:"data"`
 }
 
-func newJupiterBrainProvider(c *cli.Context) (Provider, error) {
+func newJupiterBrainProvider(c ConfigGetter) (Provider, error) {
 	if c.String("endpoint") == "" {
 		return nil, ErrMissingEndpointConfig
 	}

@@ -33,8 +33,11 @@ var (
 			"MEMORY", "Memory to allocate to each container (0 disables allocation)"),
 		backendStringFlag("docker", "cpus", "2",
 			"CPUS", "CPU count to allocate to each container (0 disables allocation)"),
-		backendStringFlag("docker", "privileged", "false",
-			"PRIVILEGED", "Run containers in privileged mode (default false)"),
+		&cli.BoolFlag{
+			Name:   "privileged",
+			Usage:  "Run containers in privileged mode",
+			EnvVar: beEnv("docker", "PRIVILEGED"),
+		},
 	}
 )
 
@@ -63,7 +66,7 @@ type dockerInstance struct {
 	imageName string
 }
 
-func newDockerProvider(c *cli.Context) (Provider, error) {
+func newDockerProvider(c ConfigGetter) (Provider, error) {
 	client, err := buildDockerClient(c.String("endpoint"), c.String("cert-path"))
 	if err != nil {
 		return nil, err
@@ -73,10 +76,6 @@ func newDockerProvider(c *cli.Context) (Provider, error) {
 	if cpuSetSize < 2 {
 		cpuSetSize = 2
 	}
-
-	privileged := c.String("privileged") == "true"
-
-	cmd := strings.Split(c.String("cmd"), " ")
 
 	memory := uint64(1024 * 1024 * 1024 * 4)
 	if parsedMemory, err := humanize.ParseBytes(c.String("memory")); err == nil {
@@ -91,8 +90,8 @@ func newDockerProvider(c *cli.Context) (Provider, error) {
 	return &dockerProvider{
 		client: client,
 
-		runPrivileged: privileged,
-		runCmd:        cmd,
+		runPrivileged: c.Bool("privileged"),
+		runCmd:        strings.Split(c.String("cmd"), " "),
 		runMemory:     memory,
 		runCPUs:       int(cpus),
 

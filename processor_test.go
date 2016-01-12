@@ -104,16 +104,15 @@ func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 func (flw *fakeLogWriter) SetMaxLogLength(l int) {}
 
 func TestProcessor(t *testing.T) {
-	t.SkipNow()
-
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromProcessor(context.TODO(), uuid.String())
 
-	// provider, err := backend.NewBackendProvider("fake", cli.ProviderConfigFromMap(map[string]string{
-	// 		"LOG_OUTPUT": "hello, world",
-	// 	}))
-	var provider backend.Provider
-	var err error
+	provider, err := backend.NewBackendProvider("fake", &testConfigGetter{
+		m: map[string]interface{}{
+			"log-output": "hello, world",
+		},
+	})
+
 	if err != nil {
 		t.Error(err)
 	}

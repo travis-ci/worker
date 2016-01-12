@@ -31,7 +31,7 @@ type localProvider struct {
 	scriptsDir string
 }
 
-func newLocalProvider(c *cli.Context) (Provider, error) {
+func newLocalProvider(c ConfigGetter) (Provider, error) {
 	scriptsDir, _ := os.Getwd()
 
 	if c.String("scripts-dir") != "" {
