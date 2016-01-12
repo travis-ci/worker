@@ -43,11 +43,7 @@ type containerCreateRequest struct {
 }
 
 func TestDockerStart(t *testing.T) {
-	dockerTestSetup(t, &testConfigGetter{
-		m: map[string]interface{}{
-			"endpoint": "unix:///var/run/docker.sock",
-		},
-	})
+	dockerTestSetup(t, &testConfigGetter{m: map[string]interface{}{}})
 	defer dockerTestTeardown()
 
 	// The client expects this to be sufficiently long
