@@ -20,12 +20,10 @@ main() {
   diff -q \
     <(./build/${OS}/${ARCH}/travis-worker --help) \
     <(./build/${OS}/${ARCH}/travis-worker -h)
-  N=$RANDOM
-  TRAVIS_WORKER_FOO_N=$N ./build/${OS}/${ARCH}/travis-worker \
-    --echo-config \
-    --provider-name=foo | grep "^export TRAVIS_WORKER_FOO_N=\"$N\"\$"
-  ./build/${OS}/${ARCH}/travis-worker --echo-config
-  ./build/${OS}/${ARCH}/travis-worker --list-backend-providers
+  ./build/${OS}/${ARCH}/travis-worker echo-config | grep '^export TRAVIS_WORKER'
+  ./build/${OS}/${ARCH}/travis-worker echo-config
+  ./build/${OS}/${ARCH}/travis-worker list-backend-providers | grep '^docker'
+  ./build/${OS}/${ARCH}/travis-worker list-backend-providers
 }
 
 main "$@"
