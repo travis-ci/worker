@@ -1,11 +1,8 @@
 package image
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
-
-	"github.com/travis-ci/worker/config"
 )
 
 var (
@@ -14,14 +11,15 @@ var (
 
 // EnvSelector implements Selector for environment-based mappings
 type EnvSelector struct {
-	c *config.ProviderConfig
+	rawImages       map[string]string
+	rawImageAliases map[string]string
 
 	imageAliases map[string]string
 }
 
-// NewEnvSelector builds a new EnvSelector from the given *config.ProviderConfig
-func NewEnvSelector(c *config.ProviderConfig) (*EnvSelector, error) {
-	es := &EnvSelector{c: c}
+// NewEnvSelector builds a new EnvSelector from the given images and aliases
+func NewEnvSelector(images, imageAliases map[string]string) (*EnvSelector, error) {
+	es := &EnvSelector{rawImages: images, rawImageAliases: imageAliases}
 	err := es.buildImageAliasMap()
 	if err != nil {
 		return nil, err
@@ -30,27 +28,19 @@ func NewEnvSelector(c *config.ProviderConfig) (*EnvSelector, error) {
 }
 
 func (es *EnvSelector) buildImageAliasMap() error {
-	aliasNames := es.c.Get("IMAGE_ALIASES")
-
-	aliasNamesSlice := strings.Split(aliasNames, ",")
-
 	imageAliases := map[string]string{}
 
-	es.c.Each(func(key, value string) {
-		if strings.HasPrefix(key, "IMAGE_") {
-			imageAliases[strings.ToLower(strings.Replace(key, "IMAGE_", "", -1))] = value
-		}
-	})
+	for k, v := range es.rawImages {
+		imageAliases[k] = v
+	}
 
-	for _, aliasName := range aliasNamesSlice {
-		normalizedAliasName := strings.ToUpper(string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_"))))
-
-		key := fmt.Sprintf("IMAGE_ALIAS_%s", normalizedAliasName)
-		if !es.c.IsSet(key) {
-			return fmt.Errorf("missing config key %q", key)
+	for k, v := range es.rawImageAliases {
+		value, ok := imageAliases[v]
+		if ok {
+			imageAliases[k] = value
 		}
 
-		imageAliases[aliasName] = es.c.Get(key)
+		imageAliases[k] = v
 	}
 
 	es.imageAliases = imageAliases

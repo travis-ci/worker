@@ -9,38 +9,40 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/travis-ci/worker/config"
+	"github.com/codegangsta/cli"
 	gocontext "golang.org/x/net/context"
 )
 
 var (
 	errNoScriptUploaded = fmt.Errorf("no script uploaded")
-	localHelp           = map[string]string{
-		"SCRIPTS_DIR": "directory where generated scripts will be written",
+
+	localFlags = []cli.Flag{
+		backendStringFlag("local", "scripts-dir", "", "SCRIPTS_DIR",
+			"directory where generated scripts will be written",
+		),
 	}
 )
 
 func init() {
-	Register("local", "Local", localHelp, newLocalProvider)
+	Register("local", "Local", localFlags, newLocalProvider)
 }
 
 type localProvider struct {
-	cfg        *config.ProviderConfig
 	scriptsDir string
 }
 
-func newLocalProvider(cfg *config.ProviderConfig) (Provider, error) {
+func newLocalProvider(c ConfigGetter) (Provider, error) {
 	scriptsDir, _ := os.Getwd()
 
-	if cfg.IsSet("SCRIPTS_DIR") {
-		scriptsDir = cfg.Get("SCRIPTS_DIR")
+	if c.String("scripts-dir") != "" {
+		scriptsDir = c.String("scripts-dir")
 	}
 
 	if scriptsDir == "" {
 		scriptsDir = os.TempDir()
 	}
 
-	return &localProvider{cfg: cfg, scriptsDir: scriptsDir}, nil
+	return &localProvider{scriptsDir: scriptsDir}, nil
 }
 
 func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {

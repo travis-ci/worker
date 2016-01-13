@@ -6,11 +6,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/travis-ci/worker/config"
 )
 
 type gceTestResponse struct {
@@ -66,14 +65,17 @@ func (rl *gceTestRequestLog) Add(req *http.Request) {
 	rl.Reqs = append(rl.Reqs, req)
 }
 
-func gceTestSetup(t *testing.T, cfg *config.ProviderConfig, resp *gceTestResponseMap) (*gceProvider, *http.Transport, *gceTestRequestLog) {
-	if cfg == nil {
-		cfg = config.ProviderConfigFromMap(map[string]string{
-			"ACCOUNT_JSON":    "{}",
-			"PROJECT_ID":      "project_id",
-			"IMAGE_ALIASES":   "foo",
-			"IMAGE_ALIAS_FOO": "default",
-		})
+func gceTestSetup(t *testing.T, c *testConfigGetter, resp *gceTestResponseMap) (*gceProvider, *http.Transport, *gceTestRequestLog) {
+	if c == nil {
+		c = &testConfigGetter{
+			m: map[string]interface{}{
+				"account-json":        "{}",
+				"project-id":          "project_id",
+				"image-selector-type": "env",
+				"image-aliases":       []string{"foo=default"},
+				"rate-limit-tick":     1 * time.Second,
+			},
+		}
 	}
 
 	server := gceTestSetupGCEServer(resp)
@@ -96,7 +98,7 @@ func gceTestSetup(t *testing.T, cfg *config.ProviderConfig, resp *gceTestRespons
 	}
 	gceCustomHTTPTransport = transport
 
-	p, err := newGCEProvider(cfg)
+	p, err := newGCEProvider(c)
 
 	gceCustomHTTPTransport = nil
 	gceCustomHTTPTransportLock.Unlock()
@@ -110,9 +112,6 @@ func gceTestSetup(t *testing.T, cfg *config.ProviderConfig, resp *gceTestRespons
 }
 
 func gceTestTeardown(p *gceProvider) {
-	if p.cfg.IsSet("TEMP_DIR") {
-		_ = os.RemoveAll(p.cfg.Get("TEMP_DIR"))
-	}
 }
 
 func TestNewGCEProvider(t *testing.T) {
@@ -121,15 +120,17 @@ func TestNewGCEProvider(t *testing.T) {
 }
 
 func TestNewGCEProvider_RequiresProjectID(t *testing.T) {
-	_, err := newGCEProvider(config.ProviderConfigFromMap(map[string]string{
-		"ACCOUNT_JSON": "{}",
-	}))
+	_, err := newGCEProvider(&testConfigGetter{
+		m: map[string]interface{}{
+			"account-json": "{}",
+		},
+	})
 
 	if !assert.NotNil(t, err) {
 		t.Fatal(fmt.Errorf("unexpected nil error"))
 	}
 
-	assert.Equal(t, err.Error(), "missing PROJECT_ID")
+	assert.Equal(t, err.Error(), "missing project-id")
 }
 
 func TestGCEProvider_SetupMakesRequests(t *testing.T) {

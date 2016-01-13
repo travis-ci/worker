@@ -8,7 +8,6 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
-	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
 	"golang.org/x/net/context"
 )
@@ -108,9 +107,12 @@ func TestProcessor(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromProcessor(context.TODO(), uuid.String())
 
-	provider, err := backend.NewBackendProvider("fake", config.ProviderConfigFromMap(map[string]string{
-		"LOG_OUTPUT": "hello, world",
-	}))
+	provider, err := backend.NewBackendProvider("fake", &testConfigGetter{
+		m: map[string]interface{}{
+			"log-output": "hello, world",
+		},
+	})
+
 	if err != nil {
 		t.Error(err)
 	}

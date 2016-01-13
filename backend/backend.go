@@ -2,10 +2,14 @@ package backend
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sort"
+	"strings"
 	"sync"
+	"time"
 
-	"github.com/travis-ci/worker/config"
+	"github.com/codegangsta/cli"
 )
 
 var (
@@ -13,40 +17,79 @@ var (
 	backendRegistryMutex sync.Mutex
 )
 
+func backendStringFlag(alias, flagName, flagValue, envVar, flagUsage string) *cli.StringFlag {
+	return &cli.StringFlag{
+		Name:   flagName,
+		Value:  flagValue,
+		Usage:  flagUsage,
+		EnvVar: beEnv(alias, envVar),
+	}
+}
+
+func beEnv(alias, envVar string) string {
+	return strings.Join([]string{
+		fmt.Sprintf("%s_%s", strings.ToUpper(alias), envVar),
+		fmt.Sprintf("TRAVIS_WORKER_%s_%s", strings.ToUpper(alias), envVar),
+	}, ",")
+}
+
+func sliceToMap(sl []string) map[string]string {
+	m := map[string]string{}
+
+	for _, s := range sl {
+		parts := strings.Split(s, "=")
+		if len(parts) < 2 {
+			continue
+		}
+
+		m[parts[0]] = parts[1]
+	}
+
+	return m
+}
+
+type ConfigGetter interface {
+	String(string) string
+	StringSlice(string) []string
+	Bool(string) bool
+	Int(string) int
+	Duration(string) time.Duration
+}
+
 // Backend wraps up an alias, backend provider help, and a factory func for a
 // given backend provider wheee
 type Backend struct {
 	Alias             string
 	HumanReadableName string
-	ProviderHelp      map[string]string
-	ProviderFunc      func(*config.ProviderConfig) (Provider, error)
+	Flags             []cli.Flag
+	ProviderFunc      func(ConfigGetter) (Provider, error)
 }
 
 // Register adds a backend to the registry!
-func Register(alias, humanReadableName string, providerHelp map[string]string, providerFunc func(*config.ProviderConfig) (Provider, error)) {
+func Register(alias, humanReadableName string, flags []cli.Flag, providerFunc func(ConfigGetter) (Provider, error)) {
 	backendRegistryMutex.Lock()
 	defer backendRegistryMutex.Unlock()
 
 	backendRegistry[alias] = &Backend{
 		Alias:             alias,
 		HumanReadableName: humanReadableName,
-		ProviderHelp:      providerHelp,
+		Flags:             flags,
 		ProviderFunc:      providerFunc,
 	}
 }
 
 // NewBackendProvider looks up a backend by its alias and returns a provider via
 // the factory func on the registered *Backend
-func NewBackendProvider(alias string, cfg *config.ProviderConfig) (Provider, error) {
+func NewBackendProvider(alias string, c ConfigGetter) (Provider, error) {
 	backendRegistryMutex.Lock()
 	defer backendRegistryMutex.Unlock()
 
-	backend, ok := backendRegistry[alias]
+	b, ok := backendRegistry[alias]
 	if !ok {
 		return nil, fmt.Errorf("unknown backend provider: %s", alias)
 	}
 
-	return backend.ProviderFunc(cfg)
+	return b.ProviderFunc(c)
 }
 
 // EachBackend calls a given function for each registered backend
@@ -64,4 +107,29 @@ func EachBackend(f func(*Backend)) {
 	for _, backendAlias := range backendAliases {
 		f(backendRegistry[backendAlias])
 	}
+}
+
+func WriteProviderEnvConfig(alias string, out io.Writer) {
+	backendRegistryMutex.Lock()
+	b, ok := backendRegistry[alias]
+	backendRegistryMutex.Unlock()
+	if !ok {
+		fmt.Fprintf(out, "# ERROR: unknown backend provider: %s", alias)
+		return
+	}
+	app := cli.NewApp()
+	app.Flags = b.Flags
+	app.Action = func(c *cli.Context) {
+		fmt.Fprintf(out, "# %v provider config\n", alias)
+		for _, name := range c.GlobalFlagNames() {
+			envKey := strings.ToUpper(fmt.Sprintf("TRAVIS_WORKER_%s_%s", alias, strings.Replace(name, "-", "_", -1)))
+			stringVal := fmt.Sprintf("%q", c.Generic(name))
+			if strings.HasPrefix(stringVal, "\"[") {
+				stringVal = fmt.Sprintf("%q", strings.Join(c.StringSlice(name), ","))
+			}
+			fmt.Fprintf(out, "export %s=%s\n", envKey, stringVal)
+		}
+		fmt.Fprintf(out, "# end %v provider config\n", alias)
+	}
+	app.Run(os.Args)
 }
