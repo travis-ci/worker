@@ -49,6 +49,7 @@ func TestFromCLIContext_SetsBoolFlags(t *testing.T) {
 func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 	runAppTest(t, []string{
 		"--amqp-uri=amqp://",
+		"--amqp-tls-cert=cert",
 		"--base-dir=dir",
 		"--build-api-uri=http://build/api",
 		"--build-apt-cache=cache",
@@ -75,6 +76,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		cfg := FromCLIContext(c)
 
 		assert.Equal(t, "amqp://", cfg.AmqpURI, "AmqpURI")
+		assert.Equal(t, "cert", cfg.AmqpTlsCert, "AmqpTlsCert")
 		assert.Equal(t, "dir", cfg.BaseDir, "BaseDir")
 		assert.Equal(t, "http://build/api", cfg.BuildAPIURI, "BuildAPIURI")
 		assert.Equal(t, "cache", cfg.BuildAptCache, "BuildAptCache")

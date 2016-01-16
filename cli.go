@@ -2,6 +2,7 @@ package worker
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log"
 	"net/http"
@@ -275,7 +276,13 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 	case "amqp":
 		var amqpConn *amqp.Connection
 		var err error
-		if i.Config.AmqpInsecure {
+
+		if i.Config.AmqpTlsCert != "" {
+			cfg := new(tls.Config)
+			cfg.RootCAs = x509.NewCertPool()
+			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.AmqpTlsCert))
+			amqpConn, err = amqp.DialTLS(i.Config.AmqpURI, cfg)
+		} else if i.Config.AmqpInsecure {
 			amqpConn, err = amqp.DialTLS(
 				i.Config.AmqpURI,
 				&tls.Config{InsecureSkipVerify: true},
