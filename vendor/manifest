@@ -56,6 +56,12 @@
 			"branch": "master"
 		},
 		{
+			"importpath": "github.com/garyburd/redigo",
+			"repository": "https://github.com/garyburd/redigo",
+			"revision": "836b6e58b3358112c8291565d01c35b8764070d7",
+			"branch": "master"
+		},
+		{
 			"importpath": "github.com/getsentry/raven-go",
 			"repository": "https://github.com/getsentry/raven-go",
 			"revision": "74c334d7b8aaa4fd1b4fc6aa428c36fed1699e28",
