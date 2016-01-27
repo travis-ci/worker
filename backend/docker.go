@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
+	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
@@ -22,27 +22,18 @@ import (
 )
 
 var (
-	dockerFlags = []cli.Flag{
-		backendStringFlag("docker", "endpoint, host", "unix:///var/run/docker.sock",
-			"ENDPOINT", "TCP or unix address for connecting to Docker"),
-		backendStringFlag("docker", "cert-path", "",
-			"CERT_PATH", "Directory where ca.pem, cert.pem, and key.pem are located"),
-		backendStringFlag("docker", "cmd", "/sbin/init",
-			"CMD", "Command (CMD) to run when creating containers"),
-		backendStringFlag("docker", "memory", "4G",
-			"MEMORY", "Memory to allocate to each container (0 disables allocation)"),
-		backendStringFlag("docker", "cpus", "2",
-			"CPUS", "CPU count to allocate to each container (0 disables allocation)"),
-		&cli.BoolFlag{
-			Name:   "privileged",
-			Usage:  "Run containers in privileged mode",
-			EnvVar: beEnv("docker", "PRIVILEGED"),
-		},
+	dockerHelp = map[string]string{
+		"ENDPOINT / HOST": "[REQUIRED] tcp or unix address for connecting to Docker",
+		"CERT_PATH":       "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
+		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
+		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
+		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
 )
 
 func init() {
-	Register("docker", "Docker", dockerFlags, newDockerProvider)
+	Register("docker", "Docker", dockerHelp, newDockerProvider)
 }
 
 type dockerProvider struct {
@@ -66,8 +57,8 @@ type dockerInstance struct {
 	imageName string
 }
 
-func newDockerProvider(c ConfigGetter) (Provider, error) {
-	client, err := buildDockerClient(c.String("endpoint"), c.String("cert-path"))
+func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
+	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -77,21 +68,35 @@ func newDockerProvider(c ConfigGetter) (Provider, error) {
 		cpuSetSize = 2
 	}
 
+	privileged := false
+	if cfg.IsSet("PRIVILEGED") {
+		privileged = (cfg.Get("PRIVILEGED") == "true")
+	}
+
+	cmd := []string{"/sbin/init"}
+	if cfg.IsSet("CMD") {
+		cmd = strings.Split(cfg.Get("CMD"), " ")
+	}
+
 	memory := uint64(1024 * 1024 * 1024 * 4)
-	if parsedMemory, err := humanize.ParseBytes(c.String("memory")); err == nil {
-		memory = parsedMemory
+	if cfg.IsSet("MEMORY") {
+		if parsedMemory, err := humanize.ParseBytes(cfg.Get("MEMORY")); err == nil {
+			memory = parsedMemory
+		}
 	}
 
 	cpus := uint64(2)
-	if parsedCPUs, err := strconv.ParseUint(c.String("cpus"), 10, 64); err == nil {
-		cpus = parsedCPUs
+	if cfg.IsSet("CPUS") {
+		if parsedCPUs, err := strconv.ParseUint(cfg.Get("CPUS"), 10, 64); err == nil {
+			cpus = parsedCPUs
+		}
 	}
 
 	return &dockerProvider{
 		client: client,
 
-		runPrivileged: c.Bool("privileged"),
-		runCmd:        strings.Split(c.String("cmd"), " "),
+		runPrivileged: privileged,
+		runCmd:        cmd,
 		runMemory:     memory,
 		runCPUs:       int(cpus),
 
@@ -99,15 +104,23 @@ func newDockerProvider(c ConfigGetter) (Provider, error) {
 	}, nil
 }
 
-func buildDockerClient(endpoint, certPath string) (*docker.Client, error) {
-	if endpoint == "" {
+func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
+	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
+	// compatibility with docker's own env vars.
+	if !cfg.IsSet("ENDPOINT") && !cfg.IsSet("HOST") {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	if certPath != "" {
-		ca := fmt.Sprintf("%s/ca.pem", certPath)
-		cert := fmt.Sprintf("%s/cert.pem", certPath)
-		key := fmt.Sprintf("%s/key.pem", certPath)
+	endpoint := cfg.Get("ENDPOINT")
+	if endpoint == "" {
+		endpoint = cfg.Get("HOST")
+	}
+
+	if cfg.IsSet("CERT_PATH") {
+		path := cfg.Get("CERT_PATH")
+		ca := fmt.Sprintf("%s/ca.pem", path)
+		cert := fmt.Sprintf("%s/cert.pem", path)
+		key := fmt.Sprintf("%s/key.pem", path)
 		return docker.NewTLSClient(endpoint, cert, key, ca)
 	}
 
