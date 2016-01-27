@@ -13,19 +13,25 @@ import (
 )
 
 var (
-	DefaultConfig = &Config{
-		ProviderName:    "docker",
-		QueueType:       "amqp",
-		BaseDir:         ".",
-		AmqpURI:         "amqp://",
-		PoolSize:        1,
-		DefaultLanguage: "default",
-		DefaultDist:     "precise",
-		DefaultGroup:    "stable",
-		DefaultOS:       "linux",
-	}
+	defaultAmqpURI                = "amqp://"
+	defaultBaseDir                = "."
+	defaultFilePollingInterval, _ = time.ParseDuration("5s")
+	defaultPoolSize               = 1
+	defaultProviderName           = "docker"
+	defaultQueueType              = "amqp"
 
-	QueueTypes = []string{"amqp", "file"}
+	defaultHardTimeout, _            = time.ParseDuration("50m")
+	defaultLogTimeout, _             = time.ParseDuration("10m")
+	defaultScriptUploadTimeout, _    = time.ParseDuration("3m30s")
+	defaultStartupTimeout, _         = time.ParseDuration("4m")
+	defaultBuildCacheFetchTimeout, _ = time.ParseDuration("5m")
+	defaultBuildCachePushTimeout, _  = time.ParseDuration("5m")
+
+	defaultHostname, _ = os.Hostname()
+	defaultLanguage    = "default"
+	defaultDist        = "precise"
+	defaultGroup       = "stable"
+	defaultOS          = "linux"
 
 	configType = reflect.ValueOf(Config{}).Type()
 
@@ -37,134 +43,134 @@ var (
 	zeroStringValue = reflect.Zero(reflect.ValueOf("").Type())
 
 	defs = []*ConfigDef{
-		NewConfigDef("ProviderName", []string{"hidden"}, &cli.StringFlag{
-			Value: DefaultConfig.ProviderName,
-			Usage: `The name of the backend provider to use`,
+		NewConfigDef("ProviderName", &cli.StringFlag{
+			Value: defaultProviderName,
+			Usage: "The name of the provider to use. See below for provider-specific configuration",
 		}),
-		NewConfigDef("QueueType", []string{"hidden"}, &cli.StringFlag{
-			Value: DefaultConfig.QueueType,
-			Usage: fmt.Sprintf(`The name of the queue type to use (%v)`, strings.Join(QueueTypes, ", ")),
+		NewConfigDef("QueueType", &cli.StringFlag{
+			Value: defaultQueueType,
+			Usage: `The name of the queue type to use ("amqp" or "file")`,
 		}),
-		NewConfigDef("AmqpURI", []string{"amqp", "hidden"}, &cli.StringFlag{
-			Value: DefaultConfig.AmqpURI,
-			Usage: `The URI to the AMQP server to connect to`,
+		NewConfigDef("AmqpURI", &cli.StringFlag{
+			Value: defaultAmqpURI,
+			Usage: `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
 		}),
-		NewConfigDef("BaseDir", []string{"file", "hidden"}, &cli.StringFlag{
-			Value: DefaultConfig.BaseDir,
-			Usage: `The base directory for file-based queues`,
+		NewConfigDef("BaseDir", &cli.StringFlag{
+			Value: defaultBaseDir,
+			Usage: `The base directory for file-based queues (only valid for "file" queue type)`,
 		}),
-		NewConfigDef("FilePollingInterval", []string{"file", "hidden"}, &cli.DurationFlag{
-			Value: DefaultConfig.FilePollingInterval,
-			Usage: `The interval at which file-based queues are checked`,
+		NewConfigDef("FilePollingInterval", &cli.DurationFlag{
+			Value: defaultFilePollingInterval,
+			Usage: `The interval at which file-based queues are checked (only valid for "file" queue type)`,
 		}),
-		NewConfigDef("PoolSize", nil, &cli.IntFlag{
-			Value: DefaultConfig.PoolSize,
+		NewConfigDef("PoolSize", &cli.IntFlag{
+			Value: defaultPoolSize,
 			Usage: "The size of the processor pool, affecting the number of jobs this worker can run in parallel",
 		}),
-		NewConfigDef("BuildAPIURI", nil, &cli.StringFlag{
+		NewConfigDef("BuildAPIURI", &cli.StringFlag{
 			Usage: "The full URL to the build API endpoint to use. Note that this also requires the path of the URL. If a username is included in the URL, this will be translated to a token passed in the Authorization header",
 		}),
-		NewConfigDef("QueueName", nil, &cli.StringFlag{
-			Usage: "The queue to subscribe to for jobs",
+		NewConfigDef("QueueName", &cli.StringFlag{
+			Usage: "The AMQP queue to subscribe to for jobs",
 		}),
-		NewConfigDef("LibratoEmail", nil, &cli.StringFlag{
+		NewConfigDef("LibratoEmail", &cli.StringFlag{
 			Usage: "Librato metrics account email",
 		}),
-		NewConfigDef("LibratoToken", nil, &cli.StringFlag{
+		NewConfigDef("LibratoToken", &cli.StringFlag{
 			Usage: "Librato metrics account token",
 		}),
-		NewConfigDef("LibratoSource", nil, &cli.StringFlag{
-			Value: DefaultConfig.Hostname,
+		NewConfigDef("LibratoSource", &cli.StringFlag{
+			Value: defaultHostname,
 			Usage: "Librato metrics source name",
 		}),
-		NewConfigDef("SentryDSN", nil, &cli.StringFlag{
+		NewConfigDef("SentryDSN", &cli.StringFlag{
 			Usage: "The DSN to send Sentry events to",
 		}),
-		NewConfigDef("SentryHookErrors", nil, &cli.BoolFlag{
+		NewConfigDef("SentryHookErrors", &cli.BoolFlag{
 			Usage: "Add logrus.ErrorLevel to logrus sentry hook",
 		}),
-		NewConfigDef("Hostname", nil, &cli.StringFlag{
-			Value: DefaultConfig.Hostname,
+		NewConfigDef("Hostname", &cli.StringFlag{
+			Value: defaultHostname,
 			Usage: "Host name used in log output to identify the source of a job",
 		}),
-		NewConfigDef("DefaultLanguage", nil, &cli.StringFlag{
-			Value: DefaultConfig.DefaultLanguage,
+		NewConfigDef("DefaultLanguage", &cli.StringFlag{
+			Value: defaultLanguage,
 			Usage: "Default \"language\" value for each job",
 		}),
-		NewConfigDef("DefaultDist", nil, &cli.StringFlag{
-			Value: DefaultConfig.DefaultDist,
+		NewConfigDef("DefaultDist", &cli.StringFlag{
+			Value: defaultDist,
 			Usage: "Default \"dist\" value for each job",
 		}),
-		NewConfigDef("DefaultGroup", nil, &cli.StringFlag{
-			Value: DefaultConfig.DefaultGroup,
+		NewConfigDef("DefaultGroup", &cli.StringFlag{
+			Value: defaultGroup,
 			Usage: "Default \"group\" value for each job",
 		}),
-		NewConfigDef("DefaultOS", nil, &cli.StringFlag{
-			Value: DefaultConfig.DefaultOS,
+		NewConfigDef("DefaultOS", &cli.StringFlag{
+			Value: defaultOS,
 			Usage: "Default \"os\" value for each job",
 		}),
-		NewConfigDef("HardTimeout", nil, &cli.DurationFlag{
-			Value: DefaultConfig.HardTimeout,
+		NewConfigDef("HardTimeout", &cli.DurationFlag{
+			Value: defaultHardTimeout,
 			Usage: "The outermost (maximum) timeout for a given job, at which time the job is cancelled",
 		}),
-		NewConfigDef("LogTimeout", nil, &cli.DurationFlag{
-			Value: DefaultConfig.LogTimeout,
+		NewConfigDef("LogTimeout", &cli.DurationFlag{
+			Value: defaultLogTimeout,
 			Usage: "The timeout for a job that's not outputting anything",
 		}),
-		NewConfigDef("ScriptUploadTimeout", nil, &cli.DurationFlag{
-			Value: DefaultConfig.ScriptUploadTimeout,
+		NewConfigDef("ScriptUploadTimeout", &cli.DurationFlag{
+			Value: defaultScriptUploadTimeout,
 			Usage: "The timeout for the script upload step",
 		}),
-		NewConfigDef("StartupTimeout", nil, &cli.DurationFlag{
-			Value: DefaultConfig.StartupTimeout,
+		NewConfigDef("StartupTimeout", &cli.DurationFlag{
+			Value: defaultStartupTimeout,
 			Usage: "The timeout for execution environment to be ready",
 		}),
 
 		// build script generator flags
-		NewConfigDef("BuildCacheFetchTimeout", nil, &cli.DurationFlag{
-			Value: DefaultConfig.BuildCacheFetchTimeout,
+		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
+			Value: defaultBuildCacheFetchTimeout,
 		}),
-		NewConfigDef("BuildCachePushTimeout", nil, &cli.DurationFlag{
-			Value: DefaultConfig.BuildCachePushTimeout,
+		NewConfigDef("BuildCachePushTimeout", &cli.DurationFlag{
+			Value: defaultBuildCachePushTimeout,
 		}),
-		NewConfigDef("BuildAptCache", nil, &cli.StringFlag{}),
-		NewConfigDef("BuildNpmCache", nil, &cli.StringFlag{}),
-		NewConfigDef("BuildParanoid", nil, &cli.BoolFlag{}),
-		NewConfigDef("BuildFixResolvConf", nil, &cli.BoolFlag{}),
-		NewConfigDef("BuildFixEtcHosts", nil, &cli.BoolFlag{}),
-		NewConfigDef("BuildCacheType", nil, &cli.StringFlag{}),
-		NewConfigDef("BuildCacheS3Scheme", nil, &cli.StringFlag{}),
-		NewConfigDef("BuildCacheS3Region", nil, &cli.StringFlag{}),
-		NewConfigDef("BuildCacheS3Bucket", nil, &cli.StringFlag{}),
-		NewConfigDef("BuildCacheS3AccessKeyID", nil, &cli.StringFlag{}),
-		NewConfigDef("BuildCacheS3SecretAccessKey", nil, &cli.StringFlag{}),
+		NewConfigDef("BuildAptCache", &cli.StringFlag{}),
+		NewConfigDef("BuildNpmCache", &cli.StringFlag{}),
+		NewConfigDef("BuildParanoid", &cli.BoolFlag{}),
+		NewConfigDef("BuildFixResolvConf", &cli.BoolFlag{}),
+		NewConfigDef("BuildFixEtcHosts", &cli.BoolFlag{}),
+		NewConfigDef("BuildCacheType", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3Scheme", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3Region", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3Bucket", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3AccessKeyID", &cli.StringFlag{}),
+		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
 
 		// non-config and special case flags
-		NewConfigDef("SkipShutdownOnLogTimeout", nil, &cli.BoolFlag{
+		NewConfigDef("SkipShutdownOnLogTimeout", &cli.BoolFlag{
 			Usage: "Special-case mode to aid with debugging timed out jobs",
 		}),
-		NewConfigDef("BuildAPIInsecureSkipVerify", nil, &cli.BoolFlag{
+		NewConfigDef("BuildAPIInsecureSkipVerify", &cli.BoolFlag{
 			Usage: "Skip build API TLS verification (useful for Enterprise and testing)",
 		}),
-		NewConfigDef("pprof-port", nil, &cli.StringFlag{
+		NewConfigDef("pprof-port", &cli.StringFlag{
 			Usage: "enable pprof http endpoint at port",
 		}),
-		NewConfigDef("SilenceMetrics", nil, &cli.BoolFlag{
+		NewConfigDef("silence-metrics", &cli.BoolFlag{
 			Usage: "silence metrics logging in case no Librato creds have been provided",
 		}),
-		NewConfigDef("Debug", nil, &cli.BoolFlag{
+		NewConfigDef("echo-config", &cli.BoolFlag{
+			Usage: "echo parsed config and exit",
+		}),
+		NewConfigDef("list-backend-providers", &cli.BoolFlag{
+			Usage: "echo backend provider list and exit",
+		}),
+		NewConfigDef("debug", &cli.BoolFlag{
 			Usage: "set log level to debug",
 		}),
 	}
 
-	// AllFlags is all CLI flags, hidden or not, for science
-	AllFlags = defFlags(defs, "hidden")
-
-	// WorkAMQPFlags is all CLI flags accepted by `travis-worker work amqp`
-	WorkAMQPFlags = defFlags(defs, "amqp")
-
-	// WorkFileFlags is all CLI flags accepted by `travis-worker work file`
-	WorkFileFlags = defFlags(defs, "file")
+	// Flags is the list of all CLI flags accepted by travis-worker
+	Flags = defFlags(defs)
 )
 
 func twEnvVars(key string) string {
@@ -184,31 +190,14 @@ func init() {
 		return
 	}
 
-	DefaultConfig.BaseDir = wd
-	DefaultConfig.FilePollingInterval, _ = time.ParseDuration("5s")
-	DefaultConfig.HardTimeout, _ = time.ParseDuration("50m")
-	DefaultConfig.LogTimeout, _ = time.ParseDuration("10m")
-	DefaultConfig.ScriptUploadTimeout, _ = time.ParseDuration("3m30s")
-	DefaultConfig.StartupTimeout, _ = time.ParseDuration("4m")
-	DefaultConfig.BuildCacheFetchTimeout, _ = time.ParseDuration("5m")
-	DefaultConfig.BuildCachePushTimeout, _ = time.ParseDuration("5m")
-	DefaultConfig.Hostname, _ = os.Hostname()
+	defaultBaseDir = wd
 }
 
-func defFlags(defs []*ConfigDef, flagSet string) []cli.Flag {
+func defFlags(defs []*ConfigDef) []cli.Flag {
 	f := []cli.Flag{}
 
 	for _, def := range defs {
-		if len(def.FlagSets) == 0 {
-			f = append(f, def.Flag)
-			continue
-		}
-
-		for _, fs := range def.FlagSets {
-			if fs == flagSet {
-				f = append(f, def.Flag)
-			}
-		}
+		f = append(f, def.Flag)
 	}
 
 	return f
@@ -216,14 +205,13 @@ func defFlags(defs []*ConfigDef, flagSet string) []cli.Flag {
 
 type ConfigDef struct {
 	FieldName string
-	FlagSets  []string
 	Name      string
 	EnvVar    string
 	Flag      cli.Flag
 	HasField  bool
 }
 
-func NewConfigDef(fieldName string, flagSets []string, flag cli.Flag) *ConfigDef {
+func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 	if fieldName == "" {
 		panic("empty field name")
 	}
@@ -238,13 +226,9 @@ func NewConfigDef(fieldName string, flagSets []string, flag cli.Flag) *ConfigDef
 	}
 
 	env := strings.ToUpper(strings.Replace(name, "-", "_", -1))
-	if flagSets == nil {
-		flagSets = []string{}
-	}
 
 	def := &ConfigDef{
 		FieldName: fieldName,
-		FlagSets:  flagSets,
 		Name:      name,
 		EnvVar:    env,
 		HasField:  fieldName != name,
@@ -297,8 +281,6 @@ type Config struct {
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`
 	SkipShutdownOnLogTimeout   bool `config:"skip-shutdown-on-log-timeout"`
-	Debug                      bool `config:"debug"`
-	SilenceMetrics             bool `config:"silence-metrics"`
 
 	// build script generator options
 	BuildCacheFetchTimeout time.Duration `config:"build-cache-fetch-timeout"`
@@ -316,12 +298,14 @@ type Config struct {
 	BuildCacheS3Bucket          string `config:"build-cache-s3-bucket"`
 	BuildCacheS3AccessKeyID     string `config:"build-cache-s3-access-key-id"`
 	BuildCacheS3SecretAccessKey string `config:"build-cache-s3-secret-access-key"`
+
+	ProviderConfig *ProviderConfig
 }
 
 // FromCLIContext creates a Config using a cli.Context by pulling configuration
 // from the flags in the context.
 func FromCLIContext(c *cli.Context) *Config {
-	cfg := DefaultConfig
+	cfg := &Config{}
 	cfgVal := reflect.ValueOf(cfg).Elem()
 
 	for _, def := range defs {
@@ -341,6 +325,8 @@ func FromCLIContext(c *cli.Context) *Config {
 			field.SetString(c.String(def.Name))
 		}
 	}
+
+	cfg.ProviderConfig = ProviderConfigFromEnviron(cfg.ProviderName)
 
 	return cfg
 }
@@ -369,10 +355,15 @@ func WriteEnvConfig(cfg *Config, out io.Writer) {
 
 	sort.Strings(sortedCfgMapKeys)
 
-	fmt.Fprintf(out, "# travis-worker env config generated %s\n", time.Now().UTC().Format(time.RFC3339))
+	fmt.Fprintf(out, "# travis-worker env config generated %s\n", time.Now().UTC())
 	for _, key := range sortedCfgMapKeys {
 		envKey := fmt.Sprintf("TRAVIS_WORKER_%s", strings.ToUpper(strings.Replace(key, "-", "_", -1)))
 		fmt.Fprintf(out, "export %s=%q\n", envKey, fmt.Sprintf("%v", cfgMap[key]))
 	}
+	fmt.Fprintf(out, "\n# travis-worker provider config:\n")
+	cfg.ProviderConfig.Each(func(key, value string) {
+		envKey := strings.ToUpper(fmt.Sprintf("TRAVIS_WORKER_%s_%s", cfg.ProviderName, strings.Replace(key, "-", "_", -1)))
+		fmt.Fprintf(out, "export %s=%q\n", envKey, value)
+	})
 	fmt.Fprintf(out, "# end travis-worker env config\n")
 }

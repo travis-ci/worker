@@ -2,26 +2,29 @@ package image
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/travis-ci/worker/config"
 )
 
 var (
 	testEnvSelectorMaps = []*struct {
-		I map[string]string
-		A map[string]string
+		E map[string]string
 		O []*testEnvCase
 	}{
 		{
-			I: map[string]string{
-				"language_ruby": "travis-ci-ruby-9001",
-				"legacy":        "travis-ci-legacy-00",
-				"default":       "travis-ci-default",
-			},
-			A: map[string]string{
-				"language_haskell": "language_ruby",
-				"language_java":    "legacy",
+			E: map[string]string{
+				"IMAGE_ALIASES": strings.Join([]string{
+					"language_haskell",
+					"language_java",
+				}, ","),
+				"IMAGE_ALIAS_LANGUAGE_HASKELL": "language_ruby",
+				"IMAGE_ALIAS_LANGUAGE_JAVA":    "legacy",
+				"IMAGE_LANGUAGE_RUBY":          "travis-ci-ruby-9001",
+				"IMAGE_LEGACY":                 "travis-ci-legacy-00",
+				"IMAGE_DEFAULT":                "travis-ci-default",
 			},
 			O: []*testEnvCase{
 				{E: "travis-ci-ruby-9001", P: &Params{Language: "haskell"}},
@@ -31,12 +34,14 @@ var (
 			},
 		},
 		{
-			I: map[string]string{
-				"trusty": "travis-ci-mega",
-			},
-			A: map[string]string{
-				"dist_trusty":      "trusty",
-				"dist_trusty_ruby": "travis-ci-ruby",
+			E: map[string]string{
+				"IMAGE_ALIASES": strings.Join([]string{
+					"dist_trusty_ruby",
+					"dist_trusty",
+				}, ","),
+				"IMAGE_ALIAS_DIST_TRUSTY":      "trusty",
+				"IMAGE_ALIAS_DIST_TRUSTY_RUBY": "travis-ci-ruby",
+				"IMAGE_TRUSTY":                 "travis-ci-mega",
 			},
 			O: []*testEnvCase{
 				{E: "travis-ci-mega", P: &Params{Dist: "trusty"}},
@@ -44,23 +49,32 @@ var (
 			},
 		},
 		{
-			I: map[string]string{
-				"default_osx":  "xcode7",
-				"trusty":       "travis-ci-mega",
-				"xcode7":       "travis-xcode7b4",
-				"xcode7_swift": "travis-xcode7b6",
-				"smartos":      "base64-20150902",
-			},
-			A: map[string]string{
-				"group_dev":              "vivid",
-				"group_dev_go":           "utopic",
-				"dist_trusty":            "trusty",
-				"osx_image_xcode6.4":     "xcode6",
-				"osx_image_xcode7_swift": "xcode7_swift",
-				"os_linux":               "trusty",
-				"linux_java":             "utopic",
-				"language_haskell":       "trusty",
-				"default_solaris":        "smartos",
+			E: map[string]string{
+				"IMAGE_ALIASES": strings.Join([]string{
+					"group_dev",
+					"group_dev_go",
+					"dist_trusty",
+					"osx_image_xcode6.4",
+					"osx_image_xcode7_swift",
+					"os_linux",
+					"linux_java",
+					"language_haskell",
+					"default_solaris",
+				}, ","),
+				"IMAGE_ALIAS_GROUP_DEV":              "vivid",
+				"IMAGE_ALIAS_GROUP_DEV_GO":           "utopic",
+				"IMAGE_ALIAS_DIST_TRUSTY":            "trusty",
+				"IMAGE_ALIAS_OSX_IMAGE_XCODE6_4":     "xcode6",
+				"IMAGE_ALIAS_OSX_IMAGE_XCODE7_SWIFT": "xcode7_swift",
+				"IMAGE_ALIAS_OS_LINUX":               "trusty",
+				"IMAGE_ALIAS_LINUX_JAVA":             "utopic",
+				"IMAGE_ALIAS_LANGUAGE_HASKELL":       "trusty",
+				"IMAGE_ALIAS_DEFAULT_SOLARIS":        "smartos",
+				"IMAGE_DEFAULT_OSX":                  "xcode7",
+				"IMAGE_TRUSTY":                       "travis-ci-mega",
+				"IMAGE_XCODE7":                       "travis-xcode7b4",
+				"IMAGE_XCODE7_SWIFT":                 "travis-xcode7b6",
+				"IMAGE_SMARTOS":                      "base64-20150902",
 			},
 			O: []*testEnvCase{
 				{E: "travis-ci-mega", P: &Params{OS: "linux", Dist: "trusty"}},
@@ -85,21 +99,22 @@ type testEnvCase struct {
 }
 
 func TestNewEnvSelector(t *testing.T) {
+	assert.Panics(t, func() { NewEnvSelector(nil) })
 	assert.NotPanics(t, func() {
-		NewEnvSelector(map[string]string{}, map[string]string{})
+		NewEnvSelector(config.ProviderConfigFromMap(map[string]string{}))
 	})
 }
 
 func TestEnvSelector_Select(t *testing.T) {
 	for _, tesm := range testEnvSelectorMaps {
-		es, err := NewEnvSelector(tesm.I, tesm.A)
+		es, err := NewEnvSelector(config.ProviderConfigFromMap(tesm.E))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		for _, tc := range tesm.O {
 			actual, _ := es.Select(tc.P)
-			assert.Equal(t, tc.E, actual, fmt.Sprintf("E: %q P: %#v", tc.E, tc.P))
+			assert.Equal(t, tc.E, actual, fmt.Sprintf("%#v %q", tc.P, tc.E))
 		}
 	}
 }

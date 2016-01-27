@@ -16,8 +16,8 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/backoff"
-	"github.com/codegangsta/cli"
 	"github.com/pkg/sftp"
+	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
@@ -30,38 +30,18 @@ const (
 )
 
 var (
-	jupiterBrainFlags = []cli.Flag{
-		backendStringFlag("jupiterbrain", "endpoint", "",
-			"ENDPOINT", "URL to Jupiter Brain server, including auth"),
-		backendStringFlag("jupiterbrain", "ssh-key-path", "",
-			"SSH_KEY_PATH", "Path to SSH key used to access job VMs"),
-		backendStringFlag("jupiterbrain", "ssh-key-passphrase", "",
-			"SSH_KEY_PASSPHRASE", "Passphrase for SSH key given as SSH_KEY_PATH"),
-		backendStringFlag("jupiterbrain", "keychain-password", "",
-			"KEYCHAIN_PASSWORD", "password used ... somehow"),
-		backendStringFlag("jupiterbrain", "image-selector-type", defaultGCEImageSelectorType,
-			"IMAGE_SELECTOR_TYPE", "Image selector type (\"env\" or \"api\")"),
-		backendStringFlag("jupiterbrain", "image-selector-url", "",
-			"IMAGE_SELECTOR_URL", "URL for image selector API, used only when image selector is \"api\""),
-		&cli.StringSliceFlag{
-			Name:   "images",
-			Usage:  "Key=value pairs of image names",
-			EnvVar: beEnv("jupiterbrain", "IMAGES"),
-		},
-		&cli.StringSliceFlag{
-			Name:   "image-aliases",
-			Usage:  "Key=value pairs of image aliases",
-			EnvVar: beEnv("jupiterbrain", "IMAGE_ALIASES"),
-		},
-		&cli.DurationFlag{
-			Name:   "boot-poll-sleep",
-			Usage:  "Sleep interval between polling server for instance ready status",
-			Value:  3 * time.Second,
-			EnvVar: beEnv("jupiterbrain", "BOOT_POLL_SLEEP"),
-		},
-	}
-
 	metricNameCleanRegexp = regexp.MustCompile(`[^A-Za-z0-9.:-_]+`)
+	jupiterBrainHelp      = map[string]string{
+		"ENDPOINT":            "[REQUIRED] url to Jupiter Brain server, including auth",
+		"SSH_KEY_PATH":        "[REQUIRED] path to SSH key used to access job VMs",
+		"SSH_KEY_PASSPHRASE":  "[REQUIRED] passphrase for SSH key given as SSH_KEY_PATH",
+		"KEYCHAIN_PASSWORD":   "[REQUIRED] password used ... somehow",
+		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultJupiterBrainImageSelectorType),
+		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_ALIASES":       "comma-delimited strings used as stable names for images (default: \"\")",
+		"IMAGE_ALIAS_{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"BOOT_POLL_SLEEP":     "sleep interval between polling server for instance status (default 3s)",
+	}
 )
 
 const (
@@ -79,7 +59,7 @@ exit $(cat ~/build.sh.exit)
 )
 
 func init() {
-	Register("jupiterbrain", "Jupiter Brain", jupiterBrainFlags, newJupiterBrainProvider)
+	Register("jupiterbrain", "Jupiter Brain", jupiterBrainHelp, newJupiterBrainProvider)
 }
 
 type jupiterBrainProvider struct {
@@ -113,40 +93,49 @@ type jupiterBrainDataResponse struct {
 	Data []*jupiterBrainInstancePayload `json:"data"`
 }
 
-func newJupiterBrainProvider(c ConfigGetter) (Provider, error) {
-	if c.String("endpoint") == "" {
+func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
+	if !cfg.IsSet("ENDPOINT") {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	baseURL, err := url.Parse(c.String("endpoint"))
+	baseURL, err := url.Parse(cfg.Get("ENDPOINT"))
 	if err != nil {
 		return nil, err
 	}
 
-	if c.String("ssh-key-path") == "" {
-		return nil, fmt.Errorf("expected ssh-key-path config key")
+	if !cfg.IsSet("SSH_KEY_PATH") {
+		return nil, fmt.Errorf("expected SSH_KEY_PATH config key")
 	}
 
-	sshKeyPath := c.String("ssh-key-path")
+	sshKeyPath := cfg.Get("SSH_KEY_PATH")
 
-	if c.String("ssh-key-passphrase") == "" {
-		return nil, fmt.Errorf("expected ssh-key-passphrase config key")
+	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
+		return nil, fmt.Errorf("expected SSH_KEY_PASSPHRASE config key")
 	}
 
-	sshKeyPassphrase := c.String("ssh-key-passphrase")
+	sshKeyPassphrase := cfg.Get("SSH_KEY_PASSPHRASE")
 
-	if c.String("keychain-password") == "" {
-		return nil, fmt.Errorf("expected keychain-password config key")
+	if !cfg.IsSet("KEYCHAIN_PASSWORD") {
+		return nil, fmt.Errorf("expected KEYCHAIN_PASSWORD config key")
 	}
 
-	keychainPassword := c.String("keychain-password")
-	bootPollSleep := c.Duration("boot-poll-sleep")
+	keychainPassword := cfg.Get("KEYCHAIN_PASSWORD")
 
-	imageSelectorType := c.String("image-selector-type")
+	bootPollSleep := 3 * time.Second
+	if cfg.IsSet("BOOT_POLL_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("BOOT_POLL_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		bootPollSleep = si
+	}
 
-	imageSelector, err := buildJupiterBrainImageSelector(imageSelectorType,
-		c.String("image-selector-url"), sliceToMap(c.StringSlice("images")),
-		sliceToMap(c.StringSlice("image-aliases")))
+	imageSelectorType := defaultJupiterBrainImageSelectorType
+	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
+		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
+	}
+
+	imageSelector, err := buildJupiterBrainImageSelector(imageSelectorType, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -164,12 +153,12 @@ func newJupiterBrainProvider(c ConfigGetter) (Provider, error) {
 	}, nil
 }
 
-func buildJupiterBrainImageSelector(selectorType, imageSelectorURL string, images, imageAliases map[string]string) (image.Selector, error) {
+func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
 	switch selectorType {
 	case "env":
-		return image.NewEnvSelector(images, imageAliases)
+		return image.NewEnvSelector(cfg)
 	case "api":
-		baseURL, err := url.Parse(imageSelectorURL)
+		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
 		if err != nil {
 			return nil, err
 		}
