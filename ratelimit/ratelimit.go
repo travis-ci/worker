@@ -36,8 +36,6 @@ func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Dur
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
 
-	fmt.Printf("Rate limit %s, %d/%v\n", name, maxCalls, per)
-
 	now := time.Now()
 	timestamp := now.Unix() - (now.Unix() % int64(per.Seconds()))
 
