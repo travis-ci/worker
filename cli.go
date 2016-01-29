@@ -16,6 +16,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
