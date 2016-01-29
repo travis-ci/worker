@@ -473,6 +473,7 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 		if err != nil {
 			errCount++
 			if errCount >= 5 {
+				context.CaptureError(ctx, err)
 				context.LoggerFromContext(ctx).WithField("err", err).Info("rate limiter errored 5 times")
 				return err
 			}
