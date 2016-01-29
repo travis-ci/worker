@@ -198,6 +198,11 @@ func (i *CLI) setupSentry() {
 	}
 
 	logrus.AddHook(sentryHook)
+
+	err = raven.SetDSN(i.Config.SentryDSN)
+	if err != nil {
+		i.logger.WithField("err", err).Error("couldn't set DSN in raven")
+	}
 }
 
 func (i *CLI) setupMetrics() {
