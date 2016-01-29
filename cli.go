@@ -115,7 +115,7 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
-	err = provider.Setup()
+	err = provider.Setup(ctx)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't setup backend provider")
 		return false, err

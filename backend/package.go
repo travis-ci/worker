@@ -30,7 +30,7 @@ var (
 type Provider interface {
 	// Setup performs whatever is necessary in order to be ready to start
 	// instances.
-	Setup() error
+	Setup(context.Context) error
 
 	// Start starts an instance. It shouldn't return until the instance is
 	// ready to call UploadScript on (this may, for example, mean that it

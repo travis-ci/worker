@@ -134,7 +134,7 @@ func TestNewGCEProvider_RequiresProjectID(t *testing.T) {
 
 func TestGCEProvider_SetupMakesRequests(t *testing.T) {
 	p, _, rl := gceTestSetup(t, nil, nil)
-	err := p.Setup()
+	err := p.Setup(nil)
 
 	assert.NotNil(t, err)
 	assert.Len(t, rl.Reqs, 1)
