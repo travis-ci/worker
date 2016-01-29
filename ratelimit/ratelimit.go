@@ -2,10 +2,15 @@ package ratelimit
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+)
+
+const (
+	redisRateLimiterPoolMaxActive   = 1
+	redisRateLimiterPoolMaxIdle     = 1
+	redisRateLimiterPoolIdleTimeout = 3 * time.Minute
 )
 
 type RateLimiter interface {
@@ -13,17 +18,27 @@ type RateLimiter interface {
 }
 
 type redisRateLimiter struct {
-	c      redis.Conn
+	pool   *redis.Pool
 	prefix string
-
-	mutex sync.Mutex
 }
 
 type nullRateLimiter struct{}
 
-func NewRateLimiter(c redis.Conn, prefix string) RateLimiter {
+func NewRateLimiter(redisURL string, prefix string) RateLimiter {
 	return &redisRateLimiter{
-		c:      c,
+		pool: &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return redis.DialURL(redisURL)
+			},
+			TestOnBorrow: func(c redis.Conn, _ time.Time) error {
+				_, err := c.Do("PING")
+				return err
+			},
+			MaxIdle:     redisRateLimiterPoolMaxIdle,
+			MaxActive:   redisRateLimiterPoolMaxActive,
+			IdleTimeout: redisRateLimiterPoolIdleTimeout,
+			Wait:        true,
+		},
 		prefix: prefix,
 	}
 }
@@ -33,17 +48,17 @@ func NewNullRateLimiter() RateLimiter {
 }
 
 func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Duration) (bool, error) {
-	rl.mutex.Lock()
-	defer rl.mutex.Unlock()
+	conn := rl.pool.Get()
+	defer conn.Close()
 
 	now := time.Now()
 	timestamp := now.Unix() - (now.Unix() % int64(per.Seconds()))
 
 	key := fmt.Sprintf("%s:%s:%d", rl.prefix, name, timestamp)
 
-	_, err := rl.c.Do("WATCH", key)
+	_, err := conn.Do("WATCH", key)
 
-	cur, err := redis.Int64(rl.c.Do("GET", key))
+	cur, err := redis.Int64(conn.Do("GET", key))
 	if err != nil && err != redis.ErrNil {
 		return false, err
 	}
@@ -52,10 +67,10 @@ func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Dur
 		return false, nil
 	}
 
-	rl.c.Send("MULTI")
-	rl.c.Send("INCR", key)
-	rl.c.Send("EXPIRE", key, int64(per.Seconds()))
-	reply, err := rl.c.Do("EXEC")
+	conn.Send("MULTI")
+	conn.Send("INCR", key)
+	conn.Send("EXPIRE", key, int64(per.Seconds()))
+	reply, err := conn.Do("EXEC")
 	if err != nil {
 		return false, err
 	}

@@ -21,7 +21,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/backoff"
-	"github.com/garyburd/redigo/redis"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
@@ -382,12 +381,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	var rateLimiter ratelimit.RateLimiter
 	if cfg.IsSet("RATE_LIMIT_REDIS_URL") {
-		redisConn, err := redis.DialURL(cfg.Get("RATE_LIMIT_REDIS_URL"))
-		if err != nil {
-			return nil, err
-		}
-
-		rateLimiter = ratelimit.NewRateLimiter(redisConn, cfg.Get("RATE_LIMIT_PREFIX"))
+		rateLimiter = ratelimit.NewRateLimiter(cfg.Get("RATE_LIMIT_REDIS_URL"), cfg.Get("RATE_LIMIT_PREFIX"))
 	} else {
 		rateLimiter = ratelimit.NewNullRateLimiter()
 	}

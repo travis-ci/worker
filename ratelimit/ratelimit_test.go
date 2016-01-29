@@ -5,8 +5,6 @@ import (
 	"os"
 	"testing"
 	"time"
-
-	"github.com/garyburd/redigo/redis"
 )
 
 func TestRateLimit(t *testing.T) {
@@ -18,12 +16,7 @@ func TestRateLimit(t *testing.T) {
 		t.Log("Note: The TestRateLimit test is known to have a bug if run near the top of the hour. Since the rate limiter isn't a moving window, it could end up checking against two different buckets on either side of the top of the hour, so if you see that just re-run it after you've passed the top of the hour.")
 	}
 
-	conn, err := redis.DialURL(os.Getenv("REDIS_URL"))
-	if err != nil {
-		t.Fatalf("unable to connect to Redis: %v", err)
-	}
-
-	rateLimiter := NewRateLimiter(conn, fmt.Sprintf("worker-test-rl-%d", os.Getpid()))
+	rateLimiter := NewRateLimiter(os.Getenv("REDIS_URL"), fmt.Sprintf("worker-test-rl-%d", os.Getpid()))
 
 	ok, err := rateLimiter.RateLimit("slow", 2, time.Hour)
 	if err != nil {
