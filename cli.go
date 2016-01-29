@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -266,7 +267,16 @@ func (i *CLI) signalHandler() {
 func (i *CLI) setupJobQueueAndCanceller() error {
 	switch i.Config.QueueType {
 	case "amqp":
-		amqpConn, err := amqp.Dial(i.Config.AmqpURI)
+		var amqpConn *amqp.Connection
+		var err error
+		if i.Config.AmqpInsecure {
+			amqpConn, err = amqp.DialTLS(
+				i.Config.AmqpURI,
+				&tls.Config{InsecureSkipVerify: true},
+			)
+		} else {
+			amqpConn, err = amqp.Dial(i.Config.AmqpURI)
+		}
 		if err != nil {
 			i.logger.WithField("err", err).Error("couldn't connect to AMQP")
 			return err
