@@ -1,3 +1,13 @@
+## 2.2.0 (February 1st, 2016)
+
+IMPROVEMENTS:
+
+  * backend/gce: switched out rate limiter with Redis-backed rate limiter
+  * backend/gce: create a pseudo-terminal that's 80 wide by 40 high instead of 40 wide by 80 high
+  * backend/gce: make using preemptible instances configurable
+  * build: switch to Go 1.5.2 for Travis CI builds
+  * cli: add config option (`--amqp-insecure`) to connect to AMQP without verifying TLS certificates
+
 ## 2.1.0 (December 15th, 2015)
 
 FEATURES:
