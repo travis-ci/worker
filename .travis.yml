@@ -44,8 +44,7 @@ script:
 - make test-race
 - make crossbuild
 - make smoke
-- if [[ $PACKAGECLOUD_TOKEN ]]; then make package; fi
-- make smoke-package
+- if [[ $PACKAGECLOUD_TOKEN ]]; then make package && make smoke-package; fi
 
 after_success:
 - utils/atlas-push
