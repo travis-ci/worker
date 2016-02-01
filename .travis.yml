@@ -44,7 +44,7 @@ script:
 - make test-race
 - make crossbuild
 - make smoke
-- make package
+- if [[ $PACKAGECLOUD_TOKEN ]]; then make package fi
 - make smoke-package
 
 after_success:
