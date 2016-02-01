@@ -340,7 +340,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 	}
 }
 
-func (p *jupiterBrainProvider) Setup() error {
+func (p *jupiterBrainProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 

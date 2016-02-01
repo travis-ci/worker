@@ -9,6 +9,7 @@ group: edge
 services:
 - rabbitmq
 - docker
+- redis
 
 env:
   global:
@@ -17,6 +18,7 @@ env:
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
   - GO15VENDOREXPERIMENT='1'
+  - REDIS_URL="redis://"
 
 addons:
   artifacts:

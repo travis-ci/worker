@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	mathrand "math/rand"
 	"net/http"
 	"net/url"
 	"sort"
@@ -27,6 +28,7 @@ import (
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
+	"github.com/travis-ci/worker/ratelimit"
 	"golang.org/x/crypto/ssh"
 	gocontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -51,7 +53,8 @@ const (
 	defaultGCEHardTimeoutMinutes = int64(130)
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci-mega.+"
-	defaultGCERateLimitTick      = 1 * time.Second
+	defaultGCERateLimitMaxCalls  = uint64(10)
+	defaultGCERateLimitDuration  = time.Second
 )
 
 var (
@@ -73,7 +76,10 @@ var (
 		"PREEMPTIBLE":           "boot job instances with preemptible flag enabled (default true)",
 		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
-		"RATE_LIMIT_TICK":       fmt.Sprintf("duration to wait between GCE API calls (default %v)", defaultGCERateLimitTick),
+		"RATE_LIMIT_PREFIX":     "prefix for the rate limit key in Redis",
+		"RATE_LIMIT_REDIS_URL":  "URL to Redis instance to use for rate limiting",
+		"RATE_LIMIT_MAX_CALLS":  fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
+		"RATE_LIMIT_DURATION":   fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
 		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
 		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
@@ -135,7 +141,9 @@ type gceProvider struct {
 	uploadRetries     uint64
 	uploadRetrySleep  time.Duration
 
-	rateLimiter         *time.Ticker
+	rateLimiter         ratelimit.RateLimiter
+	rateLimitMaxCalls   uint64
+	rateLimitDuration   time.Duration
 	rateLimitQueueDepth uint64
 }
 
@@ -371,13 +379,29 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
-	rateLimitTick := defaultGCERateLimitTick
-	if cfg.IsSet("RATE_LIMIT_TICK") {
-		si, err := time.ParseDuration(cfg.Get("RATE_LIMIT_TICK"))
+	var rateLimiter ratelimit.RateLimiter
+	if cfg.IsSet("RATE_LIMIT_REDIS_URL") {
+		rateLimiter = ratelimit.NewRateLimiter(cfg.Get("RATE_LIMIT_REDIS_URL"), cfg.Get("RATE_LIMIT_PREFIX"))
+	} else {
+		rateLimiter = ratelimit.NewNullRateLimiter()
+	}
+
+	rateLimitMaxCalls := defaultGCERateLimitMaxCalls
+	if cfg.IsSet("RATE_LIMIT_MAX_CALLS") {
+		mc, err := strconv.ParseUint(cfg.Get("RATE_LIMIT_MAX_CALLS"), 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		rateLimitTick = si
+		rateLimitMaxCalls = mc
+	}
+
+	rateLimitDuration := defaultGCERateLimitDuration
+	if cfg.IsSet("RATE_LIMIT_DURATION") {
+		rld, err := time.ParseDuration(cfg.Get("RATE_LIMIT_DURATION"))
+		if err != nil {
+			return nil, err
+		}
+		rateLimitDuration = rld
 	}
 
 	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -427,24 +451,48 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		uploadRetries:     uploadRetries,
 		uploadRetrySleep:  uploadRetrySleep,
 
-		rateLimiter: time.NewTicker(rateLimitTick),
+		rateLimiter:       rateLimiter,
+		rateLimitMaxCalls: rateLimitMaxCalls,
+		rateLimitDuration: rateLimitDuration,
 	}, nil
 }
 
-func (p *gceProvider) apiRateLimit() {
-	atomic.AddUint64(&p.rateLimitQueueDepth, 1)
+func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()
-	<-p.rateLimiter.C
-	metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
+	defer metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
+
+	atomic.AddUint64(&p.rateLimitQueueDepth, 1)
 	// This decrements the counter, see the docs for atomic.AddUint64
-	atomic.AddUint64(&p.rateLimitQueueDepth, ^uint64(0))
+	defer atomic.AddUint64(&p.rateLimitQueueDepth, ^uint64(0))
+
+	errCount := 0
+
+	for {
+		ok, err := p.rateLimiter.RateLimit("gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
+		if err != nil {
+			errCount++
+			if errCount >= 5 {
+				context.CaptureError(ctx, err)
+				context.LoggerFromContext(ctx).WithField("err", err).Info("rate limiter errored 5 times")
+				return err
+			}
+		} else {
+			errCount = 0
+		}
+		if ok {
+			return nil
+		}
+
+		// Sleep for up to 1 second
+		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
+	}
 }
 
-func (p *gceProvider) Setup() error {
+func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	var err error
 
-	p.apiRateLimit()
+	p.apiRateLimit(ctx)
 	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Do()
 	if err != nil {
 		return err
@@ -452,19 +500,19 @@ func (p *gceProvider) Setup() error {
 
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
-	p.apiRateLimit()
+	p.apiRateLimit(ctx)
 	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Do()
 	if err != nil {
 		return err
 	}
 
-	p.apiRateLimit()
+	p.apiRateLimit(ctx)
 	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Do()
 	if err != nil {
 		return err
 	}
 
-	p.apiRateLimit()
+	p.apiRateLimit(ctx)
 	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Do()
 	if err != nil {
 		return err
@@ -547,7 +595,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	defer func(c *gceStartContext) {
 		if c.instance != nil && abandonedStart {
-			p.apiRateLimit()
+			p.apiRateLimit(c.ctx)
 			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, c.instance.Name).Do()
 		}
 	}(c)
@@ -603,7 +651,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	c.bootStart = time.Now().UTC()
 
-	p.apiRateLimit()
+	p.apiRateLimit(c.ctx)
 	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
 	if err != nil {
 		c.errChan <- err
@@ -629,7 +677,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
-		p.apiRateLimit()
+		p.apiRateLimit(c.ctx)
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
 			c.errChan <- err
@@ -683,8 +731,8 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	}
 }
 
-func (p *gceProvider) imageByFilter(filter string) (*compute.Image, error) {
-	p.apiRateLimit()
+func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
+	p.apiRateLimit(ctx)
 	// TODO: add some TTL cache in here maybe?
 	images, err := p.client.Images.List(p.projectID).Filter(filter).Do()
 	if err != nil {
@@ -730,7 +778,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 		imageName = p.defaultImage
 	}
 
-	return p.imageByFilter(fmt.Sprintf("name eq ^%s", imageName))
+	return p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
 }
 
 func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
@@ -814,9 +862,9 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 	}
 }
 
-func (i *gceInstance) sshClient() (*ssh.Client, error) {
+func (i *gceInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 	if i.cachedIPAddr == "" {
-		err := i.refreshInstance()
+		err := i.refreshInstance(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -853,8 +901,8 @@ func (i *gceInstance) getIP() string {
 	return ""
 }
 
-func (i *gceInstance) refreshInstance() error {
-	i.provider.apiRateLimit()
+func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
+	i.provider.apiRateLimit(ctx)
 	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
 	if err != nil {
 		return err
@@ -899,7 +947,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 }
 
 func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
-	client, err := i.sshClient()
+	client, err := i.sshClient(ctx)
 	if err != nil {
 		return err
 	}
@@ -929,7 +977,7 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 }
 
 func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	client, err := i.sshClient()
+	client, err := i.sshClient(ctx)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
@@ -1028,7 +1076,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	b.MaxElapsedTime = 2 * time.Minute
 
 	err := backoff.Retry(func() error {
-		i.provider.apiRateLimit()
+		i.provider.apiRateLimit(c.ctx)
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
 			return err

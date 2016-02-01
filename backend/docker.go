@@ -225,7 +225,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 }
 
-func (p *dockerProvider) Setup() error { return nil }
+func (p *dockerProvider) Setup(ctx gocontext.Context) error { return nil }
 
 func (p *dockerProvider) imageForLanguage(language string) (string, string, error) {
 	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})

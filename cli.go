@@ -16,6 +16,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
@@ -115,7 +116,7 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
-	err = provider.Setup()
+	err = provider.Setup(ctx)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't setup backend provider")
 		return false, err
@@ -198,6 +199,11 @@ func (i *CLI) setupSentry() {
 	}
 
 	logrus.AddHook(sentryHook)
+
+	err = raven.SetDSN(i.Config.SentryDSN)
+	if err != nil {
+		i.logger.WithField("err", err).Error("couldn't set DSN in raven")
+	}
 }
 
 func (i *CLI) setupMetrics() {
