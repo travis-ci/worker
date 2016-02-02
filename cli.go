@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -277,10 +278,19 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 		var amqpConn *amqp.Connection
 		var err error
 
-		if i.Config.AmqpTlsCert != "" {
+		if i.Config.AmqpTlsCert != "" || i.Config.AmqpTlsCertPath != "" {
 			cfg := new(tls.Config)
 			cfg.RootCAs = x509.NewCertPool()
-			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.AmqpTlsCert))
+			if i.Config.AmqpTlsCert != "" {
+				cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.AmqpTlsCert))
+			}
+			if i.Config.AmqpTlsCertPath != "" {
+				cert, err := ioutil.ReadFile(i.Config.AmqpTlsCertPath)
+				if err != nil {
+					return err
+				}
+				cfg.RootCAs.AppendCertsFromPEM(cert)
+			}
 			amqpConn, err = amqp.DialTLS(i.Config.AmqpURI, cfg)
 		} else if i.Config.AmqpInsecure {
 			amqpConn, err = amqp.DialTLS(
