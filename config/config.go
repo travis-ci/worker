@@ -58,6 +58,12 @@ var (
 		NewConfigDef("AmqpInsecure", &cli.BoolFlag{
 			Usage: `Whether to connect to the AMQP server without verifying TLS certificates (only valid for "amqp" queue type)`,
 		}),
+		NewConfigDef("AmqpTlsCert", &cli.StringFlag{
+			Usage: `The TLS certificate used to connet to the AMQP server`,
+		}),
+		NewConfigDef("AmqpTlsCertPath", &cli.StringFlag{
+			Usage: `Path to the TLS certificate used to connet to the AMQP server`,
+		}),
 		NewConfigDef("BaseDir", &cli.StringFlag{
 			Value: defaultBaseDir,
 			Usage: `The base directory for file-based queues (only valid for "file" queue type)`,
@@ -262,6 +268,8 @@ type Config struct {
 	QueueType       string `config:"queue-type"`
 	AmqpURI         string `config:"amqp-uri"`
 	AmqpInsecure    bool   `config:"amqp-insecure"`
+	AmqpTlsCert     string `config:"amqp-tls-cert"`
+	AmqpTlsCertPath string `config:"amqp-tls-cert-path"`
 	BaseDir         string `config:"base-dir"`
 	PoolSize        int    `config:"pool-size"`
 	BuildAPIURI     string `config:"build-api-uri"`
