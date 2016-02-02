@@ -44,7 +44,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	case r := <-resultChan:
 		if r.err == ErrWrotePastMaxLogLength {
 			context.LoggerFromContext(ctx).Info("wrote past maximum log length")
-			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maxmimum log length, and has been terminated.\n\n")
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
@@ -53,7 +53,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		// case branch below to catch it.
 		if r.err == gocontext.DeadlineExceeded {
 			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
-			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maxmimum time limit for jobs, and has been terminated.\n\n")
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
