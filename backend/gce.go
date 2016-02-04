@@ -21,6 +21,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/backoff"
+	"github.com/garyburd/redigo/redis"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
@@ -384,8 +385,23 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	var rateLimiter ratelimit.RateLimiter
 	var concurrencyLimiter ratelimit.ConcurrencyLimiter
 	if cfg.IsSet("RATE_LIMIT_REDIS_URL") {
-		rateLimiter = ratelimit.NewRateLimiter(cfg.Get("RATE_LIMIT_REDIS_URL"), cfg.Get("RATE_LIMIT_PREFIX"))
-		concurrencyLimiter = ratelimit.NewConcurrencyLimiter(cfg.Get("RATE_LIMIT_REDIS_URL"), cfg.Get("RATE_LIMIT_CONCURRENCY_PREFIX"))
+		redisURL := cfg.Get("RATE_LIMIT_REDIS_URL")
+		redisPool := &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return redis.DialURL(redisURL)
+			},
+			TestOnBorrow: func(c redis.Conn, _ time.Time) error {
+				_, err := c.Do("PING")
+				return err
+			},
+			MaxIdle:     1,
+			MaxActive:   1,
+			IdleTimeout: 3 * time.Minute,
+			Wait:        true,
+		}
+
+		rateLimiter = ratelimit.NewRateLimiter(redisPool, cfg.Get("RATE_LIMIT_PREFIX"))
+		concurrencyLimiter = ratelimit.NewConcurrencyLimiter(redisPool, cfg.Get("RATE_LIMIT_CONCURRENCY_PREFIX"))
 	} else {
 		rateLimiter = ratelimit.NewNullRateLimiter()
 		concurrencyLimiter = ratelimit.NewNullConcurrencyLimiter()

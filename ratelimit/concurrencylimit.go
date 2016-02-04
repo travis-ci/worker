@@ -2,16 +2,9 @@ package ratelimit
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/garyburd/redigo/redis"
 	"github.com/pborman/uuid"
-)
-
-const (
-	redisConcurrencyLimiterPoolMaxActive   = 1
-	redisConcurrencyLimiterPoolMaxIdle     = 1
-	redisConcurrencyLimiterPoolIdleTimeout = 3 * time.Minute
 )
 
 type ConcurrencyLimiter interface {
@@ -26,21 +19,9 @@ type redisConcurrencyLimiter struct {
 
 type nullConcurrencyLimiter struct{}
 
-func NewConcurrencyLimiter(redisURL, prefix string) ConcurrencyLimiter {
+func NewConcurrencyLimiter(redisPool *redis.Pool, prefix string) ConcurrencyLimiter {
 	return &redisConcurrencyLimiter{
-		pool: &redis.Pool{
-			Dial: func() (redis.Conn, error) {
-				return redis.DialURL(redisURL)
-			},
-			TestOnBorrow: func(c redis.Conn, _ time.Time) error {
-				_, err := c.Do("PING")
-				return err
-			},
-			MaxIdle:     redisConcurrencyLimiterPoolMaxIdle,
-			MaxActive:   redisConcurrencyLimiterPoolMaxActive,
-			IdleTimeout: redisConcurrencyLimiterPoolIdleTimeout,
-			Wait:        true,
-		},
+		pool:   redisPool,
 		prefix: prefix,
 	}
 }

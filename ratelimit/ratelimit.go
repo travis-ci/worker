@@ -7,12 +7,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-const (
-	redisRateLimiterPoolMaxActive   = 1
-	redisRateLimiterPoolMaxIdle     = 1
-	redisRateLimiterPoolIdleTimeout = 3 * time.Minute
-)
-
 type RateLimiter interface {
 	RateLimit(name string, maxCalls uint64, per time.Duration) (bool, error)
 }
@@ -24,21 +18,9 @@ type redisRateLimiter struct {
 
 type nullRateLimiter struct{}
 
-func NewRateLimiter(redisURL string, prefix string) RateLimiter {
+func NewRateLimiter(redisPool *redis.Pool, prefix string) RateLimiter {
 	return &redisRateLimiter{
-		pool: &redis.Pool{
-			Dial: func() (redis.Conn, error) {
-				return redis.DialURL(redisURL)
-			},
-			TestOnBorrow: func(c redis.Conn, _ time.Time) error {
-				_, err := c.Do("PING")
-				return err
-			},
-			MaxIdle:     redisRateLimiterPoolMaxIdle,
-			MaxActive:   redisRateLimiterPoolMaxActive,
-			IdleTimeout: redisRateLimiterPoolIdleTimeout,
-			Wait:        true,
-		},
+		pool:   redisPool,
 		prefix: prefix,
 	}
 }
