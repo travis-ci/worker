@@ -56,6 +56,11 @@ func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Dur
 
 	key := fmt.Sprintf("%s:%s:%d", rl.prefix, name, timestamp)
 
+	_, err := conn.Do("WATCH", key)
+	if err != nil {
+		return false, err
+	}
+
 	cur, err := redis.Int64(conn.Do("GET", key))
 	if err != nil && err != redis.ErrNil {
 		return false, err
@@ -63,11 +68,6 @@ func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Dur
 
 	if err != redis.ErrNil && uint64(cur) >= maxCalls {
 		return false, nil
-	}
-
-	_, err = conn.Do("WATCH", key)
-	if err != nil {
-		return false, err
 	}
 
 	connSend := func(commandName string, args ...interface{}) {
