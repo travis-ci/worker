@@ -24,6 +24,8 @@ type redisConcurrencyLimiter struct {
 	prefix string
 }
 
+type nullConcurrencyLimiter struct{}
+
 func NewConcurrencyLimiter(redisURL, prefix string) ConcurrencyLimiter {
 	return &redisConcurrencyLimiter{
 		pool: &redis.Pool{
@@ -41,6 +43,10 @@ func NewConcurrencyLimiter(redisURL, prefix string) ConcurrencyLimiter {
 		},
 		prefix: prefix,
 	}
+}
+
+func NewNullConcurrencyLimiter() ConcurrencyLimiter {
+	return &nullConcurrencyLimiter{}
 }
 
 func (rl *redisConcurrencyLimiter) ConcurrencyLimit(name string) (bool, error) {
@@ -112,4 +118,12 @@ func (rl *redisConcurrencyLimiter) Done(name string) error {
 
 	_, err = conn.Do("SPOP", setKey)
 	return err
+}
+
+func (rl *nullConcurrencyLimiter) ConcurrencyLimit(name string) (bool, error) {
+	return true, nil
+}
+
+func (rl *nullConcurrencyLimiter) Done(name string) error {
+	return nil
 }
