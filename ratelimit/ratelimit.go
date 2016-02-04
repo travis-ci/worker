@@ -7,12 +7,6 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-const (
-	redisRateLimiterPoolMaxActive   = 1
-	redisRateLimiterPoolMaxIdle     = 1
-	redisRateLimiterPoolIdleTimeout = 3 * time.Minute
-)
-
 type RateLimiter interface {
 	RateLimit(name string, maxCalls uint64, per time.Duration) (bool, error)
 }
@@ -24,21 +18,9 @@ type redisRateLimiter struct {
 
 type nullRateLimiter struct{}
 
-func NewRateLimiter(redisURL string, prefix string) RateLimiter {
+func NewRateLimiter(redisPool *redis.Pool, prefix string) RateLimiter {
 	return &redisRateLimiter{
-		pool: &redis.Pool{
-			Dial: func() (redis.Conn, error) {
-				return redis.DialURL(redisURL)
-			},
-			TestOnBorrow: func(c redis.Conn, _ time.Time) error {
-				_, err := c.Do("PING")
-				return err
-			},
-			MaxIdle:     redisRateLimiterPoolMaxIdle,
-			MaxActive:   redisRateLimiterPoolMaxActive,
-			IdleTimeout: redisRateLimiterPoolIdleTimeout,
-			Wait:        true,
-		},
+		pool:   redisPool,
 		prefix: prefix,
 	}
 }
@@ -56,6 +38,11 @@ func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Dur
 
 	key := fmt.Sprintf("%s:%s:%d", rl.prefix, name, timestamp)
 
+	_, err := conn.Do("WATCH", key)
+	if err != nil {
+		return false, err
+	}
+
 	cur, err := redis.Int64(conn.Do("GET", key))
 	if err != nil && err != redis.ErrNil {
 		return false, err
@@ -63,11 +50,6 @@ func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Dur
 
 	if err != redis.ErrNil && uint64(cur) >= maxCalls {
 		return false, nil
-	}
-
-	_, err = conn.Do("WATCH", key)
-	if err != nil {
-		return false, err
 	}
 
 	connSend := func(commandName string, args ...interface{}) {

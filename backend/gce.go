@@ -21,6 +21,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/cenkalti/backoff"
+	"github.com/garyburd/redigo/redis"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
@@ -59,33 +60,34 @@ const (
 
 var (
 	gceHelp = map[string]string{
-		"ACCOUNT_JSON":          "[REQUIRED] account JSON config",
-		"AUTO_IMPLODE":          "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
-		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
-		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
-		"DEFAULT_LANGUAGE":      fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
-		"DISK_SIZE":             fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"HARD_TIMEOUT_MINUTES":  fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
-		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
-		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
-		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
-		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
-		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
-		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
-		"PREEMPTIBLE":           "boot job instances with preemptible flag enabled (default true)",
-		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
-		"PROJECT_ID":            "[REQUIRED] GCE project id",
-		"RATE_LIMIT_PREFIX":     "prefix for the rate limit key in Redis",
-		"RATE_LIMIT_REDIS_URL":  "URL to Redis instance to use for rate limiting",
-		"RATE_LIMIT_MAX_CALLS":  fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
-		"RATE_LIMIT_DURATION":   fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
-		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
-		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
-		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
-		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
-		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"ACCOUNT_JSON":                  "[REQUIRED] account JSON config",
+		"AUTO_IMPLODE":                  "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
+		"BOOT_POLL_SLEEP":               fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":           fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
+		"DEFAULT_LANGUAGE":              fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"DISK_SIZE":                     fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"HARD_TIMEOUT_MINUTES":          fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
+		"IMAGE_ALIASES":                 "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_DEFAULT":                 fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
+		"IMAGE_SELECTOR_TYPE":           fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_URL":            "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_[ALIAS_]{ALIAS}":         "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"MACHINE_TYPE":                  fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"NETWORK":                       fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PREEMPTIBLE":                   "boot job instances with preemptible flag enabled (default true)",
+		"PREMIUM_MACHINE_TYPE":          fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
+		"PROJECT_ID":                    "[REQUIRED] GCE project id",
+		"RATE_LIMIT_PREFIX":             "prefix for the rate limit key in Redis",
+		"RATE_LIMIT_CONCURRENCY_PREFIX": "prefix for the concurrency limit key in Redis",
+		"RATE_LIMIT_REDIS_URL":          "URL to Redis instance to use for rate limiting",
+		"RATE_LIMIT_MAX_CALLS":          fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
+		"RATE_LIMIT_DURATION":           fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
+		"SKIP_STOP_POLL":                "immediately return after issuing first instance deletion request (default false)",
+		"STOP_POLL_SLEEP":               fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
+		"STOP_PRE_POLL_SLEEP":           fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
+		"UPLOAD_RETRIES":                fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":            fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"ZONE":                          fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
@@ -145,6 +147,7 @@ type gceProvider struct {
 	rateLimitMaxCalls   uint64
 	rateLimitDuration   time.Duration
 	rateLimitQueueDepth uint64
+	concurrencyLimiter  ratelimit.ConcurrencyLimiter
 }
 
 type gceInstanceConfig struct {
@@ -380,10 +383,28 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	var rateLimiter ratelimit.RateLimiter
+	var concurrencyLimiter ratelimit.ConcurrencyLimiter
 	if cfg.IsSet("RATE_LIMIT_REDIS_URL") {
-		rateLimiter = ratelimit.NewRateLimiter(cfg.Get("RATE_LIMIT_REDIS_URL"), cfg.Get("RATE_LIMIT_PREFIX"))
+		redisURL := cfg.Get("RATE_LIMIT_REDIS_URL")
+		redisPool := &redis.Pool{
+			Dial: func() (redis.Conn, error) {
+				return redis.DialURL(redisURL)
+			},
+			TestOnBorrow: func(c redis.Conn, _ time.Time) error {
+				_, err := c.Do("PING")
+				return err
+			},
+			MaxIdle:     1,
+			MaxActive:   1,
+			IdleTimeout: 3 * time.Minute,
+			Wait:        true,
+		}
+
+		rateLimiter = ratelimit.NewRateLimiter(redisPool, cfg.Get("RATE_LIMIT_PREFIX"))
+		concurrencyLimiter = ratelimit.NewConcurrencyLimiter(redisPool, cfg.Get("RATE_LIMIT_CONCURRENCY_PREFIX"))
 	} else {
 		rateLimiter = ratelimit.NewNullRateLimiter()
+		concurrencyLimiter = ratelimit.NewNullConcurrencyLimiter()
 	}
 
 	rateLimitMaxCalls := defaultGCERateLimitMaxCalls
@@ -451,9 +472,10 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		uploadRetries:     uploadRetries,
 		uploadRetrySleep:  uploadRetrySleep,
 
-		rateLimiter:       rateLimiter,
-		rateLimitMaxCalls: rateLimitMaxCalls,
-		rateLimitDuration: rateLimitDuration,
+		rateLimiter:        rateLimiter,
+		rateLimitMaxCalls:  rateLimitMaxCalls,
+		rateLimitDuration:  rateLimitDuration,
+		concurrencyLimiter: concurrencyLimiter,
 	}, nil
 }
 
@@ -487,6 +509,42 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 		// Sleep for up to 1 second
 		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
 	}
+}
+
+func (p *gceProvider) startStopConcurrencyLimit(ctx gocontext.Context) error {
+	startWait := time.Now()
+	defer metrics.TimeSince("travis.worker.vm.provider.gce.concurrency-limit", startWait)
+
+	errCount := 0
+	for {
+		ok, err := p.concurrencyLimiter.ConcurrencyLimit("gce-start-stop")
+		if err != nil {
+			errCount++
+			if errCount >= 5 {
+				context.CaptureError(ctx, err)
+				context.LoggerFromContext(ctx).WithField("err", err).Info("concurrency limiter errored 5 times")
+				return err
+			}
+		} else {
+			errCount = 0
+		}
+		if ok {
+			return nil
+		}
+
+		// Sleep for up to 1 second
+		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
+	}
+}
+
+func (p *gceProvider) startStopConcurrencyLimitDone(ctx gocontext.Context) error {
+	err := p.concurrencyLimiter.Done("gce-start-stop")
+	if err != nil {
+		context.CaptureError(ctx, err)
+		context.LoggerFromContext(ctx).WithField("err", err).Info("concurrency limiter couldn't mark done")
+	}
+
+	return err
 }
 
 func (p *gceProvider) Setup(ctx gocontext.Context) error {
@@ -599,6 +657,9 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, c.instance.Name).Do()
 		}
 	}(c)
+
+	p.startStopConcurrencyLimit(c.ctx)
+	defer p.startStopConcurrencyLimitDone(c.ctx)
 
 	logger.Info("starting instance")
 	go runner.Run(state)
@@ -1025,6 +1086,9 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForInstanceDeleted},
 		},
 	}
+
+	i.provider.startStopConcurrencyLimit(c.ctx)
+	defer i.provider.startStopConcurrencyLimitDone(c.ctx)
 
 	logger.WithField("instance", i.instance.Name).Info("deleting instance")
 	go runner.Run(state)
