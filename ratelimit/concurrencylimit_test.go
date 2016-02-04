@@ -21,20 +21,20 @@ func TestConcurrencyLimit(t *testing.T) {
 	prefix := fmt.Sprintf("worker-test-cl-%d", os.Getpid())
 	concurrencyLimiter := NewConcurrencyLimiter(os.Getenv("REDIS_URL"), prefix)
 
-	_, err = redisConn.Do("SET", fmt.Sprintf("%s:test-cl:enable", prefix), true)
+	_, err = redisConn.Do("SET", fmt.Sprintf("%s:test-cl:max", prefix), 2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// First start two "processes"
-	ok, err := concurrencyLimiter.ConcurrencyLimit("test-cl", 2)
+	ok, err := concurrencyLimiter.ConcurrencyLimit("test-cl")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ok {
 		t.Fatal("expected not to get limited, but was")
 	}
-	ok, err = concurrencyLimiter.ConcurrencyLimit("test-cl", 2)
+	ok, err = concurrencyLimiter.ConcurrencyLimit("test-cl")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestConcurrencyLimit(t *testing.T) {
 	}
 
 	// Now the 3rd one should be limited, because we set the max to 2
-	ok, err = concurrencyLimiter.ConcurrencyLimit("test-cl", 2)
+	ok, err = concurrencyLimiter.ConcurrencyLimit("test-cl")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestConcurrencyLimit(t *testing.T) {
 	}
 
 	// Now we shouldn't be limited again, since there should only be one process left
-	ok, err = concurrencyLimiter.ConcurrencyLimit("test-cl", 2)
+	ok, err = concurrencyLimiter.ConcurrencyLimit("test-cl")
 	if err != nil {
 		t.Fatal(err)
 	}

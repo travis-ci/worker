@@ -15,7 +15,7 @@ const (
 )
 
 type ConcurrencyLimiter interface {
-	ConcurrencyLimit(name string, defaultMax int64) (bool, error)
+	ConcurrencyLimit(name string) (bool, error)
 	Done(name string) error
 }
 
@@ -43,24 +43,18 @@ func NewConcurrencyLimiter(redisURL, prefix string) ConcurrencyLimiter {
 	}
 }
 
-func (rl *redisConcurrencyLimiter) ConcurrencyLimit(name string, defaultMaxLimit int64) (bool, error) {
+func (rl *redisConcurrencyLimiter) ConcurrencyLimit(name string) (bool, error) {
 	conn := rl.pool.Get()
 	defer conn.Close()
 
 	baseKey := fmt.Sprintf("%s:%s", rl.prefix, name)
 	setKey := baseKey + ":set"
 	maxKey := baseKey + ":max"
-	featureKey := baseKey + ":enable"
-
-	featureEnable, err := redis.Bool(conn.Do("GET", featureKey))
-	if err == redis.ErrNil || err == nil && !featureEnable {
-		// Limiter is disabled, let request through
-		return true, nil
-	}
 
 	maxLimit, err := redis.Int64(conn.Do("GET", maxKey))
 	if err == redis.ErrNil {
-		maxLimit = defaultMaxLimit
+		// Limiter is disabled, let request through
+		return true, nil
 	} else if err != nil {
 		return false, err
 	}
@@ -108,10 +102,10 @@ func (rl *redisConcurrencyLimiter) Done(name string) error {
 
 	baseKey := fmt.Sprintf("%s:%s", rl.prefix, name)
 	setKey := baseKey + ":set"
-	featureKey := baseKey + ":enable"
+	maxKey := baseKey + ":max"
 
-	featureEnable, err := redis.Bool(conn.Do("GET", featureKey))
-	if err == redis.ErrNil || err == nil && !featureEnable {
+	_, err := redis.Int64(conn.Do("GET", maxKey))
+	if err == redis.ErrNil {
 		// Limiter is disabled, do nothing
 		return nil
 	}
