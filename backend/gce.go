@@ -471,6 +471,8 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	for {
 		ok, err := p.rateLimiter.RateLimit("gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
 		if err != nil {
+			context.CaptureError(ctx, err)
+			context.LoggerFromContext(ctx).WithField("err", err).Info("Received an error when trying to get rate limiter")
 			errCount++
 			if errCount >= 5 {
 				context.CaptureError(ctx, err)
@@ -485,7 +487,9 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 		}
 
 		// Sleep for up to 1 second
-		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
+		delay := time.Millisecond * time.Duration(mathrand.Intn(1000))
+		context.LoggerFromContext(ctx).WithField("sleep", delay).Info("Sleeping before trying to get rate limiter again")
+		time.Sleep(delay)
 	}
 }
 
