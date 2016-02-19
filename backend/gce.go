@@ -697,6 +697,10 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 		if newOp.Status == "RUNNING" || newOp.Status == "DONE" {
 			if newOp.Error != nil {
+				logger.WithFields(logrus.Fields{
+					"error": newOp.Error,
+				}).Debug("Error with instance state")
+
 				c.errChan <- &gceOpError{Err: newOp.Error}
 				return multistep.ActionHalt
 			}
