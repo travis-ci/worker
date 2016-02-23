@@ -521,6 +521,15 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
+type gceAPIMetricRoundTripper struct {
+	rt http.RoundTripper
+}
+
+func (rt *gceAPIMetricRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	defer metrics.TimeSince("travis.worker.vm.provider.gce.api.request", time.Now())
+	return rt.rt.RoundTrip(req)
+}
+
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
 	if !cfg.IsSet("ACCOUNT_JSON") {
 		return nil, fmt.Errorf("missing ACCOUNT_JSON")
@@ -546,6 +555,8 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 	if gceCustomHTTPTransport != nil {
 		client.Transport = gceCustomHTTPTransport
 	}
+
+	client.Transport = &gceAPIMetricRoundTripper{rt: client.Transport}
 
 	return compute.New(client)
 }
