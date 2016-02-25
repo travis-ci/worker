@@ -558,7 +558,7 @@ func (rt *gceAPIFakeRateLimitRoundTripper) RoundTrip(req *http.Request) (*http.R
 		ProtoMajor:    1,
 		ProtoMinor:    1,
 		Header:        headers,
-		Body:          body,
+		Body:          ioutil.NopCloser(body),
 		ContentLength: int64(body.Len()),
 		Request:       req,
 	}
