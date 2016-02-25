@@ -534,6 +534,38 @@ func (rt *gceAPIMetricRoundTripper) RoundTrip(req *http.Request) (*http.Response
 	return rt.rt.RoundTrip(req)
 }
 
+type gceAPIFakeRateLimitRoundTripper struct {
+	rt http.RoundTripper
+	// A number between 0.0 and 1.0 representing how often a request should
+	// fail. 1.0 means the request will always fail, 0.0 means it will never
+	// fail (at least not due to this roundtripper).
+	failureRate float64
+}
+
+func (rt *gceAPIFakeRateLimitRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if mathrand.Float64() > rt.failureRate {
+		return rt.rt.RoundTrip(req)
+	}
+
+	body := bytes.NewBufferString(`{ "error": { "errors": [ { "reason": "rateLimitExceeded", "message": "[FAKE] Rate Limit Exceeded" } ], "code": 403, "message": "[FAKE] Rate Limit Exceeded" } }`)
+	headers := http.Header(make(map[string][]string))
+	headers.Set("Content-Type", "applicaton/json; charset=UTF-8")
+
+	resp := &http.Response{
+		Status:        "403 Forbidden",
+		StatusCode:    403,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        headers,
+		Body:          body,
+		ContentLength: int64(body.Len()),
+		Request:       req,
+	}
+
+	return resp, nil
+}
+
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
 	if !cfg.IsSet("ACCOUNT_JSON") {
 		return nil, fmt.Errorf("missing ACCOUNT_JSON")
@@ -558,6 +590,18 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 
 	if gceCustomHTTPTransport != nil {
 		client.Transport = gceCustomHTTPTransport
+	}
+
+	if cfg.IsSet("FAKE_RATE_LIMIT_PERCENTAGE") {
+		percentage, err := strconv.ParseFloat(cfg.Get("FAKE_RATE_LIMIT_PERCENTAGE"), 64)
+		if err != nil {
+			return nil, err
+		}
+
+		client.Transport = &gceAPIFakeRateLimitRoundTripper{
+			rt:          client.Transport,
+			failureRate: percentage / 100.0,
+		}
 	}
 
 	client.Transport = &gceAPIMetricRoundTripper{rt: client.Transport}
