@@ -76,6 +76,7 @@ var (
 		"PREEMPTIBLE":           "boot job instances with preemptible flag enabled (default true)",
 		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
+		"IMAGE_PROJECT_ID":      "GCE project id to use for images, will use PROJECT_ID if not specified",
 		"RATE_LIMIT_PREFIX":     "prefix for the rate limit key in Redis",
 		"RATE_LIMIT_REDIS_URL":  "URL to Redis instance to use for rate limiting",
 		"RATE_LIMIT_MAX_CALLS":  fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
@@ -127,10 +128,11 @@ type gceAccountJSON struct {
 }
 
 type gceProvider struct {
-	client    *compute.Service
-	projectID string
-	ic        *gceInstanceConfig
-	cfg       *config.ProviderConfig
+	client         *compute.Service
+	projectID      string
+	imageProjectID string
+	ic             *gceInstanceConfig
+	cfg            *config.ProviderConfig
 
 	imageSelectorType string
 	imageSelector     image.Selector
@@ -235,6 +237,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	projectID := cfg.Get("PROJECT_ID")
+	imageProjectID := cfg.Get("PROJECT_ID")
+
+	if cfg.IsSet("IMAGE_PROJECT_ID") {
+		imageProjectID = cfg.Get("IMAGE_PROJECT_ID")
+	}
 
 	zoneName := defaultGCEZone
 	if cfg.IsSet("ZONE") {
@@ -426,9 +433,10 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	return &gceProvider{
-		client:    client,
-		projectID: projectID,
-		cfg:       cfg,
+		client:         client,
+		projectID:      projectID,
+		imageProjectID: imageProjectID,
+		cfg:            cfg,
 
 		ic: &gceInstanceConfig{
 			Preemptible:        preemptible,
@@ -734,7 +742,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
 	p.apiRateLimit(ctx)
 	// TODO: add some TTL cache in here maybe?
-	images, err := p.client.Images.List(p.projectID).Filter(filter).Do()
+	images, err := p.client.Images.List(p.imageProjectID).Filter(filter).Do()
 	if err != nil {
 		return nil, err
 	}
