@@ -32,7 +32,7 @@ addons:
 
 install:
 - go get github.com/FiloSottile/gvt
-- go get github.com/alecthomas/gometalinter
+- go get -u github.com/alecthomas/gometalinter
 - go get github.com/laher/goxc
 - gometalinter --install --update
 - gem install package_cloud --no-ri --no-rdoc
