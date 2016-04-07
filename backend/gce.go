@@ -984,6 +984,41 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 	return nil
 }
 
+func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
+	if !i.ic.Preemptible {
+		return false, nil
+	}
+
+	listOpCall := i.provider.client.GlobalOperations.AggregatedList(i.provider.projectID).
+		Filter(fmt.Sprintf("targetId eq %d", i.instance.Id))
+
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 1 * time.Second
+	b.MaxElapsedTime = 1 * time.Minute
+
+	var preempted bool
+	err := backoff.Retry(func() error {
+		i.provider.apiRateLimit(ctx)
+		list, err := listOpCall.Do()
+		if err != nil {
+			return err
+		}
+
+		for _, item := range list.Items {
+			for _, op := range item.Operations {
+				if op.Kind == "compute#operation" && op.OperationType == "compute.instances.preempted" {
+					preempted = true
+					return nil
+				}
+			}
+		}
+
+		return nil
+	}, b)
+
+	return preempted, err
+}
+
 func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient(ctx)
 	if err != nil {
@@ -1006,6 +1041,19 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	session.Stderr = output
 
 	err = session.Run("bash ~/build.sh")
+
+	preempted, googleErr := i.isPreempted(ctx)
+	if googleErr != nil {
+		context.LoggerFromContext(ctx).WithField("err", googleErr).Error("couldn't determine if instance was preempted")
+		// could not get answer from google
+		// requeue just in case
+		return &RunResult{Completed: false}, googleErr
+	}
+	if preempted {
+		metrics.Mark("travis.worker.gce.preempted-instances")
+		return &RunResult{Completed: false}, nil
+	}
+
 	if err == nil {
 		return &RunResult{Completed: true, ExitCode: 0}, nil
 	}
