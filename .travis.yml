@@ -46,10 +46,6 @@ script:
 - make smoke
 - if [[ $PACKAGECLOUD_TOKEN ]]; then make package && make smoke-package; fi
 
-after_success:
-- utils/atlas-push
-- echo $ARTIFACTS_PATHS
-
 notifications:
   slack:
     secure: IyWrJhruYYHEIvi4YsN3vV2rycctnRiIolzUMwgiDo275AK6O4h58+fu1EXFjMZmCqdOan98MsF709yW3S9zDaZo2s233dKWzQ95S8+n2RS+pGsxBZacCiEvOh0u1K3f19hpf8zj0ybtpcox+a6yrxK+F3er9WveO39yPZjzwCA=
