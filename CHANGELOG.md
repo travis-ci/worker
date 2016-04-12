@@ -1,3 +1,20 @@
+## 2.3.0 (April 12th, 2016)
+
+FEATURES:
+
+  * backend/gce: Add support for separate project ID for images via
+    `IMAGE_PROJECT_ID` env var.
+
+IMPROVEMENTS:
+
+  * amqp-job: Add support for custom amqp TLS certificates via `--amqp-tls-cert`
+    and `--amqp-tls-cert-path` options.
+
+BUG FIXES:
+
+  * backend/gce: Requeue jobs on preempted instances (instances preemptively
+    shutdown by gce).
+
 ## 2.2.0 (February 1st, 2016)
 
 IMPROVEMENTS:
