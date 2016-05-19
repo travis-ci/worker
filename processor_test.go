@@ -152,6 +152,7 @@ func TestProcessor(t *testing.T) {
 			Config:   map[string]interface{}{},
 			Timeouts: TimeoutsPayload{},
 		},
+		startAttributes: &backend.StartAttributes{},
 	}
 	jobChan <- job
 
