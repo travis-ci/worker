@@ -50,7 +50,6 @@ const (
 	defaultGCEStopPrePollSleep   = 15 * time.Second
 	defaultGCEUploadRetries      = uint64(120)
 	defaultGCEUploadRetrySleep   = 1 * time.Second
-	defaultGCEHardTimeoutMinutes = int64(130)
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci-mega.+"
 	defaultGCERateLimitMaxCalls  = uint64(10)
@@ -65,7 +64,6 @@ var (
 		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
 		"DEFAULT_LANGUAGE":      fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"DISK_SIZE":             fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"HARD_TIMEOUT_MINUTES":  fmt.Sprintf("time in minutes in the future when poweroff is scheduled if AUTO_IMPLODE is true (default %v)", defaultGCEHardTimeoutMinutes),
 		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
 		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
@@ -103,6 +101,12 @@ EOF
 	gceCustomHTTPTransport     http.RoundTripper = nil
 	gceCustomHTTPTransportLock sync.Mutex
 )
+
+type gceStartupScriptData struct {
+	AutoImplode        bool
+	HardTimeoutMinutes int64
+	SSHPubKey          string
+}
 
 func init() {
 	Register("gce", "Google Compute Engine", gceHelp, newGCEProvider)
@@ -361,15 +365,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		autoImplode = ai
 	}
 
-	hardTimeoutMinutes := defaultGCEHardTimeoutMinutes
-	if cfg.IsSet("HARD_TIMEOUT_MINUTES") {
-		ht, err := strconv.ParseInt(cfg.Get("HARD_TIMEOUT_MINUTES"), 10, 64)
-		if err != nil {
-			return nil, err
-		}
-		hardTimeoutMinutes = ht
-	}
-
 	imageSelectorType := defaultGCEImageSelectorType
 	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
@@ -439,15 +434,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		cfg:            cfg,
 
 		ic: &gceInstanceConfig{
-			Preemptible:        preemptible,
-			DiskSize:           diskSize,
-			SSHKeySigner:       sshKeySigner,
-			SSHPubKey:          string(ssh.MarshalAuthorizedKey(pubKey)),
-			AutoImplode:        autoImplode,
-			HardTimeoutMinutes: hardTimeoutMinutes,
-			StopPollSleep:      stopPollSleep,
-			StopPrePollSleep:   stopPrePollSleep,
-			SkipStopPoll:       skipStopPoll,
+			Preemptible:      preemptible,
+			DiskSize:         diskSize,
+			SSHKeySigner:     sshKeySigner,
+			SSHPubKey:        string(ssh.MarshalAuthorizedKey(pubKey)),
+			AutoImplode:      autoImplode,
+			StopPollSleep:    stopPollSleep,
+			StopPrePollSleep: stopPrePollSleep,
+			SkipStopPoll:     skipStopPoll,
 		},
 
 		imageSelector:     imageSelector,
@@ -640,7 +634,12 @@ func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
 
 func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
 	scriptBuf := bytes.Buffer{}
-	err := gceStartupScript.Execute(&scriptBuf, p.ic)
+	scriptData := gceStartupScriptData{
+		AutoImplode:        p.ic.AutoImplode,
+		HardTimeoutMinutes: int64(c.startAttributes.HardTimeout.Minutes()) + 10,
+		SSHPubKey:          p.ic.SSHPubKey,
+	}
+	err := gceStartupScript.Execute(&scriptBuf, scriptData)
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
