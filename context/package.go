@@ -1,3 +1,10 @@
+// Package context contains functions to embed data in a context.
+//
+// There are a few values that we embed in the context that are used, for
+// example, in the log output. This package contains the functions to embed
+// that data in the context, as well as functions to get the data out again and
+// two utility functions to create a logger with the flags already set, and a
+// function to send errors to Sentry with the same flags set.
 package context
 
 import (
