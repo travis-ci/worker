@@ -11,8 +11,8 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
-// A Processor will process build jobs on a channel, one by one, until it is
-// told to shut down or the channel of build jobs closes.
+// A Processor gets jobs off the job queue and coordinates running it with other
+// components.
 type Processor struct {
 	ID       uuid.UUID
 	hostname string
@@ -31,9 +31,17 @@ type Processor struct {
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
 
+	// ProcessedCount contains the number of jobs that has been processed
+	// by this Processor. This value should not be modified outside of the
+	// Processor.
 	ProcessedCount int
-	CurrentStatus  string
-	LastJobID      uint64
+
+	// CurrentStatus contains the current status of the processor, and can
+	// be one of "new", "waiting", "processing" or "done".
+	CurrentStatus string
+
+	// LastJobID contains the ID of the last job the processor processed.
+	LastJobID uint64
 
 	SkipShutdownOnLogTimeout bool
 }

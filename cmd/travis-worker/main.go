@@ -1,3 +1,4 @@
+// Package main implements the CLI for the travis-worker binary
 package main
 
 import (

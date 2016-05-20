@@ -1,3 +1,4 @@
+// Package config contains the flags and defaults for Worker configuration.
 package config
 
 import (
