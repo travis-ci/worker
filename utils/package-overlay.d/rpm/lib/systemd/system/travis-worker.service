@@ -1,17 +1,14 @@
 [Unit]
-Description=no description given
+Description=Travis Worker
 
 [Service]
 Type=simple
-EnvironmentFile=/etc/default/travis-enterprise
-EnvironmentFile=/etc/default/travis-worker
-EnvironmentFile=/etc/default/travis-worker-local
 User=travis
 Group=travis
-ExecStartPre=mkdir -p /var/tmp/travis-run.d
-ExecStartPre=cp /usr/local/bin/travis-worker /var/tmp/travis-run.d/travis-worker
-ExecStart=/var/tmp/travis-run.d/travis-worker
-ExecStopPost=sleep 5
+ExecStartPre=/bin/mkdir -p /var/tmp/travis-run.d
+ExecStartPre=/bin/cp /usr/local/bin/travis-worker /var/tmp/travis-run.d/%n
+ExecStart=/bin/sh -c 'for config_file in travis-enterprise %n %n-local; do if [ -f /etc/default/$config_file ]; then source /etc/default/$config_file; fi; done; export GOMAXPROCS=$(nproc); exec /var/tmp/travis-run.d/%n'
+ExecStopPost=/bin/sleep 5
 Restart=always
 
 [Install]
