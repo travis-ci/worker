@@ -1,3 +1,14 @@
+## 2.3.1 (May 30, 2016)
+
+IMPROVEMENTS:
+
+  * backend/gce: Allow the per-job hard timeout sent from scheduler to be
+    longer than the global GCE hard timeout.
+
+BUG FIXES:
+
+  * package/rpm: Fix the systemd service file so the Worker can start.
+
 ## 2.3.0 (April 12th, 2016)
 
 FEATURES:
