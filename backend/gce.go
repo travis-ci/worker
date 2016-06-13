@@ -168,6 +168,7 @@ type gceInstanceConfig struct {
 	StopPrePollSleep   time.Duration
 	SkipStopPoll       bool
 	Preemptible        bool
+	PrivateIP          bool
 }
 
 type gceStartMultistepWrapper struct {
@@ -427,6 +428,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		preemptible = asBool(cfg.Get("PREEMPTIBLE"))
 	}
 
+	privateIP := true
+	if cfg.IsSet("PRIVATE_IP") {
+		privateIP = asBool(cfg.Get("PRIVATE_IP"))
+	}
+
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -435,6 +441,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
+			PrivateIP:        privateIP,
 			DiskSize:         diskSize,
 			SSHKeySigner:     sshKeySigner,
 			SSHPubKey:        string(ssh.MarshalAuthorizedKey(pubKey)),
@@ -812,6 +819,23 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		machineType = p.ic.MachineType
 	}
 
+	var networkInterface *compute.NetworkInterface
+	if p.ic.PrivateIP {
+		networkInterface = &compute.NetworkInterface{
+			Network: p.ic.Network.SelfLink,
+		}
+	} else {
+		networkInterface = &compute.NetworkInterface{
+			AccessConfigs: []*compute.AccessConfig{
+				&compute.AccessConfig{
+					Name: "AccessConfig brought to you by travis-worker",
+					Type: "ONE_TO_ONE_NAT",
+				},
+			},
+			Network: p.ic.Network.SelfLink,
+		}
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -841,15 +865,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			},
 		},
 		NetworkInterfaces: []*compute.NetworkInterface{
-			&compute.NetworkInterface{
-				AccessConfigs: []*compute.AccessConfig{
-					&compute.AccessConfig{
-						Name: "AccessConfig brought to you by travis-worker",
-						Type: "ONE_TO_ONE_NAT",
-					},
-				},
-				Network: p.ic.Network.SelfLink,
-			},
+			networkInterface,
 		},
 		ServiceAccounts: []*compute.ServiceAccount{
 			&compute.ServiceAccount{
@@ -894,6 +910,10 @@ func (i *gceInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 
 func (i *gceInstance) getIP() string {
 	for _, ni := range i.instance.NetworkInterfaces {
+		if i.ic.PrivateIP {
+			return ni.NetworkIP
+		}
+
 		if ni.AccessConfigs == nil {
 			continue
 		}
