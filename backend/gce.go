@@ -158,6 +158,7 @@ type gceInstanceConfig struct {
 	PremiumMachineType *compute.MachineType
 	Zone               *compute.Zone
 	Network            *compute.Network
+	Subnetwork         string
 	DiskType           string
 	DiskSize           int64
 	SSHKeySigner       ssh.Signer
@@ -433,6 +434,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		privateIP = asBool(cfg.Get("PRIVATE_IP"))
 	}
 
+	var subnetwork string
+	if cfg.IsSet("SUBNETWORK") {
+		subnetwork = cfg.Get("SUBNETWORK")
+	}
+
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -442,6 +448,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
 			PrivateIP:        privateIP,
+			Subnetwork:       subnetwork,
 			DiskSize:         diskSize,
 			SSHKeySigner:     sshKeySigner,
 			SSHPubKey:        string(ssh.MarshalAuthorizedKey(pubKey)),
@@ -822,7 +829,8 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 	var networkInterface *compute.NetworkInterface
 	if p.ic.PrivateIP {
 		networkInterface = &compute.NetworkInterface{
-			Network: p.ic.Network.SelfLink,
+			Network:    p.ic.Network.SelfLink,
+			Subnetwork: p.ic.Subnetwork,
 		}
 	} else {
 		networkInterface = &compute.NetworkInterface{
@@ -832,7 +840,8 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 					Type: "ONE_TO_ONE_NAT",
 				},
 			},
-			Network: p.ic.Network.SelfLink,
+			Network:    p.ic.Network.SelfLink,
+			Subnetwork: p.ic.Subnetwork,
 		}
 	}
 
