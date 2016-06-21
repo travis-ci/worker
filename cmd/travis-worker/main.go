@@ -9,10 +9,6 @@ import (
 	"github.com/travis-ci/worker/config"
 )
 
-const (
-	exitAlarm = 14
-)
-
 func main() {
 	app := cli.NewApp()
 	app.Usage = "Travis Worker"
@@ -27,14 +23,14 @@ func main() {
 	app.Run(os.Args)
 }
 
-func runWorker(c *cli.Context) {
+func runWorker(c *cli.Context) error {
 	workerCLI := worker.NewCLI(c)
 	canRun, err := workerCLI.Setup()
-	if !canRun {
-		if err != nil {
-			os.Exit(exitAlarm)
-		}
-		return
+	if err != nil {
+		return err
 	}
-	workerCLI.Run()
+	if canRun {
+		workerCLI.Run()
+	}
+	return nil
 }
