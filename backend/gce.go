@@ -169,7 +169,7 @@ type gceInstanceConfig struct {
 	StopPrePollSleep   time.Duration
 	SkipStopPoll       bool
 	Preemptible        bool
-	PrivateIP          bool
+	PublicIP           bool
 }
 
 type gceStartMultistepWrapper struct {
@@ -429,9 +429,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		preemptible = asBool(cfg.Get("PREEMPTIBLE"))
 	}
 
-	privateIP := true
-	if cfg.IsSet("PRIVATE_IP") {
-		privateIP = asBool(cfg.Get("PRIVATE_IP"))
+	publicIP := true
+	if cfg.IsSet("PUBLIC_IP") {
+		publicIP = asBool(cfg.Get("PUBLIC_IP"))
 	}
 
 	var subnetwork string
@@ -447,7 +447,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
-			PrivateIP:        privateIP,
+			PublicIP:         publicIP,
 			Subnetwork:       subnetwork,
 			DiskSize:         diskSize,
 			SSHKeySigner:     sshKeySigner,
@@ -827,12 +827,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 	}
 
 	var networkInterface *compute.NetworkInterface
-	if p.ic.PrivateIP {
-		networkInterface = &compute.NetworkInterface{
-			Network:    p.ic.Network.SelfLink,
-			Subnetwork: p.ic.Subnetwork,
-		}
-	} else {
+	if p.ic.PublicIP {
 		networkInterface = &compute.NetworkInterface{
 			AccessConfigs: []*compute.AccessConfig{
 				&compute.AccessConfig{
@@ -840,6 +835,11 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 					Type: "ONE_TO_ONE_NAT",
 				},
 			},
+			Network:    p.ic.Network.SelfLink,
+			Subnetwork: p.ic.Subnetwork,
+		}
+	} else {
+		networkInterface = &compute.NetworkInterface{
 			Network:    p.ic.Network.SelfLink,
 			Subnetwork: p.ic.Subnetwork,
 		}
@@ -918,11 +918,14 @@ func (i *gceInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 }
 
 func (i *gceInstance) getIP() string {
-	for _, ni := range i.instance.NetworkInterfaces {
-		if i.ic.PrivateIP {
+	// if instance has no public IP, return first private one
+	if !i.ic.PublicIP {
+		for _, ni := range i.instance.NetworkInterfaces {
 			return ni.NetworkIP
 		}
+	}
 
+	for _, ni := range i.instance.NetworkInterfaces {
 		if ni.AccessConfigs == nil {
 			continue
 		}
@@ -934,6 +937,7 @@ func (i *gceInstance) getIP() string {
 		}
 	}
 
+	// TODO: return an error?
 	return ""
 }
 
