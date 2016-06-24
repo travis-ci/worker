@@ -158,6 +158,7 @@ type gceInstanceConfig struct {
 	PremiumMachineType *compute.MachineType
 	Zone               *compute.Zone
 	Network            *compute.Network
+	Subnetwork         string
 	DiskType           string
 	DiskSize           int64
 	SSHKeySigner       ssh.Signer
@@ -168,6 +169,7 @@ type gceInstanceConfig struct {
 	StopPrePollSleep   time.Duration
 	SkipStopPoll       bool
 	Preemptible        bool
+	PublicIP           bool
 }
 
 type gceStartMultistepWrapper struct {
@@ -427,6 +429,16 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		preemptible = asBool(cfg.Get("PREEMPTIBLE"))
 	}
 
+	publicIP := true
+	if cfg.IsSet("PUBLIC_IP") {
+		publicIP = asBool(cfg.Get("PUBLIC_IP"))
+	}
+
+	var subnetwork string
+	if cfg.IsSet("SUBNETWORK") {
+		subnetwork = cfg.Get("SUBNETWORK")
+	}
+
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -435,6 +447,8 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
+			PublicIP:         publicIP,
+			Subnetwork:       subnetwork,
 			DiskSize:         diskSize,
 			SSHKeySigner:     sshKeySigner,
 			SSHPubKey:        string(ssh.MarshalAuthorizedKey(pubKey)),
@@ -812,6 +826,25 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		machineType = p.ic.MachineType
 	}
 
+	var networkInterface *compute.NetworkInterface
+	if p.ic.PublicIP {
+		networkInterface = &compute.NetworkInterface{
+			AccessConfigs: []*compute.AccessConfig{
+				&compute.AccessConfig{
+					Name: "AccessConfig brought to you by travis-worker",
+					Type: "ONE_TO_ONE_NAT",
+				},
+			},
+			Network:    p.ic.Network.SelfLink,
+			Subnetwork: p.ic.Subnetwork,
+		}
+	} else {
+		networkInterface = &compute.NetworkInterface{
+			Network:    p.ic.Network.SelfLink,
+			Subnetwork: p.ic.Subnetwork,
+		}
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -841,15 +874,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			},
 		},
 		NetworkInterfaces: []*compute.NetworkInterface{
-			&compute.NetworkInterface{
-				AccessConfigs: []*compute.AccessConfig{
-					&compute.AccessConfig{
-						Name: "AccessConfig brought to you by travis-worker",
-						Type: "ONE_TO_ONE_NAT",
-					},
-				},
-				Network: p.ic.Network.SelfLink,
-			},
+			networkInterface,
 		},
 		ServiceAccounts: []*compute.ServiceAccount{
 			&compute.ServiceAccount{
@@ -893,6 +918,13 @@ func (i *gceInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 }
 
 func (i *gceInstance) getIP() string {
+	// if instance has no public IP, return first private one
+	if !i.ic.PublicIP {
+		for _, ni := range i.instance.NetworkInterfaces {
+			return ni.NetworkIP
+		}
+	}
+
 	for _, ni := range i.instance.NetworkInterfaces {
 		if ni.AccessConfigs == nil {
 			continue
@@ -905,6 +937,7 @@ func (i *gceInstance) getIP() string {
 		}
 	}
 
+	// TODO: return an error?
 	return ""
 }
 
