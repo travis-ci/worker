@@ -97,7 +97,7 @@ type RunResult struct {
 
 func asBool(s string) bool {
 	switch strings.ToLower(s) {
-	case "0", "no", "off", "":
+	case "0", "no", "off", "false", "":
 		return false
 	default:
 		return true
