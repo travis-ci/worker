@@ -158,7 +158,7 @@ type gceInstanceConfig struct {
 	PremiumMachineType *compute.MachineType
 	Zone               *compute.Zone
 	Network            *compute.Network
-	Subnetwork         string
+	Subnetwork         *compute.Subnetwork
 	DiskType           string
 	DiskSize           int64
 	SSHKeySigner       ssh.Signer
@@ -434,11 +434,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		publicIP = asBool(cfg.Get("PUBLIC_IP"))
 	}
 
-	var subnetwork string
-	if cfg.IsSet("SUBNETWORK") {
-		subnetwork = cfg.Get("SUBNETWORK")
-	}
-
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -448,7 +443,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
 			PublicIP:         publicIP,
-			Subnetwork:       subnetwork,
 			DiskSize:         diskSize,
 			SSHKeySigner:     sshKeySigner,
 			SSHPubKey:        string(ssh.MarshalAuthorizedKey(pubKey)),
@@ -532,6 +526,13 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Do()
 	if err != nil {
 		return err
+	}
+
+	if p.cfg.IsSet("REGION") && p.cfg.IsSet("SUBNETWORK") {
+		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, p.cfg.Get("REGION"), p.cfg.Get("SUBNETWORK")).Do()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -826,6 +827,11 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		machineType = p.ic.MachineType
 	}
 
+	var subnetwork string
+	if p.ic.Subnetwork != nil {
+		subnetwork = p.ic.Subnetwork.SelfLink
+	}
+
 	var networkInterface *compute.NetworkInterface
 	if p.ic.PublicIP {
 		networkInterface = &compute.NetworkInterface{
@@ -836,12 +842,12 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 				},
 			},
 			Network:    p.ic.Network.SelfLink,
-			Subnetwork: p.ic.Subnetwork,
+			Subnetwork: subnetwork,
 		}
 	} else {
 		networkInterface = &compute.NetworkInterface{
 			Network:    p.ic.Network.SelfLink,
-			Subnetwork: p.ic.Subnetwork,
+			Subnetwork: subnetwork,
 		}
 	}
 
