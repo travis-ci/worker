@@ -29,6 +29,8 @@ func TestAsBool(t *testing.T) {
 		"off":     false,
 		"no":      false,
 		"fafafaf": true,
+		"true":    true,
+		"false":   false,
 		"":        false,
 	} {
 		assert.Equal(t, b, asBool(s))
