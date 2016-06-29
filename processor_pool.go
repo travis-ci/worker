@@ -30,6 +30,7 @@ type ProcessorPool struct {
 	processorsLock sync.Mutex
 	processors     []*Processor
 	processorsWG   sync.WaitGroup
+	paused         bool
 }
 
 type ProcessorPoolConfig struct {
@@ -107,9 +108,22 @@ func (p *ProcessorPool) Run(poolSize int, queue JobQueue) error {
 
 // GracefulShutdown causes each processor in the pool to start its graceful
 // shutdown.
-func (p *ProcessorPool) GracefulShutdown() {
+func (p *ProcessorPool) GracefulShutdown(pause bool) {
 	p.processorsLock.Lock()
 	defer p.processorsLock.Unlock()
+
+	log := context.LoggerFromContext(p.Context)
+
+	if pause {
+		if p.paused {
+			log.Info("finishing wait group to unpause")
+			p.processorsWG.Done()
+		} else {
+			log.Info("incrementing wait group for pause")
+			p.processorsWG.Add(1)
+			p.paused = true
+		}
+	}
 
 	for _, processor := range p.processors {
 		processor.GracefulShutdown()
