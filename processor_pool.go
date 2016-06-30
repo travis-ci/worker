@@ -30,7 +30,8 @@ type ProcessorPool struct {
 	processorsLock sync.Mutex
 	processors     []*Processor
 	processorsWG   sync.WaitGroup
-	paused         bool
+	pauseCount     int
+	pauseLock      *sync.Mutex
 }
 
 type ProcessorPoolConfig struct {
@@ -57,6 +58,8 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Provider:  provider,
 		Generator: generator,
 		Canceller: canceller,
+
+		pauseLock: &sync.Mutex{},
 	}
 }
 
@@ -115,13 +118,18 @@ func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 	log := context.LoggerFromContext(p.Context)
 
 	if togglePause {
-		if p.paused {
-			log.Info("finishing wait group to unpause")
-			p.processorsWG.Done()
-		} else {
+		p.pauseLock.Lock()
+		defer p.pauseLock.Unlock()
+		p.pauseCount++
+
+		if p.pauseCount == 1 {
 			log.Info("incrementing wait group for pause")
 			p.processorsWG.Add(1)
-			p.paused = true
+		} else if p.pauseCount == 2 {
+			log.Info("finishing wait group to unpause")
+			p.processorsWG.Done()
+		} else if p.pauseCount > 2 {
+			return
 		}
 	}
 
