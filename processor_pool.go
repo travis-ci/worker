@@ -108,13 +108,13 @@ func (p *ProcessorPool) Run(poolSize int, queue JobQueue) error {
 
 // GracefulShutdown causes each processor in the pool to start its graceful
 // shutdown.
-func (p *ProcessorPool) GracefulShutdown(pause bool) {
+func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 	p.processorsLock.Lock()
 	defer p.processorsLock.Unlock()
 
 	log := context.LoggerFromContext(p.Context)
 
-	if pause {
+	if togglePause {
 		if p.paused {
 			log.Info("finishing wait group to unpause")
 			p.processorsWG.Done()
