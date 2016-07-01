@@ -27,9 +27,9 @@ type ProcessorPool struct {
 
 	queue          JobQueue
 	poolErrors     []error
-	processorsLock *sync.Mutex
+	processorsLock sync.Mutex
 	processors     []*Processor
-	processorsWG   *sync.WaitGroup
+	processorsWG   sync.WaitGroup
 	pauseCount     int
 }
 
@@ -57,9 +57,6 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Provider:  provider,
 		Generator: generator,
 		Canceller: canceller,
-
-		processorsLock: &sync.Mutex{},
-		processorsWG:   &sync.WaitGroup{},
 	}
 }
 
