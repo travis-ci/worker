@@ -27,11 +27,10 @@ type ProcessorPool struct {
 
 	queue          JobQueue
 	poolErrors     []error
-	processorsLock sync.Mutex
+	processorsLock *sync.Mutex
 	processors     []*Processor
-	processorsWG   sync.WaitGroup
+	processorsWG   *sync.WaitGroup
 	pauseCount     int
-	pauseLock      *sync.Mutex
 }
 
 type ProcessorPoolConfig struct {
@@ -59,7 +58,8 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Generator: generator,
 		Canceller: canceller,
 
-		pauseLock: &sync.Mutex{},
+		processorsLock: &sync.Mutex{},
+		processorsWG:   &sync.WaitGroup{},
 	}
 }
 
@@ -118,8 +118,6 @@ func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 	log := context.LoggerFromContext(p.Context)
 
 	if togglePause {
-		p.pauseLock.Lock()
-		defer p.pauseLock.Unlock()
 		p.pauseCount++
 
 		if p.pauseCount == 1 {
