@@ -1,3 +1,10 @@
+## 2.3.2 (July 8, 2016)
+
+IMPROVEMENTS:
+
+  * step/run-script: Add a new line with a link to the docs explaining
+    `travis_wait` when there's a log timeout error.
+
 ## 2.3.1 (May 30, 2016)
 
 IMPROVEMENTS:
