@@ -115,7 +115,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 		err := channel.Close()
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).WithField("channel", channel).Error("couldn't close channel")
+			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't close channel")
 		}
 	}()
 
