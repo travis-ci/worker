@@ -32,7 +32,7 @@ instructions](https://packagecloud.io/travisci/worker/install).
 ## Configuring Travis Worker
 
 Travis Worker is configured with environment variables or command line flags via
-the [codegangsta/cli](https://github.com/codegangsta/cli) library.  A list of
+the [urfave/cli](https://github.com/urfave/cli) library.  A list of
 the non-dynamic flags and environment variables may be found by invoking the
 built-in help system:
 
