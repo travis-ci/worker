@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -31,6 +30,7 @@ var (
 		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":    "size of available cpu set (default detected locally via runtime.NumCPU)",
+		"EXEC":            "run build script via `docker exec` instead of over ssh (default true)",
 		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
 )
@@ -46,24 +46,36 @@ type dockerProvider struct {
 	runCmd        []string
 	runMemory     uint64
 	runCPUs       int
+	runExec       bool
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
 }
 
 type dockerInstance struct {
-	client    *docker.Client
-	provider  *dockerProvider
-	container *docker.Container
-	readyAt   time.Time
+	client       *docker.Client
+	provider     *dockerProvider
+	container    *docker.Container
+	startBooting time.Time
 
 	imageName string
+	runExec   bool
 }
 
 func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err
+	}
+
+	runExec := true
+	if cfg.IsSet("EXEC") {
+		v, err := strconv.ParseBool(cfg.Get("EXEC"))
+		if err != nil {
+			return nil, err
+		}
+
+		runExec = v
 	}
 
 	cpuSetSize := runtime.NumCPU()
@@ -110,6 +122,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runCmd:        cmd,
 		runMemory:     memory,
 		runCPUs:       int(cpus),
+		runExec:       runExec,
 
 		cpuSets: make([]bool, cpuSetSize),
 	}, nil
@@ -221,10 +234,12 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	case container := <-containerReady:
 		metrics.TimeSince("worker.vm.provider.docker.boot", startBooting)
 		return &dockerInstance{
-			client:    p.client,
-			provider:  p,
-			container: container,
-			imageName: imageName,
+			client:       p.client,
+			provider:     p,
+			runExec:      p.runExec,
+			container:    container,
+			imageName:    imageName,
+			startBooting: startBooting,
 		}, nil
 	case err := <-errChan:
 		return nil, err
@@ -326,7 +341,6 @@ func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	tarBuf := &bytes.Buffer{}
 	tw := tar.NewWriter(tarBuf)
 	err := tw.WriteHeader(&tar.Header{
-		// how to not hardcode?
 		Name: "/home/travis/build.sh",
 		Mode: 0755,
 		Size: int64(len(script)),
@@ -348,76 +362,57 @@ func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 		Path:        "/",
 	}
 
-	// fmt.Printf("---> Uploading to container: %#v\n", uploadOpts)
-
 	return i.client.UploadToContainer(i.container.ID, uploadOpts)
 }
 
 func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	if os.Getenv("TRAVIS_WORKER_DOCKER_EXEC") == "1" {
+	if i.runExec {
 		return i.runScriptExec(ctx, output)
 	}
 	return i.runScriptSSH(ctx, output)
 }
 
 func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
+	logger := context.LoggerFromContext(ctx)
 	createExecOpts := docker.CreateExecOptions{
-		// TODO: remove hardcoded shenanigans
 		AttachStdin:  false,
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{"bash", "-l", "-c", "cd /home/travis && exec bash build.sh"},
+		Cmd:          []string{"bash", "/home/travis/build.sh"},
 		User:         "travis",
 		Container:    i.container.ID,
 	}
-	// fmt.Printf("---> i.client.CreateExec(%#v)\n", createExecOpts)
 	exec, err := i.client.CreateExec(createExecOpts)
-	// fmt.Printf("   > exec=%#v err=%#v\n", exec, err)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
 
 	successChan := make(chan struct{})
-	// fakeOutput, _ := os.Create("job-output.log")
-	// fakeOutput := os.Stdout
-	// fakeOutput := &bytes.Buffer{}
 
 	startExecOpts := docker.StartExecOptions{
-		Detach: false,
-		Tty:    true,
-		// InputStream: bytes.NewReader([]byte("\n")),
+		Detach:       false,
+		Success:      successChan,
+		Tty:          true,
 		OutputStream: output,
 		ErrorStream:  output,
-		// OutputStream: fakeOutput,
-		// ErrorStream:  fakeOutput,
+
+		// IMPORTANT!  Non-raw terminals are assumed to have capabilities beyond
+		// io.Writer, causing weird errors related to stream (de)multiplexing
 		RawTerminal: true,
-		Success:     successChan,
 	}
-	// fmt.Printf("---> i.client.StartExec(%q, %#v)\n", exec.ID, startExecOpts)
-	go i.client.StartExec(exec.ID, startExecOpts)
-	// fmt.Printf("   > err=%#v\n", err)
 
-	/*
+	go func() {
+		err := i.client.StartExec(exec.ID, startExecOpts)
 		if err != nil {
-			return &RunResult{Completed: false}, err
+			// not much to be done about it, though...
+			logger.WithField("err", err).Error("start exec error")
 		}
-	*/
+	}()
 
-	// fmt.Printf("   > waiting for succesChan\n")
 	<-successChan
-	// fmt.Printf("   > succesChan received! handing back\n")
+	logger.Debug("exec success; returning control to hijacked streams")
 	successChan <- struct{}{}
-
-	/*
-		go func() {
-			for {
-				// out, _ := ioutil.ReadFile("job-output.log")
-				fmt.Printf("   > fakeOutput=%q\n", fakeOutput.String())
-				time.Sleep(5 * time.Second)
-			}
-		}()
-	*/
 
 	for {
 		inspect, err := i.client.InspectExec(exec.ID)
@@ -426,15 +421,13 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		}
 
 		if !inspect.Running {
-			// fmt.Printf("   > all done!\n")
 			return &RunResult{Completed: true, ExitCode: uint8(inspect.ExitCode)}, nil
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		// FIXME: Hardcoding or configurable?  This loop adds load to the docker
+		// server, after all...
+		time.Sleep(3 * time.Second)
 	}
-
-	// FIXME: how to get real exit code?
-	return &RunResult{Completed: true, ExitCode: 0}, nil
 }
 
 func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
@@ -496,7 +489,8 @@ func (i *dockerInstance) ID() string {
 
 func (i *dockerInstance) StartupDuration() time.Duration {
 	if i.container == nil {
+		fmt.Printf("---> No container yet!\n")
 		return zeroDuration
 	}
-	return i.container.Created.Sub(i.readyAt)
+	return i.container.Created.Sub(i.startBooting)
 }
