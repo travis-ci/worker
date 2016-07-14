@@ -1,8 +1,11 @@
 package backend
 
 import (
+	"archive/tar"
+	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -13,7 +16,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
-	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
@@ -28,6 +30,7 @@ var (
 		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
+		"CPU_SET_SIZE":    "size of available cpu set (default detected locally via runtime.NumCPU)",
 		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
 )
@@ -66,6 +69,14 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 	cpuSetSize := runtime.NumCPU()
 	if cpuSetSize < 2 {
 		cpuSetSize = 2
+	}
+
+	if cfg.IsSet("CPU_SET_SIZE") {
+		v, err := strconv.ParseInt(cfg.Get("CPU_SET_SIZE"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		cpuSetSize = int(v)
 	}
 
 	privileged := false
@@ -312,36 +323,103 @@ func (i *dockerInstance) sshClient() (*ssh.Client, error) {
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
-	client, err := i.sshClient()
+	tarBuf := &bytes.Buffer{}
+	tw := tar.NewWriter(tarBuf)
+	err := tw.WriteHeader(&tar.Header{
+		// how to not hardcode?
+		Name: "/home/travis/build.sh",
+		Mode: 0755,
+		Size: int64(len(script)),
+	})
 	if err != nil {
 		return err
 	}
-	defer client.Close()
-
-	sftp, err := sftp.NewClient(client)
+	_, err = tw.Write(script)
 	if err != nil {
 		return err
 	}
-	defer sftp.Close()
-
-	_, err = sftp.Lstat("build.sh")
-	if err == nil {
-		return ErrStaleVM
-	}
-
-	f, err := sftp.Create("build.sh")
+	err = tw.Close()
 	if err != nil {
 		return err
 	}
 
-	if _, err := f.Write(script); err != nil {
-		return err
+	uploadOpts := docker.UploadToContainerOptions{
+		InputStream: bytes.NewReader(tarBuf.Bytes()),
+		Path:        "/",
 	}
 
-	return nil
+	fmt.Printf("---> Uploading to container: %#v\n", uploadOpts)
+
+	return i.client.UploadToContainer(i.container.ID, uploadOpts)
 }
 
 func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
+	if os.Getenv("TRAVIS_WORKER_DOCKER_EXEC") == "1" {
+		return i.runScriptExec(ctx, output)
+	}
+	return i.runScriptSSH(ctx, output)
+}
+
+func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
+	createExecOpts := docker.CreateExecOptions{
+		// TODO: remove hardcoded shenanigans
+		AttachStdin:  false,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          true,
+		Cmd:          []string{"bash", "/home/travis/build.sh"},
+		User:         "travis",
+		Container:    i.container.ID,
+	}
+	fmt.Printf("---> i.client.CreateExec(%#v)\n", createExecOpts)
+	exec, err := i.client.CreateExec(createExecOpts)
+	fmt.Printf("   > exec=%#v err=%#v\n", exec, err)
+	if err != nil {
+		return &RunResult{Completed: false}, err
+	}
+
+	successChan := make(chan struct{})
+
+	startExecOpts := docker.StartExecOptions{
+		Detach: false,
+		Tty:    true,
+		// InputStream:  bytes.NewReader([]byte("\n")),
+		OutputStream: output,
+		ErrorStream:  output,
+		Success:      successChan,
+	}
+	fmt.Printf("---> i.client.StartExec(%q, %#v)\n", exec.ID, startExecOpts)
+	go i.client.StartExec(exec.ID, startExecOpts)
+	// fmt.Printf("   > err=%#v\n", err)
+
+	/*
+		if err != nil {
+			return &RunResult{Completed: false}, err
+		}
+	*/
+
+	fmt.Printf("   > waiting for succesChan\n")
+	<-successChan
+	fmt.Printf("   > succesChan received!\n")
+	for {
+		inspect, err := i.client.InspectExec(exec.ID)
+		if err != nil {
+			return &RunResult{Completed: false}, err
+		}
+
+		if !inspect.Running {
+			fmt.Printf("   > all done!\n")
+			return &RunResult{Completed: true, ExitCode: uint8(inspect.ExitCode)}, nil
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// FIXME: how to get real exit code?
+	return &RunResult{Completed: true, ExitCode: 0}, nil
+}
+
+func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err
