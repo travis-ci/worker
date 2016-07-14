@@ -348,7 +348,7 @@ func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 		Path:        "/",
 	}
 
-	fmt.Printf("---> Uploading to container: %#v\n", uploadOpts)
+	// fmt.Printf("---> Uploading to container: %#v\n", uploadOpts)
 
 	return i.client.UploadToContainer(i.container.ID, uploadOpts)
 }
@@ -367,28 +367,34 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{"bash", "/home/travis/build.sh"},
+		Cmd:          []string{"bash", "-l", "-c", "cd /home/travis && exec bash build.sh"},
 		User:         "travis",
 		Container:    i.container.ID,
 	}
-	fmt.Printf("---> i.client.CreateExec(%#v)\n", createExecOpts)
+	// fmt.Printf("---> i.client.CreateExec(%#v)\n", createExecOpts)
 	exec, err := i.client.CreateExec(createExecOpts)
-	fmt.Printf("   > exec=%#v err=%#v\n", exec, err)
+	// fmt.Printf("   > exec=%#v err=%#v\n", exec, err)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
 
 	successChan := make(chan struct{})
+	// fakeOutput, _ := os.Create("job-output.log")
+	// fakeOutput := os.Stdout
+	// fakeOutput := &bytes.Buffer{}
 
 	startExecOpts := docker.StartExecOptions{
 		Detach: false,
 		Tty:    true,
-		// InputStream:  bytes.NewReader([]byte("\n")),
+		// InputStream: bytes.NewReader([]byte("\n")),
 		OutputStream: output,
 		ErrorStream:  output,
-		Success:      successChan,
+		// OutputStream: fakeOutput,
+		// ErrorStream:  fakeOutput,
+		RawTerminal: true,
+		Success:     successChan,
 	}
-	fmt.Printf("---> i.client.StartExec(%q, %#v)\n", exec.ID, startExecOpts)
+	// fmt.Printf("---> i.client.StartExec(%q, %#v)\n", exec.ID, startExecOpts)
 	go i.client.StartExec(exec.ID, startExecOpts)
 	// fmt.Printf("   > err=%#v\n", err)
 
@@ -398,9 +404,21 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		}
 	*/
 
-	fmt.Printf("   > waiting for succesChan\n")
+	// fmt.Printf("   > waiting for succesChan\n")
 	<-successChan
-	fmt.Printf("   > succesChan received!\n")
+	// fmt.Printf("   > succesChan received! handing back\n")
+	successChan <- struct{}{}
+
+	/*
+		go func() {
+			for {
+				// out, _ := ioutil.ReadFile("job-output.log")
+				fmt.Printf("   > fakeOutput=%q\n", fakeOutput.String())
+				time.Sleep(5 * time.Second)
+			}
+		}()
+	*/
+
 	for {
 		inspect, err := i.client.InspectExec(exec.ID)
 		if err != nil {
@@ -408,7 +426,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		}
 
 		if !inspect.Running {
-			fmt.Printf("   > all done!\n")
+			// fmt.Printf("   > all done!\n")
 			return &RunResult{Completed: true, ExitCode: uint8(inspect.ExitCode)}, nil
 		}
 
