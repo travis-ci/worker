@@ -524,7 +524,6 @@ func (i *dockerInstance) ID() string {
 
 func (i *dockerInstance) StartupDuration() time.Duration {
 	if i.container == nil {
-		fmt.Printf("---> No container yet!\n")
 		return zeroDuration
 	}
 	return i.container.Created.Sub(i.startBooting)
