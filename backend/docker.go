@@ -30,7 +30,7 @@ var (
 		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":    "size of available cpu set (default detected locally via runtime.NumCPU)",
-		"EXEC":            "run build script via `docker exec` instead of over ssh (default true)",
+		"EXEC":            "run build script via `docker exec` instead of over ssh (default false)",
 		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
 )
@@ -68,7 +68,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	runExec := true
+	runExec := false
 	if cfg.IsSet("EXEC") {
 		v, err := strconv.ParseBool(cfg.Get("EXEC"))
 		if err != nil {
