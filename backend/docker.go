@@ -15,6 +15,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
+	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
@@ -30,7 +31,7 @@ var (
 		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":    "size of available cpu set (default detected locally via runtime.NumCPU)",
-		"EXEC":            "run build script via `docker exec` instead of over ssh (default false)",
+		"NATIVE":          "upload and run build script via docker API instead of over ssh (default false)",
 		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
 )
@@ -46,7 +47,7 @@ type dockerProvider struct {
 	runCmd        []string
 	runMemory     uint64
 	runCPUs       int
-	runExec       bool
+	runNative     bool
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -59,7 +60,7 @@ type dockerInstance struct {
 	startBooting time.Time
 
 	imageName string
-	runExec   bool
+	runNative bool
 }
 
 func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
@@ -68,14 +69,14 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	runExec := false
-	if cfg.IsSet("EXEC") {
-		v, err := strconv.ParseBool(cfg.Get("EXEC"))
+	runNative := false
+	if cfg.IsSet("NATIVE") {
+		v, err := strconv.ParseBool(cfg.Get("NATIVE"))
 		if err != nil {
 			return nil, err
 		}
 
-		runExec = v
+		runNative = v
 	}
 
 	cpuSetSize := runtime.NumCPU()
@@ -122,7 +123,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runCmd:        cmd,
 		runMemory:     memory,
 		runCPUs:       int(cpus),
-		runExec:       runExec,
+		runNative:     runNative,
 
 		cpuSets: make([]bool, cpuSetSize),
 	}, nil
@@ -236,7 +237,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		return &dockerInstance{
 			client:       p.client,
 			provider:     p,
-			runExec:      p.runExec,
+			runNative:    p.runNative,
 			container:    container,
 			imageName:    imageName,
 			startBooting: startBooting,
@@ -338,6 +339,13 @@ func (i *dockerInstance) sshClient() (*ssh.Client, error) {
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+	if i.runNative {
+		return i.uploadScriptNative(ctx, script)
+	}
+	return i.uploadScriptSCP(ctx, script)
+}
+
+func (i *dockerInstance) uploadScriptNative(ctx gocontext.Context, script []byte) error {
 	tarBuf := &bytes.Buffer{}
 	tw := tar.NewWriter(tarBuf)
 	err := tw.WriteHeader(&tar.Header{
@@ -365,8 +373,35 @@ func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 	return i.client.UploadToContainer(i.container.ID, uploadOpts)
 }
 
+func (i *dockerInstance) uploadScriptSCP(ctx gocontext.Context, script []byte) error {
+	client, err := i.sshClient()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	sftp, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftp.Close()
+
+	_, err = sftp.Lstat("build.sh")
+	if err == nil {
+		return ErrStaleVM
+	}
+
+	f, err := sftp.Create("build.sh")
+	if err != nil {
+		return err
+	}
+
+	_, err = f.Write(script)
+	return err
+}
+
 func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	if i.runExec {
+	if i.runNative {
 		return i.runScriptExec(ctx, output)
 	}
 	return i.runScriptSSH(ctx, output)
