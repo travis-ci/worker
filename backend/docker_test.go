@@ -1,19 +1,16 @@
 package backend
 
 import (
+	"encoding/json"
 	"fmt"
-	//"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	//"net/url"
-	//"os"
-	//"path/filepath"
-	"encoding/json"
+	"os"
 	"testing"
+	"time"
 
-	//"github.com/stretchr/testify/assert"
 	"github.com/fsouza/go-dockerclient"
+	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
 	"golang.org/x/net/context"
 )
@@ -63,9 +60,8 @@ func TestDockerStart(t *testing.T) {
 	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerId)
 	dockerTestMux.HandleFunc("/containers/create", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		reqBody, _ := ioutil.ReadAll(r.Body)
 		var req containerCreateRequest
-		err := json.Unmarshal(reqBody, &req)
+		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			t.Errorf("Error decoding docker client container create request: %s", err.Error())
 			w.WriteHeader(400)
@@ -176,4 +172,59 @@ func TestDockerStartWithPrivilegedFlag(t *testing.T) {
 	if instance.ID() != "f2e475c:travis:jvm" {
 		t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
 	}
+}
+
+func TestNewDockerProvider_WithMissingEndpoint(t *testing.T) {
+	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{}))
+	assert.NotNil(t, err)
+	assert.Nil(t, provider)
+}
+
+func TestNewDockerProvider_WithDockerHost(t *testing.T) {
+	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{
+		"HOST": "tcp://fleeflahflew.example.com:8080",
+	}))
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+}
+
+func TestNewDockerProvider_WithRequiredConfig(t *testing.T) {
+	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{
+		"HOST": "tcp://fleeflahflew.example.com:8080",
+	}))
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+	dp := provider.(*dockerProvider)
+	assert.NotNil(t, dp)
+	assert.False(t, dp.runNative)
+}
+
+func TestNewDockerProvider_WithCertPath(t *testing.T) {
+	certPath := fmt.Sprintf("/%v/secret/nonexistent/dir", time.Now().UTC().UnixNano())
+	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{
+		"HOST":      "tcp://fleeflahflew.example.com:8080",
+		"CERT_PATH": certPath,
+	}))
+	assert.NotNil(t, err)
+	assert.Nil(t, provider)
+	assert.Equal(t, err.(*os.PathError).Op, "open")
+	assert.Equal(t, err.(*os.PathError).Path, fmt.Sprintf("%s/cert.pem", certPath))
+}
+
+func TestNewDockerProvider_WithNative(t *testing.T) {
+	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{
+		"HOST":   "tcp://fleeflahflew.example.com:8080",
+		"NATIVE": "1",
+	}))
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+	assert.True(t, provider.(*dockerProvider).runNative)
+
+	provider, err = newDockerProvider(config.ProviderConfigFromMap(map[string]string{
+		"HOST":   "tcp://fleeflahflew.example.com:8080",
+		"NATIVE": "wat",
+	}))
+
+	assert.NotNil(t, err)
+	assert.Nil(t, provider)
 }
