@@ -75,7 +75,7 @@ func TestDockerStart(t *testing.T) {
 	})
 
 	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerId), func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(204)
+		w.WriteHeader(200)
 	})
 
 	containerStatus := docker.Container{
@@ -87,6 +87,11 @@ func TestDockerStart(t *testing.T) {
 	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerId), func(w http.ResponseWriter, r *http.Request) {
 		containerStatusBytes, _ := json.Marshal(containerStatus)
 		w.Write(containerStatusBytes)
+	})
+
+	dockerTestMux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"ApiVersion":"1.24"}`)
 	})
 
 	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -125,9 +130,8 @@ func TestDockerStartWithPrivilegedFlag(t *testing.T) {
 	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerId)
 	dockerTestMux.HandleFunc("/containers/create", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
-		reqBody, _ := ioutil.ReadAll(r.Body)
 		var req containerCreateRequest
-		err := json.Unmarshal(reqBody, &req)
+		err := json.NewDecoder(r.Body).Decode(&req)
 		if err != nil {
 			t.Errorf("Error decoding docker client container create request: %s", err.Error())
 			w.WriteHeader(400)
@@ -140,19 +144,7 @@ func TestDockerStartWithPrivilegedFlag(t *testing.T) {
 	})
 
 	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerId), func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
-		reqBody, _ := ioutil.ReadAll(r.Body)
-		var req docker.HostConfig
-		err := json.Unmarshal(reqBody, &req)
-		if err != nil {
-			t.Errorf("Error decoding docker client container start request: %s", err.Error())
-			w.WriteHeader(400)
-		} else if req.Privileged == false {
-			t.Errorf("Expected Privileged flag to be true, instead false or not provided")
-			w.WriteHeader(400)
-		} else {
-			w.WriteHeader(204)
-		}
+		w.WriteHeader(200)
 	})
 
 	containerStatus := docker.Container{
@@ -164,6 +156,11 @@ func TestDockerStartWithPrivilegedFlag(t *testing.T) {
 	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerId), func(w http.ResponseWriter, r *http.Request) {
 		containerStatusBytes, _ := json.Marshal(containerStatus)
 		w.Write(containerStatusBytes)
+	})
+
+	dockerTestMux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"ApiVersion":"1.24"}`)
 	})
 
 	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
