@@ -960,6 +960,7 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 
 func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
+	var lastErr error
 
 	go func() {
 		var errCount uint64
@@ -973,6 +974,8 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 				uploadedChan <- nil
 				return
 			}
+
+			lastErr = err
 
 			errCount++
 			if errCount > i.provider.uploadRetries {
@@ -988,6 +991,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	case err := <-uploadedChan:
 		return err
 	case <-ctx.Done():
+		context.LoggerFromContext(ctx).WithField("err", lastErr).Info("stopping upload retries, error from last attempt")
 		return ctx.Err()
 	}
 }
