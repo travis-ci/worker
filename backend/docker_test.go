@@ -212,7 +212,9 @@ func TestNewDockerProvider_WithRequiredConfig(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.NotNil(t, provider)
+	assert.NotNil(t, provider.client)
 	assert.False(t, provider.runNative)
+	assert.False(t, provider.runPrivileged)
 	assert.Equal(t, uint64(1024*1024*1024*4), provider.runMemory)
 	assert.Equal(t, 3, len(provider.cpuSets))
 	assert.Equal(t, []string{"/sbin/init"}, provider.runCmd)
