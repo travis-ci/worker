@@ -2,6 +2,7 @@ package backend
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -367,4 +368,56 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 	err = instance.UploadScript(context.TODO(), script)
 	assert.Nil(t, err)
 	assert.True(t, scriptUploaded)
+}
+
+func TestDockerInstance_RunScript_WithNative(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"NATIVE": "true",
+	}))
+
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+
+	containerID := "beabebabafabafaba0000"
+	instance := &dockerInstance{
+		client:       provider.client,
+		provider:     provider,
+		runNative:    provider.runNative,
+		container:    &docker.Container{ID: containerID},
+		imageName:    "fafafaf",
+		startBooting: time.Now(),
+	}
+
+	scriptRun := false
+	writer := &bytes.Buffer{}
+
+	dockerTestMux.HandleFunc("/containers/"+containerID+"/exec", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != "POST" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprintf(w, `{"ID":"ffbada"}`)
+	})
+
+	dockerTestMux.HandleFunc("/exec/ffbada/start", func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	dockerTestMux.HandleFunc("/exec/ffbada/json", func(w http.ResponseWriter, req *http.Request) {
+		scriptRun = true
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"ExitCode":0,"Running":false}`)
+	})
+
+	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		t.Logf("got: %s %s", req.Method, req.URL.Path)
+	})
+
+	res, err := instance.RunScript(context.TODO(), writer)
+	assert.NotNil(t, res)
+	assert.Nil(t, err)
+	assert.True(t, scriptRun)
+	assert.True(t, res.Completed)
 }
