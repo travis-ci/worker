@@ -546,5 +546,5 @@ func (i *dockerInstance) StartupDuration() time.Duration {
 	if i.container == nil {
 		return zeroDuration
 	}
-	return i.container.Created.Sub(i.startBooting)
+	return i.startBooting.Sub(i.container.Created)
 }

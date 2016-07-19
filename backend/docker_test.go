@@ -30,6 +30,9 @@ func (nc *fakeDockerNumCPUer) NumCPU() int {
 }
 
 func dockerTestSetup(t *testing.T, cfg *config.ProviderConfig) (*dockerProvider, error) {
+	if cfg == nil {
+		cfg = config.ProviderConfigFromMap(map[string]string{})
+	}
 	defaultDockerNumCPUer = &fakeDockerNumCPUer{}
 	dockerTestMux = http.NewServeMux()
 	dockerTestServer = httptest.NewServer(dockerTestMux)
@@ -55,7 +58,7 @@ type containerCreateRequest struct {
 }
 
 func TestDockerProvider_Start(t *testing.T) {
-	dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{}))
+	dockerTestSetup(t, nil)
 	defer dockerTestTeardown()
 
 	// The client expects this to be sufficiently long
@@ -214,7 +217,7 @@ func TestNewDockerProvider_WithDockerHost(t *testing.T) {
 }
 
 func TestNewDockerProvider_WithRequiredConfig(t *testing.T) {
-	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{}))
+	provider, err := dockerTestSetup(t, nil)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, provider)
@@ -320,7 +323,7 @@ func TestNewDockerProvider_WithCPUs(t *testing.T) {
 }
 
 func TestDockerProvider_Setup(t *testing.T) {
-	provider, _ := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{}))
+	provider, _ := dockerTestSetup(t, nil)
 	provider.Setup(nil)
 }
 
@@ -420,4 +423,105 @@ func TestDockerInstance_RunScript_WithNative(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, scriptRun)
 	assert.True(t, res.Completed)
+}
+
+func TestDockerInstance_Stop(t *testing.T) {
+	provider, err := dockerTestSetup(t, nil)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+
+	containerID := "beabebabafabafaba0000"
+	instance := &dockerInstance{
+		client:    provider.client,
+		provider:  provider,
+		runNative: provider.runNative,
+		container: &docker.Container{ID: containerID,
+			Config: &docker.Config{
+				CPUSet: "0,1",
+			},
+		},
+		imageName:    "fafafaf",
+		startBooting: time.Now(),
+	}
+
+	wasDeleted := false
+
+	dockerTestMux.HandleFunc("/containers/"+containerID+"/stop", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != "POST" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	dockerTestMux.HandleFunc("/containers/"+containerID, func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != "DELETE" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		wasDeleted = true
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		t.Logf("got: %s %s", req.Method, req.URL.Path)
+	})
+
+	err = instance.Stop(context.TODO())
+	assert.Nil(t, err)
+	assert.True(t, wasDeleted)
+}
+
+func TestDockerInstance_StartupDuration(t *testing.T) {
+	provider, err := dockerTestSetup(t, nil)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+
+	now := time.Now()
+	containerID := "beabebabafabafaba0000"
+
+	instance := &dockerInstance{
+		client:    provider.client,
+		provider:  provider,
+		runNative: provider.runNative,
+		container: &docker.Container{
+			ID:      containerID,
+			Created: now.Add(-3 * time.Second),
+		},
+		imageName:    "fafafaf",
+		startBooting: now,
+	}
+
+	assert.True(t, instance.StartupDuration() > 0)
+
+	instance.container = nil
+	assert.Equal(t, zeroDuration, instance.StartupDuration())
+}
+
+func TestDockerInstance_ID(t *testing.T) {
+	provider, err := dockerTestSetup(t, nil)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+
+	now := time.Now()
+	containerID := "beabebabafabafaba0000"
+
+	instance := &dockerInstance{
+		client:       provider.client,
+		provider:     provider,
+		runNative:    provider.runNative,
+		container:    &docker.Container{ID: containerID},
+		imageName:    "fafafaf",
+		startBooting: now,
+	}
+
+	assert.Equal(t, "beabeba:fafafaf", instance.ID())
+
+	instance.container = nil
+	assert.Equal(t, "{unidentified}", instance.ID())
 }
