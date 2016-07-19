@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"archive/tar"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -57,7 +58,7 @@ func TestDockerProvider_Start(t *testing.T) {
 	defer dockerTestTeardown()
 
 	// The client expects this to be sufficiently long
-	containerId := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
+	containerID := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
 
 	imagesList := `[
 		{"Created":1423149832,"Id":"fc24f3225c15b08f8d9f70c1f7148d7fcbf4b41c3acce4b7da25af9371b90501","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-ruby:latest","travis:ruby","travis:default"],"Size":729301088,"VirtualSize":4808391658},
@@ -68,7 +69,7 @@ func TestDockerProvider_Start(t *testing.T) {
 		fmt.Fprintf(w, imagesList)
 	})
 
-	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerId)
+	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerID)
 	dockerTestMux.HandleFunc("/containers/create", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		var req containerCreateRequest
@@ -81,17 +82,17 @@ func TestDockerProvider_Start(t *testing.T) {
 		}
 	})
 
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerId), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerID), func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
 
 	containerStatus := docker.Container{
-		ID: containerId,
+		ID: containerID,
 		State: docker.State{
 			Running: true,
 		},
 	}
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerId), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerID), func(w http.ResponseWriter, r *http.Request) {
 		containerStatusBytes, _ := json.Marshal(containerStatus)
 		w.Write(containerStatusBytes)
 	})
@@ -106,7 +107,11 @@ func TestDockerProvider_Start(t *testing.T) {
 		w.WriteHeader(400)
 	})
 
-	instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{Language: "jvm", Group: ""})
+	instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{
+		Language: "jvm",
+		Group:    "",
+	})
+
 	if err != nil {
 		t.Errorf("provider.Start() returned error: %v", err)
 	}
@@ -123,7 +128,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 	defer dockerTestTeardown()
 
 	// The client expects this to be sufficiently long
-	containerId := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
+	containerID := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
 
 	imagesList := `[
 		{"Created":1423149832,"Id":"fc24f3225c15b08f8d9f70c1f7148d7fcbf4b41c3acce4b7da25af9371b90501","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-ruby:latest","travis:ruby","travis:default"],"Size":729301088,"VirtualSize":4808391658},
@@ -134,7 +139,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 		fmt.Fprintf(w, imagesList)
 	})
 
-	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerId)
+	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerID)
 	dockerTestMux.HandleFunc("/containers/create", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		var req containerCreateRequest
@@ -150,17 +155,17 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 		}
 	})
 
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerId), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerID), func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
 
 	containerStatus := docker.Container{
-		ID: containerId,
+		ID: containerID,
 		State: docker.State{
 			Running: true,
 		},
 	}
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerId), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerID), func(w http.ResponseWriter, r *http.Request) {
 		containerStatusBytes, _ := json.Marshal(containerStatus)
 		w.Write(containerStatusBytes)
 	})
@@ -311,4 +316,55 @@ func TestNewDockerProvider_WithCPUs(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Equal(t, 4, provider.runCPUs)
+}
+
+func TestDockerProvider_Setup(t *testing.T) {
+	provider, _ := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{}))
+	provider.Setup(nil)
+}
+
+func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"NATIVE": "true",
+	}))
+
+	assert.Nil(t, err)
+	assert.NotNil(t, provider)
+
+	instance := &dockerInstance{
+		client:       provider.client,
+		provider:     provider,
+		runNative:    provider.runNative,
+		container:    &docker.Container{ID: "beabebabafabafaba0000"},
+		imageName:    "fafafaf",
+		startBooting: time.Now(),
+	}
+
+	script := []byte("#!/bin/bash\necho hai\n")
+	scriptUploaded := false
+
+	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/archive", instance.container.ID),
+		func(w http.ResponseWriter, req *http.Request) {
+			assert.Nil(t, err)
+			assert.Equal(t, "PUT", req.Method)
+
+			tr := tar.NewReader(req.Body)
+			hdr, err := tr.Next()
+
+			assert.Nil(t, err)
+			assert.Equal(t, "/home/travis/build.sh", hdr.Name)
+			assert.Equal(t, int64(len(script)), hdr.Size)
+			assert.Equal(t, int64(0755), hdr.Mode)
+
+			buf := make([]byte, hdr.Size)
+			_, err = tr.Read(buf)
+			assert.Nil(t, err)
+			assert.Equal(t, buf, script)
+
+			scriptUploaded = true
+		})
+
+	err = instance.UploadScript(context.TODO(), script)
+	assert.Nil(t, err)
+	assert.True(t, scriptUploaded)
 }
