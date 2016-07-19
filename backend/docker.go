@@ -34,10 +34,21 @@ var (
 		"NATIVE":          "upload and run build script via docker API instead of over ssh (default false)",
 		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
+	defaultDockerNumCPUer dockerNumCPUer = &stdlibNumCPUer{}
 )
 
 func init() {
 	Register("docker", "Docker", dockerHelp, newDockerProvider)
+}
+
+type dockerNumCPUer interface {
+	NumCPU() int
+}
+
+type stdlibNumCPUer struct{}
+
+func (nc *stdlibNumCPUer) NumCPU() int {
+	return runtime.NumCPU()
 }
 
 type dockerProvider struct {
@@ -79,9 +90,10 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runNative = v
 	}
 
-	cpuSetSize := runtime.NumCPU()
-	if cpuSetSize < 2 {
-		cpuSetSize = 2
+	cpuSetSize := 0
+
+	if defaultDockerNumCPUer != nil {
+		cpuSetSize = defaultDockerNumCPUer.NumCPU()
 	}
 
 	if cfg.IsSet("CPU_SET_SIZE") {
@@ -92,9 +104,17 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		cpuSetSize = int(v)
 	}
 
+	if cpuSetSize < 2 {
+		cpuSetSize = 2
+	}
+
 	privileged := false
 	if cfg.IsSet("PRIVILEGED") {
-		privileged = (cfg.Get("PRIVILEGED") == "true")
+		v, err := strconv.ParseBool(cfg.Get("PRIVILEGED"))
+		if err != nil {
+			return nil, err
+		}
+		privileged = v
 	}
 
 	cmd := []string{"/sbin/init"}

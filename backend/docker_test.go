@@ -21,15 +21,26 @@ var (
 	dockerTestServer   *httptest.Server
 )
 
-func dockerTestSetup(t *testing.T, cfg *config.ProviderConfig) {
+type fakeDockerNumCPUer struct{}
+
+func (nc *fakeDockerNumCPUer) NumCPU() int {
+	return 3
+}
+
+func dockerTestSetup(t *testing.T, cfg *config.ProviderConfig) (*dockerProvider, error) {
+	defaultDockerNumCPUer = &fakeDockerNumCPUer{}
 	dockerTestMux = http.NewServeMux()
 	dockerTestServer = httptest.NewServer(dockerTestMux)
 	cfg.Set("ENDPOINT", dockerTestServer.URL)
-	provider, _ := newDockerProvider(cfg)
-	dockerTestProvider = provider.(*dockerProvider)
+	provider, err := newDockerProvider(cfg)
+	if err == nil {
+		dockerTestProvider = provider.(*dockerProvider)
+	}
+	return dockerTestProvider, err
 }
 
 func dockerTestTeardown() {
+	defaultDockerNumCPUer = &stdlibNumCPUer{}
 	dockerTestServer.Close()
 	dockerTestMux = nil
 	dockerTestServer = nil
@@ -41,7 +52,7 @@ type containerCreateRequest struct {
 	HostConfig docker.HostConfig `json:"HostConfig"`
 }
 
-func TestDockerStart(t *testing.T) {
+func TestDockerProvider_Start(t *testing.T) {
 	dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{}))
 	defer dockerTestTeardown()
 
@@ -105,7 +116,7 @@ func TestDockerStart(t *testing.T) {
 	}
 }
 
-func TestDockerStartWithPrivilegedFlag(t *testing.T) {
+func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 	dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
 		"PRIVILEGED": "true",
 	}))
@@ -174,6 +185,14 @@ func TestDockerStartWithPrivilegedFlag(t *testing.T) {
 	}
 }
 
+func TestNewDockerProvider_WithInvalidPrivileged(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"PRIVILEGED": "fafafaf",
+	}))
+	assert.NotNil(t, err)
+	assert.Nil(t, provider)
+}
+
 func TestNewDockerProvider_WithMissingEndpoint(t *testing.T) {
 	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{}))
 	assert.NotNil(t, err)
@@ -189,14 +208,15 @@ func TestNewDockerProvider_WithDockerHost(t *testing.T) {
 }
 
 func TestNewDockerProvider_WithRequiredConfig(t *testing.T) {
-	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{
-		"HOST": "tcp://fleeflahflew.example.com:8080",
-	}))
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{}))
+
 	assert.Nil(t, err)
 	assert.NotNil(t, provider)
-	dp := provider.(*dockerProvider)
-	assert.NotNil(t, dp)
-	assert.False(t, dp.runNative)
+	assert.False(t, provider.runNative)
+	assert.Equal(t, uint64(1024*1024*1024*4), provider.runMemory)
+	assert.Equal(t, 3, len(provider.cpuSets))
+	assert.Equal(t, []string{"/sbin/init"}, provider.runCmd)
+	assert.Equal(t, 2, provider.runCPUs)
 }
 
 func TestNewDockerProvider_WithCertPath(t *testing.T) {
@@ -227,4 +247,66 @@ func TestNewDockerProvider_WithNative(t *testing.T) {
 
 	assert.NotNil(t, err)
 	assert.Nil(t, provider)
+}
+
+func TestNewDockerProvider_WithCPUSetSize(t *testing.T) {
+	dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"NATIVE":       "1",
+		"CPU_SET_SIZE": "16",
+	}))
+	defer dockerTestTeardown()
+
+	assert.Equal(t, 16, len(dockerTestProvider.cpuSets))
+}
+
+func TestNewDockerProvider_WithInvalidCPUSetSize(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"NATIVE":       "1",
+		"CPU_SET_SIZE": "fafafaf",
+	}))
+	defer dockerTestTeardown()
+
+	assert.NotNil(t, err)
+	assert.Nil(t, provider)
+}
+
+func TestNewDockerProvider_WithCPUSetSizeLessThan2(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"NATIVE":       "1",
+		"CPU_SET_SIZE": "1",
+	}))
+	defer dockerTestTeardown()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(provider.cpuSets))
+}
+
+func TestNewDockerProvider_WithCMD(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"CMD": "/bin/bash /fancy-docker-init-thing",
+	}))
+	defer dockerTestTeardown()
+
+	assert.Nil(t, err)
+	assert.Equal(t, []string{"/bin/bash", "/fancy-docker-init-thing"}, provider.runCmd)
+}
+
+func TestNewDockerProvider_WithMemory(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"MEMORY": "99MB",
+	}))
+	defer dockerTestTeardown()
+
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0x5e69ec0), provider.runMemory)
+}
+
+func TestNewDockerProvider_WithCPUs(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"CPUS": "4",
+	}))
+	defer dockerTestTeardown()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 4, provider.runCPUs)
 }
