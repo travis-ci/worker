@@ -452,8 +452,9 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		OutputStream: output,
 		ErrorStream:  output,
 
-		// IMPORTANT!  Non-raw terminals are assumed to have capabilities beyond
-		// io.Writer, causing weird errors related to stream (de)multiplexing
+		// IMPORTANT!  If this is false, then
+		// github.com/docker/docker/pkg/stdcopy.StdCopy is used instead of io.Copy,
+		// which will result in busted behavior.
 		RawTerminal: true,
 	}
 
@@ -479,9 +480,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 			return &RunResult{Completed: true, ExitCode: uint8(inspect.ExitCode)}, nil
 		}
 
-		// FIXME: Hardcoding or configurable?  This loop adds load to the docker
-		// server, after all...
-		time.Sleep(3 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
