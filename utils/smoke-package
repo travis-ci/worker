@@ -20,7 +20,7 @@ main() {
   ${sudo_exe} ./bin/travis-worker-install --trace --skip-docker-populate --edge
 
   /usr/local/bin/travis-worker --version
-  docker version | if ! grep -q '1.9.1' ; then
+  docker version | if ! grep -q '1.12.0' ; then
     echo '     ERROR: unexpected docker version' >&2
     docker version
     exit 1
