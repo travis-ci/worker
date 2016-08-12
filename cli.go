@@ -361,7 +361,7 @@ func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {
 	if ok {
 		i.logger.WithField("err", err).Error("amqp connection errored, terminating")
 		i.cancel()
-		time.Sleep(2 * time.Minute)
+		time.Sleep(time.Minute)
 		i.logger.Fatal("timed out waiting for shutdown after amqp connection error")
 	}
 }
