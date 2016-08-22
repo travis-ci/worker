@@ -4,9 +4,9 @@ package main
 import (
 	"os"
 
-	"github.com/codegangsta/cli"
 	"github.com/travis-ci/worker"
 	"github.com/travis-ci/worker/config"
+	"gopkg.in/urfave/cli.v1"
 )
 
 func main() {

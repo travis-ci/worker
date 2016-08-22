@@ -17,7 +17,6 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
 	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/rcrowley/go-metrics"
@@ -27,6 +26,7 @@ import (
 	"github.com/travis-ci/worker/context"
 	travismetrics "github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
+	"gopkg.in/urfave/cli.v1"
 )
 
 // CLI is the top level of execution for the whole shebang

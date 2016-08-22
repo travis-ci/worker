@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/codegangsta/cli"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/urfave/cli.v1"
 )
 
 func runAppTest(t *testing.T, args []string, action func(*cli.Context) error) {
