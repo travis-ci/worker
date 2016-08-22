@@ -8,22 +8,11 @@ pushd $(dirname $(dirname ${BASH_SOURCE[0]}))
 : ${DEADLINE:=1m}
 : ${PACKAGE:=github.com/travis-ci/worker}
 
-DISABLED_LINTER_FLAGS=''
+: ${ENABLED_LINTER_FLAGS:=-E goimports -E gofmt -E goconst -E deadcode -E golint -E vet}
 
-# FIXME: figure out what's going on with gotype's GOPATH
-DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=gotype"
-
-# FIXME: do we care about shadowing `ctx` everywhere?
-DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=go-nyet"
-
-# FIXME: this probably warrants fixing
-DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=errcheck"
-
-# FIXME: this probably warrants fixing
-DISABLED_LINTER_FLAGS="$DISABLED_LINTER_FLAGS --disable=dupl"
-
-GOMETALINTER_ARGS="${DISABLED_LINTER_FLAGS} --deadline=${DEADLINE}"
-GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --cyclo-over=${CYCLOMAX} --vendor"
+GOMETALINTER_ARGS="--disable-all ${ENABLED_LINTER_FLAGS}"
+GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --deadline=${DEADLINE}"
+GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --vendor"
 GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --tests"
 
 if [[ $DEBUG ]] ; then
