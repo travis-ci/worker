@@ -51,7 +51,7 @@ const (
 	defaultGCEUploadRetries      = uint64(120)
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
-	defaultGCEImage              = "travis-ci-mega.+"
+	defaultGCEImage              = "travis-ci.+"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 )
