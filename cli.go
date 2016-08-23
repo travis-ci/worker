@@ -227,15 +227,18 @@ func (i *CLI) setupMetrics() {
 
 func (i *CLI) signalHandler() {
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT,
-		syscall.SIGUSR1, syscall.SIGTTIN, syscall.SIGTTOU)
+	signal.Notify(signalChan,
+		syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1,
+		syscall.SIGTTIN, syscall.SIGTTOU,
+		syscall.SIGWINCH)
+
 	for {
 		select {
 		case sig := <-signalChan:
 			switch sig {
 			case syscall.SIGINT:
 				i.logger.Info("SIGINT received, starting graceful shutdown")
-				i.ProcessorPool.GracefulShutdown()
+				i.ProcessorPool.GracefulShutdown(false)
 			case syscall.SIGTERM:
 				i.logger.Info("SIGTERM received, shutting down immediately")
 				i.cancel()
@@ -245,6 +248,9 @@ func (i *CLI) signalHandler() {
 			case syscall.SIGTTOU:
 				i.logger.Info("SIGTTOU received, removing processor from pool")
 				i.ProcessorPool.Decr()
+			case syscall.SIGWINCH:
+				i.logger.Info("SIGWINCH received, toggling graceful shutdown and pause")
+				i.ProcessorPool.GracefulShutdown(true)
 			case syscall.SIGUSR1:
 				i.logger.WithFields(logrus.Fields{
 					"version":   VersionString,
