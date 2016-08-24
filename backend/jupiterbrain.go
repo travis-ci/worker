@@ -257,6 +257,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 
 			if resp.StatusCode != 200 {
 				body, _ := ioutil.ReadAll(resp.Body)
+				_ = resp.Body.Close()
 				errChan <- fmt.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
 				return
 			}
@@ -264,6 +265,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			dataPayload := &jupiterBrainDataResponse{}
 			err = json.NewDecoder(resp.Body).Decode(dataPayload)
 			if err != nil {
+				_ = resp.Body.Close()
 				errChan <- fmt.Errorf("couldn't decode refresh payload: %s", err)
 				return
 			}
