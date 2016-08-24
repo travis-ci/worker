@@ -1,6 +1,7 @@
 package image
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -91,26 +92,21 @@ var (
 					&tagSet{[]string{"os:linux"}, true, uint64(4), "corp/frob"},
 				},
 				{
-					&tagSet{[]string{"group:dev", "group_dev:true", "language_go:true", "os:linux"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:dev", "language_go:true"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_dev:true", "language_go:true", "os:linux"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_dev:true", "language_go:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_go:true", "os:linux"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_go:true"}, true, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:dev"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_dev:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:linux"}, true, uint64(4), "corp/frob"},
 				},
 				{
-					&tagSet{[]string{"dist:precise", "group:edge", "group_edge:true", "language_ruby:true", "os:linux"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"dist:precise", "group:edge", "language_ruby:true"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:precise", "group_edge:true", "language_ruby:true", "os:linux"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:precise", "group_edge:true", "language_ruby:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:precise", "language_ruby:true"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:edge", "language_ruby:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_edge:true", "language_ruby:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_ruby:true", "os:linux"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_ruby:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:precise"}, true, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:edge"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_edge:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:linux"}, true, uint64(4), "corp/frob"},
 				},
@@ -131,18 +127,15 @@ var (
 					&tagSet{[]string{"os:osx"}, true, uint64(4), "corp/frob"},
 				},
 				{
-					&tagSet{[]string{"dist:yosammity", "group:fancy", "group_fancy:true", "language_node_js:true", "os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:yosammity", "group_fancy:true", "language_node_js:true", "os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"dist:yosammity", "group:fancy", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity", "group_fancy:true", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity", "language_node_js:true"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:fancy", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_fancy:true", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_node_js:true", "os:osx"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_node_js:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"osx_image:xcode6.1"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity"}, true, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:fancy"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_fancy:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:osx"}, true, uint64(4), "corp/frob"},
 				},
@@ -212,7 +205,9 @@ func TestAPISelector_buildCandidateTags(t *testing.T) {
 
 	for _, tc := range testAPITagTestCases {
 		for i, params := range tc.P {
-			assert.Equal(t, tc.E[i], as.buildCandidateTags(params))
+			expectedJSON, _ := json.MarshalIndent(tc.E[i], "", "  ")
+			actualJSON, _ := json.MarshalIndent(as.buildCandidateTags(params), "", "  ")
+			assert.JSONEq(t, string(expectedJSON), string(actualJSON))
 		}
 	}
 }
