@@ -18,7 +18,6 @@ env:
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
   - GO15VENDOREXPERIMENT='1'
-  - CGO_ENABLED='0'
   - REDIS_URL="redis://"
 
 addons:

@@ -69,9 +69,11 @@ build: deps
 
 .PHONY: crossbuild
 crossbuild: deps
-	GOARCH=amd64 GOOS=darwin $(GO) build -o build/darwin/amd64/travis-worker \
+	GOARCH=amd64 GOOS=darwin CGO_ENABLED=0 \
+		$(GO) build -o build/darwin/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
-	GOARCH=amd64 GOOS=linux $(GO) build -o build/linux/amd64/travis-worker \
+	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 \
+		$(GO) build -o build/linux/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
 
 .PHONY: distclean
