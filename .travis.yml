@@ -42,7 +42,6 @@ script:
 - make test
 - make test-race
 - make crossbuild
-- file build/linux/amd64/travis-worker | grep static
 - make smoke
 - if [[ $PACKAGECLOUD_TOKEN ]]; then make package && make smoke-package; fi
 
