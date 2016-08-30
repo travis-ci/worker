@@ -481,6 +481,8 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	for {
 		ok, err := p.rateLimiter.RateLimit("gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
 		if err != nil {
+			context.CaptureError(ctx, err)
+			context.LoggerFromContext(ctx).WithField("err", err).Info("Received an error when trying to get rate limiter")
 			errCount++
 			if errCount >= 5 {
 				context.CaptureError(ctx, err)
@@ -495,7 +497,9 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 		}
 
 		// Sleep for up to 1 second
-		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
+		delay := time.Millisecond * time.Duration(mathrand.Intn(1000))
+		context.LoggerFromContext(ctx).WithField("sleep", delay).Info("Sleeping before trying to get rate limiter again")
+		time.Sleep(delay)
 	}
 }
 
@@ -538,6 +542,47 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
+type gceAPIMetricRoundTripper struct {
+	rt http.RoundTripper
+}
+
+func (rt *gceAPIMetricRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	defer metrics.TimeSince("travis.worker.vm.provider.gce.api.request", time.Now())
+	return rt.rt.RoundTrip(req)
+}
+
+type gceAPIFakeRateLimitRoundTripper struct {
+	rt http.RoundTripper
+	// A number between 0.0 and 1.0 representing how often a request should
+	// fail. 1.0 means the request will always fail, 0.0 means it will never
+	// fail (at least not due to this roundtripper).
+	failureRate float64
+}
+
+func (rt *gceAPIFakeRateLimitRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if mathrand.Float64() > rt.failureRate {
+		return rt.rt.RoundTrip(req)
+	}
+
+	body := bytes.NewBufferString(`{ "error": { "errors": [ { "reason": "rateLimitExceeded", "message": "[FAKE] Rate Limit Exceeded" } ], "code": 403, "message": "[FAKE] Rate Limit Exceeded" } }`)
+	headers := http.Header(make(map[string][]string))
+	headers.Set("Content-Type", "applicaton/json; charset=UTF-8")
+
+	resp := &http.Response{
+		Status:        "403 Forbidden",
+		StatusCode:    403,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        headers,
+		Body:          ioutil.NopCloser(body),
+		ContentLength: int64(body.Len()),
+		Request:       req,
+	}
+
+	return resp, nil
+}
+
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
 	if !cfg.IsSet("ACCOUNT_JSON") {
 		return nil, fmt.Errorf("missing ACCOUNT_JSON")
@@ -563,6 +608,20 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 	if gceCustomHTTPTransport != nil {
 		client.Transport = gceCustomHTTPTransport
 	}
+
+	if cfg.IsSet("FAKE_RATE_LIMIT_PERCENTAGE") {
+		percentage, err := strconv.ParseFloat(cfg.Get("FAKE_RATE_LIMIT_PERCENTAGE"), 64)
+		if err != nil {
+			return nil, err
+		}
+
+		client.Transport = &gceAPIFakeRateLimitRoundTripper{
+			rt:          client.Transport,
+			failureRate: percentage / 100.0,
+		}
+	}
+
+	client.Transport = &gceAPIMetricRoundTripper{rt: client.Transport}
 
 	return compute.New(client)
 }
@@ -708,6 +767,10 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 		if newOp.Status == "RUNNING" || newOp.Status == "DONE" {
 			if newOp.Error != nil {
+				logger.WithFields(logrus.Fields{
+					"error": newOp.Error,
+				}).Debug("Error with instance state")
+
 				c.errChan <- &gceOpError{Err: newOp.Error}
 				return multistep.ActionHalt
 			}
