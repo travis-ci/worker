@@ -382,10 +382,11 @@ func (p *cbProvider) stepWaitForInstanceIP(c *cbStartContext) multistep.StepActi
 
 		if instance.State == "errored" {
 			logger.WithFields(logrus.Fields{
-				"id": c.instance.ID,
-			}).Error("encountered an error while waiting for instance insert operation")
+				"id":           c.instance.ID,
+				"error_reason": c.instance.ErrorReason,
+			}).Errorf("encountered an error while waiting for instance insert operation: %v", c.instance.ErrorReason)
 
-			c.errChan <- fmt.Errorf("encountered an error while waiting for instance insert operation")
+			c.errChan <- fmt.Errorf("encountered an error while waiting for instance insert operation: %v", c.instance.ErrorReason)
 			return multistep.ActionHalt
 		}
 

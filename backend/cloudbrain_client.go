@@ -13,12 +13,13 @@ import (
 )
 
 type cbInstanceData struct {
-	ID         string `json:"id"`
-	Image      string `json:"image"`
-	IPAddress  string `json:"ip_address"`
-	Provider   string `json:"provider"`
-	State      string `json:"state"`
-	UpstreamID string `json:"upstream_id"`
+	ID          string `json:"id"`
+	Image       string `json:"image"`
+	IPAddress   string `json:"ip_address"`
+	Provider    string `json:"provider"`
+	State       string `json:"state"`
+	UpstreamID  string `json:"upstream_id"`
+	ErrorReason string `json:"error_reason"`
 }
 
 type cbInstanceRequest struct {
