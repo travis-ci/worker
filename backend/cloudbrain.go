@@ -33,6 +33,8 @@ const (
 
 var (
 	cbHelp = map[string]string{
+		"ENDPOINT":              "cloud-brain HTTP endpoint, including token",
+		"PROVIDER":              "cloud-brain provider name, e.g. gce-staging",
 		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultCloudBrainBootPollSleep),
 		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultCloudBrainBootPrePollSleep),
 		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultCloudBrainImageSelectorType),
