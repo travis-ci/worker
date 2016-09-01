@@ -55,6 +55,12 @@ func (c *cbClient) Create(instRequest *cbInstanceRequest) (*cbInstanceData, erro
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 && resp.StatusCode != 201 {
+		body := new(bytes.Buffer)
+		body.ReadFrom(resp.Body)
+		return nil, errors.Errorf("expected 200 or 201 response code for create, got status=%v body=%v", resp.StatusCode, body.String())
+	}
+
 	instance := &cbInstanceData{}
 	err = json.NewDecoder(resp.Body).Decode(instance)
 	if err != nil {
@@ -82,6 +88,12 @@ func (c *cbClient) Get(id string) (*cbInstanceData, error) {
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		body := new(bytes.Buffer)
+		body.ReadFrom(resp.Body)
+		return nil, errors.Errorf("expected 200 response code for get, got status=%v body=%v", resp.StatusCode, body.String())
+	}
+
 	instance := &cbInstanceData{}
 	err = json.NewDecoder(resp.Body).Decode(instance)
 	if err != nil {
@@ -108,6 +120,12 @@ func (c *cbClient) Delete(id string) (*cbInstanceData, error) {
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body := new(bytes.Buffer)
+		body.ReadFrom(resp.Body)
+		return nil, errors.Errorf("expected 200 response code for delete, got status=%v body=%v", resp.StatusCode, body.String())
+	}
 
 	instance := &cbInstanceData{}
 	err = json.NewDecoder(resp.Body).Decode(instance)
