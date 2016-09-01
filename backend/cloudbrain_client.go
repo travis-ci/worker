@@ -50,32 +50,9 @@ func (c *cbClient) Create(instRequest *cbInstanceRequest) (*cbInstanceData, erro
 		return nil, errors.Wrap(err, "error creating instance create request")
 	}
 
-	b := backoff.NewExponentialBackOff()
-	b.MaxInterval = 10 * time.Second
-	b.MaxElapsedTime = time.Minute
-
-	var resp *http.Response
-	err = backoff.Retry(func() (err error) {
-		resp, err = c.httpClient.Do(req)
-		return
-	}, b)
-
+	instance, err := c.httpRequest(req, 201)
 	if err != nil {
-		return nil, errors.Wrap(err, "error sending instance create request")
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 && resp.StatusCode != 201 {
-		body := new(bytes.Buffer)
-		body.ReadFrom(resp.Body)
-		return nil, errors.Errorf("expected 200 or 201 response code for create, got status=%v body=%v", resp.StatusCode, body.String())
-	}
-
-	instance := &cbInstanceData{}
-	err = json.NewDecoder(resp.Body).Decode(instance)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't decode create response")
+		return nil, errors.Wrap(err, "error creating instance")
 	}
 
 	return instance, nil
@@ -92,32 +69,9 @@ func (c *cbClient) Get(id string) (*cbInstanceData, error) {
 		return nil, errors.Wrap(err, "error creating instance get request")
 	}
 
-	b := backoff.NewExponentialBackOff()
-	b.MaxInterval = 10 * time.Second
-	b.MaxElapsedTime = time.Minute
-
-	var resp *http.Response
-	err = backoff.Retry(func() (err error) {
-		resp, err = c.httpClient.Do(req)
-		return
-	}, b)
-
+	instance, err := c.httpRequest(req, 200)
 	if err != nil {
-		return nil, errors.Wrap(err, "error sending instance get request")
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		body := new(bytes.Buffer)
-		body.ReadFrom(resp.Body)
-		return nil, errors.Errorf("expected 200 response code for get, got status=%v body=%v", resp.StatusCode, body.String())
-	}
-
-	instance := &cbInstanceData{}
-	err = json.NewDecoder(resp.Body).Decode(instance)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't decode get response")
+		return nil, errors.Wrap(err, "error getting instance")
 	}
 
 	return instance, nil
@@ -134,32 +88,41 @@ func (c *cbClient) Delete(id string) (*cbInstanceData, error) {
 		return nil, errors.Wrap(err, "error creating instance delete request")
 	}
 
+	instance, err := c.httpRequest(req, 200)
+	if err != nil {
+		return nil, errors.Wrap(err, "error deleting instance")
+	}
+
+	return instance, nil
+}
+
+func (c *cbClient) httpRequest(req *http.Request, expectedStatus int) (*cbInstanceData, error) {
 	b := backoff.NewExponentialBackOff()
 	b.MaxInterval = 10 * time.Second
 	b.MaxElapsedTime = time.Minute
 
 	var resp *http.Response
-	err = backoff.Retry(func() (err error) {
+	err := backoff.Retry(func() (err error) {
 		resp, err = c.httpClient.Do(req)
 		return
 	}, b)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "error sending instance delete request")
+		return nil, errors.Wrap(err, "error sending request")
 	}
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != expectedStatus {
 		body := new(bytes.Buffer)
 		body.ReadFrom(resp.Body)
-		return nil, errors.Errorf("expected 200 response code for delete, got status=%v body=%v", resp.StatusCode, body.String())
+		return nil, errors.Errorf("expected %v response code, got status=%v body=%v", expectedStatus, resp.StatusCode, body.String())
 	}
 
 	instance := &cbInstanceData{}
 	err = json.NewDecoder(resp.Body).Decode(instance)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't decode delete response")
+		return nil, errors.Wrap(err, "couldn't decode json response")
 	}
 
 	return instance, nil
