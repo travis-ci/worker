@@ -100,6 +100,7 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			return
 		default:
 		}
@@ -111,11 +112,13 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			p.CurrentStatus = "done"
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
 				p.CurrentStatus = "done"
+				p.terminate()
 				return
 			}
 
