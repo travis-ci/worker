@@ -24,30 +24,30 @@ import (
 )
 
 const (
-	defaultcbBootPollSleep     = 3 * time.Second
-	defaultcbBootPrePollSleep  = 15 * time.Second
-	defaultcbUploadRetries     = uint64(120)
-	defaultcbUploadRetrySleep  = 1 * time.Second
-	defaultcbImageSelectorType = "env"
+	defaultCloudBrainBootPollSleep     = 3 * time.Second
+	defaultCloudBrainBootPrePollSleep  = 15 * time.Second
+	defaultCloudBrainUploadRetries     = uint64(120)
+	defaultCloudBrainUploadRetrySleep  = 1 * time.Second
+	defaultCloudBrainImageSelectorType = "env"
 )
 
 var (
 	cbHelp = map[string]string{
-		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultcbBootPollSleep),
-		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultcbBootPrePollSleep),
-		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultcbImageSelectorType),
+		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultCloudBrainBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultCloudBrainBootPrePollSleep),
+		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultCloudBrainImageSelectorType),
 		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
 		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultcbUploadRetries),
-		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultcbUploadRetrySleep),
+		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultCloudBrainUploadRetries),
+		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultCloudBrainUploadRetrySleep),
 	}
 
-	errcbMissingIPAddressError   = fmt.Errorf("no IP address found")
-	errcbInstanceDeletionNotDone = fmt.Errorf("instance deletion not done")
+	errCloudBrainMissingIPAddressError   = fmt.Errorf("no IP address found")
+	errCloudBrainInstanceDeletionNotDone = fmt.Errorf("instance deletion not done")
 )
 
 func init() {
-	Register("cloudbrain", "CloudBrain", cbHelp, newcbProvider)
+	Register("cloudbrain", "CloudBrain", cbHelp, newCloudBrainProvider)
 }
 
 type cbProvider struct {
@@ -137,7 +137,7 @@ func buildCloudBrainClient(baseURL *url.URL, provider string) (*cbClient, error)
 	return client, nil
 }
 
-func newcbProvider(cfg *config.ProviderConfig) (Provider, error) {
+func newCloudBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	var (
 		imageSelector image.Selector
 		err           error
@@ -163,7 +163,7 @@ func newcbProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	bootPollSleep := defaultcbBootPollSleep
+	bootPollSleep := defaultCloudBrainBootPollSleep
 	if cfg.IsSet("BOOT_POLL_SLEEP") {
 		si, err := time.ParseDuration(cfg.Get("BOOT_POLL_SLEEP"))
 		if err != nil {
@@ -172,7 +172,7 @@ func newcbProvider(cfg *config.ProviderConfig) (Provider, error) {
 		bootPollSleep = si
 	}
 
-	bootPrePollSleep := defaultcbBootPrePollSleep
+	bootPrePollSleep := defaultCloudBrainBootPrePollSleep
 	if cfg.IsSet("BOOT_PRE_POLL_SLEEP") {
 		si, err := time.ParseDuration(cfg.Get("BOOT_PRE_POLL_SLEEP"))
 		if err != nil {
@@ -181,7 +181,7 @@ func newcbProvider(cfg *config.ProviderConfig) (Provider, error) {
 		bootPrePollSleep = si
 	}
 
-	uploadRetries := defaultcbUploadRetries
+	uploadRetries := defaultCloudBrainUploadRetries
 	if cfg.IsSet("UPLOAD_RETRIES") {
 		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
 		if err != nil {
@@ -190,7 +190,7 @@ func newcbProvider(cfg *config.ProviderConfig) (Provider, error) {
 		uploadRetries = ur
 	}
 
-	uploadRetrySleep := defaultcbUploadRetrySleep
+	uploadRetrySleep := defaultCloudBrainUploadRetrySleep
 	if cfg.IsSet("UPLOAD_RETRY_SLEEP") {
 		si, err := time.ParseDuration(cfg.Get("UPLOAD_RETRY_SLEEP"))
 		if err != nil {
@@ -199,7 +199,7 @@ func newcbProvider(cfg *config.ProviderConfig) (Provider, error) {
 		uploadRetrySleep = si
 	}
 
-	imageSelectorType := defaultcbImageSelectorType
+	imageSelectorType := defaultCloudBrainImageSelectorType
 	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
 	}
@@ -209,7 +209,7 @@ func newcbProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	if imageSelectorType == "env" || imageSelectorType == "api" {
-		imageSelector, err = buildcbImageSelector(imageSelectorType, cfg)
+		imageSelector, err = buildCloudBrainImageSelector(imageSelectorType, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -421,7 +421,7 @@ func (p *cbProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAt
 	return imageName, nil
 }
 
-func buildcbImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
+func buildCloudBrainImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
 	switch selectorType {
 	case "env":
 		return image.NewEnvSelector(cfg)
@@ -445,7 +445,7 @@ func (i *cbInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 
 		ipAddr := i.getIP()
 		if ipAddr == "" {
-			return nil, errcbMissingIPAddressError
+			return nil, errCloudBrainMissingIPAddressError
 		}
 
 		i.cachedIPAddr = ipAddr
