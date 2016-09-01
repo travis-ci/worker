@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 )
 
@@ -48,7 +50,16 @@ func (c *cbClient) Create(instRequest *cbInstanceRequest) (*cbInstanceData, erro
 		return nil, errors.Wrap(err, "error creating instance create request")
 	}
 
-	resp, err := c.httpClient.Do(req)
+	b := backoff.NewExponentialBackOff()
+	b.MaxInterval = 10 * time.Second
+	b.MaxElapsedTime = time.Minute
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = c.httpClient.Do(req)
+		return
+	}, b)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error sending instance create request")
 	}
@@ -81,7 +92,16 @@ func (c *cbClient) Get(id string) (*cbInstanceData, error) {
 		return nil, errors.Wrap(err, "error creating instance get request")
 	}
 
-	resp, err := c.httpClient.Do(req)
+	b := backoff.NewExponentialBackOff()
+	b.MaxInterval = 10 * time.Second
+	b.MaxElapsedTime = time.Minute
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = c.httpClient.Do(req)
+		return
+	}, b)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error sending instance get request")
 	}
@@ -114,7 +134,16 @@ func (c *cbClient) Delete(id string) (*cbInstanceData, error) {
 		return nil, errors.Wrap(err, "error creating instance delete request")
 	}
 
-	resp, err := c.httpClient.Do(req)
+	b := backoff.NewExponentialBackOff()
+	b.MaxInterval = 10 * time.Second
+	b.MaxElapsedTime = time.Minute
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = c.httpClient.Do(req)
+		return
+	}, b)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error sending instance delete request")
 	}
