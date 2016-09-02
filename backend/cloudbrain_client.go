@@ -51,7 +51,7 @@ func (c *cbClient) Create(instRequest *cbInstanceRequest) (*cbInstanceData, erro
 		return nil, errors.Wrap(err, "error creating instance create request")
 	}
 
-	instance, err := c.httpRequest(req, 201)
+	instance, err := c.httpRequest(req, 200)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating instance")
 	}
