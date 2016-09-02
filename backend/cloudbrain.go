@@ -29,16 +29,19 @@ const (
 	defaultCloudBrainUploadRetries     = uint64(120)
 	defaultCloudBrainUploadRetrySleep  = 1 * time.Second
 	defaultCloudBrainImageSelectorType = "env"
+	defaultCloudBrainImage             = "travis-ci.+"
 )
 
 var (
 	cbHelp = map[string]string{
 		"ENDPOINT":              "cloud-brain HTTP endpoint, including token",
-		"PROVIDER":              "cloud-brain provider name, e.g. gce-staging",
+		"PROVIDER":              "cloud-brain provider name, e.g. \"gce-staging\"",
 		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultCloudBrainBootPollSleep),
 		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultCloudBrainBootPrePollSleep),
 		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultCloudBrainImageSelectorType),
+		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultCloudBrainImage),
 		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_SELECTOR_INFRA":  "Infra to pass to image selector API, e.g. \"gce\"",
 		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultCloudBrainUploadRetries),
 		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultCloudBrainUploadRetrySleep),
@@ -59,12 +62,14 @@ type cbProvider struct {
 
 	provider string
 
-	imageSelectorType string
-	imageSelector     image.Selector
-	bootPollSleep     time.Duration
-	bootPrePollSleep  time.Duration
-	uploadRetries     uint64
-	uploadRetrySleep  time.Duration
+	imageSelectorType  string
+	imageSelectorInfra string
+	imageSelector      image.Selector
+	bootPollSleep      time.Duration
+	bootPrePollSleep   time.Duration
+	defaultImage       string
+	uploadRetries      uint64
+	uploadRetrySleep   time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -201,6 +206,16 @@ func newCloudBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		uploadRetrySleep = si
 	}
 
+	defaultImage := defaultCloudBrainImage
+	if cfg.IsSet("IMAGE_DEFAULT") {
+		defaultImage = cfg.Get("IMAGE_DEFAULT")
+	}
+
+	if !cfg.IsSet("IMAGE_SELECTOR_INFRA") {
+		return nil, fmt.Errorf("missing IMAGE_SELECTOR_INFRA")
+	}
+	imageSelectorInfra := cfg.Get("IMAGE_SELECTOR_INFRA")
+
 	imageSelectorType := defaultCloudBrainImageSelectorType
 	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
@@ -248,13 +263,15 @@ func newCloudBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 			SSHPubKey:    string(ssh.MarshalAuthorizedKey(pubKey)),
 		},
 
-		provider:          provider,
-		imageSelector:     imageSelector,
-		imageSelectorType: imageSelectorType,
-		bootPollSleep:     bootPollSleep,
-		bootPrePollSleep:  bootPrePollSleep,
-		uploadRetries:     uploadRetries,
-		uploadRetrySleep:  uploadRetrySleep,
+		provider:           provider,
+		defaultImage:       defaultImage,
+		imageSelector:      imageSelector,
+		imageSelectorType:  imageSelectorType,
+		imageSelectorInfra: imageSelectorInfra,
+		bootPollSleep:      bootPollSleep,
+		bootPrePollSleep:   bootPrePollSleep,
+		uploadRetries:      uploadRetries,
+		uploadRetrySleep:   uploadRetrySleep,
 	}, nil
 }
 
@@ -407,7 +424,7 @@ func (p *cbProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAt
 	repo, _ := context.RepositoryFromContext(ctx)
 
 	imageName, err := p.imageSelector.Select(&image.Params{
-		Infra:    "cb",
+		Infra:    p.imageSelectorInfra,
 		Language: startAttributes.Language,
 		OsxImage: startAttributes.OsxImage,
 		Dist:     startAttributes.Dist,
@@ -419,6 +436,10 @@ func (p *cbProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAt
 
 	if err != nil {
 		return "", err
+	}
+
+	if imageName == "default" {
+		imageName = p.defaultImage
 	}
 
 	return imageName, nil
