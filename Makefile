@@ -14,10 +14,10 @@ COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 
 GO ?= go
-GOXC ?= goxc
 GVT ?= gvt
 GOPATH := $(shell echo $${GOPATH%%:*})
 GOBUILD_LDFLAGS ?= \
+	-extldflags '-static' \
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
 	-X '$(REV_URL_VAR)=$(REV_URL_VALUE)' \
@@ -68,12 +68,13 @@ build: deps
 	$(GO) install -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
-crossbuild: .crossdeps deps
-	$(GOXC) -pv=$(VERSION_VALUE) -build-ldflags "$(GOBUILD_LDFLAGS)" xc
-
-.crossdeps:
-	GOROOT_BOOTSTRAP=$(GOROOT) $(GOXC) -t
-	touch $@
+crossbuild: deps
+	GOARCH=amd64 GOOS=darwin CGO_ENABLED=0 \
+		$(GO) build -o build/darwin/amd64/travis-worker \
+		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
+	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 \
+		$(GO) build -o build/linux/amd64/travis-worker \
+		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
 
 .PHONY: distclean
 distclean: clean
