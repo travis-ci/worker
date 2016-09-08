@@ -1,4 +1,4 @@
-## 2.3.2 (July 8, 2016)
+## Unreleased
 
 IMPROVEMENTS:
 
