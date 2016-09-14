@@ -1,7 +1,7 @@
 ## Unreleased
 ### Added
 - support for heartbeat URL checks a la [legacy
-  worker](https://github.com/travis-ci/travis-worker/blob/4ca25dd/lib/travis/worker/application/heart.rb)
+  worker](https://github.com/travis-ci/travis-worker/blob/4ca25dd/lib/travis/worker/application/http_heart.rb)
 
 ### Changed
 - check flags and env vars for start and stop hooks
