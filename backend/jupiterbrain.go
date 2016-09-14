@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cenkalti/backoff"
+	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
