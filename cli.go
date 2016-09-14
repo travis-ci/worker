@@ -3,6 +3,7 @@ package worker
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,6 +18,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/rcrowley/go-metrics"
@@ -44,6 +46,9 @@ type CLI struct {
 	ProcessorPool        *ProcessorPool
 	Canceller            Canceller
 	JobQueue             JobQueue
+
+	heartbeatErrSleep time.Duration
+	heartbeatSleep    time.Duration
 }
 
 // NewCLI creates a new *CLI from a *cli.Context
@@ -51,6 +56,9 @@ func NewCLI(c *cli.Context) *CLI {
 	return &CLI{
 		c:        c,
 		bootTime: time.Now().UTC(),
+
+		heartbeatSleep:    time.Second,
+		heartbeatErrSleep: 30 * time.Second,
 	}
 }
 
@@ -154,17 +162,27 @@ func (i *CLI) Setup() (bool, error) {
 // Run starts all long-running processes and blocks until the processor pool
 // returns from its Run func
 func (i *CLI) Run() {
-	if os.Getenv("START_HOOK") != "" {
-		_ = exec.Command("/bin/sh", "-c", os.Getenv("START_HOOK")).Run()
+	i.logger.Info("starting")
+
+	if hookValue := i.c.String("start-hook"); hookValue != "" {
+		i.logger.WithField("start_hook", hookValue).Info("running")
+		_ = exec.Command("/bin/sh", "-c", hookValue).Run()
 	}
 
-	if os.Getenv("STOP_HOOK") != "" {
-		defer exec.Command("/bin/sh", "-c", os.Getenv("STOP_HOOK")).Run()
+	if hookValue := i.c.String("stop-hook"); hookValue != "" {
+		i.logger.WithField("stop_hook", hookValue).Info("adding deferred execution")
+		defer func() { _ = exec.Command("/bin/sh", "-c", hookValue).Run() }()
 	}
 
 	i.logger.Info("worker started")
 	defer i.logger.Info("worker finished")
 
+	if heartbeatURLValue := i.c.String("heartbeat-url"); heartbeatURLValue != "" {
+		i.logger.WithField("heartbeat_url", heartbeatURLValue).Info("starting heartbeat loop")
+		go i.heartbeatHandler(heartbeatURLValue)
+	}
+
+	i.logger.Info("starting signal handler loop")
 	go i.signalHandler()
 
 	i.logger.WithFields(logrus.Fields{
@@ -223,6 +241,57 @@ func (i *CLI) setupMetrics() {
 		go metrics.Log(metrics.DefaultRegistry, time.Minute,
 			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
+}
+
+func (i *CLI) heartbeatHandler(heartbeatURL string) {
+	b := backoff.NewExponentialBackOff()
+	b.MaxInterval = 10 * time.Second
+	b.MaxElapsedTime = time.Minute
+
+	for {
+		err := backoff.Retry(func() error {
+			return i.heartbeatCheck(heartbeatURL)
+		}, b)
+
+		if err != nil {
+			i.logger.WithFields(logrus.Fields{
+				"heartbeat_url": heartbeatURL,
+				"err":           err,
+			}).Warn("failed to get heartbeat")
+			time.Sleep(i.heartbeatErrSleep)
+			continue
+		}
+
+		select {
+		case <-i.ctx.Done():
+			return
+		default:
+			time.Sleep(i.heartbeatSleep)
+		}
+	}
+}
+
+func (i *CLI) heartbeatCheck(heartbeatURL string) error {
+	res, err := http.Get(heartbeatURL)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode > 299 {
+		return fmt.Errorf("unhappy status code %d", res.StatusCode)
+	}
+
+	body := map[string]string{}
+	err = json.NewDecoder(res.Body).Decode(&body)
+	if err != nil {
+		return err
+	}
+
+	if state, ok := body["state"]; ok && state == "down" {
+		i.logger.WithField("heartbeat_state", state).Info("starting graceful shutdown")
+		i.ProcessorPool.GracefulShutdown(false)
+	}
+	return nil
 }
 
 func (i *CLI) signalHandler() {
