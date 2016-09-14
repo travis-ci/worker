@@ -1,4 +1,10 @@
 ## Unreleased
+### Added
+- support for heartbeat URL checks a la [legacy
+  worker](https://github.com/travis-ci/travis-worker/blob/4ca25dd/lib/travis/worker/application/heart.rb)
+
+### Changed
+- check flags and env vars for start and stop hooks
 
 ## [2.4.0] - 2016-09-08
 ### Added
