@@ -171,6 +171,7 @@ func (i *CLI) Setup() (bool, error) {
 		MaxLogLength:        i.Config.MaxLogLength,
 		ScriptUploadTimeout: i.Config.ScriptUploadTimeout,
 		StartupTimeout:      i.Config.StartupTimeout,
+		PayloadFilterScript: i.Config.FilterJobJsonScript,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)
