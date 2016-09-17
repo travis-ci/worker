@@ -164,15 +164,8 @@ func (i *CLI) Setup() (bool, error) {
 func (i *CLI) Run() {
 	i.logger.Info("starting")
 
-	if hookValue := i.c.String("start-hook"); hookValue != "" {
-		i.logger.WithField("start_hook", hookValue).Info("running")
-		_ = exec.Command("/bin/sh", "-c", hookValue).Run()
-	}
-
-	if hookValue := i.c.String("stop-hook"); hookValue != "" {
-		i.logger.WithField("stop_hook", hookValue).Info("adding deferred execution")
-		defer func() { _ = exec.Command("/bin/sh", "-c", hookValue).Run() }()
-	}
+	i.handleStartHook()
+	defer i.handleStopHook()
 
 	i.logger.Info("worker started")
 	defer i.logger.Info("worker finished")
@@ -196,6 +189,42 @@ func (i *CLI) Run() {
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
+}
+
+func (i *CLI) handleStartHook() {
+	hookValue := i.c.String("start-hook")
+	if hookValue == "" {
+		return
+	}
+
+	i.logger.WithField("start_hook", hookValue).Info("running")
+	outErr, err := exec.Command(hookValue).CombinedOutput()
+	if err == nil {
+		return
+	}
+
+	i.logger.WithFields(logrus.Fields{
+		"err":     err,
+		"out_err": outErr,
+	}).Error("start hook failed")
+}
+
+func (i *CLI) handleStopHook() {
+	hookValue := i.c.String("stop-hook")
+	if hookValue == "" {
+		return
+	}
+
+	i.logger.WithField("stop_hook", hookValue).Info("adding deferred execution")
+	outErr, err := exec.Command(hookValue).CombinedOutput()
+	if err == nil {
+		return
+	}
+
+	i.logger.WithFields(logrus.Fields{
+		"err":     err,
+		"out_err": outErr,
+	}).Error("start hook failed")
 }
 
 func (i *CLI) setupSentry() {
