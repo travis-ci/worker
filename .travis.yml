@@ -43,7 +43,14 @@ script:
 - make test-race
 - make crossbuild
 - make smoke
-- if [[ $PACKAGECLOUD_TOKEN ]]; then make package && make smoke-package; fi
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $QUAY_DOCKER_LOGIN_PASSWORD && $QUAY_DOCKER_LOGIN_USERNAME ]]; then
+    make docker-build &&
+    make docker-push;
+  fi
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
+    make package &&
+    make smoke-package;
+  fi
 
 notifications:
   slack:
