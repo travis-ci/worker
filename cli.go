@@ -198,7 +198,7 @@ func (i *CLI) handleStartHook() {
 	}
 
 	i.logger.WithField("start_hook", hookValue).Info("running")
-	outErr, err := exec.Command(hookValue).CombinedOutput()
+	outErr, err := exec.Command("sh", "-c", hookValue).CombinedOutput()
 	if err == nil {
 		return
 	}
@@ -217,7 +217,7 @@ func (i *CLI) handleStopHook() {
 	}
 
 	i.logger.WithField("stop_hook", hookValue).Info("adding deferred execution")
-	outErr, err := exec.Command(hookValue).CombinedOutput()
+	outErr, err := exec.Command("sh", "-c", hookValue).CombinedOutput()
 	if err == nil {
 		return
 	}
