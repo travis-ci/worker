@@ -12,7 +12,11 @@ GENERATED_VAR := $(PACKAGE).GeneratedString
 GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
+DOCKER_IMAGE_REPO ?= quay.io/travisci/worker
+DOCKER_DEST ?= $(DOCKER_IMAGE_REPO):$(VERSION_VALUE)
+DOCKER_CREDS ?= quay
 
+DOCKER ?= docker
 GO ?= go
 GVT ?= gvt
 GOPATH := $(shell echo $${GOPATH%%:*})
@@ -25,6 +29,8 @@ GOBUILD_LDFLAGS ?= \
 	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)'
 
 export GO15VENDOREXPERIMENT
+export DOCKER_DEST
+export DOCKER_CREDS
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
@@ -75,6 +81,10 @@ crossbuild: deps
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 \
 		$(GO) build -o build/linux/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
+
+.PHONY: docker-build
+docker-build: crossbuild
+	$(DOCKER) build -t quay.io/travisci/worker:$(VERSION_VALUE) .
 
 .PHONY: distclean
 distclean: clean

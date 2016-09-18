@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+set -o errexit
+
+main() {
+  set +o xtrace
+
+  : "${DOCKER_LOGIN_EMAIL:=.}"
+  if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
+    DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
+    DOCKER_LOGIN_PASSWORD="${QUAY_DOCKER_LOGIN_PASSWORD}"
+    DOCKER_LOGIN_SERVER="${QUAY_DOCKER_LOGIN_SERVER}"
+  fi
+
+  [[ ${DOCKER_LOGIN_USERNAME} ]] || {
+    __log error="missing \$DOCKER_LOGIN_USERNAME"
+    exit 1
+  }
+
+  [[ ${DOCKER_LOGIN_PASSWORD} ]] || {
+    __log error="missing \$DOCKER_LOGIN_PASSWORD"
+    exit 1
+  }
+
+  [[ ${DOCKER_LOGIN_SERVER} ]] || {
+    __log error="missing \$DOCKER_LOGIN_SERVER"
+    exit 1
+  }
+
+  [[ ${DOCKER_DEST} ]] || {
+    __log error="missing \$DOCKER_DEST"
+    exit 1
+  }
+
+  __log 'msg="docker login"'
+  docker login \
+    -e "${DOCKER_LOGIN_EMAIL}" \
+    -u "${DOCKER_LOGIN_USERNAME}" \
+    -p "${DOCKER_LOGIN_PASSWORD}" \
+    "${DOCKER_LOGIN_SERVER}"
+
+  : "${DOCKER_PUSH_RETRIES:=2}"
+  : "${DOCKER_LOGOUT_POST_PUSH:=1}"
+
+  local attempt=0
+  local sleep_interval=10
+  local push_start
+
+  while true; do
+    __log "msg=\"docker push\" attempt=$((attempt + 1))"
+    push_start=$(date +%s)
+    if docker push "${DOCKER_DEST}"; then
+      __log 'msg="docker push complete"' \
+        "duration=$(($(date +%s) - push_start))s"
+
+      if [[ ${DOCKER_LOGOUT_POST_PUSH} = 1 ]]; then
+        __log 'msg="docker logout"'
+        docker logout "${DOCKER_LOGIN_SERVER}"
+        __log 'msg="docker logout complete"'
+      fi
+      exit 0
+    fi
+
+    attempt=$((attempt + 1))
+
+    if [[ $attempt -gt ${DOCKER_PUSH_RETRIES} ]]; then
+      break
+    fi
+
+    __log "msg=\"sleeping\" interval=$((attempt * sleep_interval))"
+    sleep $((attempt * sleep_interval))
+  done
+
+  exit 86
+}
+
+__log() {
+  echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$@"
+}
+
+main "$@"
