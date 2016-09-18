@@ -205,7 +205,7 @@ func (i *CLI) handleStartHook() {
 
 	i.logger.WithFields(logrus.Fields{
 		"err":        err,
-		"output":     outErr,
+		"output":     string(outErr),
 		"start_hook": hookValue,
 	}).Error("start hook failed")
 }
@@ -224,7 +224,7 @@ func (i *CLI) handleStopHook() {
 
 	i.logger.WithFields(logrus.Fields{
 		"err":       err,
-		"output":    outErr,
+		"output":    string(outErr),
 		"stop_hook": hookValue,
 	}).Error("start hook failed")
 }
