@@ -45,6 +45,7 @@ script:
 - make smoke
 - if [[ $TRAVIS_PULL_REQUEST = 'false' && $QUAY_DOCKER_LOGIN_PASSWORD && $QUAY_DOCKER_LOGIN_USERNAME ]]; then
     make docker-build &&
+    make docker-smoke &&
     make docker-push;
   fi
 - if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
