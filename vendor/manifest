@@ -42,10 +42,10 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/cenkalti/backoff",
-			"repository": "https://github.com/cenkalti/backoff",
+			"importpath": "github.com/cenk/backoff",
+			"repository": "https://github.com/cenk/backoff",
 			"vcs": "git",
-			"revision": "cdf48bbc1eb78d1349cbda326a4a037f7ba565c6",
+			"revision": "8edc80b07f38c27352fb186d971c628a6c32552b",
 			"branch": "master",
 			"notests": true
 		},
