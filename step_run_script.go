@@ -89,7 +89,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 		return multistep.ActionHalt
 	case <-logWriter.Timeout():
-		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\n\nThe build has been terminated\n\n", s.logTimeout))
+		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\nCheck the details on how to adjust your build configuration on: https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received\n\nThe build has been terminated\n\n", s.logTimeout))
 
 		if s.skipShutdownOnLogTimeout {
 			state.Put("skipShutdown", true)

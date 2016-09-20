@@ -15,7 +15,8 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cenkalti/backoff"
+	"github.com/cenk/backoff"
+	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
@@ -100,23 +101,23 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	baseURL, err := url.Parse(cfg.Get("ENDPOINT"))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error parsing Jupiter Brain endpoint URL")
 	}
 
 	if !cfg.IsSet("SSH_KEY_PATH") {
-		return nil, fmt.Errorf("expected SSH_KEY_PATH config key")
+		return nil, errors.Errorf("expected SSH_KEY_PATH config key")
 	}
 
 	sshKeyPath := cfg.Get("SSH_KEY_PATH")
 
 	if !cfg.IsSet("SSH_KEY_PASSPHRASE") {
-		return nil, fmt.Errorf("expected SSH_KEY_PASSPHRASE config key")
+		return nil, errors.Errorf("expected SSH_KEY_PASSPHRASE config key")
 	}
 
 	sshKeyPassphrase := cfg.Get("SSH_KEY_PASSPHRASE")
 
 	if !cfg.IsSet("KEYCHAIN_PASSWORD") {
-		return nil, fmt.Errorf("expected KEYCHAIN_PASSWORD config key")
+		return nil, errors.Errorf("expected KEYCHAIN_PASSWORD config key")
 	}
 
 	keychainPassword := cfg.Get("KEYCHAIN_PASSWORD")
@@ -125,7 +126,7 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	if cfg.IsSet("BOOT_POLL_SLEEP") {
 		si, err := time.ParseDuration(cfg.Get("BOOT_POLL_SLEEP"))
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error parsing boot pool sleep duration")
 		}
 		bootPollSleep = si
 	}
@@ -160,7 +161,7 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 	case "api":
 		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error parsing image selector URL")
 		}
 		return image.NewAPISelector(baseURL), nil
 	default:
@@ -171,12 +172,12 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	u, err := p.baseURL.Parse("instances")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't create instances URL")
 	}
 
 	imageName, err := p.getImageName(ctx, startAttributes)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't get image name")
 	}
 
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -199,25 +200,25 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 
 	jsonBody, err := json.Marshal(bodyPayload)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't marshal instance create request to JSON")
 	}
 
 	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jsonBody))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't create instance create request")
 	}
 	req.Header.Set("Content-Type", "application/vnd.api+json")
 
 	resp, err := p.httpDo(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error sending create instance request")
 	}
 	defer io.Copy(ioutil.Discard, resp.Body)
 	defer resp.Body.Close()
 
 	if c := resp.StatusCode; c < 200 || c >= 300 {
 		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", c, body)
+		return nil, errors.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", c, body)
 	}
 
 	dataPayload := &jupiterBrainDataResponse{}
@@ -228,7 +229,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			"payload": dataPayload,
 			"body":    resp.Body,
 		}).Error("couldn't decode created payload")
-		return nil, fmt.Errorf("couldn't decode created payload: %s", err)
+		return nil, errors.Wrap(err, "couldn't decode created payload")
 	}
 
 	payload := dataPayload.Data[0]
@@ -257,14 +258,16 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 
 			if resp.StatusCode != 200 {
 				body, _ := ioutil.ReadAll(resp.Body)
-				errChan <- fmt.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
+				_ = resp.Body.Close()
+				errChan <- errors.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
 				return
 			}
 
 			dataPayload := &jupiterBrainDataResponse{}
 			err = json.NewDecoder(resp.Body).Decode(dataPayload)
 			if err != nil {
-				errChan <- fmt.Errorf("couldn't decode refresh payload: %s", err)
+				_ = resp.Body.Close()
+				errChan <- errors.Wrap(err, "couldn't decode refresh payload")
 				return
 			}
 			payload := dataPayload.Data[0]
@@ -368,13 +371,13 @@ func (p *jupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error)
 func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "couldn't create SSH client")
 	}
 	defer client.Close()
 
 	sftp, err := sftp.NewClient(client)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "couldn't create SFTP client")
 	}
 	defer sftp.Close()
 
@@ -385,40 +388,43 @@ func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte
 
 	f, err := sftp.Create("build.sh")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "couldn't create build.sh file")
 	}
 
 	_, err = f.Write(script)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "couldn't write to build.sh file")
 	}
 
 	f, err = sftp.Create("wrapper.sh")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "couldn't create wrapper.sh file")
 	}
 
 	_, err = fmt.Fprintf(f, wrapperSh)
+	if err != nil {
+		return errors.Wrap(err, "couldn't write to wrapper.sh file")
+	}
 
-	return err
+	return nil
 }
 
 func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
-		return &RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, errors.Wrap(err, "error creating SSH client")
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return &RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, errors.Wrap(err, "error creating SSH session")
 	}
 	defer session.Close()
 
 	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
 	if err != nil {
-		return &RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, errors.Wrap(err, "error requesting PTY")
 	}
 
 	session.Stdout = output
@@ -443,24 +449,24 @@ func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer
 	case *ssh.ExitError:
 		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
 	default:
-		return &RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, errors.Wrap(err, "error running script")
 	}
 }
 
 func (i *jupiterBrainInstance) Stop(ctx gocontext.Context) error {
 	u, err := i.provider.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(i.payload.ID)))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error creating instance stop URL")
 	}
 
 	req, err := http.NewRequest("DELETE", u.String(), nil)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error creating instance stop request")
 	}
 
 	resp, err := i.provider.httpDo(req)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error sending instance stop request")
 	}
 
 	resp.Body.Close()
@@ -481,27 +487,27 @@ func (i *jupiterBrainInstance) StartupDuration() time.Duration {
 func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	file, err := ioutil.ReadFile(i.provider.sshKeyPath)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't read SSH key")
 	}
 
 	block, _ := pem.Decode(file)
 	if block == nil {
-		return nil, fmt.Errorf("ssh key does not contain a valid PEM block")
+		return nil, errors.Errorf("ssh key does not contain a valid PEM block")
 	}
 
 	der, err := x509.DecryptPEMBlock(block, []byte(i.provider.sshKeyPassphrase))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't decrypt SSH key")
 	}
 
 	key, err := x509.ParsePKCS1PrivateKey(der)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't parse SSH key")
 	}
 
 	signer, err := ssh.NewSignerFromKey(key)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "couldn't create signer from SSH key")
 	}
 
 	var ip net.IP
@@ -515,15 +521,16 @@ func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 	}
 
 	if ip == nil {
-		return nil, fmt.Errorf("no valid IPv4 address")
+		return nil, errors.Errorf("no valid IPv4 address")
 	}
 
-	return ssh.Dial("tcp", fmt.Sprintf("%s:22", ip.String()), &ssh.ClientConfig{
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", ip.String()), &ssh.ClientConfig{
 		User: "travis",
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
 	})
+	return client, errors.Wrap(err, "couldn't connect to SSH server")
 }
 
 func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttributes *StartAttributes) (string, error) {

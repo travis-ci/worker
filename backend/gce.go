@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/cenkalti/backoff"
+	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
@@ -51,7 +51,7 @@ const (
 	defaultGCEUploadRetries      = uint64(120)
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
-	defaultGCEImage              = "travis-ci-mega.+"
+	defaultGCEImage              = "travis-ci.+"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 )

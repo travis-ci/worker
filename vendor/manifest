@@ -42,10 +42,10 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/cenkalti/backoff",
-			"repository": "https://github.com/cenkalti/backoff",
+			"importpath": "github.com/cenk/backoff",
+			"repository": "https://github.com/cenk/backoff",
 			"vcs": "git",
-			"revision": "cdf48bbc1eb78d1349cbda326a4a037f7ba565c6",
+			"revision": "8edc80b07f38c27352fb186d971c628a6c32552b",
 			"branch": "master",
 			"notests": true
 		},
@@ -295,8 +295,8 @@
 			"importpath": "github.com/pkg/errors",
 			"repository": "https://github.com/pkg/errors",
 			"vcs": "git",
-			"revision": "a2d6902c6d2a2f194eb3fb474981ab7867c81505",
-			"branch": "master",
+			"revision": "17b591df37844cde689f4d5813e5cea0927d8dd2",
+			"branch": "HEAD",
 			"notests": true
 		},
 		{

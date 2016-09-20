@@ -177,6 +177,15 @@ var (
 		NewConfigDef("debug", &cli.BoolFlag{
 			Usage: "set log level to debug",
 		}),
+		NewConfigDef("start-hook", &cli.StringFlag{
+			Usage: "executable to run just before starting",
+		}),
+		NewConfigDef("stop-hook", &cli.StringFlag{
+			Usage: "executable to run just before exiting",
+		}),
+		NewConfigDef("heartbeat-url", &cli.StringFlag{
+			Usage: "health check and/or supervisor check URL (expects response: {\"state\": \"(up|down)\"})",
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
