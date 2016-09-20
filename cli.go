@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -170,10 +171,8 @@ func (i *CLI) Run() {
 	i.logger.Info("worker started")
 	defer i.logger.Info("worker finished")
 
-	if heartbeatURLValue := i.c.String("heartbeat-url"); heartbeatURLValue != "" {
-		i.logger.WithField("heartbeat_url", heartbeatURLValue).Info("starting heartbeat loop")
-		go i.heartbeatHandler(heartbeatURLValue)
-	}
+	i.logger.Info("setting up heartbeat")
+	i.setupHeartbeat()
 
 	i.logger.Info("starting signal handler loop")
 	go i.signalHandler()
@@ -189,6 +188,26 @@ func (i *CLI) Run() {
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
+}
+
+func (i *CLI) setupHeartbeat() {
+	hbURL := i.c.String("heartbeat-url")
+	if hbURL == "" {
+		return
+	}
+
+	hbTok := i.c.String("heartbeat-url-auth-token")
+	if strings.HasPrefix(hbTok, "file://") {
+		hbTokBytes, err := ioutil.ReadFile(strings.Split(hbTok, "://")[1])
+		if err != nil {
+			i.logger.WithField("err", err).Error("failed to read auth token from file")
+		} else {
+			hbTok = string(hbTokBytes)
+		}
+	}
+
+	i.logger.WithField("heartbeat_url", hbURL).Info("starting heartbeat loop")
+	go i.heartbeatHandler(hbURL, strings.TrimSpace(hbTok))
 }
 
 func (i *CLI) handleStartHook() {
@@ -278,14 +297,14 @@ func (i *CLI) setupMetrics() {
 	}
 }
 
-func (i *CLI) heartbeatHandler(heartbeatURL string) {
+func (i *CLI) heartbeatHandler(heartbeatURL, heartbeatAuthToken string) {
 	b := backoff.NewExponentialBackOff()
 	b.MaxInterval = 10 * time.Second
 	b.MaxElapsedTime = time.Minute
 
 	for {
 		err := backoff.Retry(func() error {
-			return i.heartbeatCheck(heartbeatURL)
+			return i.heartbeatCheck(heartbeatURL, heartbeatAuthToken)
 		}, b)
 
 		if err != nil {
@@ -306,8 +325,17 @@ func (i *CLI) heartbeatHandler(heartbeatURL string) {
 	}
 }
 
-func (i *CLI) heartbeatCheck(heartbeatURL string) error {
-	res, err := http.Get(heartbeatURL)
+func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
+	req, err := http.NewRequest("GET", heartbeatURL, nil)
+	if err != nil {
+		return err
+	}
+
+	if heartbeatAuthToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("token %s", heartbeatAuthToken))
+	}
+
+	res, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return err
 	}
