@@ -237,7 +237,7 @@ func (i *CLI) handleStopHook() {
 		return
 	}
 
-	i.logger.WithField("stop_hook", hookValue).Info("adding deferred execution")
+	i.logger.WithField("stop_hook", hookValue).Info("running")
 
 	parts := stringSplitSpace(hookValue)
 	outErr, err := exec.Command(parts[0], parts[1:]...).CombinedOutput()
