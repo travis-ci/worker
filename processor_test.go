@@ -132,7 +132,7 @@ func TestProcessor(t *testing.T) {
 	})
 
 	jobChan := make(chan Job)
-	jobQueue := fakeJobQueue{c: jobChan}
+	jobQueue := &fakeJobQueue{c: jobChan}
 	canceller := &fakeCanceller{}
 
 	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, canceller, 2*time.Second, time.Second, 3*time.Second, 4*time.Second)
