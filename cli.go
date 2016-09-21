@@ -216,7 +216,7 @@ func (i *CLI) handleStartHook() {
 		return
 	}
 
-	i.logger.WithField("start_hook", hookValue).Info("running")
+	i.logger.WithField("start_hook", hookValue).Info("running start hook")
 
 	parts := stringSplitSpace(hookValue)
 	outErr, err := exec.Command(parts[0], parts[1:]...).CombinedOutput()
@@ -237,7 +237,7 @@ func (i *CLI) handleStopHook() {
 		return
 	}
 
-	i.logger.WithField("stop_hook", hookValue).Info("running")
+	i.logger.WithField("stop_hook", hookValue).Info("running stop hook")
 
 	parts := stringSplitSpace(hookValue)
 	outErr, err := exec.Command(parts[0], parts[1:]...).CombinedOutput()
