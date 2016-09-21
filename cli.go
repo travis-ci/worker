@@ -58,7 +58,7 @@ func NewCLI(c *cli.Context) *CLI {
 		c:        c,
 		bootTime: time.Now().UTC(),
 
-		heartbeatSleep:    time.Second,
+		heartbeatSleep:    5 * time.Minute,
 		heartbeatErrSleep: 30 * time.Second,
 	}
 }
