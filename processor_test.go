@@ -33,6 +33,18 @@ func (fc *fakeCanceller) Unsubscribe(id uint64) {
 	fc.unsubscribedIDs = append(fc.unsubscribedIDs, id)
 }
 
+type fakeJobQueue struct {
+	c chan Job
+}
+
+func (jq *fakeJobQueue) Jobs(ctx context.Context) (<-chan Job, error) {
+	return jq.c, nil
+}
+
+func (jq *fakeJobQueue) Cleanup() error {
+	return nil
+}
+
 type fakeJob struct {
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
@@ -120,9 +132,10 @@ func TestProcessor(t *testing.T) {
 	})
 
 	jobChan := make(chan Job)
+	jobQueue := &fakeJobQueue{c: jobChan}
 	canceller := &fakeCanceller{}
 
-	processor, err := NewProcessor(ctx, "test-hostname", jobChan, provider, generator, canceller, 2*time.Second, time.Second, 3*time.Second, 4*time.Second)
+	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, canceller, 2*time.Second, time.Second, 3*time.Second, 4*time.Second)
 	if err != nil {
 		t.Error(err)
 	}
