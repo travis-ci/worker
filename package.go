@@ -3,6 +3,7 @@ package worker
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 func writeFold(w io.Writer, name string, b []byte) (int, error) {
@@ -15,4 +16,12 @@ func writeFold(w io.Writer, name string, b []byte) (int, error) {
 
 	folded = append(folded, []byte(fmt.Sprintf("travis_fold:end:%s\r\033[0K", name))...)
 	return w.Write(folded)
+}
+
+func stringSplitSpace(s string) []string {
+	parts := []string{}
+	for _, part := range strings.Split(s, " ") {
+		parts = append(parts, strings.TrimSpace(part))
+	}
+	return parts
 }

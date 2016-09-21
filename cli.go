@@ -3,6 +3,7 @@ package worker
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/rcrowley/go-metrics"
@@ -44,6 +47,9 @@ type CLI struct {
 	ProcessorPool        *ProcessorPool
 	Canceller            Canceller
 	JobQueue             JobQueue
+
+	heartbeatErrSleep time.Duration
+	heartbeatSleep    time.Duration
 }
 
 // NewCLI creates a new *CLI from a *cli.Context
@@ -51,6 +57,9 @@ func NewCLI(c *cli.Context) *CLI {
 	return &CLI{
 		c:        c,
 		bootTime: time.Now().UTC(),
+
+		heartbeatSleep:    5 * time.Minute,
+		heartbeatErrSleep: 30 * time.Second,
 	}
 }
 
@@ -154,17 +163,18 @@ func (i *CLI) Setup() (bool, error) {
 // Run starts all long-running processes and blocks until the processor pool
 // returns from its Run func
 func (i *CLI) Run() {
-	if os.Getenv("START_HOOK") != "" {
-		_ = exec.Command("/bin/sh", "-c", os.Getenv("START_HOOK")).Run()
-	}
+	i.logger.Info("starting")
 
-	if os.Getenv("STOP_HOOK") != "" {
-		defer exec.Command("/bin/sh", "-c", os.Getenv("STOP_HOOK")).Run()
-	}
+	i.handleStartHook()
+	defer i.handleStopHook()
 
 	i.logger.Info("worker started")
 	defer i.logger.Info("worker finished")
 
+	i.logger.Info("setting up heartbeat")
+	i.setupHeartbeat()
+
+	i.logger.Info("starting signal handler loop")
 	go i.signalHandler()
 
 	i.logger.WithFields(logrus.Fields{
@@ -178,6 +188,68 @@ func (i *CLI) Run() {
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
+}
+
+func (i *CLI) setupHeartbeat() {
+	hbURL := i.c.String("heartbeat-url")
+	if hbURL == "" {
+		return
+	}
+
+	hbTok := i.c.String("heartbeat-url-auth-token")
+	if strings.HasPrefix(hbTok, "file://") {
+		hbTokBytes, err := ioutil.ReadFile(strings.Split(hbTok, "://")[1])
+		if err != nil {
+			i.logger.WithField("err", err).Error("failed to read auth token from file")
+		} else {
+			hbTok = string(hbTokBytes)
+		}
+	}
+
+	i.logger.WithField("heartbeat_url", hbURL).Info("starting heartbeat loop")
+	go i.heartbeatHandler(hbURL, strings.TrimSpace(hbTok))
+}
+
+func (i *CLI) handleStartHook() {
+	hookValue := i.c.String("start-hook")
+	if hookValue == "" {
+		return
+	}
+
+	i.logger.WithField("start_hook", hookValue).Info("running start hook")
+
+	parts := stringSplitSpace(hookValue)
+	outErr, err := exec.Command(parts[0], parts[1:]...).CombinedOutput()
+	if err == nil {
+		return
+	}
+
+	i.logger.WithFields(logrus.Fields{
+		"err":        err,
+		"output":     string(outErr),
+		"start_hook": hookValue,
+	}).Error("start hook failed")
+}
+
+func (i *CLI) handleStopHook() {
+	hookValue := i.c.String("stop-hook")
+	if hookValue == "" {
+		return
+	}
+
+	i.logger.WithField("stop_hook", hookValue).Info("running stop hook")
+
+	parts := stringSplitSpace(hookValue)
+	outErr, err := exec.Command(parts[0], parts[1:]...).CombinedOutput()
+	if err == nil {
+		return
+	}
+
+	i.logger.WithFields(logrus.Fields{
+		"err":       err,
+		"output":    string(outErr),
+		"stop_hook": hookValue,
+	}).Error("start hook failed")
 }
 
 func (i *CLI) setupSentry() {
@@ -223,6 +295,66 @@ func (i *CLI) setupMetrics() {
 		go metrics.Log(metrics.DefaultRegistry, time.Minute,
 			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
+}
+
+func (i *CLI) heartbeatHandler(heartbeatURL, heartbeatAuthToken string) {
+	b := backoff.NewExponentialBackOff()
+	b.MaxInterval = 10 * time.Second
+	b.MaxElapsedTime = time.Minute
+
+	for {
+		err := backoff.Retry(func() error {
+			return i.heartbeatCheck(heartbeatURL, heartbeatAuthToken)
+		}, b)
+
+		if err != nil {
+			i.logger.WithFields(logrus.Fields{
+				"heartbeat_url": heartbeatURL,
+				"err":           err,
+			}).Warn("failed to get heartbeat")
+			time.Sleep(i.heartbeatErrSleep)
+			continue
+		}
+
+		select {
+		case <-i.ctx.Done():
+			return
+		default:
+			time.Sleep(i.heartbeatSleep)
+		}
+	}
+}
+
+func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
+	req, err := http.NewRequest("GET", heartbeatURL, nil)
+	if err != nil {
+		return err
+	}
+
+	if heartbeatAuthToken != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("token %s", heartbeatAuthToken))
+	}
+
+	res, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return err
+	}
+
+	if res.StatusCode > 299 {
+		return fmt.Errorf("unhappy status code %d", res.StatusCode)
+	}
+
+	body := map[string]string{}
+	err = json.NewDecoder(res.Body).Decode(&body)
+	if err != nil {
+		return err
+	}
+
+	if state, ok := body["state"]; ok && state == "down" {
+		i.logger.WithField("heartbeat_state", state).Info("starting graceful shutdown")
+		i.ProcessorPool.GracefulShutdown(false)
+	}
+	return nil
 }
 
 func (i *CLI) signalHandler() {
