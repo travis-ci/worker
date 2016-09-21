@@ -13,6 +13,8 @@ main() {
   docker run --rm "${DOCKER_DEST}" travis-worker --version &>/dev/null
   docker run --rm "${DOCKER_DEST}" --help &>/dev/null
   docker run --rm "${DOCKER_DEST}" travis-worker --help &>/dev/null
+  docker run --rm "${DOCKER_DEST}" curl --version &>/dev/null
+  docker run --rm "${DOCKER_DEST}" curl https://www.google.com &>/dev/null
 }
 
 __log() {
