@@ -81,7 +81,7 @@ func TestCLI_heartbeatHandler(t *testing.T) {
 	ts := httptest.NewServer(mux)
 	defer ts.Close()
 
-	go i.heartbeatHandler(ts.URL)
+	go i.heartbeatHandler(ts.URL, "")
 
 	for {
 		select {

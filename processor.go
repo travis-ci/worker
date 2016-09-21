@@ -49,7 +49,7 @@ type Processor struct {
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan Job,
+func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
 	hardTimeout, logTimeout, scriptUploadTimeout, startupTimeout time.Duration) (*Processor, error) {
 
@@ -57,6 +57,12 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 	processorUUID := uuid.Parse(uuidString)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
+
+	buildJobsChan, err := queue.Jobs(ctx)
+	if err != nil {
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
+		return nil, err
+	}
 
 	return &Processor{
 		ID:       processorUUID,
@@ -94,6 +100,7 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			return
 		default:
 		}
@@ -105,11 +112,13 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			p.CurrentStatus = "done"
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
 				p.CurrentStatus = "done"
+				p.terminate()
 				return
 			}
 

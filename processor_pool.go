@@ -161,14 +161,8 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 	processorUUID := uuid.NewRandom()
 	ctx := context.FromProcessor(p.Context, processorUUID.String())
 
-	jobsChan, err := queue.Jobs(ctx)
-	if err != nil {
-		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create jobs channel")
-		return err
-	}
-
 	proc, err := NewProcessor(ctx, p.Hostname,
-		jobsChan, p.Provider, p.Generator, p.Canceller,
+		queue, p.Provider, p.Generator, p.Canceller,
 		p.HardTimeout, p.LogTimeout, p.ScriptUploadTimeout, p.StartupTimeout)
 
 	if err != nil {
