@@ -28,6 +28,8 @@ var (
 	defaultBuildCacheFetchTimeout, _ = time.ParseDuration("5m")
 	defaultBuildCachePushTimeout, _  = time.ParseDuration("5m")
 
+	defaultMaxLogLength = 4500000
+
 	defaultHostname, _ = os.Hostname()
 	defaultLanguage    = "default"
 	defaultDist        = "precise"
@@ -134,6 +136,10 @@ var (
 		NewConfigDef("StartupTimeout", &cli.DurationFlag{
 			Value: defaultStartupTimeout,
 			Usage: "The timeout for execution environment to be ready",
+		}),
+		NewConfigDef("MaxLogLength", &cli.IntFlag{
+			Value: defaultMaxLogLength,
+			Usage: "The maximum length of a log in bytes",
 		}),
 
 		// build script generator flags
@@ -302,6 +308,7 @@ type Config struct {
 	LogTimeout          time.Duration `config:"log-timeout"`
 	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
 	StartupTimeout      time.Duration `config:"startup-timeout"`
+	MaxLogLength        int           `config:"max-log-length"`
 
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`
