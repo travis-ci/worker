@@ -28,20 +28,24 @@ import (
 
 const (
 	defaultJupiterBrainImageSelectorType = "env"
+	defaultBootPollDialTimeout           = 3 * time.Second
+	defaultBootPollWaitForError          = 2 * time.Second
 )
 
 var (
 	metricNameCleanRegexp = regexp.MustCompile(`[^A-Za-z0-9.:-_]+`)
 	jupiterBrainHelp      = map[string]string{
-		"ENDPOINT":            "[REQUIRED] url to Jupiter Brain server, including auth",
-		"SSH_KEY_PATH":        "[REQUIRED] path to SSH key used to access job VMs",
-		"SSH_KEY_PASSPHRASE":  "[REQUIRED] passphrase for SSH key given as SSH_KEY_PATH",
-		"KEYCHAIN_PASSWORD":   "[REQUIRED] password used ... somehow",
-		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultJupiterBrainImageSelectorType),
-		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
-		"IMAGE_ALIASES":       "comma-delimited strings used as stable names for images (default: \"\")",
-		"IMAGE_ALIAS_{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"BOOT_POLL_SLEEP":     "sleep interval between polling server for instance status (default 3s)",
+		"ENDPOINT":                 "[REQUIRED] url to Jupiter Brain server, including auth",
+		"SSH_KEY_PATH":             "[REQUIRED] path to SSH key used to access job VMs",
+		"SSH_KEY_PASSPHRASE":       "[REQUIRED] passphrase for SSH key given as SSH_KEY_PATH",
+		"KEYCHAIN_PASSWORD":        "[REQUIRED] password used ... somehow",
+		"IMAGE_SELECTOR_TYPE":      fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultJupiterBrainImageSelectorType),
+		"IMAGE_SELECTOR_URL":       "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_ALIASES":            "comma-delimited strings used as stable names for images (default: \"\")",
+		"IMAGE_ALIAS_{ALIAS}":      "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"BOOT_POLL_SLEEP":          "sleep interval between polling server for instance status (default 3s)",
+		"BOOT_POLL_DIAL_TIMEOUT":   "how long to wait for a TCP connection to be made when polling SSH port (default 3s)",
+		"BOOT_POLL_WAIT_FOR_ERROR": "time to wait for an error message after cancelling the boot polling (default 2s)",
 	}
 )
 
@@ -64,12 +68,14 @@ func init() {
 }
 
 type jupiterBrainProvider struct {
-	client           *http.Client
-	baseURL          *url.URL
-	sshKeyPath       string
-	sshKeyPassphrase string
-	keychainPassword string
-	bootPollSleep    time.Duration
+	client               *http.Client
+	baseURL              *url.URL
+	sshKeyPath           string
+	sshKeyPassphrase     string
+	keychainPassword     string
+	bootPollSleep        time.Duration
+	bootPollDialTimeout  time.Duration
+	bootPollWaitForError time.Duration
 
 	imageSelectorType string
 	imageSelector     image.Selector
@@ -131,6 +137,24 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		bootPollSleep = si
 	}
 
+	bootPollDialTimeout := defaultBootPollDialTimeout
+	if cfg.IsSet("BOOT_POLL_DIAL_TIMEOUT") {
+		si, err := time.ParseDuration(cfg.Get("BOOT_POLL_DIAL_TIMEOUT"))
+		if err != nil {
+			return nil, errors.Wrap(err, "error parsing boot pool dial timeout duration")
+		}
+		bootPollDialTimeout = si
+	}
+
+	bootPollWaitForError := defaultBootPollWaitForError
+	if cfg.IsSet("BOOT_POLL_WAIT_FOR_ERROR") {
+		si, err := time.ParseDuration(cfg.Get("BOOT_POLL_WAIT_FOR_ERROR"))
+		if err != nil {
+			return nil, errors.Wrap(err, "error parsing boot pool wait for error duration")
+		}
+		bootPollWaitForError = si
+	}
+
 	imageSelectorType := defaultJupiterBrainImageSelectorType
 	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
@@ -142,12 +166,14 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	return &jupiterBrainProvider{
-		client:           http.DefaultClient,
-		baseURL:          baseURL,
-		sshKeyPath:       sshKeyPath,
-		sshKeyPassphrase: sshKeyPassphrase,
-		keychainPassword: keychainPassword,
-		bootPollSleep:    bootPollSleep,
+		client:               http.DefaultClient,
+		baseURL:              baseURL,
+		sshKeyPath:           sshKeyPath,
+		sshKeyPassphrase:     sshKeyPassphrase,
+		keychainPassword:     keychainPassword,
+		bootPollSleep:        bootPollSleep,
+		bootPollDialTimeout:  bootPollDialTimeout,
+		bootPollWaitForError: bootPollWaitForError,
 
 		imageSelectorType: imageSelectorType,
 		imageSelector:     imageSelector,
@@ -249,7 +275,19 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			return
 		}
 
+		var ip net.IP
+
 		for {
+			if ctx.Err() != nil {
+				if ip == nil {
+					errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
+				} else {
+					errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
+				}
+
+				return
+			}
+
 			resp, err := p.httpDo(req)
 			if err != nil {
 				errChan <- err
@@ -275,7 +313,6 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			_, _ = io.Copy(ioutil.Discard, resp.Body)
 			_ = resp.Body.Close()
 
-			var ip net.IP
 			for _, ipString := range payload.IPAddresses {
 				curIP := net.ParseIP(ipString)
 				if curIP.To4() != nil {
@@ -286,11 +323,19 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			}
 
 			if ip == nil {
-				time.Sleep(p.bootPollSleep)
+				select {
+				case <-time.After(p.bootPollSleep):
+				case <-ctx.Done():
+				}
+
 				continue
 			}
 
-			conn, err := net.Dial("tcp", fmt.Sprintf("%s:22", ip.String()))
+			dialer := &net.Dialer{
+				Timeout: p.bootPollDialTimeout,
+			}
+
+			conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:22", ip.String()))
 			if conn != nil {
 				conn.Close()
 			}
@@ -300,7 +345,10 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 				return
 			}
 
-			time.Sleep(p.bootPollSleep)
+			select {
+			case <-time.After(p.bootPollSleep):
+			case <-ctx.Done():
+			}
 		}
 	}(payload.ID)
 
@@ -321,6 +369,10 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			startupDuration: time.Now().UTC().Sub(startBooting),
 		}, nil
 	case err := <-errChan:
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
+		}
+
 		instance := &jupiterBrainInstance{
 			payload:  payload,
 			provider: p,
@@ -339,7 +391,12 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		}
 		instance.Stop(ctx)
 
-		return nil, ctx.Err()
+		select {
+		case err := <-errChan:
+			return nil, err
+		case <-time.After(p.bootPollWaitForError):
+			return nil, ctx.Err()
+		}
 	}
 }
 
