@@ -307,7 +307,11 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 				continue
 			}
 
-			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:22", ip.String()), time.Second)
+			dialer := &net.Dialer{
+				Timeout: time.Second,
+			}
+
+			conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:22", ip.String()))
 			if conn != nil {
 				conn.Close()
 			}
