@@ -252,8 +252,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		var ip net.IP
 
 		for {
-			select {
-			case <-ctx.Done():
+			if ctx.Err() != nil {
 				if ip == nil {
 					errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
 				} else {
@@ -261,7 +260,6 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 				}
 
 				return
-			default:
 			}
 
 			resp, err := p.httpDo(req)
