@@ -249,7 +249,21 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			return
 		}
 
+		var ip net.IP
+
 		for {
+			select {
+			case <-ctx.Done():
+				if ip == nil {
+					errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
+				} else {
+					errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
+				}
+
+				return
+			default:
+			}
+
 			resp, err := p.httpDo(req)
 			if err != nil {
 				errChan <- err
@@ -275,7 +289,6 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			_, _ = io.Copy(ioutil.Discard, resp.Body)
 			_ = resp.Body.Close()
 
-			var ip net.IP
 			for _, ipString := range payload.IPAddresses {
 				curIP := net.ParseIP(ipString)
 				if curIP.To4() != nil {
@@ -321,6 +334,10 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			startupDuration: time.Now().UTC().Sub(startBooting),
 		}, nil
 	case err := <-errChan:
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
+		}
+
 		instance := &jupiterBrainInstance{
 			payload:  payload,
 			provider: p,
@@ -339,7 +356,12 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		}
 		instance.Stop(ctx)
 
-		return nil, ctx.Err()
+		select {
+		case err := <-errChan:
+			return nil, err
+		case <-time.After(time.Second):
+			return nil, ctx.Err()
+		}
 	}
 }
 
