@@ -370,7 +370,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		select {
 		case err := <-errChan:
 			return nil, err
-		case <-time.After(time.Second):
+		case <-time.After(2 * time.Second):
 			return nil, ctx.Err()
 		}
 	}
