@@ -299,11 +299,15 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 			}
 
 			if ip == nil {
-				time.Sleep(p.bootPollSleep)
+				select {
+				case <-time.After(p.bootPollSleep):
+				case <-ctx.Done():
+				}
+
 				continue
 			}
 
-			conn, err := net.Dial("tcp", fmt.Sprintf("%s:22", ip.String()))
+			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:22", ip.String()), time.Second)
 			if conn != nil {
 				conn.Close()
 			}
@@ -313,7 +317,10 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 				return
 			}
 
-			time.Sleep(p.bootPollSleep)
+			select {
+			case <-time.After(p.bootPollSleep):
+			case <-ctx.Done():
+			}
 		}
 	}(payload.ID)
 
