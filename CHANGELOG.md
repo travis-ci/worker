@@ -10,8 +10,6 @@
 ### Changed
 - check flags and env vars for start and stop hooks
 
-### Removed
-
 ### Fixed
 - Handling `"false"` as a valid boolean false-y value
 - logging for start/stop hooks is clearer now
