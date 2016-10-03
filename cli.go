@@ -146,6 +146,7 @@ func (i *CLI) Setup() (bool, error) {
 		LogTimeout:          cfg.LogTimeout,
 		ScriptUploadTimeout: cfg.ScriptUploadTimeout,
 		StartupTimeout:      cfg.StartupTimeout,
+		MaxLogLength:        cfg.MaxLogLength,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.Canceller)
