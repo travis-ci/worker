@@ -48,7 +48,6 @@ type Processor struct {
 }
 
 type ProcessorConfig struct {
-	Hostname            string
 	HardTimeout         time.Duration
 	LogTimeout          time.Duration
 	ScriptUploadTimeout time.Duration
