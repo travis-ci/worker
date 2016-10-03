@@ -1,10 +1,22 @@
 ## Unreleased
+## [2.5.0] - 2016-10-03
 ### Added
 - support for heartbeat URL checks a la [legacy
   worker](https://github.com/travis-ci/travis-worker/blob/4ca25dd/lib/travis/worker/application/http_heart.rb)
+- max build log length is now configurable
+- alpine-based Docker image
+- added runtime-configurable script hooks.
 
 ### Changed
 - check flags and env vars for start and stop hooks
+
+### Removed
+
+### Fixed
+- Handling `"false"` as a valid boolean false-y value
+- logging for start/stop hooks is clearer now
+- logging for jupiter-brain boot timeouts is more verbose
+- AMQP connections get cleaned up as part of graceful shutdowns
 
 ## [2.4.0] - 2016-09-08
 ### Added
