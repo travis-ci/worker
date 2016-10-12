@@ -47,3 +47,4 @@ vendor/**
 /*-success
 .crossdeps
 build/
+.write-test

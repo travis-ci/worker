@@ -1,3 +1,31 @@
+/*
+Package backend provides the compute instance backends supported by Worker.
+
+Other code will primarily interact with this package by creating a Provider
+implementation and creating Instances. An example using the "fake" provider
+(error handling omitted):
+
+	provider := backend.NewBackendProvider(
+		"fake",
+		config.ProviderConfigFromMap(map[string]string{
+			"STARTUP_DURATION": "1s",
+			"LOG_OUTPUT": "Hello, world!",
+		}),
+	)
+
+	provider.Setup(ctx)
+
+	instance, _ := provider.Start(ctx, &backend.StartAttributes{
+		Language: "go",
+		OS: "linux",
+	})
+	defer instance.Stop(ctx)
+
+	instance.UploadScript(ctx, []byte("#!/bin/sh\necho 'Hello, world!'))
+	instance.RunScript(ctx, os.Stdout)
+
+New providers should call Register in init() to register the alias it should be called with and the options it supports for the --help output.
+*/
 package backend
 
 import (
@@ -30,7 +58,7 @@ var (
 type Provider interface {
 	// Setup performs whatever is necessary in order to be ready to start
 	// instances.
-	Setup() error
+	Setup(context.Context) error
 
 	// Start starts an instance. It shouldn't return until the instance is
 	// ready to call UploadScript on (this may, for example, mean that it
@@ -69,7 +97,7 @@ type RunResult struct {
 
 func asBool(s string) bool {
 	switch strings.ToLower(s) {
-	case "0", "no", "off", "":
+	case "0", "no", "off", "false", "":
 		return false
 	default:
 		return true

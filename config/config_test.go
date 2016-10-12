@@ -1,25 +1,29 @@
 package config
 
 import (
+	"fmt"
+	"math/rand"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/codegangsta/cli"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/urfave/cli.v1"
 )
 
-func runAppTest(t *testing.T, args []string, action func(*cli.Context)) {
+func runAppTest(t *testing.T, args []string, action func(*cli.Context) error) {
 	app := cli.NewApp()
-	app.Flags = WorkAMQPFlags
+	app.Flags = Flags
 	app.Action = action
 	app.Run(append([]string{"whatever"}, args...))
 }
 
 func TestFromCLIContext(t *testing.T) {
-	runAppTest(t, []string{}, func(c *cli.Context) {
+	runAppTest(t, []string{}, func(c *cli.Context) error {
 		cfg := FromCLIContext(c)
 
 		assert.NotNil(t, cfg)
+		return nil
 	})
 }
 
@@ -31,7 +35,7 @@ func TestFromCLIContext_SetsBoolFlags(t *testing.T) {
 		"--build-paranoid",
 		"--sentry-hook-errors",
 		"--skip-shutdown-on-log-timeout",
-	}, func(c *cli.Context) {
+	}, func(c *cli.Context) error {
 		cfg := FromCLIContext(c)
 
 		assert.True(t, cfg.BuildAPIInsecureSkipVerify, "BuildAPIInsecureSkipVerify")
@@ -40,12 +44,15 @@ func TestFromCLIContext_SetsBoolFlags(t *testing.T) {
 		assert.True(t, cfg.BuildParanoid, "BuildParanoid")
 		assert.True(t, cfg.SentryHookErrors, "SentryHookErrors")
 		assert.True(t, cfg.SkipShutdownOnLogTimeout, "SkipShutdownOnLogTimeout")
+
+		return nil
 	})
 }
 
 func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 	runAppTest(t, []string{
 		"--amqp-uri=amqp://",
+		"--amqp-tls-cert=cert",
 		"--base-dir=dir",
 		"--build-api-uri=http://build/api",
 		"--build-apt-cache=cache",
@@ -68,10 +75,11 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		"--queue-name=name",
 		"--queue-type=type",
 		"--sentry-dsn=dsn",
-	}, func(c *cli.Context) {
+	}, func(c *cli.Context) error {
 		cfg := FromCLIContext(c)
 
 		assert.Equal(t, "amqp://", cfg.AmqpURI, "AmqpURI")
+		assert.Equal(t, "cert", cfg.AmqpTlsCert, "AmqpTlsCert")
 		assert.Equal(t, "dir", cfg.BaseDir, "BaseDir")
 		assert.Equal(t, "http://build/api", cfg.BuildAPIURI, "BuildAPIURI")
 		assert.Equal(t, "cache", cfg.BuildAptCache, "BuildAptCache")
@@ -93,16 +101,20 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		assert.Equal(t, "name", cfg.QueueName, "QueueName")
 		assert.Equal(t, "type", cfg.QueueType, "QueueType")
 		assert.Equal(t, "dsn", cfg.SentryDSN, "SentryDSN")
+
+		return nil
 	})
 }
 
 func TestFromCLIContext_SetsIntFlags(t *testing.T) {
 	runAppTest(t, []string{
 		"--pool-size=42",
-	}, func(c *cli.Context) {
+	}, func(c *cli.Context) error {
 		cfg := FromCLIContext(c)
 
 		assert.Equal(t, 42, cfg.PoolSize, "PoolSize")
+
+		return nil
 	})
 }
 
@@ -115,7 +127,7 @@ func TestFromCLIContext_SetsDurationFlags(t *testing.T) {
 		"--startup-timeout=3m",
 		"--build-cache-fetch-timeout=7m",
 		"--build-cache-push-timeout=8m",
-	}, func(c *cli.Context) {
+	}, func(c *cli.Context) error {
 		cfg := FromCLIContext(c)
 
 		assert.Equal(t, 42*time.Second, cfg.FilePollingInterval, "FilePollingInterval")
@@ -125,5 +137,23 @@ func TestFromCLIContext_SetsDurationFlags(t *testing.T) {
 		assert.Equal(t, 3*time.Minute, cfg.StartupTimeout, "StartupTimeout")
 		assert.Equal(t, 7*time.Minute, cfg.BuildCacheFetchTimeout, "BuildCacheFetchTimeout")
 		assert.Equal(t, 8*time.Minute, cfg.BuildCachePushTimeout, "BuildCachePushTimeout")
+
+		return nil
+	})
+}
+
+func TestFromCLIContext_SetsProviderConfig(t *testing.T) {
+	i := fmt.Sprintf("%v", rand.Int())
+	os.Setenv("TRAVIS_WORKER_FAKE_FOO", i)
+
+	runAppTest(t, []string{
+		"--provider-name=fake",
+	}, func(c *cli.Context) error {
+		cfg := FromCLIContext(c)
+
+		assert.NotNil(t, cfg.ProviderConfig)
+		assert.Equal(t, i, cfg.ProviderConfig.Get("FOO"))
+
+		return nil
 	})
 }

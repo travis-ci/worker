@@ -8,6 +8,7 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
 	"golang.org/x/net/context"
 )
@@ -30,6 +31,18 @@ func (fc *fakeCanceller) Subscribe(id uint64, ch chan<- struct{}) error {
 
 func (fc *fakeCanceller) Unsubscribe(id uint64) {
 	fc.unsubscribedIDs = append(fc.unsubscribedIDs, id)
+}
+
+type fakeJobQueue struct {
+	c chan Job
+}
+
+func (jq *fakeJobQueue) Jobs(ctx context.Context) (<-chan Job, error) {
+	return jq.c, nil
+}
+
+func (jq *fakeJobQueue) Cleanup() error {
+	return nil
 }
 
 type fakeJob struct {
@@ -107,12 +120,9 @@ func TestProcessor(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromProcessor(context.TODO(), uuid.String())
 
-	provider, err := backend.NewBackendProvider("fake", &testConfigGetter{
-		m: map[string]interface{}{
-			"log-output": "hello, world",
-		},
-	})
-
+	provider, err := backend.NewBackendProvider("fake", config.ProviderConfigFromMap(map[string]string{
+		"LOG_OUTPUT": "hello, world",
+	}))
 	if err != nil {
 		t.Error(err)
 	}
@@ -122,9 +132,16 @@ func TestProcessor(t *testing.T) {
 	})
 
 	jobChan := make(chan Job)
+	jobQueue := &fakeJobQueue{c: jobChan}
 	canceller := &fakeCanceller{}
 
-	processor, err := NewProcessor(ctx, "test-hostname", jobChan, provider, generator, canceller, 2*time.Second, time.Second, 3*time.Second, 4*time.Second)
+	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, canceller, ProcessorConfig{
+		HardTimeout:         2 * time.Second,
+		LogTimeout:          time.Second,
+		ScriptUploadTimeout: 3 * time.Second,
+		StartupTimeout:      4 * time.Second,
+		MaxLogLength:        4500000,
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -154,6 +171,7 @@ func TestProcessor(t *testing.T) {
 			Config:   map[string]interface{}{},
 			Timeouts: TimeoutsPayload{},
 		},
+		startAttributes: &backend.StartAttributes{},
 	}
 	jobChan <- job
 

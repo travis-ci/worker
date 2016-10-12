@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"archive/tar"
+	"bytes"
 	"fmt"
 	"io"
 	"runtime"
@@ -10,11 +12,11 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/codegangsta/cli"
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
 	"github.com/pkg/sftp"
+	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"golang.org/x/crypto/ssh"
@@ -22,27 +24,31 @@ import (
 )
 
 var (
-	dockerFlags = []cli.Flag{
-		backendStringFlag("docker", "endpoint, host", "unix:///var/run/docker.sock",
-			"ENDPOINT", "TCP or unix address for connecting to Docker"),
-		backendStringFlag("docker", "cert-path", "",
-			"CERT_PATH", "Directory where ca.pem, cert.pem, and key.pem are located"),
-		backendStringFlag("docker", "cmd", "/sbin/init",
-			"CMD", "Command (CMD) to run when creating containers"),
-		backendStringFlag("docker", "memory", "4G",
-			"MEMORY", "Memory to allocate to each container (0 disables allocation)"),
-		backendStringFlag("docker", "cpus", "2",
-			"CPUS", "CPU count to allocate to each container (0 disables allocation)"),
-		&cli.BoolFlag{
-			Name:   "privileged",
-			Usage:  "Run containers in privileged mode",
-			EnvVar: beEnv("docker", "PRIVILEGED"),
-		},
+	dockerHelp = map[string]string{
+		"ENDPOINT / HOST": "[REQUIRED] tcp or unix address for connecting to Docker",
+		"CERT_PATH":       "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
+		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
+		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
+		"CPU_SET_SIZE":    "size of available cpu set (default detected locally via runtime.NumCPU)",
+		"NATIVE":          "upload and run build script via docker API instead of over ssh (default false)",
+		"PRIVILEGED":      "run containers in privileged mode (default false)",
 	}
+	defaultDockerNumCPUer dockerNumCPUer = &stdlibNumCPUer{}
 )
 
 func init() {
-	Register("docker", "Docker", dockerFlags, newDockerProvider)
+	Register("docker", "Docker", dockerHelp, newDockerProvider)
+}
+
+type dockerNumCPUer interface {
+	NumCPU() int
+}
+
+type stdlibNumCPUer struct{}
+
+func (nc *stdlibNumCPUer) NumCPU() int {
+	return runtime.NumCPU()
 }
 
 type dockerProvider struct {
@@ -52,62 +58,114 @@ type dockerProvider struct {
 	runCmd        []string
 	runMemory     uint64
 	runCPUs       int
+	runNative     bool
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
 }
 
 type dockerInstance struct {
-	client    *docker.Client
-	provider  *dockerProvider
-	container *docker.Container
-	readyAt   time.Time
+	client       *docker.Client
+	provider     *dockerProvider
+	container    *docker.Container
+	startBooting time.Time
 
 	imageName string
+	runNative bool
 }
 
-func newDockerProvider(c ConfigGetter) (Provider, error) {
-	client, err := buildDockerClient(c.String("endpoint"), c.String("cert-path"))
+func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
+	client, err := buildDockerClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	cpuSetSize := runtime.NumCPU()
+	runNative := false
+	if cfg.IsSet("NATIVE") {
+		v, err := strconv.ParseBool(cfg.Get("NATIVE"))
+		if err != nil {
+			return nil, err
+		}
+
+		runNative = v
+	}
+
+	cpuSetSize := 0
+
+	if defaultDockerNumCPUer != nil {
+		cpuSetSize = defaultDockerNumCPUer.NumCPU()
+	}
+
+	if cfg.IsSet("CPU_SET_SIZE") {
+		v, err := strconv.ParseInt(cfg.Get("CPU_SET_SIZE"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		cpuSetSize = int(v)
+	}
+
 	if cpuSetSize < 2 {
 		cpuSetSize = 2
 	}
 
+	privileged := false
+	if cfg.IsSet("PRIVILEGED") {
+		v, err := strconv.ParseBool(cfg.Get("PRIVILEGED"))
+		if err != nil {
+			return nil, err
+		}
+		privileged = v
+	}
+
+	cmd := []string{"/sbin/init"}
+	if cfg.IsSet("CMD") {
+		cmd = strings.Split(cfg.Get("CMD"), " ")
+	}
+
 	memory := uint64(1024 * 1024 * 1024 * 4)
-	if parsedMemory, err := humanize.ParseBytes(c.String("memory")); err == nil {
-		memory = parsedMemory
+	if cfg.IsSet("MEMORY") {
+		if parsedMemory, err := humanize.ParseBytes(cfg.Get("MEMORY")); err == nil {
+			memory = parsedMemory
+		}
 	}
 
 	cpus := uint64(2)
-	if parsedCPUs, err := strconv.ParseUint(c.String("cpus"), 10, 64); err == nil {
-		cpus = parsedCPUs
+	if cfg.IsSet("CPUS") {
+		if parsedCPUs, err := strconv.ParseUint(cfg.Get("CPUS"), 10, 64); err == nil {
+			cpus = parsedCPUs
+		}
 	}
 
 	return &dockerProvider{
 		client: client,
 
-		runPrivileged: c.Bool("privileged"),
-		runCmd:        strings.Split(c.String("cmd"), " "),
+		runPrivileged: privileged,
+		runCmd:        cmd,
 		runMemory:     memory,
 		runCPUs:       int(cpus),
+		runNative:     runNative,
 
 		cpuSets: make([]bool, cpuSetSize),
 	}, nil
 }
 
-func buildDockerClient(endpoint, certPath string) (*docker.Client, error) {
-	if endpoint == "" {
+func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
+	// check for both DOCKER_ENDPOINT and DOCKER_HOST, the latter for
+	// compatibility with docker's own env vars.
+	if !cfg.IsSet("ENDPOINT") && !cfg.IsSet("HOST") {
 		return nil, ErrMissingEndpointConfig
 	}
 
-	if certPath != "" {
-		ca := fmt.Sprintf("%s/ca.pem", certPath)
-		cert := fmt.Sprintf("%s/cert.pem", certPath)
-		key := fmt.Sprintf("%s/key.pem", certPath)
+	endpoint := cfg.Get("ENDPOINT")
+	if endpoint == "" {
+		endpoint = cfg.Get("HOST")
+	}
+
+	if cfg.IsSet("CERT_PATH") {
+		path := cfg.Get("CERT_PATH")
+		ca := fmt.Sprintf("%s/ca.pem", path)
+		cert := fmt.Sprintf("%s/cert.pem", path)
+		key := fmt.Sprintf("%s/key.pem", path)
 		return docker.NewTLSClient(endpoint, cert, key, ca)
 	}
 
@@ -197,10 +255,12 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	case container := <-containerReady:
 		metrics.TimeSince("worker.vm.provider.docker.boot", startBooting)
 		return &dockerInstance{
-			client:    p.client,
-			provider:  p,
-			container: container,
-			imageName: imageName,
+			client:       p.client,
+			provider:     p,
+			runNative:    p.runNative,
+			container:    container,
+			imageName:    imageName,
+			startBooting: startBooting,
 		}, nil
 	case err := <-errChan:
 		return nil, err
@@ -212,7 +272,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 }
 
-func (p *dockerProvider) Setup() error { return nil }
+func (p *dockerProvider) Setup(ctx gocontext.Context) error { return nil }
 
 func (p *dockerProvider) imageForLanguage(language string) (string, string, error) {
 	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
@@ -299,6 +359,41 @@ func (i *dockerInstance) sshClient() (*ssh.Client, error) {
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+	if i.runNative {
+		return i.uploadScriptNative(ctx, script)
+	}
+	return i.uploadScriptSCP(ctx, script)
+}
+
+func (i *dockerInstance) uploadScriptNative(ctx gocontext.Context, script []byte) error {
+	tarBuf := &bytes.Buffer{}
+	tw := tar.NewWriter(tarBuf)
+	err := tw.WriteHeader(&tar.Header{
+		Name: "/home/travis/build.sh",
+		Mode: 0755,
+		Size: int64(len(script)),
+	})
+	if err != nil {
+		return err
+	}
+	_, err = tw.Write(script)
+	if err != nil {
+		return err
+	}
+	err = tw.Close()
+	if err != nil {
+		return err
+	}
+
+	uploadOpts := docker.UploadToContainerOptions{
+		InputStream: bytes.NewReader(tarBuf.Bytes()),
+		Path:        "/",
+	}
+
+	return i.client.UploadToContainer(i.container.ID, uploadOpts)
+}
+
+func (i *dockerInstance) uploadScriptSCP(ctx gocontext.Context, script []byte) error {
 	client, err := i.sshClient()
 	if err != nil {
 		return err
@@ -321,14 +416,75 @@ func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) erro
 		return err
 	}
 
-	if _, err := f.Write(script); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = f.Write(script)
+	return err
 }
 
 func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
+	if i.runNative {
+		return i.runScriptExec(ctx, output)
+	}
+	return i.runScriptSSH(ctx, output)
+}
+
+func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
+	logger := context.LoggerFromContext(ctx)
+	createExecOpts := docker.CreateExecOptions{
+		AttachStdin:  false,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          true,
+		Cmd:          []string{"bash", "/home/travis/build.sh"},
+		User:         "travis",
+		Container:    i.container.ID,
+	}
+	exec, err := i.client.CreateExec(createExecOpts)
+	if err != nil {
+		return &RunResult{Completed: false}, err
+	}
+
+	successChan := make(chan struct{})
+
+	startExecOpts := docker.StartExecOptions{
+		Detach:       false,
+		Success:      successChan,
+		Tty:          true,
+		OutputStream: output,
+		ErrorStream:  output,
+
+		// IMPORTANT!  If this is false, then
+		// github.com/docker/docker/pkg/stdcopy.StdCopy is used instead of io.Copy,
+		// which will result in busted behavior.
+		RawTerminal: true,
+	}
+
+	go func() {
+		err := i.client.StartExec(exec.ID, startExecOpts)
+		if err != nil {
+			// not much to be done about it, though...
+			logger.WithField("err", err).Error("start exec error")
+		}
+	}()
+
+	<-successChan
+	logger.Debug("exec success; returning control to hijacked streams")
+	successChan <- struct{}{}
+
+	for {
+		inspect, err := i.client.InspectExec(exec.ID)
+		if err != nil {
+			return &RunResult{Completed: false}, err
+		}
+
+		if !inspect.Running {
+			return &RunResult{Completed: true, ExitCode: uint8(inspect.ExitCode)}, nil
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	client, err := i.sshClient()
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -389,5 +545,5 @@ func (i *dockerInstance) StartupDuration() time.Duration {
 	if i.container == nil {
 		return zeroDuration
 	}
-	return i.container.Created.Sub(i.readyAt)
+	return i.startBooting.Sub(i.container.Created)
 }

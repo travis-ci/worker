@@ -1,9 +1,18 @@
+// Package context contains functions to embed data in a context.
+//
+// There are a few values that we embed in the context that are used, for
+// example, in the log output. This package contains the functions to embed
+// that data in the context, as well as functions to get the data out again and
+// two utility functions to create a logger with the flags already set, and a
+// function to send errors to Sentry with the same flags set.
 package context
 
 import (
 	"os"
+	"strconv"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/getsentry/raven-go"
 	"golang.org/x/net/context"
 )
 
@@ -119,4 +128,34 @@ func LoggerFromContext(ctx context.Context) *logrus.Entry {
 	}
 
 	return entry
+}
+
+// CaptureError takes an error and captures the details about it and sends it
+// off to Sentry, if Sentry has been set up.
+func CaptureError(ctx context.Context, err error) {
+	if raven.DefaultClient == nil {
+		// No client, so we can short-circuit to make things faster
+		return
+	}
+
+	interfaces := []raven.Interface{
+		raven.NewException(err, raven.NewStacktrace(1, 3, []string{"github.com/travis-ci/worker"})),
+	}
+
+	tags := make(map[string]string)
+	if processor, ok := ProcessorFromContext(ctx); ok {
+		tags["processor"] = processor
+	}
+	if jobID, ok := JobIDFromContext(ctx); ok {
+		tags["job-id"] = strconv.FormatUint(jobID, 10)
+	}
+	if repository, ok := RepositoryFromContext(ctx); ok {
+		tags["repository"] = repository
+	}
+
+	packet := raven.NewPacket(
+		err.Error(),
+		interfaces...,
+	)
+	raven.DefaultClient.Capture(packet, tags)
 }

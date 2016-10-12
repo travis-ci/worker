@@ -22,6 +22,7 @@ type ProcessorPool struct {
 	Hostname  string
 
 	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                 int
 
 	SkipShutdownOnLogTimeout bool
 
@@ -30,6 +31,7 @@ type ProcessorPool struct {
 	processorsLock sync.Mutex
 	processors     []*Processor
 	processorsWG   sync.WaitGroup
+	pauseCount     int
 }
 
 type ProcessorPoolConfig struct {
@@ -37,6 +39,7 @@ type ProcessorPoolConfig struct {
 	Context  gocontext.Context
 
 	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                 int
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -52,6 +55,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		LogTimeout:          ppc.LogTimeout,
 		ScriptUploadTimeout: ppc.ScriptUploadTimeout,
 		StartupTimeout:      ppc.StartupTimeout,
+		MaxLogLength:        ppc.MaxLogLength,
 
 		Provider:  provider,
 		Generator: generator,
@@ -107,9 +111,25 @@ func (p *ProcessorPool) Run(poolSize int, queue JobQueue) error {
 
 // GracefulShutdown causes each processor in the pool to start its graceful
 // shutdown.
-func (p *ProcessorPool) GracefulShutdown() {
+func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 	p.processorsLock.Lock()
 	defer p.processorsLock.Unlock()
+
+	log := context.LoggerFromContext(p.Context)
+
+	if togglePause {
+		p.pauseCount++
+
+		if p.pauseCount == 1 {
+			log.Info("incrementing wait group for pause")
+			p.processorsWG.Add(1)
+		} else if p.pauseCount == 2 {
+			log.Info("finishing wait group to unpause")
+			p.processorsWG.Done()
+		} else if p.pauseCount > 2 {
+			return
+		}
+	}
 
 	for _, processor := range p.processors {
 		processor.GracefulShutdown()
@@ -144,15 +164,15 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 	processorUUID := uuid.NewRandom()
 	ctx := context.FromProcessor(p.Context, processorUUID.String())
 
-	jobsChan, err := queue.Jobs(ctx)
-	if err != nil {
-		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create jobs channel")
-		return err
-	}
-
 	proc, err := NewProcessor(ctx, p.Hostname,
-		jobsChan, p.Provider, p.Generator, p.Canceller,
-		p.HardTimeout, p.LogTimeout, p.ScriptUploadTimeout, p.StartupTimeout)
+		queue, p.Provider, p.Generator, p.Canceller,
+		ProcessorConfig{
+			HardTimeout:         p.HardTimeout,
+			LogTimeout:          p.LogTimeout,
+			ScriptUploadTimeout: p.ScriptUploadTimeout,
+			StartupTimeout:      p.StartupTimeout,
+			MaxLogLength:        p.MaxLogLength,
+		})
 
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")

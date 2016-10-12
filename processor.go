@@ -11,8 +11,8 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
-// A Processor will process build jobs on a channel, one by one, until it is
-// told to shut down or the channel of build jobs closes.
+// A Processor gets jobs off the job queue and coordinates running it with other
+// components.
 type Processor struct {
 	ID       uuid.UUID
 	hostname string
@@ -21,6 +21,7 @@ type Processor struct {
 	logTimeout          time.Duration
 	scriptUploadTimeout time.Duration
 	startupTimeout      time.Duration
+	maxLogLength        int
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -31,33 +32,56 @@ type Processor struct {
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
 
+	// ProcessedCount contains the number of jobs that has been processed
+	// by this Processor. This value should not be modified outside of the
+	// Processor.
 	ProcessedCount int
-	CurrentStatus  string
-	LastJobID      uint64
+
+	// CurrentStatus contains the current status of the processor, and can
+	// be one of "new", "waiting", "processing" or "done".
+	CurrentStatus string
+
+	// LastJobID contains the ID of the last job the processor processed.
+	LastJobID uint64
 
 	SkipShutdownOnLogTimeout bool
+}
+
+type ProcessorConfig struct {
+	HardTimeout         time.Duration
+	LogTimeout          time.Duration
+	ScriptUploadTimeout time.Duration
+	StartupTimeout      time.Duration
+	MaxLogLength        int
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan Job,
+func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
-	hardTimeout, logTimeout, scriptUploadTimeout, startupTimeout time.Duration) (*Processor, error) {
+	config ProcessorConfig) (*Processor, error) {
 
 	uuidString, _ := context.ProcessorFromContext(ctx)
 	processorUUID := uuid.Parse(uuidString)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
 
+	buildJobsChan, err := queue.Jobs(ctx)
+	if err != nil {
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
+		return nil, err
+	}
+
 	return &Processor{
 		ID:       processorUUID,
 		hostname: hostname,
 
-		hardTimeout:         hardTimeout,
-		logTimeout:          logTimeout,
-		scriptUploadTimeout: scriptUploadTimeout,
-		startupTimeout:      startupTimeout,
+		hardTimeout:         config.HardTimeout,
+		logTimeout:          config.LogTimeout,
+		scriptUploadTimeout: config.ScriptUploadTimeout,
+		startupTimeout:      config.StartupTimeout,
+		maxLogLength:        config.MaxLogLength,
 
 		ctx:           ctx,
 		buildJobsChan: buildJobsChan,
@@ -86,6 +110,7 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			return
 		default:
 		}
@@ -97,11 +122,13 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			p.CurrentStatus = "done"
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
 				p.CurrentStatus = "done"
+				p.terminate()
 				return
 			}
 
@@ -109,6 +136,7 @@ func (p *Processor) Run() {
 			if buildJob.Payload().Timeouts.HardLimit != 0 {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
 			}
+			buildJob.StartAttributes().HardTimeout = hardTimeout
 
 			ctx := context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID)
 			if buildJob.Payload().UUID != "" {
@@ -173,7 +201,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepUpdateState{},
 		&stepOpenLogWriter{
 			logTimeout:   logTimeout,
-			maxLogLength: 4500000,
+			maxLogLength: p.maxLogLength,
 		},
 		&stepRunScript{
 			logTimeout:               logTimeout,
