@@ -70,8 +70,7 @@ func init() {
 type jupiterBrainProvider struct {
 	client               *http.Client
 	baseURL              *url.URL
-	sshKeyPath           string
-	sshKeyPassphrase     string
+	sshClientConfig      *ssh.ClientConfig
 	keychainPassword     string
 	bootPollSleep        time.Duration
 	bootPollDialTimeout  time.Duration
@@ -126,6 +125,11 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, errors.Errorf("expected KEYCHAIN_PASSWORD config key")
 	}
 
+	sshClientConfig, err := makeSSHClientConfig(sshKeyPath, sshKeyPassphrase)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't set up SSH client config")
+	}
+
 	keychainPassword := cfg.Get("KEYCHAIN_PASSWORD")
 
 	bootPollSleep := 3 * time.Second
@@ -168,8 +172,7 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &jupiterBrainProvider{
 		client:               http.DefaultClient,
 		baseURL:              baseURL,
-		sshKeyPath:           sshKeyPath,
-		sshKeyPassphrase:     sshKeyPassphrase,
+		sshClientConfig:      sshClientConfig,
 		keychainPassword:     keychainPassword,
 		bootPollSleep:        bootPollSleep,
 		bootPollDialTimeout:  bootPollDialTimeout,
@@ -177,6 +180,40 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		imageSelectorType: imageSelectorType,
 		imageSelector:     imageSelector,
+	}, nil
+}
+
+func makeSSHClientConfig(sshKeyPath, sshKeyPassphrase string) (*ssh.ClientConfig, error) {
+	file, err := ioutil.ReadFile(sshKeyPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't read SSH key")
+	}
+
+	block, _ := pem.Decode(file)
+	if block == nil {
+		return nil, errors.Errorf("ssh key does not contain a valid PEM block")
+	}
+
+	der, err := x509.DecryptPEMBlock(block, []byte(sshKeyPassphrase))
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't decrypt SSH key")
+	}
+
+	key, err := x509.ParsePKCS1PrivateKey(der)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't parse SSH key")
+	}
+
+	signer, err := ssh.NewSignerFromKey(key)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create signer from SSH key")
+	}
+
+	return &ssh.ClientConfig{
+		User: "travis",
+		Auth: []ssh.AuthMethod{
+			ssh.PublicKeys(signer),
+		},
 	}, nil
 }
 
@@ -542,31 +579,6 @@ func (i *jupiterBrainInstance) StartupDuration() time.Duration {
 }
 
 func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
-	file, err := ioutil.ReadFile(i.provider.sshKeyPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't read SSH key")
-	}
-
-	block, _ := pem.Decode(file)
-	if block == nil {
-		return nil, errors.Errorf("ssh key does not contain a valid PEM block")
-	}
-
-	der, err := x509.DecryptPEMBlock(block, []byte(i.provider.sshKeyPassphrase))
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't decrypt SSH key")
-	}
-
-	key, err := x509.ParsePKCS1PrivateKey(der)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't parse SSH key")
-	}
-
-	signer, err := ssh.NewSignerFromKey(key)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create signer from SSH key")
-	}
-
 	var ip net.IP
 	for _, ipString := range i.payload.IPAddresses {
 		curIP := net.ParseIP(ipString)
@@ -581,12 +593,7 @@ func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 		return nil, errors.Errorf("no valid IPv4 address")
 	}
 
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", ip.String()), &ssh.ClientConfig{
-		User: "travis",
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-	})
+	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", ip.String()), i.provider.sshClientConfig)
 	return client, errors.Wrap(err, "couldn't connect to SSH server")
 }
 
