@@ -22,6 +22,7 @@ type ProcessorPool struct {
 	Hostname  string
 
 	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                 int
 
 	SkipShutdownOnLogTimeout bool
 
@@ -38,6 +39,7 @@ type ProcessorPoolConfig struct {
 	Context  gocontext.Context
 
 	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                 int
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -53,6 +55,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		LogTimeout:          ppc.LogTimeout,
 		ScriptUploadTimeout: ppc.ScriptUploadTimeout,
 		StartupTimeout:      ppc.StartupTimeout,
+		MaxLogLength:        ppc.MaxLogLength,
 
 		Provider:  provider,
 		Generator: generator,
@@ -163,7 +166,13 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 
 	proc, err := NewProcessor(ctx, p.Hostname,
 		queue, p.Provider, p.Generator, p.Canceller,
-		p.HardTimeout, p.LogTimeout, p.ScriptUploadTimeout, p.StartupTimeout)
+		ProcessorConfig{
+			HardTimeout:         p.HardTimeout,
+			LogTimeout:          p.LogTimeout,
+			ScriptUploadTimeout: p.ScriptUploadTimeout,
+			StartupTimeout:      p.StartupTimeout,
+			MaxLogLength:        p.MaxLogLength,
+		})
 
 	if err != nil {
 		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")

@@ -135,7 +135,13 @@ func TestProcessor(t *testing.T) {
 	jobQueue := &fakeJobQueue{c: jobChan}
 	canceller := &fakeCanceller{}
 
-	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, canceller, 2*time.Second, time.Second, 3*time.Second, 4*time.Second)
+	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, canceller, ProcessorConfig{
+		HardTimeout:         2 * time.Second,
+		LogTimeout:          time.Second,
+		ScriptUploadTimeout: 3 * time.Second,
+		StartupTimeout:      4 * time.Second,
+		MaxLogLength:        4500000,
+	})
 	if err != nil {
 		t.Error(err)
 	}

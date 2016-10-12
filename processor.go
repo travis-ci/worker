@@ -21,6 +21,7 @@ type Processor struct {
 	logTimeout          time.Duration
 	scriptUploadTimeout time.Duration
 	startupTimeout      time.Duration
+	maxLogLength        int
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -46,12 +47,20 @@ type Processor struct {
 	SkipShutdownOnLogTimeout bool
 }
 
+type ProcessorConfig struct {
+	HardTimeout         time.Duration
+	LogTimeout          time.Duration
+	ScriptUploadTimeout time.Duration
+	StartupTimeout      time.Duration
+	MaxLogLength        int
+}
+
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
-	hardTimeout, logTimeout, scriptUploadTimeout, startupTimeout time.Duration) (*Processor, error) {
+	config ProcessorConfig) (*Processor, error) {
 
 	uuidString, _ := context.ProcessorFromContext(ctx)
 	processorUUID := uuid.Parse(uuidString)
@@ -68,10 +77,11 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		ID:       processorUUID,
 		hostname: hostname,
 
-		hardTimeout:         hardTimeout,
-		logTimeout:          logTimeout,
-		scriptUploadTimeout: scriptUploadTimeout,
-		startupTimeout:      startupTimeout,
+		hardTimeout:         config.HardTimeout,
+		logTimeout:          config.LogTimeout,
+		scriptUploadTimeout: config.ScriptUploadTimeout,
+		startupTimeout:      config.StartupTimeout,
+		maxLogLength:        config.MaxLogLength,
 
 		ctx:           ctx,
 		buildJobsChan: buildJobsChan,
@@ -191,7 +201,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepUpdateState{},
 		&stepOpenLogWriter{
 			logTimeout:   logTimeout,
-			maxLogLength: 4500000,
+			maxLogLength: p.maxLogLength,
 		},
 		&stepRunScript{
 			logTimeout:               logTimeout,
