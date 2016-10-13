@@ -9,7 +9,7 @@ import (
 var (
 	// LogWriterTick is how often the buffer should be flushed out and sent to
 	// travis-logs.
-	LogWriterTick = 500 * time.Millisecond
+	LogWriterTick = 2 * time.Second
 
 	// LogChunkSize is a bit of a magic number, calculated like this: The
 	// maximum Pusher payload is 10 kB (or 10 KiB, who knows, but let's go with
