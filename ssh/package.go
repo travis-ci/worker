@@ -46,6 +46,12 @@ func NewDialerWithKey(key crypto.Signer) (*SSHDialer, error) {
 	}, nil
 }
 
+func NewDialerWithPassword(password string) (*SSHDialer, error) {
+	return &SSHDialer{
+		authMethods: []ssh.AuthMethod{ssh.Password(password)},
+	}, nil
+}
+
 func NewDialer(keyPath, keyPassphrase string) (*SSHDialer, error) {
 	file, err := ioutil.ReadFile(keyPath)
 	if err != nil {
