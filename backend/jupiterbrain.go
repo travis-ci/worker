@@ -2,9 +2,7 @@ package backend
 
 import (
 	"bytes"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,12 +15,11 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
-	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
-	"golang.org/x/crypto/ssh"
+	"github.com/travis-ci/worker/ssh"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -70,7 +67,7 @@ func init() {
 type jupiterBrainProvider struct {
 	client               *http.Client
 	baseURL              *url.URL
-	sshClientConfig      *ssh.ClientConfig
+	sshDialer            ssh.Dialer
 	keychainPassword     string
 	bootPollSleep        time.Duration
 	bootPollDialTimeout  time.Duration
@@ -125,9 +122,9 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, errors.Errorf("expected KEYCHAIN_PASSWORD config key")
 	}
 
-	sshClientConfig, err := makeSSHClientConfig(sshKeyPath, sshKeyPassphrase)
+	sshDialer, err := ssh.NewDialer(sshKeyPath, sshKeyPassphrase)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't set up SSH client config")
+		return nil, errors.Wrap(err, "couldn't set up SSH dialer")
 	}
 
 	keychainPassword := cfg.Get("KEYCHAIN_PASSWORD")
@@ -172,7 +169,7 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &jupiterBrainProvider{
 		client:               http.DefaultClient,
 		baseURL:              baseURL,
-		sshClientConfig:      sshClientConfig,
+		sshDialer:            sshDialer,
 		keychainPassword:     keychainPassword,
 		bootPollSleep:        bootPollSleep,
 		bootPollDialTimeout:  bootPollDialTimeout,
@@ -180,40 +177,6 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		imageSelectorType: imageSelectorType,
 		imageSelector:     imageSelector,
-	}, nil
-}
-
-func makeSSHClientConfig(sshKeyPath, sshKeyPassphrase string) (*ssh.ClientConfig, error) {
-	file, err := ioutil.ReadFile(sshKeyPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't read SSH key")
-	}
-
-	block, _ := pem.Decode(file)
-	if block == nil {
-		return nil, errors.Errorf("ssh key does not contain a valid PEM block")
-	}
-
-	der, err := x509.DecryptPEMBlock(block, []byte(sshKeyPassphrase))
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't decrypt SSH key")
-	}
-
-	key, err := x509.ParsePKCS1PrivateKey(der)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't parse SSH key")
-	}
-
-	signer, err := ssh.NewSignerFromKey(key)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create signer from SSH key")
-	}
-
-	return &ssh.ClientConfig{
-		User: "travis",
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
 	}, nil
 }
 
@@ -463,87 +426,56 @@ func (p *jupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error)
 }
 
 func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte) error {
-	client, err := i.sshClient()
+	conn, err := i.sshConnection()
 	if err != nil {
-		return errors.Wrap(err, "couldn't create SSH client")
+		return errors.Wrap(err, "couldn't connect to SSH server")
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	sftp, err := sftp.NewClient(client)
-	if err != nil {
-		return errors.Wrap(err, "couldn't create SFTP client")
-	}
-	defer sftp.Close()
-
-	_, err = sftp.Lstat("build.sh")
-	if err == nil {
+	existed, err := conn.UploadFile("build.sh", script)
+	if existed {
 		return ErrStaleVM
 	}
-
-	f, err := sftp.Create("build.sh")
 	if err != nil {
-		return errors.Wrap(err, "couldn't create build.sh file")
+		return errors.Wrap(err, "couldn't upload build script")
 	}
 
-	_, err = f.Write(script)
+	_, err = conn.UploadFile("wrapper.sh", []byte(wrapperSh))
 	if err != nil {
-		return errors.Wrap(err, "couldn't write to build.sh file")
-	}
-
-	f, err = sftp.Create("wrapper.sh")
-	if err != nil {
-		return errors.Wrap(err, "couldn't create wrapper.sh file")
-	}
-
-	_, err = fmt.Fprintf(f, wrapperSh)
-	if err != nil {
-		return errors.Wrap(err, "couldn't write to wrapper.sh file")
+		return errors.Wrap(err, "couldn't upload wrapper.sh script")
 	}
 
 	return nil
 }
 
 func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	client, err := i.sshClient()
+	conn, err := i.sshConnection()
 	if err != nil {
-		return &RunResult{Completed: false}, errors.Wrap(err, "error creating SSH client")
+		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	session, err := client.NewSession()
-	if err != nil {
-		return &RunResult{Completed: false}, errors.Wrap(err, "error creating SSH session")
-	}
-	defer session.Close()
-
-	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
-	if err != nil {
-		return &RunResult{Completed: false}, errors.Wrap(err, "error requesting PTY")
-	}
-
-	session.Stdout = output
-
-	errChan := make(chan error, 1)
+	resultChan := make(chan struct {
+		exitStatus uint8
+		err        error
+	}, 1)
 
 	go func() {
-		errChan <- session.Run("bash ~/wrapper.sh")
+		exitStatus, err := conn.RunCommand("bash ~/wrapper.sh", output)
+		resultChan <- struct {
+			exitStatus uint8
+			err        error
+		}{
+			exitStatus,
+			err,
+		}
 	}()
 
 	select {
 	case <-ctx.Done():
 		return &RunResult{Completed: false}, ctx.Err()
-	case err = <-errChan:
-	}
-
-	if err == nil {
-		return &RunResult{Completed: true, ExitCode: 0}, nil
-	}
-
-	switch err := err.(type) {
-	case *ssh.ExitError:
-		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
-	default:
-		return &RunResult{Completed: false}, errors.Wrap(err, "error running script")
+	case result := <-resultChan:
+		return &RunResult{Completed: result.err != nil, ExitCode: result.exitStatus}, errors.Wrap(err, "error running script")
 	}
 }
 
@@ -578,7 +510,7 @@ func (i *jupiterBrainInstance) StartupDuration() time.Duration {
 	return i.startupDuration
 }
 
-func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
+func (i *jupiterBrainInstance) sshConnection() (ssh.Connection, error) {
 	var ip net.IP
 	for _, ipString := range i.payload.IPAddresses {
 		curIP := net.ParseIP(ipString)
@@ -593,8 +525,7 @@ func (i *jupiterBrainInstance) sshClient() (*ssh.Client, error) {
 		return nil, errors.Errorf("no valid IPv4 address")
 	}
 
-	client, err := ssh.Dial("tcp", fmt.Sprintf("%s:22", ip.String()), i.provider.sshClientConfig)
-	return client, errors.Wrap(err, "couldn't connect to SSH server")
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", ip.String()), "travis")
 }
 
 func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttributes *StartAttributes) (string, error) {
