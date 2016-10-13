@@ -23,13 +23,13 @@ import (
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
-	"github.com/pkg/sftp"
+	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ratelimit"
-	"golang.org/x/crypto/ssh"
+	"github.com/travis-ci/worker/ssh"
 	gocontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
@@ -146,6 +146,7 @@ type gceProvider struct {
 	defaultImage      string
 	uploadRetries     uint64
 	uploadRetrySleep  time.Duration
+	sshDialer         ssh.Dialer
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -161,7 +162,6 @@ type gceInstanceConfig struct {
 	Subnetwork         *compute.Subnetwork
 	DiskType           string
 	DiskSize           int64
-	SSHKeySigner       ssh.Signer
 	SSHPubKey          string
 	AutoImplode        bool
 	HardTimeoutMinutes int64
@@ -413,13 +413,12 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	pubKey, err := ssh.NewPublicKey(&privKey.PublicKey)
+	pubKey, err := ssh.FormatPublicKey(&privKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
 
-	sshKeySigner, err := ssh.NewSignerFromKey(privKey)
-
+	sshDialer, err := ssh.NewDialerWithKey(privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -439,13 +438,13 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		projectID:      projectID,
 		imageProjectID: imageProjectID,
 		cfg:            cfg,
+		sshDialer:      sshDialer,
 
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
 			PublicIP:         publicIP,
 			DiskSize:         diskSize,
-			SSHKeySigner:     sshKeySigner,
-			SSHPubKey:        string(ssh.MarshalAuthorizedKey(pubKey)),
+			SSHPubKey:        string(pubKey),
 			AutoImplode:      autoImplode,
 			StopPollSleep:    stopPollSleep,
 			StopPrePollSleep: stopPrePollSleep,
@@ -900,7 +899,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 	}
 }
 
-func (i *gceInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
+func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
 	if i.cachedIPAddr == "" {
 		err := i.refreshInstance(ctx)
 		if err != nil {
@@ -915,12 +914,7 @@ func (i *gceInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 		i.cachedIPAddr = ipAddr
 	}
 
-	return ssh.Dial("tcp", fmt.Sprintf("%s:22", i.cachedIPAddr), &ssh.ClientConfig{
-		User: i.authUser,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(i.ic.SSHKeySigner),
-		},
-	})
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser)
 }
 
 func (i *gceInstance) getIP() string {
@@ -997,30 +991,18 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 }
 
 func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
-	client, err := i.sshClient(ctx)
+	conn, err := i.sshConnection(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "couldn't connect to SSH server")
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	sftp, err := sftp.NewClient(client)
-	if err != nil {
-		return err
-	}
-	defer sftp.Close()
-
-	_, err = sftp.Lstat("build.sh")
-	if err == nil {
+	existed, err := conn.UploadFile("build.sh", script)
+	if existed {
 		return ErrStaleVM
 	}
-
-	f, err := sftp.Create("build.sh")
 	if err != nil {
-		return err
-	}
-
-	if _, err := f.Write(script); err != nil {
-		return err
+		return errors.Wrap(err, "couldn't upload build script")
 	}
 
 	return nil
@@ -1062,27 +1044,13 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 }
 
 func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	client, err := i.sshClient(ctx)
+	conn, err := i.sshConnection(ctx)
 	if err != nil {
-		return &RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	session, err := client.NewSession()
-	if err != nil {
-		return &RunResult{Completed: false}, err
-	}
-	defer session.Close()
-
-	err = session.RequestPty("xterm", 40, 80, ssh.TerminalModes{})
-	if err != nil {
-		return &RunResult{Completed: false}, err
-	}
-
-	session.Stdout = output
-	session.Stderr = output
-
-	err = session.Run("bash ~/build.sh")
+	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
 
 	preempted, googleErr := i.isPreempted(ctx)
 	if googleErr != nil {
@@ -1096,16 +1064,7 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 		return &RunResult{Completed: false}, nil
 	}
 
-	if err == nil {
-		return &RunResult{Completed: true, ExitCode: 0}, nil
-	}
-
-	switch err := err.(type) {
-	case *ssh.ExitError:
-		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
-	default:
-		return &RunResult{Completed: false}, err
-	}
+	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
 func (i *gceInstance) Stop(ctx gocontext.Context) error {
