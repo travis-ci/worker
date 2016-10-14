@@ -102,6 +102,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 func (p *Processor) Run() {
 	context.LoggerFromContext(p.ctx).Info("starting processor")
 	defer context.LoggerFromContext(p.ctx).Info("processor done")
+	defer func() { p.CurrentStatus = "done" }()
 
 	for {
 		select {
@@ -118,16 +119,13 @@ func (p *Processor) Run() {
 		select {
 		case <-p.ctx.Done():
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
-			p.CurrentStatus = "done"
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
 			p.terminate()
-			p.CurrentStatus = "done"
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
-				p.CurrentStatus = "done"
 				p.terminate()
 				return
 			}
