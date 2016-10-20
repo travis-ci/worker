@@ -5,8 +5,6 @@ set -o errexit
 main() {
   set +o xtrace
 
-  : "${DOCKER_LOGIN_EMAIL:=.}"
-  : "${DOCKER_LOGIN_SERVER:=index.docker.io}"
   if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
     DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
     DOCKER_LOGIN_PASSWORD="${QUAY_DOCKER_LOGIN_PASSWORD}"
@@ -24,22 +22,16 @@ main() {
     exit 1
   }
 
-  [[ ${DOCKER_LOGIN_SERVER} ]] || {
-    __log error="missing \$DOCKER_LOGIN_SERVER"
-    exit 1
-  }
-
   [[ ${DOCKER_DEST} ]] || {
     __log error="missing \$DOCKER_DEST"
     exit 1
   }
 
   __log 'msg="docker login"'
+  # shellcheck disable=SC2086
   docker login \
-    -e "${DOCKER_LOGIN_EMAIL}" \
-    -u "${DOCKER_LOGIN_USERNAME}" \
-    -p "${DOCKER_LOGIN_PASSWORD}" \
-    "${DOCKER_LOGIN_SERVER}"
+    --username "${DOCKER_LOGIN_USERNAME}" \
+    --password "${DOCKER_LOGIN_PASSWORD}" ${DOCKER_LOGIN_SERVER}
 
   : "${DOCKER_PUSH_RETRIES:=6}"
   : "${DOCKER_LOGOUT_POST_PUSH:=0}"
@@ -57,7 +49,8 @@ main() {
 
       if [[ ${DOCKER_LOGOUT_POST_PUSH} = 1 ]]; then
         __log 'msg="docker logout"'
-        docker logout "${DOCKER_LOGIN_SERVER}"
+        # shellcheck disable=SC2086
+        docker logout ${DOCKER_LOGIN_SERVER}
         __log 'msg="docker logout complete"'
       fi
       exit 0
