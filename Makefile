@@ -14,7 +14,7 @@ COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 DOCKER_IMAGE_REPO ?= travisci/worker
 DOCKER_DEST ?= $(DOCKER_IMAGE_REPO):$(VERSION_VALUE)
-DOCKER_CREDS ?= quay
+DOCKER_CREDS ?= docker-hub
 
 DOCKER ?= docker
 GO ?= go
