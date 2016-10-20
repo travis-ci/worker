@@ -113,7 +113,7 @@ func (j *httpJob) Finish(state FinishState) error {
 func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
 	// TODO: jwt
 	// TODO: get impl from emma&henrik
-	return newHTTPLogWriter(ctx, j.payload.Job.ID)
+	return newHTTPLogWriter(ctx, nil /* TODO: url */, "" /* TODO: auth token */, j.payload.Job.ID)
 }
 
 func (j *httpJob) sendStateUpdate(event string, body map[string]interface{}) error {

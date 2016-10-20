@@ -3,9 +3,11 @@ package worker
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 
 	"github.com/bitly/go-simplejson"
@@ -45,9 +47,15 @@ func (q *httpJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 	for {
 		jobIds, err := q.fetchJobs()
+		if err != nil {
+			return nil, err
+		}
 		for _, id := range jobIds {
 			go func(id uint64) {
 				buildJob, err := q.fetchJob(id)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJob: %#v", err)
+				}
 				buildJobChan <- buildJob
 			}(id)
 		}
@@ -72,6 +80,9 @@ func (q *httpJobQueue) fetchJobs() ([]uint64, error) {
 	})
 
 	jobIdsJSON, err := json.Marshal(fetchRequestPayload)
+	if err != nil {
+		return nil, err
+	}
 
 	// copy jobBoardURL
 	url := *q.jobBoardURL
@@ -102,6 +113,9 @@ func (q *httpJobQueue) fetchJobs() ([]uint64, error) {
 	var jobIds []uint64
 	for _, strID := range fetchResponsePayload.Jobs {
 		id, err := strconv.ParseUint(strID, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 		jobIds = append(jobIds, id)
 	}
 
