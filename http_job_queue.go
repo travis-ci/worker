@@ -16,11 +16,9 @@ import (
 
 // httpJobQueue is a JobQueue that uses http
 type httpJobQueue struct {
-	processorPool    *ProcessorPool
-	jobBoardURL      *url.URL
-	jobBoardUsername string
-	jobBoardPassword string
-	queue            string
+	processorPool *ProcessorPool
+	jobBoardURL   *url.URL
+	queue         string
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
