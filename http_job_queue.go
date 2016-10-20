@@ -33,13 +33,11 @@ type httpFetchJobsResponse struct {
 	Jobs []string `json:"jobs"`
 }
 
-func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, jobBoardUsername string, jobBoardPassword string, queue string) (*httpJobQueue, error) {
+func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, queue string) (*httpJobQueue, error) {
 	return &httpJobQueue{
-		processorPool:    pool,
-		jobBoardURL:      jobBoardURL,
-		jobBoardUsername: jobBoardUsername,
-		jobBoardPassword: jobBoardPassword,
-		queue:            queue,
+		processorPool: pool,
+		jobBoardURL:   jobBoardURL,
+		queue:         queue,
 	}, nil
 }
 
