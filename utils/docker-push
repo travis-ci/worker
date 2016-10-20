@@ -6,10 +6,12 @@ main() {
   set +o xtrace
 
   : "${DOCKER_LOGIN_EMAIL:=.}"
+  : "${DOCKER_LOGIN_SERVER:=index.docker.io}"
   if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
     DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
     DOCKER_LOGIN_PASSWORD="${QUAY_DOCKER_LOGIN_PASSWORD}"
     DOCKER_LOGIN_SERVER="${QUAY_DOCKER_LOGIN_SERVER}"
+    : "${DOCKER_LOGOUT_POST_PUSH:=1}"
   fi
 
   [[ ${DOCKER_LOGIN_USERNAME} ]] || {
@@ -40,17 +42,17 @@ main() {
     "${DOCKER_LOGIN_SERVER}"
 
   : "${DOCKER_PUSH_RETRIES:=2}"
-  : "${DOCKER_LOGOUT_POST_PUSH:=1}"
+  : "${DOCKER_LOGOUT_POST_PUSH:=0}"
 
   local attempt=0
   local sleep_interval=10
   local push_start
 
   while true; do
-    __log "msg=\"docker push\" attempt=$((attempt + 1))"
+    __log "msg=\"docker push\" attempt=$((attempt + 1)) dest=${DOCKER_DEST}"
     push_start=$(date +%s)
     if docker push "${DOCKER_DEST}"; then
-      __log 'msg="docker push complete"' \
+      __log "msg=\"docker push complete\" dest=${DOCKER_DEST}" \
         "duration=$(($(date +%s) - push_start))s"
 
       if [[ ${DOCKER_LOGOUT_POST_PUSH} = 1 ]]; then
