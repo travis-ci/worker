@@ -3,8 +3,10 @@ package worker
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
@@ -89,9 +91,10 @@ func (q *httpJobQueue) fetchJobs() ([]uint64, error) {
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(jobIdsJSON))
 
-	username := url.User.Username()
-	password, _ := url.User.Password()
-	req.SetBasicAuth(username, password)
+	// even needed?
+	// username := url.User.Username()
+	// password, _ := url.User.Password()
+	// req.SetBasicAuth(username, password)
 
 	req.Header.Add("Content-Type", "application/json")
 
@@ -101,20 +104,17 @@ func (q *httpJobQueue) fetchJobs() ([]uint64, error) {
 	err = json.NewDecoder(resp.Body).Decode(&fetchResponsePayload)
 
 	var jobIds []uint64
-	for _, id := range fetchResponsePayload.Jobs {
-		jobIds = append(jobIds, uint64(id))
+	for _, strID := range fetchResponsePayload.Jobs {
+		id, err := strconv.ParseUint(strID, 10, 64)
+		jobIds = append(jobIds, id)
 	}
 
-	return jobIds
+	return jobIds, nil
 }
 
 func (q *httpJobQueue) fetchJob(id uint64) (Job, error) {
 	// GET /jobs/:id
 	// Authorization: Basic ${BASE64_BASIC_AUTH}
-
-	jobIdsJSON := "..."
-	count := 1
-	basicAuthHeader := "..."
 
 	buildJob := &httpJob{
 		payload:         &JobPayload{},
@@ -125,26 +125,29 @@ func (q *httpJobQueue) fetchJob(id uint64) (Job, error) {
 	}
 
 	// copy jobBoardURL
-	url := *httpJobQueue.jobBoardURL
-	url.Path = "/jobs/" + id
+	url := *q.jobBoardURL
+	url.Path = "/jobs/" + string(id)
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", url.String(), jobIdsJSON)
+	req, err := http.NewRequest("GET", url.String(), nil)
 
-	username := url.User.Username()
-	password, _ := url.User.Password()
-	req.SetBasicAuth(username, password)
+	// even needed?
+	// username := url.User.Username()
+	// password, _ := url.User.Password()
+	// req.SetBasicAuth(username, password)
 
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 
-	err = json.Unmarshal(delivery.Body, buildJob.payload)
+	body, err := ioutil.ReadAll(resp.Body)
 
-	err = json.Unmarshal(delivery.Body, &startAttrs)
+	err = json.Unmarshal(body, buildJob.payload)
 
-	buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
+	err = json.Unmarshal(body, &startAttrs)
+
+	buildJob.rawPayload, err = simplejson.NewJson(body)
 
 	buildJob.startAttributes = startAttrs.Config
 	buildJob.startAttributes.VMType = buildJob.payload.VMType
