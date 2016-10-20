@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -20,8 +19,8 @@ type httpJob struct {
 }
 
 func (j *httpJob) GoString() string {
-	return fmt.Sprintf("&httpJob{conn: %#v, delivery: %#v, payload: %#v, startAttributes: %#v}",
-		j.conn, j.delivery, j.payload, j.startAttributes)
+	return fmt.Sprintf("&httpJob{payload: %#v, startAttributes: %#v}",
+		j.payload, j.startAttributes)
 }
 
 func (j *httpJob) Payload() *JobPayload {
@@ -61,7 +60,7 @@ func (j *httpJob) Requeue() error {
 		return err
 	}
 
-	return j.delivery.Ack(false)
+	return nil
 }
 
 func (j *httpJob) Received() error {
@@ -108,35 +107,16 @@ func (j *httpJob) Finish(state FinishState) error {
 		return err
 	}
 
-	return j.delivery.Ack(false)
+	return nil
 }
 
 func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newhttpLogWriter(ctx, j.conn, j.payload.Job.ID)
+	// TODO: jwt
+	// TODO: get impl from emma&henrik
+	return newHTTPLogWriter(ctx, j.payload.Job.ID)
 }
 
 func (j *httpJob) sendStateUpdate(event string, body map[string]interface{}) error {
-	httpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer httpChan.Close()
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	_, err = httpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	return httpChan.Publish("", "reporting.jobs.builds", false, false, http.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: http.Persistent,
-		Timestamp:    time.Now().UTC(),
-		Type:         event,
-		Body:         bodyBytes,
-	})
+	// TODO: send state update to hub and job-board(?)
+	return nil
 }
