@@ -8,12 +8,15 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"gopkg.in/urfave/cli.v1"
 
 	// include for conditional pprof HTTP server
 	_ "net/http/pprof"
@@ -29,7 +32,6 @@ import (
 	"github.com/travis-ci/worker/context"
 	travismetrics "github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
-	"gopkg.in/urfave/cli.v1"
 )
 
 // CLI is the top level of execution for the whole shebang
@@ -108,10 +110,12 @@ func (i *CLI) Setup() (bool, error) {
 	i.setupSentry()
 	i.setupMetrics()
 
-	err := i.setupJobQueueAndCanceller()
-	if err != nil {
-		logger.WithField("err", err).Error("couldn't create job queue and canceller")
-		return false, err
+	if i.Config.QueueType != "http" {
+		err := i.setupJobQueueAndCanceller()
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't create job queue and canceller")
+			return false, err
+		}
 	}
 
 	generator := NewBuildScriptGenerator(cfg)
@@ -157,6 +161,14 @@ func (i *CLI) Setup() (bool, error) {
 	}).Debug("built")
 
 	i.ProcessorPool = pool
+
+	if i.Config.QueueType == "http" {
+		err := i.setupJobQueueForHttp(pool)
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't setup job queue for http")
+			return false, err
+		}
+	}
 
 	return true, nil
 }
@@ -490,6 +502,26 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 	}
 
 	return fmt.Errorf("unknown queue type %q", i.Config.QueueType)
+}
+
+func (i *CLI) setupJobQueueForHttp(pool *ProcessorPool) error {
+	jobBoardURL, err := url.Parse(i.Config.JobBoardURL)
+	if err != nil {
+		return err
+	}
+
+	jobQueue, err := NewHTTPJobQueue(pool, jobBoardURL, i.Config.QueueName)
+	if err != nil {
+		return err
+	}
+
+	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
+	jobQueue.DefaultDist = i.Config.DefaultDist
+	jobQueue.DefaultGroup = i.Config.DefaultGroup
+	jobQueue.DefaultOS = i.Config.DefaultOS
+
+	i.JobQueue = jobQueue
+	return nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {
