@@ -41,7 +41,7 @@ main() {
     -p "${DOCKER_LOGIN_PASSWORD}" \
     "${DOCKER_LOGIN_SERVER}"
 
-  : "${DOCKER_PUSH_RETRIES:=2}"
+  : "${DOCKER_PUSH_RETRIES:=6}"
   : "${DOCKER_LOGOUT_POST_PUSH:=0}"
 
   local attempt=0
