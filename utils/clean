@@ -11,7 +11,8 @@ rm -rvf \
   coverage.html \
   *coverage.coverprofile \
   ./tmp/deb \
-  ./tmp/output
+  ./tmp/output \
+  .docker.env
 
 find ${GOPATH%%:*}/pkg -wholename '*travis-ci/worker*.a' | \
   grep -v vendor/ | \

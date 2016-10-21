@@ -5,11 +5,9 @@ set -o errexit
 main() {
   set +o xtrace
 
-  if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
-    DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
-    DOCKER_LOGIN_PASSWORD="${QUAY_DOCKER_LOGIN_PASSWORD}"
-    DOCKER_LOGIN_SERVER="${QUAY_DOCKER_LOGIN_SERVER}"
-    : "${DOCKER_LOGOUT_POST_PUSH:=1}"
+  if [[ -f "${DOCKER_ENV_FILE}" ]]; then
+    # shellcheck source=/dev/null
+    source "${DOCKER_ENV_FILE}"
   fi
 
   [[ ${DOCKER_LOGIN_USERNAME} ]] || {
