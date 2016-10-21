@@ -39,6 +39,7 @@ type httpLogWriter struct {
 
 	httpClient *http.Client
 	baseURL    string
+	authToken  string
 
 	timer   *time.Timer
 	timeout time.Duration
@@ -55,6 +56,7 @@ func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID
 		timeout:    0,
 		httpClient: &http.Client{},
 		baseURL:    url,
+		authToken:  authToken,
 	}
 
 	return writer, nil
@@ -259,6 +261,8 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 	if err != nil {
 		return errors.Wrap(err, "couldn't create request")
 	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", w.authToken))
 
 	resp, err := w.httpClient.Do(req)
 	if err != nil {

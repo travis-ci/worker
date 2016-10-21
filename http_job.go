@@ -155,6 +155,11 @@ func (j *httpJob) sendStateUpdate(currentState, newState string) error {
 	}
 
 	req, err := http.NewRequest("PATCH", u, bytes.NewReader(encodedPayload))
+	if err != nil {
+		return errors.Wrap(err, "couldn't create request")
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", j.payload.JWT))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
