@@ -25,6 +25,21 @@ type JobPayload struct {
 	Config     map[string]interface{} `json:"config"`
 	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
 	VMType     string                 `json:"vm_type"`
+
+	// optional fields, not every job queue will populate them
+	JobScript   JobScriptPayload `json:"job_script"`
+	JobStateURL string           `json:"job_state_url"`
+	JobPartsURL string           `json:"job_parts_url"`
+	JWT         string           `json:"jwt"`
+	ImageName   string           `json:"image_name"`
+}
+
+// JobScriptPayload describes the script payload returned
+// from job queue (e.g. job-board)
+type JobScriptPayload struct {
+	Name     string `json:"name"`
+	Encoding string `json:"encoding"`
+	Content  string `json:"content"`
 }
 
 // JobJobPayload contains information about the job.

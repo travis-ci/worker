@@ -141,6 +141,12 @@ var (
 			Value: defaultMaxLogLength,
 			Usage: "The maximum length of a log in bytes",
 		}),
+		NewConfigDef("JobBoardURL", &cli.StringFlag{
+			Usage: "The base URL for job-board",
+		}),
+		NewConfigDef("TravisSite", &cli.StringFlag{
+			Usage: "Either 'org' or 'com', used for job-board",
+		}),
 
 		// build script generator flags
 		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
@@ -302,6 +308,8 @@ type Config struct {
 	DefaultDist     string `config:"default-dist"`
 	DefaultGroup    string `config:"default-group"`
 	DefaultOS       string `config:"default-os"`
+	JobBoardURL     string `config:"job-board-url"`
+	TravisSite      string `config:"travis-site"`
 
 	FilePollingInterval time.Duration `config:"file-polling-interval"`
 	HardTimeout         time.Duration `config:"hard-timeout"`
