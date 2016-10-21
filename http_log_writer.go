@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/jtacoma/uritemplates"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
@@ -38,13 +38,14 @@ type httpLogWriter struct {
 	maxLength    int
 
 	httpClient *http.Client
-	baseURL    *url.URL
+	baseURL    string
 
 	timer   *time.Timer
 	timeout time.Duration
 }
 
-func newHTTPLogWriter(ctx gocontext.Context, url *url.URL, authToken string, jobID uint64) (*httpLogWriter, error) {
+func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64) (*httpLogWriter, error) {
+
 	writer := &httpLogWriter{
 		ctx:        context.FromComponent(ctx, "log_writer"),
 		jobID:      jobID,
@@ -235,9 +236,18 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 	}
 
 	// jobID and part number goes in url. i.e. travis-logs.com/$jobid/$partno
-	partURL, err := w.baseURL.Parse(fmt.Sprintf("log-parts/%d/%d", w.jobID, part.Number))
+
+	template, err := uritemplates.Parse(w.baseURL)
 	if err != nil {
-		return errors.Wrap(err, "couldn't parse URL")
+		return errors.Wrap(err, "couldn't parse base URL template")
+	}
+
+	partURL, err := template.Expand(map[string]interface{}{
+		"job_id":      w.jobID,
+		"log_part_id": part.Number,
+	})
+	if err != nil {
+		return errors.Wrap(err, "couldn't expand base URL template")
 	}
 
 	partBody, err := json.Marshal(payload)
@@ -245,7 +255,7 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 		return errors.Wrap(err, "couldn't marshal JSON")
 	}
 
-	req, err := http.NewRequest("PUT", partURL.String(), bytes.NewReader(partBody))
+	req, err := http.NewRequest("PUT", partURL, bytes.NewReader(partBody))
 	if err != nil {
 		return errors.Wrap(err, "couldn't create request")
 	}
