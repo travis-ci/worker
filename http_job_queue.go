@@ -64,23 +64,28 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
-	for {
-		jobIds, err := q.fetchJobs()
-		if err != nil {
-			return nil, err
-		}
-		for _, id := range jobIds {
-			go func(id uint64) {
-				buildJob, err := q.fetchJob(id)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJob: %#v", err)
-				}
-				buildJobChan <- buildJob
-			}(id)
-		}
+	go func() {
+		for {
+			jobIds, err := q.fetchJobs()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJobs: %#v", err)
+				panic("whoops!")
+			}
+			for _, id := range jobIds {
+				go func(id uint64) {
+					buildJob, err := q.fetchJob(id)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJob: %#v", err)
+					}
+					buildJobChan <- buildJob
+				}(id)
+			}
 
-		time.Sleep(time.Second)
-	}
+			time.Sleep(time.Second)
+		}
+	}()
+
+	return outChan, nil
 }
 
 func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
