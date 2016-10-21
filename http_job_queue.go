@@ -95,7 +95,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	// Authorization: Basic ${BASE64_BASIC_AUTH}
 	// From: ${UNIQUE_ID}
 
-	fetchRequestPayload := &httpFetchJobsRequest{}
+	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
 	numWaiting := 0
 	q.processorPool.Each(func(i int, p *Processor) {
 		// CurrentStatus is one of "new", "waiting", "processing" or "done"
@@ -140,6 +140,16 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 
 	var jobIds []uint64
 	for _, strID := range fetchResponsePayload.Jobs {
+		alreadyRunning := false
+		for _, prevStrID := range fetchRequestPayload.Jobs {
+			if strID == prevStrID {
+				alreadyRunning = true
+			}
+		}
+		if alreadyRunning {
+			continue
+		}
+
 		id, err := strconv.ParseUint(strID, 10, 64)
 		if err != nil {
 			return nil, err
