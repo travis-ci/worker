@@ -29,7 +29,7 @@ type JobPayload struct {
 	// optional fields, not every job queue will populate them
 	JobScript   JobScriptPayload `json:"job_script"`
 	JobStateURL string           `json:"job_state_url"`
-	JobPartsURL string           `json:"job_parts_url"`
+	JobPartsURL string           `json:"log_parts_url"`
 	JWT         string           `json:"jwt"`
 	ImageName   string           `json:"image_name"`
 }
