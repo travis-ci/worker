@@ -3,10 +3,18 @@
 set -o errexit
 
 main() {
+  if [[ -f "${DOCKER_ENV_FILE}" ]]; then
+    # shellcheck source=/dev/null
+    source "${DOCKER_ENV_FILE}"
+  fi
+
   [[ ${DOCKER_DEST} ]] || {
     __log error="missing \$DOCKER_DEST"
     exit 1
   }
+
+  unset DOCKER_LOGIN_PASSWORD
+  unset DOCKER_LOGIN_USERNAME
 
   set -o xtrace
   docker run --rm "${DOCKER_DEST}" --version &>/dev/null

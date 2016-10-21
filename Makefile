@@ -14,7 +14,7 @@ COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 DOCKER_IMAGE_REPO ?= travisci/worker
 DOCKER_DEST ?= $(DOCKER_IMAGE_REPO):$(VERSION_VALUE)
-DOCKER_CREDS ?= docker-hub
+DOCKER_ENV_FILE ?= .docker.env
 
 DOCKER ?= docker
 GO ?= go
@@ -29,8 +29,7 @@ GOBUILD_LDFLAGS ?= \
 	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)'
 
 export GO15VENDOREXPERIMENT
-export DOCKER_DEST
-export DOCKER_CREDS
+export DOCKER_ENV_FILE
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
@@ -49,7 +48,7 @@ COVERPROFILES := \
 	./utils/$@
 
 .PHONY: all
-all: clean test
+all: clean test $(DOCKER_ENV_FILE)
 
 .PHONY: test
 test: deps lintall build fmtpolice test-no-cover coverage.html
@@ -83,7 +82,7 @@ crossbuild: deps
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
 
 .PHONY: docker-build
-docker-build: crossbuild
+docker-build: crossbuild $(DOCKER_ENV_FILE)
 	$(DOCKER) build -t $(DOCKER_DEST) .
 
 .PHONY: distclean
@@ -100,3 +99,7 @@ vendor/.deps-fetched:
 .PHONY: annotations
 annotations:
 	@git grep -E '(TODO|FIXME|XXX):' | grep -v -E 'Makefile|vendor/'
+
+$(DOCKER_ENV_FILE):
+	env | grep ^DOCKER | sort >$@
+	echo 'DOCKER_DEST=$(DOCKER_DEST)' >>$@

@@ -2,6 +2,15 @@
 
 main() {
   set -o errexit
+
+  if [[ -f "${DOCKER_ENV_FILE}" ]]; then
+    # shellcheck source=/dev/null
+    source "${DOCKER_ENV_FILE}"
+  fi
+
+  unset DOCKER_LOGIN_PASSWORD
+  unset DOCKER_LOGIN_USERNAME
+
   if [[ $DEBUG ]] ; then
     set -o xtrace
   fi
