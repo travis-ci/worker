@@ -48,7 +48,7 @@ func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site string, que
 	}
 
 	hash := sha1.Sum(randomBytes)
-	uniqueID := hex.EncodeToString(hash[:])
+	uniqueID := "worker@" + hex.EncodeToString(hash[:])
 
 	return &HTTPJobQueue{
 		processorPool: pool,
