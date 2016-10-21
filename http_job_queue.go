@@ -20,6 +20,7 @@ import (
 type HTTPJobQueue struct {
 	processorPool *ProcessorPool
 	jobBoardURL   *url.URL
+	site          string
 	queue         string
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
@@ -34,10 +35,11 @@ type httpFetchJobsResponse struct {
 }
 
 // NewHTTPJobQueue creates a new job-board job queue
-func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, queue string) (*HTTPJobQueue, error) {
+func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site string, queue string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
 		processorPool: pool,
 		jobBoardURL:   jobBoardURL,
+		site:          site,
 		queue:         queue,
 	}, nil
 }
@@ -67,7 +69,9 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	// POST /jobs?count=17&queue=flah
 	// Content-Type: application/json
+	// Travis-Site: ${SITE}
 	// Authorization: Basic ${BASE64_BASIC_AUTH}
+	// From: ${UNIQUE_ID}
 
 	fetchRequestPayload := &httpFetchJobsRequest{}
 	numWaiting := 0
@@ -101,6 +105,8 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(jobIdsJSON))
 
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Travis-Site", q.site)
+	// req.Header.Add("From", "...")
 
 	resp, err := client.Do(req)
 
@@ -125,6 +131,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	// GET /jobs/:id
 	// Authorization: Basic ${BASE64_BASIC_AUTH}
+	// Travis-Site: ${SITE}
 
 	buildJob := &httpJob{
 		payload:         &JobPayload{},
@@ -143,6 +150,7 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	req, err := http.NewRequest("GET", url.String(), nil)
 
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Travis-Site", q.site)
 
 	resp, err := client.Do(req)
 
