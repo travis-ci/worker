@@ -102,7 +102,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 		switch p.CurrentStatus {
 		case "processing":
 			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, fmt.Sprintf("%d", p.LastJobID))
-		case "waiting":
+		case "waiting", "new":
 			numWaiting++
 		}
 	})
