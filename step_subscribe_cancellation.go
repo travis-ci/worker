@@ -36,5 +36,8 @@ func (s *stepSubscribeCancellation) Run(state multistep.StateBag) multistep.Step
 
 func (s *stepSubscribeCancellation) Cleanup(state multistep.StateBag) {
 	buildJob := state.Get("buildJob").(Job)
+	if s.canceller == nil {
+		return
+	}
 	s.canceller.Unsubscribe(buildJob.Payload().Job.ID)
 }
