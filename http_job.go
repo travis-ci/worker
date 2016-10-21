@@ -100,7 +100,6 @@ func (j *httpJob) currentState() string {
 }
 
 func (j *httpJob) Finish(state FinishState) error {
-
 	currentState := j.currentState()
 
 	finishedAt := time.Now()

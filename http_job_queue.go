@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
@@ -77,6 +78,8 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJobChan <- buildJob
 			}(id)
 		}
+
+		time.Sleep(time.Second)
 	}
 }
 
@@ -93,7 +96,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 		// CurrentStatus is one of "new", "waiting", "processing" or "done"
 		switch p.CurrentStatus {
 		case "processing":
-			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, string(p.LastJobID))
+			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, fmt.Sprintf("%d", p.LastJobID))
 		case "waiting":
 			numWaiting++
 		}
@@ -108,7 +111,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	url := *q.jobBoardURL
 
 	query := url.Query()
-	query.Add("count", string(numWaiting))
+	query.Add("count", fmt.Sprintf("%d", numWaiting))
 	query.Add("queue", q.queue)
 
 	url.Path = "/jobs"
@@ -146,6 +149,7 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	// GET /jobs/:id
 	// Authorization: Basic ${BASE64_BASIC_AUTH}
 	// Travis-Site: ${SITE}
+	// From: ${UNIQUE_ID}
 
 	buildJob := &httpJob{
 		payload:         &JobPayload{},
@@ -157,13 +161,12 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 
 	// copy jobBoardURL
 	url := *q.jobBoardURL
-	url.Path = "/jobs/" + string(id)
+	url.Path = fmt.Sprintf("/jobs/%d", id)
 
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url.String(), nil)
 
-	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", q.uniqueID)
 
