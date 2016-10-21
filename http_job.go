@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -111,9 +112,12 @@ func (j *httpJob) Finish(state FinishState) error {
 }
 
 func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	// TODO: jwt
-	// TODO: get impl from emma&henrik
-	return newHTTPLogWriter(ctx, nil /* TODO: url */, "" /* TODO: auth token */, j.payload.Job.ID)
+	u, err := url.Parse(j.payload.JobPartsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return newHTTPLogWriter(ctx, u, j.payload.JWT, j.payload.Job.ID)
 }
 
 func (j *httpJob) sendStateUpdate(event string, body map[string]interface{}) error {

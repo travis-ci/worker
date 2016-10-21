@@ -16,8 +16,8 @@ import (
 	gocontext "golang.org/x/net/context"
 )
 
-// httpJobQueue is a JobQueue that uses http
-type httpJobQueue struct {
+// HTTPJobQueue is a JobQueue that uses http
+type HTTPJobQueue struct {
 	processorPool *ProcessorPool
 	jobBoardURL   *url.URL
 	queue         string
@@ -33,15 +33,17 @@ type httpFetchJobsResponse struct {
 	Jobs []string `json:"jobs"`
 }
 
-func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, queue string) (*httpJobQueue, error) {
-	return &httpJobQueue{
+// NewHTTPJobQueue creates a new job-board job queue
+func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, queue string) (*HTTPJobQueue, error) {
+	return &HTTPJobQueue{
 		processorPool: pool,
 		jobBoardURL:   jobBoardURL,
 		queue:         queue,
 	}, nil
 }
 
-func (q *httpJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+// Jobs consumes new jobs from job-board
+func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
@@ -62,7 +64,7 @@ func (q *httpJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	}
 }
 
-func (q *httpJobQueue) fetchJobs() ([]uint64, error) {
+func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	// POST /jobs?count=17&queue=flah
 	// Content-Type: application/json
 	// Authorization: Basic ${BASE64_BASIC_AUTH}
@@ -98,17 +100,15 @@ func (q *httpJobQueue) fetchJobs() ([]uint64, error) {
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(jobIdsJSON))
 
-	// even needed?
-	// username := url.User.Username()
-	// password, _ := url.User.Password()
-	// req.SetBasicAuth(username, password)
-
 	req.Header.Add("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
 
 	fetchResponsePayload := &httpFetchJobsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&fetchResponsePayload)
+	if err != nil {
+		return nil, err
+	}
 
 	var jobIds []uint64
 	for _, strID := range fetchResponsePayload.Jobs {
@@ -122,7 +122,7 @@ func (q *httpJobQueue) fetchJobs() ([]uint64, error) {
 	return jobIds, nil
 }
 
-func (q *httpJobQueue) fetchJob(id uint64) (Job, error) {
+func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	// GET /jobs/:id
 	// Authorization: Basic ${BASE64_BASIC_AUTH}
 
@@ -141,11 +141,6 @@ func (q *httpJobQueue) fetchJob(id uint64) (Job, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url.String(), nil)
-
-	// even needed?
-	// username := url.User.Username()
-	// password, _ := url.User.Password()
-	// req.SetBasicAuth(username, password)
 
 	req.Header.Add("Content-Type", "application/json")
 
@@ -166,6 +161,7 @@ func (q *httpJobQueue) fetchJob(id uint64) (Job, error) {
 	return buildJob, err
 }
 
-func (q *httpJobQueue) Cleanup() error {
+// Cleanup does not do anything!
+func (q *HTTPJobQueue) Cleanup() error {
 	return nil
 }

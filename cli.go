@@ -163,7 +163,7 @@ func (i *CLI) Setup() (bool, error) {
 	i.ProcessorPool = pool
 
 	if i.Config.QueueType == "http" {
-		err := i.setupJobQueueForHttp(pool)
+		err := i.setupJobQueueForHTTP(pool)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't setup job queue for http")
 			return false, err
@@ -504,7 +504,7 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 	return fmt.Errorf("unknown queue type %q", i.Config.QueueType)
 }
 
-func (i *CLI) setupJobQueueForHttp(pool *ProcessorPool) error {
+func (i *CLI) setupJobQueueForHTTP(pool *ProcessorPool) error {
 	jobBoardURL, err := url.Parse(i.Config.JobBoardURL)
 	if err != nil {
 		return err
