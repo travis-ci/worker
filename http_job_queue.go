@@ -2,6 +2,9 @@ package worker
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -22,6 +25,7 @@ type HTTPJobQueue struct {
 	jobBoardURL   *url.URL
 	site          string
 	queue         string
+	uniqueID      string
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -36,11 +40,21 @@ type httpFetchJobsResponse struct {
 
 // NewHTTPJobQueue creates a new job-board job queue
 func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site string, queue string) (*HTTPJobQueue, error) {
+	randomBytes := make([]byte, 512)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	hash := sha1.Sum(randomBytes)
+	uniqueID := hex.EncodeToString(hash[:])
+
 	return &HTTPJobQueue{
 		processorPool: pool,
 		jobBoardURL:   jobBoardURL,
 		site:          site,
 		queue:         queue,
+		uniqueID:      uniqueID,
 	}, nil
 }
 
@@ -106,7 +120,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
-	// req.Header.Add("From", "...")
+	req.Header.Add("From", q.uniqueID)
 
 	resp, err := client.Do(req)
 
@@ -151,6 +165,7 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
+	req.Header.Add("From", q.uniqueID)
 
 	resp, err := client.Do(req)
 
