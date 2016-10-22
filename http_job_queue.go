@@ -90,7 +90,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 		// CurrentStatus is one of "new", "waiting", "processing" or "done"
 		switch p.CurrentStatus {
 		case "processing":
-			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, fmt.Sprintf("%d", p.LastJobID))
+			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.FormatUint(p.LastJobID, 10))
 		case "waiting", "new":
 			numWaiting++
 		}
@@ -105,7 +105,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	url := *q.jobBoardURL
 
 	query := url.Query()
-	query.Add("count", fmt.Sprintf("%d", numWaiting))
+	query.Add("count", strconv.Itoa(numWaiting))
 	query.Add("queue", q.queue)
 
 	url.Path = "/jobs"
