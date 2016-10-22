@@ -16,11 +16,26 @@ import (
 )
 
 type httpJob struct {
-	payload         *JobPayload
+	payload         *httpJobPayload
 	rawPayload      *simplejson.Json
 	startAttributes *backend.StartAttributes
 	received        time.Time
 	started         time.Time
+}
+
+type jobScriptPayload struct {
+	Name     string `json:"name"`
+	Encoding string `json:"encoding"`
+	Content  string `json:"content"`
+}
+
+type httpJobPayload struct {
+	Data        *JobPayload      `json:"data"`
+	JobScript   jobScriptPayload `json:"job_script"`
+	JobStateURL string           `json:"job_state_url"`
+	JobPartsURL string           `json:"log_parts_url"`
+	JWT         string           `json:"jwt"`
+	ImageName   string           `json:"image_name"`
 }
 
 type httpJobStateUpdate struct {
@@ -36,7 +51,7 @@ func (j *httpJob) GoString() string {
 }
 
 func (j *httpJob) Payload() *JobPayload {
-	return j.payload
+	return j.payload.Data
 }
 
 func (j *httpJob) RawPayload() *simplejson.Json {
@@ -128,7 +143,7 @@ func (j *httpJob) Finish(state FinishState) error {
 }
 
 func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Job.ID)
+	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Data.Job.ID)
 }
 
 func (j *httpJob) sendStateUpdate(currentState, newState string) error {
@@ -150,7 +165,7 @@ func (j *httpJob) sendStateUpdate(currentState, newState string) error {
 	}
 
 	u, err := template.Expand(map[string]interface{}{
-		"job_id": j.payload.Job.ID,
+		"job_id": j.payload.Data.Job.ID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "couldn't expand base URL template")

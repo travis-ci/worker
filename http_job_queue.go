@@ -155,11 +155,15 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	// From: ${UNIQUE_ID}
 
 	buildJob := &httpJob{
-		payload:         &JobPayload{},
+		payload: &httpJobPayload{
+			Data: &JobPayload{},
+		},
 		startAttributes: &backend.StartAttributes{},
 	}
-	startAttrs := &jobPayloadStartAttrs{
-		Config: &backend.StartAttributes{},
+	startAttrs := &httpJobPayloadStartAttrs{
+		Data: &jobPayloadStartAttrs{
+			Config: &backend.StartAttributes{},
+		},
 	}
 
 	// copy jobBoardURL
@@ -181,10 +185,11 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 
 	err = json.Unmarshal(body, &startAttrs)
 
-	buildJob.rawPayload, err = simplejson.NewJson(body)
+	rawPayload, err := simplejson.NewJson(body)
+	buildJob.rawPayload = rawPayload.Get("data")
 
-	buildJob.startAttributes = startAttrs.Config
-	buildJob.startAttributes.VMType = buildJob.payload.VMType
+	buildJob.startAttributes = startAttrs.Data.Config
+	buildJob.startAttributes.VMType = buildJob.payload.Data.VMType
 	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 
 	return buildJob, err
