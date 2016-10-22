@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -144,6 +145,19 @@ func (j *httpJob) Finish(state FinishState) error {
 
 func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
 	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Data.Job.ID)
+}
+
+func (j *httpJob) Generate(ctx gocontext.Context, job Job) ([]byte, error) {
+	if j.payload.JobScript.Encoding != "base64" {
+		return nil, errors.Errorf("unknown job script encoding: %s", j.payload.JobScript.Encoding)
+	}
+
+	script, err := base64.StdEncoding.DecodeString(j.payload.JobScript.Content)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't base64 decode job script")
+	}
+
+	return script, nil
 }
 
 func (j *httpJob) sendStateUpdate(currentState, newState string) error {

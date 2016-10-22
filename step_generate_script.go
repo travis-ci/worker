@@ -22,10 +22,16 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	b.MaxElapsedTime = time.Minute
 
 	var script []byte
-	err := backoff.Retry(func() (err error) {
-		script, err = s.generator.Generate(ctx, buildJob.RawPayload())
-		return
-	}, b)
+	var err error
+	switch job := buildJob.(type) {
+	case BuildScriptGenerator:
+		script, err = job.Generate(ctx, buildJob)
+	default:
+		err = backoff.Retry(func() (err error) {
+			script, err = s.generator.Generate(ctx, buildJob)
+			return
+		}, b)
+	}
 
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, erroring job")
