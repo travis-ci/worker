@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
+	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 
 	gocontext "golang.org/x/net/context"
@@ -97,7 +98,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 
 	jobIdsJSON, err := json.Marshal(fetchRequestPayload)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to marshal job board jobs request payload")
 	}
 
 	// copy jobBoardURL
@@ -113,17 +114,23 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(jobIdsJSON))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create job board jobs request")
+	}
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", q.workerID)
 
 	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make job board jobs request")
+	}
 
 	fetchResponsePayload := &httpFetchJobsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&fetchResponsePayload)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to decode job board jobs response")
 	}
 
 	var jobIds []uint64
@@ -140,7 +147,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 
 		id, err := strconv.ParseUint(strID, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to parse job ID")
 		}
 		jobIds = append(jobIds, id)
 	}
@@ -173,26 +180,44 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't make job board job request")
+	}
 
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", q.workerID)
 
 	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "error making job board job request")
+	}
 
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading body from job board job request")
+	}
 
 	err = json.Unmarshal(body, buildJob.payload)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal job board payload")
+	}
 
 	err = json.Unmarshal(body, &startAttrs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal start attributes from job board")
+	}
 
 	rawPayload, err := simplejson.NewJson(body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse raw payload with simplejson")
+	}
 	buildJob.rawPayload = rawPayload.Get("data")
 
 	buildJob.startAttributes = startAttrs.Data.Config
 	buildJob.startAttributes.VMType = buildJob.payload.Data.VMType
 	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 
-	return buildJob, err
+	return buildJob, nil
 }
 
 // Cleanup does not do anything!
