@@ -46,8 +46,7 @@ type httpLogWriter struct {
 }
 
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64) (*httpLogWriter, error) {
-
-	writer := &httpLogWriter{
+	return &httpLogWriter{
 		ctx:        context.FromComponent(ctx, "log_writer"),
 		jobID:      jobID,
 		closeChan:  make(chan struct{}),
@@ -57,13 +56,10 @@ func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID
 		httpClient: &http.Client{},
 		baseURL:    url,
 		authToken:  authToken,
-	}
-
-	return writer, nil
+	}, nil
 }
 
 func (w *httpLogWriter) Write(p []byte) (int, error) {
-
 	if w.closed() {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
