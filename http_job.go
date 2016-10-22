@@ -23,6 +23,13 @@ type httpJob struct {
 	started         time.Time
 }
 
+type httpJobStateUpdate struct {
+	CurrentState string    `json:"cur"`
+	NewState     string    `json:"new"`
+	ReceivedAt   time.Time `json:"received,omitempty"`
+	StartedAt    time.Time `json:"started,omitempty"`
+}
+
 func (j *httpJob) GoString() string {
 	return fmt.Sprintf("&httpJob{payload: %#v, startAttributes: %#v}",
 		j.payload, j.startAttributes)
@@ -125,12 +132,7 @@ func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
 }
 
 func (j *httpJob) sendStateUpdate(currentState, newState string) error {
-	payload := struct {
-		CurrentState string    `json:"cur"`
-		NewState     string    `json:"new"`
-		ReceivedAt   time.Time `json:"received,omitempty"`
-		StartedAt    time.Time `json:"started,omitempty"`
-	}{
+	payload := &httpJobStateUpdate{
 		CurrentState: currentState,
 		NewState:     newState,
 		ReceivedAt:   j.received,
