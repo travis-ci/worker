@@ -25,8 +25,10 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	var err error
 	switch job := buildJob.(type) {
 	case BuildScriptGenerator:
+		context.LoggerFromContext(ctx).Info("using job to get script")
 		script, err = job.Generate(ctx, buildJob)
 	default:
+		context.LoggerFromContext(ctx).Info("using build script generator to generate script")
 		err = backoff.Retry(func() (err error) {
 			script, err = s.generator.Generate(ctx, buildJob)
 			return
