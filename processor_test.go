@@ -127,7 +127,7 @@ func TestProcessor(t *testing.T) {
 		t.Error(err)
 	}
 
-	generator := buildScriptGeneratorFunction(func(ctx context.Context, json *simplejson.Json) ([]byte, error) {
+	generator := buildScriptGeneratorFunction(func(ctx context.Context, job Job) ([]byte, error) {
 		return []byte("hello, world"), nil
 	})
 
