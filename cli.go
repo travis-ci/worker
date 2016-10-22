@@ -1,8 +1,11 @@
 package worker
 
 import (
+	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -37,6 +40,7 @@ import (
 // CLI is the top level of execution for the whole shebang
 type CLI struct {
 	c        *cli.Context
+	id       string
 	bootTime time.Time
 
 	ctx    gocontext.Context
@@ -88,11 +92,15 @@ func (i *CLI) Setup() (bool, error) {
 
 	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true})
 
-	cfg := config.FromCLIContext(i.c)
-	i.Config = cfg
+	i.Config = config.FromCLIContext(i.c)
+
+	err := i.setupWorkerID()
+	if err != nil {
+		return false, err
+	}
 
 	if i.c.Bool("echo-config") {
-		config.WriteEnvConfig(cfg, os.Stdout)
+		config.WriteEnvConfig(i.Config, os.Stdout)
 		return false, nil
 	}
 
@@ -104,28 +112,28 @@ func (i *CLI) Setup() (bool, error) {
 	}
 
 	logger.WithFields(logrus.Fields{
-		"cfg": fmt.Sprintf("%#v", cfg),
+		"cfg": fmt.Sprintf("%#v", i.Config),
 	}).Debug("read config")
 
 	i.setupSentry()
 	i.setupMetrics()
 
 	if i.Config.QueueType != "http" {
-		err := i.setupJobQueueAndCanceller()
+		err = i.setupJobQueueAndCanceller()
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't create job queue and canceller")
 			return false, err
 		}
 	}
 
-	generator := NewBuildScriptGenerator(cfg)
+	generator := NewBuildScriptGenerator(i.Config)
 	logger.WithFields(logrus.Fields{
 		"build_script_generator": fmt.Sprintf("%#v", generator),
 	}).Debug("built")
 
 	i.BuildScriptGenerator = generator
 
-	provider, err := backend.NewBackendProvider(cfg.ProviderName, cfg.ProviderConfig)
+	provider, err := backend.NewBackendProvider(i.Config.ProviderName, i.Config.ProviderConfig)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create backend provider")
 		return false, err
@@ -144,18 +152,18 @@ func (i *CLI) Setup() (bool, error) {
 	i.BackendProvider = provider
 
 	ppc := &ProcessorPoolConfig{
-		Hostname:            cfg.Hostname,
+		Hostname:            i.Config.Hostname,
 		Context:             ctx,
-		HardTimeout:         cfg.HardTimeout,
-		LogTimeout:          cfg.LogTimeout,
-		ScriptUploadTimeout: cfg.ScriptUploadTimeout,
-		StartupTimeout:      cfg.StartupTimeout,
-		MaxLogLength:        cfg.MaxLogLength,
+		HardTimeout:         i.Config.HardTimeout,
+		LogTimeout:          i.Config.LogTimeout,
+		ScriptUploadTimeout: i.Config.ScriptUploadTimeout,
+		StartupTimeout:      i.Config.StartupTimeout,
+		MaxLogLength:        i.Config.MaxLogLength,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.Canceller)
 
-	pool.SkipShutdownOnLogTimeout = cfg.SkipShutdownOnLogTimeout
+	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
 	logger.WithFields(logrus.Fields{
 		"pool": pool,
 	}).Debug("built")
@@ -201,6 +209,19 @@ func (i *CLI) Run() {
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
+}
+
+func (i *CLI) setupWorkerID() error {
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return err
+	}
+
+	hash := sha1.Sum(randomBytes)
+	i.id = fmt.Sprintf("worker+%s@%d.%s",
+		hex.EncodeToString(hash[:]), os.Getpid(), i.Config.Hostname)
+	return nil
 }
 
 func (i *CLI) setupHeartbeat() {
@@ -510,7 +531,8 @@ func (i *CLI) setupJobQueueForHTTP(pool *ProcessorPool) error {
 		return err
 	}
 
-	jobQueue, err := NewHTTPJobQueue(pool, jobBoardURL, i.Config.TravisSite, i.Config.QueueName)
+	jobQueue, err := NewHTTPJobQueue(
+		pool, jobBoardURL, i.Config.TravisSite, i.Config.QueueName, i.id)
 	if err != nil {
 		return err
 	}
