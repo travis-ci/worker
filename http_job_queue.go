@@ -37,6 +37,12 @@ type httpFetchJobsResponse struct {
 	Jobs []string `json:"jobs"`
 }
 
+type jobBoardErrorResponse struct {
+	Type          string `json:"@type"`
+	Error         string `json:"error"`
+	UpstreamError string `json:"upstream_error,omitempty"`
+}
+
 // NewHTTPJobQueue creates a new job-board job queue
 func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, queue, workerID string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
@@ -195,6 +201,16 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading body from job board job request")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errorResp jobBoardErrorResponse
+		err := json.Unmarshal(body, &errorResp)
+		if err != nil {
+			return nil, errors.Errorf("job board job fetch request errored with status %d and didn't send an error response", resp.StatusCode)
+		}
+
+		return nil, errors.Errorf("job board job fetch request errored with status %d: %s", resp.StatusCode, errorResp.Error)
 	}
 
 	err = json.Unmarshal(body, buildJob.payload)
