@@ -23,6 +23,7 @@ type HTTPJobQueue struct {
 	processorPool *ProcessorPool
 	jobBoardURL   *url.URL
 	site          string
+	providerName  string
 	queue         string
 	workerID      string
 
@@ -44,11 +45,12 @@ type jobBoardErrorResponse struct {
 }
 
 // NewHTTPJobQueue creates a new job-board job queue
-func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, queue, workerID string) (*HTTPJobQueue, error) {
+func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
 		processorPool: pool,
 		jobBoardURL:   jobBoardURL,
 		site:          site,
+		providerName:  providerName,
 		queue:         queue,
 		workerID:      workerID,
 	}, nil
@@ -190,6 +192,10 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 		return nil, errors.Wrap(err, "couldn't make job board job request")
 	}
 
+	// TODO: ensure infrastructure is not synonymous with providerName since
+	// there's the possibility that a provider has multiple infrastructures, which
+	// is expected to be the case with the future cloudbrain provider.
+	req.Header.Add("Travis-Infrastructure", q.providerName)
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", q.workerID)
 

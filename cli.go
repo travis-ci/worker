@@ -532,7 +532,8 @@ func (i *CLI) setupJobQueueForHTTP(pool *ProcessorPool) error {
 	}
 
 	jobQueue, err := NewHTTPJobQueue(
-		pool, jobBoardURL, i.Config.TravisSite, i.Config.QueueName, i.id)
+		pool, jobBoardURL, i.Config.TravisSite,
+		i.Config.ProviderName, i.Config.QueueName, i.id)
 	if err != nil {
 		return err
 	}
