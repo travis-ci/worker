@@ -100,6 +100,26 @@ func (j *httpJob) currentState() string {
 }
 
 func (j *httpJob) Finish(state FinishState) error {
+	// DELETE /jobs/:id
+	// Authorization: Bearer ${JWT}
+	// Travis-Site: ${SITE}
+	// From: ${UNIQUE_ID}
+
+	// copy jobBoardURL
+	url := *q.jobBoardURL
+	url.Path = "/jobs/" + string(id)
+	url.Userinfo = nil
+
+	client := &http.Client{}
+
+	req, err := http.NewRequest("DELETE", url.String(), nil)
+
+	req.Header.Add("Travis-Site", q.site)
+	req.Header.Add("Authorization", "Bearer "+j.Payload().JWT)
+	req.Header.Add("From", q.uniqueID)
+
+	resp, err := client.Do(req)
+
 	currentState := j.currentState()
 
 	finishedAt := time.Now()
