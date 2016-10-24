@@ -28,6 +28,7 @@ import (
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
+	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
@@ -215,7 +216,7 @@ func (i *CLI) setupWorkerID() error {
 	randomBytes := make([]byte, 32)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error reading random bytes")
 	}
 
 	hash := sha1.Sum(randomBytes)
@@ -528,14 +529,14 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 func (i *CLI) setupJobQueueForHTTP(pool *ProcessorPool) error {
 	jobBoardURL, err := url.Parse(i.Config.JobBoardURL)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error parsing job board URL")
 	}
 
 	jobQueue, err := NewHTTPJobQueue(
 		pool, jobBoardURL, i.Config.TravisSite,
 		i.Config.ProviderName, i.Config.QueueName, i.id)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error creating HTTP job queue")
 	}
 
 	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
