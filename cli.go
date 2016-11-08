@@ -284,7 +284,7 @@ func (i *CLI) handleStopHook() {
 		"err":       err,
 		"output":    string(outErr),
 		"stop_hook": hookValue,
-	}).Error("start hook failed")
+	}).Error("stop hook failed")
 }
 
 func (i *CLI) setupSentry() {
