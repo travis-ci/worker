@@ -53,11 +53,7 @@ main() {
   ${sudo_exe} ./bin/travis-worker-install --skip-docker-populate --stable
 
   local docker_version
-  docker_version="$(
-    docker version \
-      | grep -A1 ^Server \
-      | awk '/Version/ { print $2 }'
-  )"
+  docker_version="$(docker version | awk '/^Server version:/ { print $3 }')"
   if [[ ! "${docker_version}" =~ 1\.7\.[0-9] ]]; then
     echo "     ERROR: unexpected docker server version" >&2
     echo "     ERROR:   expected: 1.7.[0-9]" >&2
