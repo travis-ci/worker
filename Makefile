@@ -14,7 +14,6 @@ COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 DOCKER_IMAGE_REPO ?= travisci/worker
 DOCKER_DEST ?= $(DOCKER_IMAGE_REPO):$(VERSION_VALUE)
-DOCKER_CREDS ?= quay
 
 DOCKER ?= docker
 GO ?= go
@@ -30,7 +29,6 @@ GOBUILD_LDFLAGS ?= \
 
 export GO15VENDOREXPERIMENT
 export DOCKER_DEST
-export DOCKER_CREDS
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
