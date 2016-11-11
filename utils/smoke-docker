@@ -8,6 +8,13 @@ main() {
     exit 1
   }
 
+  unset TRAVIS_WORKER_DOCKER_CREDS
+  unset TRAVIS_WORKER_DOCKER_LOGIN_PASSWORD
+  unset TRAVIS_WORKER_DOCKER_LOGIN_USERNAME
+  unset DOCKER_CREDS
+  unset DOCKER_LOGIN_PASSWORD
+  unset DOCKER_LOGIN_USERNAME
+
   set -o xtrace
   docker run --rm "${DOCKER_DEST}" --version &>/dev/null
   docker run --rm "${DOCKER_DEST}" travis-worker --version &>/dev/null

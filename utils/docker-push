@@ -6,6 +6,8 @@ main() {
   set +o xtrace
 
   : "${DOCKER_LOGIN_EMAIL:=.}"
+  : "${DOCKER_LOGIN_SERVER:=index.docker.io}"
+
   if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
     DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
     DOCKER_LOGIN_PASSWORD="${QUAY_DOCKER_LOGIN_PASSWORD}"

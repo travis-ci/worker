@@ -6,6 +6,15 @@ main() {
     set -o xtrace
   fi
 
+  unset TRAVIS_WORKER_DOCKER_CREDS
+  unset TRAVIS_WORKER_DOCKER_DEST
+  unset TRAVIS_WORKER_DOCKER_LOGIN_PASSWORD
+  unset TRAVIS_WORKER_DOCKER_LOGIN_USERNAME
+  unset DOCKER_CREDS
+  unset DOCKER_DEST
+  unset DOCKER_LOGIN_PASSWORD
+  unset DOCKER_LOGIN_USERNAME
+
   local sudo_exe='sudo'
 
   if ! sudo true &>/dev/null ; then
