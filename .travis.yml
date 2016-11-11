@@ -44,13 +44,10 @@ script:
 - make crossbuild
 - make smoke
 # - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-#     make docker-build &&
-#     make smoke-docker &&
-#     make docker-push;
+#     make docker-build smoke-docker docker-push;
 #   fi
 - if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
-    make package &&
-    make smoke-package;
+    make package smoke-package;
   fi
 
 notifications:
