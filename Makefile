@@ -36,6 +36,9 @@ COVERPROFILES := \
 	context-coverage.coverprofile \
 	image-coverage.coverprofile \
 	metrics-coverage.coverprofile
+CROSSBUILD_BINARIES := \
+	build/darwin/amd64/travis-worker \
+	build/linux/amd64/travis-worker
 
 %-coverage.coverprofile:
 	$(GO) test -v -covermode=count -coverprofile=$@ \
@@ -72,17 +75,19 @@ build: deps
 	$(GO) install -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
-crossbuild: deps
+crossbuild: deps $(CROSSBUILD_BINARIES)
+
+.PHONY: docker-build
+docker-build: $(CROSSBUILD_BINARIES)
+	$(DOCKER) build -t $(DOCKER_DEST) .
+
+$(CROSSBUILD_BINARIES):
 	GOARCH=amd64 GOOS=darwin CGO_ENABLED=0 \
 		$(GO) build -o build/darwin/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 \
 		$(GO) build -o build/linux/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
-
-.PHONY: docker-build
-docker-build: crossbuild
-	$(DOCKER) build -t $(DOCKER_DEST) .
 
 .PHONY: distclean
 distclean: clean
