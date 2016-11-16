@@ -6,6 +6,15 @@ main() {
     set -o xtrace
   fi
 
+  unset TRAVIS_WORKER_DOCKER_CREDS
+  unset TRAVIS_WORKER_DOCKER_DEST
+  unset TRAVIS_WORKER_DOCKER_LOGIN_PASSWORD
+  unset TRAVIS_WORKER_DOCKER_LOGIN_USERNAME
+  unset DOCKER_CREDS
+  unset DOCKER_DEST
+  unset DOCKER_LOGIN_PASSWORD
+  unset DOCKER_LOGIN_USERNAME
+
   local sudo_exe='sudo'
 
   if ! sudo true &>/dev/null ; then
@@ -26,7 +35,8 @@ main() {
   if [[ ! "${docker_version}" =~ 1\.12\.[0-9] ]]; then
     echo "     ERROR: unexpected docker server version" >&2
     echo "     ERROR:   expected: 1.12.[0-9]" >&2
-    docker version --format '{{.Server.Version}}'
+    echo "     ERROR:     actual: ${docker_version}" >&2
+    docker version
     exit 1
   fi
 
@@ -52,11 +62,12 @@ main() {
   ${sudo_exe} ./bin/travis-worker-install --skip-docker-populate --stable
 
   local docker_version
-  docker_version="$(docker version --format '{{.Server.Version}}')"
+  docker_version="$(docker version | awk '/^Server version:/ { print $3 }')"
   if [[ ! "${docker_version}" =~ 1\.7\.[0-9] ]]; then
     echo "     ERROR: unexpected docker server version" >&2
-    echo "     ERROR:   expected: 1.12.[0-9]" >&2
-    docker version --format '{{.Server.Version}}'
+    echo "     ERROR:   expected: 1.7.[0-9]" >&2
+    echo "     ERROR:     actual: ${docker_version}" >&2
+    docker version
     exit 1
   fi
 

@@ -14,7 +14,6 @@ COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
 DOCKER_IMAGE_REPO ?= travisci/worker
 DOCKER_DEST ?= $(DOCKER_IMAGE_REPO):$(VERSION_VALUE)
-DOCKER_ENV_FILE ?= .docker.env
 
 DOCKER ?= docker
 GO ?= go
@@ -29,7 +28,7 @@ GOBUILD_LDFLAGS ?= \
 	-X '$(COPYRIGHT_VAR)=$(COPYRIGHT_VALUE)'
 
 export GO15VENDOREXPERIMENT
-export DOCKER_ENV_FILE
+export DOCKER_DEST
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
@@ -37,6 +36,9 @@ COVERPROFILES := \
 	context-coverage.coverprofile \
 	image-coverage.coverprofile \
 	metrics-coverage.coverprofile
+CROSSBUILD_BINARIES := \
+	build/darwin/amd64/travis-worker \
+	build/linux/amd64/travis-worker
 
 %-coverage.coverprofile:
 	$(GO) test -v -covermode=count -coverprofile=$@ \
@@ -48,7 +50,7 @@ COVERPROFILES := \
 	./utils/$@
 
 .PHONY: all
-all: clean test $(DOCKER_ENV_FILE)
+all: clean test
 
 .PHONY: test
 test: deps lintall build fmtpolice test-no-cover coverage.html
@@ -73,17 +75,19 @@ build: deps
 	$(GO) install -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
-crossbuild: deps
+crossbuild: deps $(CROSSBUILD_BINARIES)
+
+.PHONY: docker-build
+docker-build: $(CROSSBUILD_BINARIES)
+	$(DOCKER) build -t $(DOCKER_DEST) .
+
+$(CROSSBUILD_BINARIES):
 	GOARCH=amd64 GOOS=darwin CGO_ENABLED=0 \
 		$(GO) build -o build/darwin/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 \
 		$(GO) build -o build/linux/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
-
-.PHONY: docker-build
-docker-build: crossbuild $(DOCKER_ENV_FILE)
-	$(DOCKER) build -t $(DOCKER_DEST) .
 
 .PHONY: distclean
 distclean: clean
