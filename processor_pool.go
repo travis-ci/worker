@@ -88,6 +88,15 @@ func (p *ProcessorPool) Size() int {
 	return len(p.processors)
 }
 
+// TotalProcessed returns the sum of all processor ProcessedCount values.
+func (p *ProcessorPool) TotalProcessed() int {
+	total := 0
+	p.Each(func(_ int, pr *Processor) {
+		total += pr.ProcessedCount
+	})
+	return total
+}
+
 // Run starts up a number of processors and connects them to the given queue.
 // This method stalls until all processors have finished.
 func (p *ProcessorPool) Run(poolSize int, queue JobQueue) error {
