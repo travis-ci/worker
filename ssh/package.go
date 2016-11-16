@@ -124,7 +124,7 @@ func (c *sshConnection) RunCommand(command string, output io.Writer) (uint8, err
 	}
 	defer session.Close()
 
-	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
+	err = session.RequestPty("xterm", 40, 80, ssh.TerminalModes{})
 	if err != nil {
 		return 0, errors.Wrap(err, "error requesting PTY")
 	}
