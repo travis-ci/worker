@@ -233,8 +233,6 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 		Encoding: "base64",
 	}
 
-	// jobID and part number goes in url. i.e. travis-logs.com/$jobid/$partno
-
 	template, err := uritemplates.Parse(w.baseURL)
 	if err != nil {
 		return errors.Wrap(err, "couldn't parse base URL template")

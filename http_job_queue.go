@@ -86,16 +86,9 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 }
 
 func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
-	// POST /jobs?count=17&queue=flah
-	// Content-Type: application/json
-	// Travis-Site: ${SITE}
-	// Authorization: Basic ${BASE64_BASIC_AUTH}
-	// From: ${UNIQUE_ID}
-
 	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
 	numWaiting := 0
 	q.processorPool.Each(func(i int, p *Processor) {
-		// CurrentStatus is one of "new", "waiting", "processing" or "done"
 		switch p.CurrentStatus {
 		case "processing":
 			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.FormatUint(p.LastJobID, 10))
@@ -109,7 +102,6 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 		return nil, errors.Wrap(err, "failed to marshal job board jobs request payload")
 	}
 
-	// copy jobBoardURL
 	url := *q.jobBoardURL
 
 	query := url.Query()
@@ -164,11 +156,6 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 }
 
 func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
-	// GET /jobs/:id
-	// Authorization: Basic ${BASE64_BASIC_AUTH}
-	// Travis-Site: ${SITE}
-	// From: ${UNIQUE_ID}
-
 	buildJob := &httpJob{
 		payload: &httpJobPayload{
 			Data: &JobPayload{},
@@ -181,7 +168,6 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 		},
 	}
 
-	// copy jobBoardURL
 	url := *q.jobBoardURL
 	url.Path = fmt.Sprintf("/jobs/%d", id)
 
