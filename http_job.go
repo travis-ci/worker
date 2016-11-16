@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,11 +17,33 @@ import (
 )
 
 type httpJob struct {
-	payload         *JobPayload
+	payload         *httpJobPayload
 	rawPayload      *simplejson.Json
 	startAttributes *backend.StartAttributes
 	received        time.Time
 	started         time.Time
+}
+
+type jobScriptPayload struct {
+	Name     string `json:"name"`
+	Encoding string `json:"encoding"`
+	Content  string `json:"content"`
+}
+
+type httpJobPayload struct {
+	Data        *JobPayload      `json:"data"`
+	JobScript   jobScriptPayload `json:"job_script"`
+	JobStateURL string           `json:"job_state_url"`
+	JobPartsURL string           `json:"log_parts_url"`
+	JWT         string           `json:"jwt"`
+	ImageName   string           `json:"image_name"`
+}
+
+type httpJobStateUpdate struct {
+	CurrentState string    `json:"cur"`
+	NewState     string    `json:"new"`
+	ReceivedAt   time.Time `json:"received,omitempty"`
+	StartedAt    time.Time `json:"started,omitempty"`
 }
 
 func (j *httpJob) GoString() string {
@@ -29,7 +52,7 @@ func (j *httpJob) GoString() string {
 }
 
 func (j *httpJob) Payload() *JobPayload {
-	return j.payload
+	return j.payload.Data
 }
 
 func (j *httpJob) RawPayload() *simplejson.Json {
@@ -141,16 +164,24 @@ func (j *httpJob) Finish(state FinishState) error {
 }
 
 func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Job.ID)
+	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Data.Job.ID)
+}
+
+func (j *httpJob) Generate(ctx gocontext.Context, job Job) ([]byte, error) {
+	if j.payload.JobScript.Encoding != "base64" {
+		return nil, errors.Errorf("unknown job script encoding: %s", j.payload.JobScript.Encoding)
+	}
+
+	script, err := base64.StdEncoding.DecodeString(j.payload.JobScript.Content)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't base64 decode job script")
+	}
+
+	return script, nil
 }
 
 func (j *httpJob) sendStateUpdate(currentState, newState string) error {
-	payload := struct {
-		CurrentState string    `json:"cur"`
-		NewState     string    `json:"new"`
-		ReceivedAt   time.Time `json:"received,omitempty"`
-		StartedAt    time.Time `json:"started,omitempty"`
-	}{
+	payload := &httpJobStateUpdate{
 		CurrentState: currentState,
 		NewState:     newState,
 		ReceivedAt:   j.received,
@@ -168,13 +199,18 @@ func (j *httpJob) sendStateUpdate(currentState, newState string) error {
 	}
 
 	u, err := template.Expand(map[string]interface{}{
-		"job_id": j.payload.Job.ID,
+		"job_id": j.payload.Data.Job.ID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "couldn't expand base URL template")
 	}
 
 	req, err := http.NewRequest("PATCH", u, bytes.NewReader(encodedPayload))
+	if err != nil {
+		return errors.Wrap(err, "couldn't create request")
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", j.payload.JWT))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

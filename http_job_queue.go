@@ -2,9 +2,6 @@ package worker
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
+	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 
 	gocontext "golang.org/x/net/context"
@@ -25,8 +23,9 @@ type HTTPJobQueue struct {
 	processorPool *ProcessorPool
 	jobBoardURL   *url.URL
 	site          string
+	providerName  string
 	queue         string
-	uniqueID      string
+	workerID      string
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -39,23 +38,21 @@ type httpFetchJobsResponse struct {
 	Jobs []string `json:"jobs"`
 }
 
+type jobBoardErrorResponse struct {
+	Type          string `json:"@type"`
+	Error         string `json:"error"`
+	UpstreamError string `json:"upstream_error,omitempty"`
+}
+
 // NewHTTPJobQueue creates a new job-board job queue
-func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site string, queue string) (*HTTPJobQueue, error) {
-	randomBytes := make([]byte, 512)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	hash := sha1.Sum(randomBytes)
-	uniqueID := "worker@" + hex.EncodeToString(hash[:])
-
+func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
 		processorPool: pool,
 		jobBoardURL:   jobBoardURL,
 		site:          site,
+		providerName:  providerName,
 		queue:         queue,
-		uniqueID:      uniqueID,
+		workerID:      workerID,
 	}, nil
 }
 
@@ -64,54 +61,51 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
-	for {
-		jobIds, err := q.fetchJobs()
-		if err != nil {
-			return nil, err
-		}
-		for _, id := range jobIds {
-			go func(id uint64) {
-				buildJob, err := q.fetchJob(id)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJob: %#v", err)
-				}
-				buildJobChan <- buildJob
-			}(id)
-		}
+	go func() {
+		for {
+			jobIds, err := q.fetchJobs()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJobs: %#v", err)
+				panic("whoops!")
+			}
+			for _, id := range jobIds {
+				go func(id uint64) {
+					buildJob, err := q.fetchJob(id)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJob: %#v", err)
+					}
+					buildJobChan <- buildJob
+				}(id)
+			}
 
-		time.Sleep(time.Second)
-	}
+			time.Sleep(time.Second)
+		}
+	}()
+
+	return outChan, nil
 }
 
 func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
-	// POST /jobs?count=17&queue=flah
-	// Content-Type: application/json
-	// Travis-Site: ${SITE}
-	// Authorization: Basic ${BASE64_BASIC_AUTH}
-	// From: ${UNIQUE_ID}
-
-	fetchRequestPayload := &httpFetchJobsRequest{}
+	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
 	numWaiting := 0
 	q.processorPool.Each(func(i int, p *Processor) {
-		// CurrentStatus is one of "new", "waiting", "processing" or "done"
 		switch p.CurrentStatus {
 		case "processing":
-			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, fmt.Sprintf("%d", p.LastJobID))
-		case "waiting":
+			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.FormatUint(p.LastJobID, 10))
+		case "waiting", "new":
 			numWaiting++
 		}
 	})
 
 	jobIdsJSON, err := json.Marshal(fetchRequestPayload)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to marshal job board jobs request payload")
 	}
 
-	// copy jobBoardURL
 	url := *q.jobBoardURL
 
 	query := url.Query()
-	query.Add("count", fmt.Sprintf("%d", numWaiting))
+	query.Add("count", strconv.Itoa(numWaiting))
 	query.Add("queue", q.queue)
 
 	url.Path = "/jobs"
@@ -120,24 +114,40 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	client := &http.Client{}
 
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(jobIdsJSON))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create job board jobs request")
+	}
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
-	req.Header.Add("From", q.uniqueID)
+	req.Header.Add("From", q.workerID)
 
 	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to make job board jobs request")
+	}
 
 	fetchResponsePayload := &httpFetchJobsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&fetchResponsePayload)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to decode job board jobs response")
 	}
 
 	var jobIds []uint64
 	for _, strID := range fetchResponsePayload.Jobs {
+		alreadyRunning := false
+		for _, prevStrID := range fetchRequestPayload.Jobs {
+			if strID == prevStrID {
+				alreadyRunning = true
+			}
+		}
+		if alreadyRunning {
+			continue
+		}
+
 		id, err := strconv.ParseUint(strID, 10, 64)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to parse job ID")
 		}
 		jobIds = append(jobIds, id)
 	}
@@ -146,45 +156,76 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 }
 
 func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
-	// GET /jobs/:id
-	// Authorization: Basic ${BASE64_BASIC_AUTH}
-	// Travis-Site: ${SITE}
-	// From: ${UNIQUE_ID}
-
 	buildJob := &httpJob{
-		payload:         &JobPayload{},
+		payload: &httpJobPayload{
+			Data: &JobPayload{},
+		},
 		startAttributes: &backend.StartAttributes{},
 	}
-	startAttrs := &jobPayloadStartAttrs{
-		Config: &backend.StartAttributes{},
+	startAttrs := &httpJobPayloadStartAttrs{
+		Data: &jobPayloadStartAttrs{
+			Config: &backend.StartAttributes{},
+		},
 	}
 
-	// copy jobBoardURL
 	url := *q.jobBoardURL
 	url.Path = fmt.Sprintf("/jobs/%d", id)
 
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't make job board job request")
+	}
 
+	// TODO: ensure infrastructure is not synonymous with providerName since
+	// there's the possibility that a provider has multiple infrastructures, which
+	// is expected to be the case with the future cloudbrain provider.
+	req.Header.Add("Travis-Infrastructure", q.providerName)
 	req.Header.Add("Travis-Site", q.site)
-	req.Header.Add("From", q.uniqueID)
+	req.Header.Add("From", q.workerID)
 
 	resp, err := client.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "error making job board job request")
+	}
 
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading body from job board job request")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var errorResp jobBoardErrorResponse
+		err := json.Unmarshal(body, &errorResp)
+		if err != nil {
+			return nil, errors.Errorf("job board job fetch request errored with status %d and didn't send an error response", resp.StatusCode)
+		}
+
+		return nil, errors.Errorf("job board job fetch request errored with status %d: %s", resp.StatusCode, errorResp.Error)
+	}
 
 	err = json.Unmarshal(body, buildJob.payload)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal job board payload")
+	}
 
 	err = json.Unmarshal(body, &startAttrs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal start attributes from job board")
+	}
 
-	buildJob.rawPayload, err = simplejson.NewJson(body)
+	rawPayload, err := simplejson.NewJson(body)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse raw payload with simplejson")
+	}
+	buildJob.rawPayload = rawPayload.Get("data")
 
-	buildJob.startAttributes = startAttrs.Config
-	buildJob.startAttributes.VMType = buildJob.payload.VMType
+	buildJob.startAttributes = startAttrs.Data.Config
+	buildJob.startAttributes.VMType = buildJob.payload.Data.VMType
 	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 
-	return buildJob, err
+	return buildJob, nil
 }
 
 // Cleanup does not do anything!

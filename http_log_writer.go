@@ -39,14 +39,14 @@ type httpLogWriter struct {
 
 	httpClient *http.Client
 	baseURL    string
+	authToken  string
 
 	timer   *time.Timer
 	timeout time.Duration
 }
 
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64) (*httpLogWriter, error) {
-
-	writer := &httpLogWriter{
+	return &httpLogWriter{
 		ctx:        context.FromComponent(ctx, "log_writer"),
 		jobID:      jobID,
 		closeChan:  make(chan struct{}),
@@ -55,13 +55,11 @@ func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID
 		timeout:    0,
 		httpClient: &http.Client{},
 		baseURL:    url,
-	}
-
-	return writer, nil
+		authToken:  authToken,
+	}, nil
 }
 
 func (w *httpLogWriter) Write(p []byte) (int, error) {
-
 	if w.closed() {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
@@ -235,8 +233,6 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 		Encoding: "base64",
 	}
 
-	// jobID and part number goes in url. i.e. travis-logs.com/$jobid/$partno
-
 	template, err := uritemplates.Parse(w.baseURL)
 	if err != nil {
 		return errors.Wrap(err, "couldn't parse base URL template")
@@ -259,6 +255,8 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 	if err != nil {
 		return errors.Wrap(err, "couldn't create request")
 	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", w.authToken))
 
 	resp, err := w.httpClient.Do(req)
 	if err != nil {

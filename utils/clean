@@ -6,13 +6,18 @@ shopt -s nullglob
 cd $(dirname $(dirname ${BASH_SOURCE[0]}))
 
 rm -rvf \
-  ./build \
   ${GOPATH%%:*}/bin/travis-worker \
-  coverage.html \
   *coverage.coverprofile \
+  ./build \
   ./tmp/deb \
   ./tmp/output \
-  .docker.env
+  .docker.env \
+  CURRENT_SHA1 \
+  GIT_DESCRIPTION \
+  VERSION \
+  VERSION_SHA1 \
+  VERSION_TAG \
+  coverage.html
 
 find ${GOPATH%%:*}/pkg -wholename '*travis-ci/worker*.a' | \
   grep -v vendor/ | \
