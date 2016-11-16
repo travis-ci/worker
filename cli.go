@@ -170,7 +170,7 @@ func (i *CLI) Run() {
 	defer i.handleStopHook()
 
 	i.logger.Info("worker started")
-	defer i.logger.Info("worker finished")
+	defer i.logProcessorInfo("worker finished")
 
 	i.logger.Info("setting up heartbeat")
 	i.setupHeartbeat()
@@ -385,23 +385,7 @@ func (i *CLI) signalHandler() {
 				i.logger.Info("SIGWINCH received, toggling graceful shutdown and pause")
 				i.ProcessorPool.GracefulShutdown(true)
 			case syscall.SIGUSR1:
-				i.logger.WithFields(logrus.Fields{
-					"version":   VersionString,
-					"revision":  RevisionString,
-					"generated": GeneratedString,
-					"boot_time": i.bootTime.String(),
-					"uptime":    time.Since(i.bootTime),
-					"pool_size": i.ProcessorPool.Size(),
-				}).Info("SIGUSR1 received, dumping info")
-				i.ProcessorPool.Each(func(n int, proc *Processor) {
-					i.logger.WithFields(logrus.Fields{
-						"n":           n,
-						"id":          proc.ID,
-						"processed":   proc.ProcessedCount,
-						"status":      proc.CurrentStatus,
-						"last_job_id": proc.LastJobID,
-					}).Info("processor info")
-				})
+				i.logProcessorInfo("received SIGUSR1")
 			default:
 				i.logger.WithField("signal", sig).Info("ignoring unknown signal")
 			}
@@ -409,6 +393,30 @@ func (i *CLI) signalHandler() {
 			time.Sleep(time.Second)
 		}
 	}
+}
+
+func (i *CLI) logProcessorInfo(msg string) {
+	if msg == "" {
+		msg = "processor pool info"
+	}
+	i.logger.WithFields(logrus.Fields{
+		"version":         VersionString,
+		"revision":        RevisionString,
+		"generated":       GeneratedString,
+		"boot_time":       i.bootTime.String(),
+		"uptime":          time.Since(i.bootTime),
+		"pool_size":       i.ProcessorPool.Size(),
+		"total_processed": i.ProcessorPool.TotalProcessed(),
+	}).Info(msg)
+	i.ProcessorPool.Each(func(n int, proc *Processor) {
+		i.logger.WithFields(logrus.Fields{
+			"n":           n,
+			"id":          proc.ID,
+			"processed":   proc.ProcessedCount,
+			"status":      proc.CurrentStatus,
+			"last_job_id": proc.LastJobID,
+		}).Info("processor info")
+	})
 }
 
 func (i *CLI) setupJobQueueAndCanceller() error {
