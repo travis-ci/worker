@@ -427,7 +427,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{"bash", "/home/travis/build.sh"},
+		Cmd:          []string{"bash", "-l", "/home/travis/build.sh"},
 		User:         "travis",
 		Container:    i.container.ID,
 	}
