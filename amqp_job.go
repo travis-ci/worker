@@ -100,7 +100,7 @@ func (j *amqpJob) Finish(state FinishState) error {
 		startedAt = finishedAt
 	}
 
-	metrics.Mark(fmt.Sprintf("worker.job.finish.%s", string(state)))
+	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 
 	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
