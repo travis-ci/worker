@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -77,6 +78,8 @@ func (j *fileJob) Requeue() error {
 }
 
 func (j *fileJob) Finish(state FinishState) error {
+	metrics.Mark(fmt.Sprintf("worker.job.finish.%s", string(state)))
+
 	err := os.Rename(j.startedFile, j.finishedFile)
 	if err != nil {
 		return err
