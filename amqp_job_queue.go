@@ -122,7 +122,12 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.conn = q.conn
 				buildJob.delivery = delivery
 
-				buildJobChan <- buildJob
+				select {
+				case buildJobChan <- buildJob:
+				case <-ctx.Done():
+					delivery.Nack(false, true)
+					return
+				}
 			}
 		}
 	}()
