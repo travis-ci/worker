@@ -65,8 +65,6 @@ func init() {
 }
 
 type jupiterBrainProvider struct {
-	client               *http.Client
-	baseURL              *url.URL
 	sshDialer            ssh.Dialer
 	keychainPassword     string
 	bootPollSleep        time.Duration
@@ -75,6 +73,8 @@ type jupiterBrainProvider struct {
 
 	imageSelectorType string
 	imageSelector     image.Selector
+
+	apiClient *jupiterBrainAPIClient
 }
 
 type jupiterBrainInstance struct {
@@ -167,8 +167,6 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	return &jupiterBrainProvider{
-		client:               http.DefaultClient,
-		baseURL:              baseURL,
 		sshDialer:            sshDialer,
 		keychainPassword:     keychainPassword,
 		bootPollSleep:        bootPollSleep,
@@ -177,6 +175,11 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		imageSelectorType: imageSelectorType,
 		imageSelector:     imageSelector,
+
+		apiClient: &jupiterBrainAPIClient{
+			client:  http.DefaultClient,
+			baseURL: baseURL,
+		},
 	}, nil
 }
 
@@ -196,11 +199,7 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 }
 
 func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	u, err := p.baseURL.Parse("instances")
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create instances URL")
-	}
-
+	// Get the image name
 	imageName, err := p.getImageName(ctx, startAttributes)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't get image name")
@@ -217,124 +216,46 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 
 	startBooting := time.Now()
 
-	bodyPayload := map[string]map[string]string{
-		"data": {
-			"type":       "instances",
-			"base-image": imageName,
-		},
-	}
-
-	jsonBody, err := json.Marshal(bodyPayload)
+	// Start the instance
+	instancePayload, err := p.apiClient.Start(ctx, imageName)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't marshal instance create request to JSON")
+		return nil, errors.Wrap(err, "error creating instance in Jupiter Brain")
 	}
 
-	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jsonBody))
+	// Wait for SSH to be ready
+	payload, err := p.waitForSSH(ctx, instancePayload.ID)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create instance create request")
-	}
-	req.Header.Set("Content-Type", "application/vnd.api+json")
-
-	resp, err := p.httpDo(req)
-	if err != nil {
-		return nil, errors.Wrap(err, "error sending create instance request")
-	}
-	defer io.Copy(ioutil.Discard, resp.Body)
-	defer resp.Body.Close()
-
-	if c := resp.StatusCode; c < 200 || c >= 300 {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, errors.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", c, body)
-	}
-
-	dataPayload := &jupiterBrainDataResponse{}
-	err = json.NewDecoder(resp.Body).Decode(dataPayload)
-	if err != nil {
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-			"err":     err,
-			"payload": dataPayload,
-			"body":    resp.Body,
-		}).Error("couldn't decode created payload")
-		return nil, errors.Wrap(err, "couldn't decode created payload")
-	}
-
-	payload := dataPayload.Data[0]
-
-	instanceReady := make(chan *jupiterBrainInstancePayload, 1)
-	errChan := make(chan error, 1)
-	go p.waitForSSH(ctx, payload.ID, instanceReady, errChan)
-
-	select {
-	case payload := <-instanceReady:
-		metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
-		normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
-		metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
-		context.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
-
-		if payload.BaseImage == "" {
-			payload.BaseImage = imageName
-		}
-
-		return &jupiterBrainInstance{
-			payload:         payload,
-			provider:        p,
-			startupDuration: time.Now().UTC().Sub(startBooting),
-		}, nil
-	case err := <-errChan:
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
 		}
 
 		instance := &jupiterBrainInstance{
-			payload:  payload,
+			payload:  instancePayload,
 			provider: p,
 		}
 		instance.Stop(ctx)
 
 		return nil, err
-	case <-ctx.Done():
-		if ctx.Err() == gocontext.DeadlineExceeded {
-			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
-		}
-
-		instance := &jupiterBrainInstance{
-			payload:  payload,
-			provider: p,
-		}
-		instance.Stop(ctx)
-
-		select {
-		case err := <-errChan:
-			return nil, err
-		case <-time.After(p.bootPollWaitForError):
-			return nil, ctx.Err()
-		}
 	}
+
+	metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
+	normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
+	metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
+	context.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
+
+	if payload.BaseImage == "" {
+		payload.BaseImage = imageName
+	}
+
+	return &jupiterBrainInstance{
+		payload:         payload,
+		provider:        p,
+		startupDuration: time.Now().UTC().Sub(startBooting),
+	}, nil
 }
 
 func (p *jupiterBrainProvider) Setup(ctx gocontext.Context) error {
 	return nil
-}
-
-func (p *jupiterBrainProvider) httpDo(req *http.Request) (*http.Response, error) {
-	if req.URL.User != nil {
-		token := req.URL.User.Username()
-		req.URL.User = nil
-		req.Header.Set("Authorization", "token "+token)
-	}
-
-	var resp *http.Response = nil
-
-	b := backoff.NewExponentialBackOff()
-	b.MaxInterval = 10 * time.Second
-	b.MaxElapsedTime = time.Minute
-
-	err := backoff.Retry(func() (err error) {
-		resp, err = p.client.Do(req)
-		return
-	}, b)
-
-	return resp, err
 }
 
 func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte) error {
@@ -392,23 +313,8 @@ func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer
 }
 
 func (i *jupiterBrainInstance) Stop(ctx gocontext.Context) error {
-	u, err := i.provider.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(i.payload.ID)))
-	if err != nil {
-		return errors.Wrap(err, "error creating instance stop URL")
-	}
-
-	req, err := http.NewRequest("DELETE", u.String(), nil)
-	if err != nil {
-		return errors.Wrap(err, "error creating instance stop request")
-	}
-
-	resp, err := i.provider.httpDo(req)
-	if err != nil {
-		return errors.Wrap(err, "error sending instance stop request")
-	}
-
-	resp.Body.Close()
-	return nil
+	err := i.provider.apiClient.Stop(ctx, i.payload.ID)
+	return errors.Wrap(err, "error sending Stop request to Jupiter Brain")
 }
 
 func (i *jupiterBrainInstance) ID() string {
@@ -456,56 +362,22 @@ func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttribut
 	})
 }
 
-func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, id string, instanceReady chan<- *jupiterBrainInstancePayload, errChan chan<- error) {
-	u, err := p.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(id)))
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	req, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		errChan <- err
-		return
-	}
-
+func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, id string) (*jupiterBrainInstancePayload, error) {
 	var ip net.IP
 
 	for {
 		if ctx.Err() != nil {
 			if ip == nil {
-				errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
+				return nil, errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
 			} else {
-				errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
+				return nil, errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
 			}
-
-			return
 		}
 
-		resp, err := p.httpDo(req)
+		payload, err := p.apiClient.Get(ctx, id)
 		if err != nil {
-			errChan <- err
-			return
+			return nil, errors.Wrap(err, "error trying to refresh instance waiting for IP address")
 		}
-
-		if resp.StatusCode != 200 {
-			body, _ := ioutil.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			errChan <- errors.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
-			return
-		}
-
-		dataPayload := &jupiterBrainDataResponse{}
-		err = json.NewDecoder(resp.Body).Decode(dataPayload)
-		if err != nil {
-			_ = resp.Body.Close()
-			errChan <- errors.Wrap(err, "couldn't decode refresh payload")
-			return
-		}
-		payload := dataPayload.Data[0]
-
-		_, _ = io.Copy(ioutil.Discard, resp.Body)
-		_ = resp.Body.Close()
 
 		for _, ipString := range payload.IPAddresses {
 			curIP := net.ParseIP(ipString)
@@ -535,8 +407,7 @@ func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, id string, inst
 		}
 
 		if err == nil {
-			instanceReady <- payload
-			return
+			return payload, nil
 		}
 
 		select {
@@ -544,4 +415,135 @@ func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, id string, inst
 		case <-ctx.Done():
 		}
 	}
+}
+
+type jupiterBrainAPIClient struct {
+	client  *http.Client
+	baseURL *url.URL
+}
+
+func (ac *jupiterBrainAPIClient) Start(ctx gocontext.Context, baseImage string) (*jupiterBrainInstancePayload, error) {
+	bodyPayload := map[string]map[string]string{
+		"data": {
+			"type":       "instances",
+			"base-image": baseImage,
+		},
+	}
+
+	jsonBody, err := json.Marshal(bodyPayload)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't marshal instance create request to JSON")
+	}
+
+	u, err := ac.baseURL.Parse("instances")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create create-instance URL")
+	}
+
+	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create instance create request")
+	}
+
+	req.Header.Set("Content-Type", "application/vnd.api+json")
+
+	resp, err := ac.httpDo(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "error sending create instance request")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return nil, errors.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", resp.StatusCode, body)
+	}
+
+	dataPayload := &jupiterBrainDataResponse{}
+	err = json.NewDecoder(resp.Body).Decode(dataPayload)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't decode payload from Jupiter Brain")
+	}
+
+	if len(dataPayload.Data) != 1 {
+		return nil, errors.Wrapf(err, "expected 1 instance to be returned, but got %d", len(dataPayload.Data))
+	}
+
+	return dataPayload.Data[0], nil
+}
+
+func (ac *jupiterBrainAPIClient) Get(ctx gocontext.Context, id string) (*jupiterBrainInstancePayload, error) {
+	u, err := ac.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(id)))
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create fetch-instance URL")
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create instance fetch request")
+	}
+
+	resp, err := ac.httpDo(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "error sending fetch instance request")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := ioutil.ReadAll(resp.Body)
+		return nil, errors.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
+	}
+
+	dataPayload := &jupiterBrainDataResponse{}
+	err = json.NewDecoder(resp.Body).Decode(dataPayload)
+	if err != nil {
+		_ = resp.Body.Close()
+		return nil, errors.Wrap(err, "couldn't decode payload from Jupiter Brain")
+	}
+
+	if len(dataPayload.Data) != 1 {
+		return nil, errors.Wrapf(err, "expected 1 instance to be returned, but got %d", len(dataPayload.Data))
+	}
+
+	return dataPayload.Data[0], nil
+}
+
+func (ac *jupiterBrainAPIClient) Stop(ctx gocontext.Context, id string) error {
+	u, err := ac.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(id)))
+	if err != nil {
+		return errors.Wrap(err, "error creating instance stop URL")
+	}
+
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return errors.Wrap(err, "error creating instance stop request")
+	}
+
+	resp, err := ac.httpDo(req)
+	if err != nil {
+		return errors.Wrap(err, "error sending instance stop request")
+	}
+	resp.Body.Close()
+
+	return nil
+}
+
+func (ac *jupiterBrainAPIClient) httpDo(req *http.Request) (*http.Response, error) {
+	if req.URL.User != nil {
+		token := req.URL.User.Username()
+		req.URL.User = nil
+		req.Header.Set("Authorization", "token "+token)
+	}
+
+	var resp *http.Response
+
+	b := backoff.NewExponentialBackOff()
+	b.MaxInterval = 10 * time.Second
+	b.MaxElapsedTime = time.Minute
+
+	err := backoff.Retry(func() (err error) {
+		resp, err = ac.client.Do(req)
+		return
+	}, b)
+
+	return resp, err
 }
