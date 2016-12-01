@@ -262,95 +262,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 
 	instanceReady := make(chan *jupiterBrainInstancePayload, 1)
 	errChan := make(chan error, 1)
-	go func(id string) {
-		u, err := p.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(id)))
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		req, err := http.NewRequest("GET", u.String(), nil)
-		if err != nil {
-			errChan <- err
-			return
-		}
-
-		var ip net.IP
-
-		for {
-			if ctx.Err() != nil {
-				if ip == nil {
-					errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
-				} else {
-					errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
-				}
-
-				return
-			}
-
-			resp, err := p.httpDo(req)
-			if err != nil {
-				errChan <- err
-				return
-			}
-
-			if resp.StatusCode != 200 {
-				body, _ := ioutil.ReadAll(resp.Body)
-				_ = resp.Body.Close()
-				errChan <- errors.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
-				return
-			}
-
-			dataPayload := &jupiterBrainDataResponse{}
-			err = json.NewDecoder(resp.Body).Decode(dataPayload)
-			if err != nil {
-				_ = resp.Body.Close()
-				errChan <- errors.Wrap(err, "couldn't decode refresh payload")
-				return
-			}
-			payload := dataPayload.Data[0]
-
-			_, _ = io.Copy(ioutil.Discard, resp.Body)
-			_ = resp.Body.Close()
-
-			for _, ipString := range payload.IPAddresses {
-				curIP := net.ParseIP(ipString)
-				if curIP.To4() != nil {
-					ip = curIP
-					break
-				}
-
-			}
-
-			if ip == nil {
-				select {
-				case <-time.After(p.bootPollSleep):
-				case <-ctx.Done():
-				}
-
-				continue
-			}
-
-			dialer := &net.Dialer{
-				Timeout: p.bootPollDialTimeout,
-			}
-
-			conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:22", ip.String()))
-			if conn != nil {
-				conn.Close()
-			}
-
-			if err == nil {
-				instanceReady <- payload
-				return
-			}
-
-			select {
-			case <-time.After(p.bootPollSleep):
-			case <-ctx.Done():
-			}
-		}
-	}(payload.ID)
+	go p.waitForSSH(ctx, payload.ID, instanceReady, errChan)
 
 	select {
 	case payload := <-instanceReady:
@@ -542,4 +454,94 @@ func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttribut
 		JobID:    jobID,
 		Repo:     repo,
 	})
+}
+
+func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, id string, instanceReady chan<- *jupiterBrainInstancePayload, errChan chan<- error) {
+	u, err := p.baseURL.Parse(fmt.Sprintf("instances/%s", url.QueryEscape(id)))
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		errChan <- err
+		return
+	}
+
+	var ip net.IP
+
+	for {
+		if ctx.Err() != nil {
+			if ip == nil {
+				errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
+			} else {
+				errChan <- errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
+			}
+
+			return
+		}
+
+		resp, err := p.httpDo(req)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		if resp.StatusCode != 200 {
+			body, _ := ioutil.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			errChan <- errors.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
+			return
+		}
+
+		dataPayload := &jupiterBrainDataResponse{}
+		err = json.NewDecoder(resp.Body).Decode(dataPayload)
+		if err != nil {
+			_ = resp.Body.Close()
+			errChan <- errors.Wrap(err, "couldn't decode refresh payload")
+			return
+		}
+		payload := dataPayload.Data[0]
+
+		_, _ = io.Copy(ioutil.Discard, resp.Body)
+		_ = resp.Body.Close()
+
+		for _, ipString := range payload.IPAddresses {
+			curIP := net.ParseIP(ipString)
+			if curIP.To4() != nil {
+				ip = curIP
+				break
+			}
+
+		}
+
+		if ip == nil {
+			select {
+			case <-time.After(p.bootPollSleep):
+			case <-ctx.Done():
+			}
+
+			continue
+		}
+
+		dialer := &net.Dialer{
+			Timeout: p.bootPollDialTimeout,
+		}
+
+		conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("%s:22", ip.String()))
+		if conn != nil {
+			conn.Close()
+		}
+
+		if err == nil {
+			instanceReady <- payload
+			return
+		}
+
+		select {
+		case <-time.After(p.bootPollSleep):
+		case <-ctx.Done():
+		}
+	}
 }
