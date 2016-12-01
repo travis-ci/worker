@@ -222,8 +222,24 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		return nil, errors.Wrap(err, "error creating instance in Jupiter Brain")
 	}
 
+	// Wait for instance to get IP address
+	ip, payload, err := p.waitForIP(ctx, instancePayload.ID)
+	if err != nil {
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
+		}
+
+		instance := &jupiterBrainInstance{
+			payload:  instancePayload,
+			provider: p,
+		}
+		instance.Stop(ctx)
+
+		return nil, err
+	}
+
 	// Wait for SSH to be ready
-	payload, err := p.waitForSSH(ctx, instancePayload.ID)
+	err = p.waitForSSH(ctx, ip)
 	if err != nil {
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
@@ -362,39 +378,35 @@ func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttribut
 	})
 }
 
-func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, id string) (*jupiterBrainInstancePayload, error) {
-	var ip net.IP
-
+func (p *jupiterBrainProvider) waitForIP(ctx gocontext.Context, id string) (net.IP, *jupiterBrainInstancePayload, error) {
 	for {
 		if ctx.Err() != nil {
-			if ip == nil {
-				return nil, errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
-			} else {
-				return nil, errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
-			}
+			return nil, nil, errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
 		}
 
 		payload, err := p.apiClient.Get(ctx, id)
 		if err != nil {
-			return nil, errors.Wrap(err, "error trying to refresh instance waiting for IP address")
+			return nil, nil, errors.Wrap(err, "error trying to refresh instance waiting for IP address")
 		}
 
 		for _, ipString := range payload.IPAddresses {
 			curIP := net.ParseIP(ipString)
 			if curIP.To4() != nil {
-				ip = curIP
-				break
+				return curIP, payload, nil
 			}
-
 		}
 
-		if ip == nil {
-			select {
-			case <-time.After(p.bootPollSleep):
-			case <-ctx.Done():
-			}
+		select {
+		case <-time.After(p.bootPollSleep):
+		case <-ctx.Done():
+		}
+	}
+}
 
-			continue
+func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, ip net.IP) error {
+	for {
+		if ctx.Err() != nil {
+			return errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
 		}
 
 		dialer := &net.Dialer{
@@ -407,7 +419,7 @@ func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, id string) (*ju
 		}
 
 		if err == nil {
-			return payload, nil
+			return nil
 		}
 
 		select {
