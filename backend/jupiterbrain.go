@@ -222,6 +222,9 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		return nil, errors.Wrap(err, "error creating instance in Jupiter Brain")
 	}
 
+	// Sleep to allow the new instance to be fully visible
+	time.Sleep(p.bootPollSleep)
+
 	// Wait for instance to get IP address
 	ip, payload, err := p.waitForIP(ctx, instancePayload.ID)
 	if err != nil {
