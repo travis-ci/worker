@@ -189,7 +189,7 @@ func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
 	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "expected 200 status code, received status=500")
+	assert.Contains(t, err.Error(), "expected 200 status code from Job Board, received status=500")
 }
 
 func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
