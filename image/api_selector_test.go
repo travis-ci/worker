@@ -175,8 +175,9 @@ func TestAPISelector_SelectDefault(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, _ := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
+	assert.NoError(t, err)
 }
 
 func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
@@ -185,8 +186,10 @@ func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, _ := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "expected 200 status code, received status=500")
 }
 
 func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
@@ -195,8 +198,9 @@ func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, _ := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
+	assert.Error(t, err, "unexpected end of JSON input")
 }
 
 func TestAPISelector_buildCandidateTags(t *testing.T) {
