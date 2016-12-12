@@ -67,55 +67,68 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	outChan = buildJobChan
 
 	go func() {
-		for delivery := range deliveries {
-			buildJob := &amqpJob{
-				payload:         &JobPayload{},
-				startAttributes: &backend.StartAttributes{},
-			}
-			startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
+		defer channel.Close()
 
-			err := json.Unmarshal(delivery.Body, buildJob.payload)
-			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error, attempting to nack delivery")
-				err := delivery.Ack(false)
-				if err != nil {
-					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case delivery := <-deliveries:
+				buildJob := &amqpJob{
+					payload:         &JobPayload{},
+					startAttributes: &backend.StartAttributes{},
 				}
-				continue
-			}
+				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
-			err = json.Unmarshal(delivery.Body, &startAttrs)
-			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
-				err := delivery.Ack(false)
+				err := json.Unmarshal(delivery.Body, buildJob.payload)
 				if err != nil {
-					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+					context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error, attempting to nack delivery")
+					err := delivery.Ack(false)
+					if err != nil {
+						context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+					}
+					continue
 				}
-				continue
-			}
 
-			buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
-			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error, attempting to nack delivery")
-				err := delivery.Ack(false)
+				context.LoggerFromContext(ctx).WithField("job", buildJob.payload.Job.ID).Info("received amqp delivery")
+
+				err = json.Unmarshal(delivery.Body, &startAttrs)
 				if err != nil {
-					context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+					context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
+					err := delivery.Ack(false)
+					if err != nil {
+						context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+					}
+					continue
 				}
-				continue
+
+				buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
+				if err != nil {
+					context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error, attempting to nack delivery")
+					err := delivery.Ack(false)
+					if err != nil {
+						context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+					}
+					continue
+				}
+
+				buildJob.startAttributes = startAttrs.Config
+				buildJob.startAttributes.VMType = buildJob.payload.VMType
+				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
+				buildJob.conn = q.conn
+				buildJob.delivery = delivery
+
+				select {
+				case buildJobChan <- buildJob:
+				case <-ctx.Done():
+					delivery.Nack(false, true)
+					return
+				}
 			}
-
-			buildJob.startAttributes = startAttrs.Config
-			buildJob.startAttributes.VMType = buildJob.payload.VMType
-			buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
-			buildJob.conn = q.conn
-			buildJob.delivery = delivery
-
-			buildJobChan <- buildJob
-		}
-
-		err := channel.Close()
-		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't close channel")
 		}
 	}()
 

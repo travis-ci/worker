@@ -15,11 +15,11 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
-	"github.com/pkg/sftp"
+	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
-	"golang.org/x/crypto/ssh"
+	"github.com/travis-ci/worker/ssh"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -52,7 +52,8 @@ func (nc *stdlibNumCPUer) NumCPU() int {
 }
 
 type dockerProvider struct {
-	client *docker.Client
+	client    *docker.Client
+	sshDialer ssh.Dialer
 
 	runPrivileged bool
 	runCmd        []string
@@ -136,8 +137,14 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	sshDialer, err := ssh.NewDialerWithPassword("travis")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create SSH dialer")
+	}
+
 	return &dockerProvider{
-		client: client,
+		client:    client,
+		sshDialer: sshDialer,
 
 		runPrivileged: privileged,
 		runCmd:        cmd,
@@ -341,7 +348,7 @@ func (p *dockerProvider) checkinCPUSets(sets string) {
 	}
 }
 
-func (i *dockerInstance) sshClient() (*ssh.Client, error) {
+func (i *dockerInstance) sshConnection() (ssh.Connection, error) {
 	var err error
 	i.container, err = i.client.InspectContainer(i.container.ID)
 	if err != nil {
@@ -350,12 +357,7 @@ func (i *dockerInstance) sshClient() (*ssh.Client, error) {
 
 	time.Sleep(2 * time.Second)
 
-	return ssh.Dial("tcp", fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), &ssh.ClientConfig{
-		User: "travis",
-		Auth: []ssh.AuthMethod{
-			ssh.Password("travis"),
-		},
-	})
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis")
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
@@ -394,30 +396,21 @@ func (i *dockerInstance) uploadScriptNative(ctx gocontext.Context, script []byte
 }
 
 func (i *dockerInstance) uploadScriptSCP(ctx gocontext.Context, script []byte) error {
-	client, err := i.sshClient()
+	conn, err := i.sshConnection()
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	sftp, err := sftp.NewClient(client)
-	if err != nil {
-		return err
-	}
-	defer sftp.Close()
-
-	_, err = sftp.Lstat("build.sh")
-	if err == nil {
+	existed, err := conn.UploadFile("build.sh", script)
+	if existed {
 		return ErrStaleVM
 	}
-
-	f, err := sftp.Create("build.sh")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "couldn't upload build script")
 	}
 
-	_, err = f.Write(script)
-	return err
+	return nil
 }
 
 func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
@@ -434,7 +427,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{"bash", "/home/travis/build.sh"},
+		Cmd:          []string{"bash", "-l", "/home/travis/build.sh"},
 		User:         "travis",
 		Container:    i.container.ID,
 	}
@@ -485,37 +478,15 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 }
 
 func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	client, err := i.sshClient()
+	conn, err := i.sshConnection()
 	if err != nil {
-		return &RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	session, err := client.NewSession()
-	if err != nil {
-		return &RunResult{Completed: false}, err
-	}
-	defer session.Close()
+	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
 
-	err = session.RequestPty("xterm", 80, 40, ssh.TerminalModes{})
-	if err != nil {
-		return &RunResult{Completed: false}, err
-	}
-
-	session.Stdout = output
-	session.Stderr = output
-
-	err = session.Run("bash ~/build.sh")
-	if err == nil {
-		return &RunResult{Completed: true, ExitCode: 0}, nil
-	}
-
-	switch err := err.(type) {
-	case *ssh.ExitError:
-		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
-	default:
-		return &RunResult{Completed: false}, err
-	}
+	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {

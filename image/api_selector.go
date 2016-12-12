@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
 )
 

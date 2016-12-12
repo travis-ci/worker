@@ -28,6 +28,8 @@ var (
 	defaultBuildCacheFetchTimeout, _ = time.ParseDuration("5m")
 	defaultBuildCachePushTimeout, _  = time.ParseDuration("5m")
 
+	defaultMaxLogLength = 4500000
+
 	defaultHostname, _ = os.Hostname()
 	defaultLanguage    = "default"
 	defaultDist        = "precise"
@@ -135,6 +137,10 @@ var (
 			Value: defaultStartupTimeout,
 			Usage: "The timeout for execution environment to be ready",
 		}),
+		NewConfigDef("MaxLogLength", &cli.IntFlag{
+			Value: defaultMaxLogLength,
+			Usage: "The maximum length of a log in bytes",
+		}),
 
 		// build script generator flags
 		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
@@ -176,6 +182,18 @@ var (
 		}),
 		NewConfigDef("debug", &cli.BoolFlag{
 			Usage: "set log level to debug",
+		}),
+		NewConfigDef("start-hook", &cli.StringFlag{
+			Usage: "executable to run just before starting",
+		}),
+		NewConfigDef("stop-hook", &cli.StringFlag{
+			Usage: "executable to run just before exiting",
+		}),
+		NewConfigDef("heartbeat-url", &cli.StringFlag{
+			Usage: "health check and/or supervisor check URL (expects response: {\"state\": \"(up|down)\"})",
+		}),
+		NewConfigDef("heartbeat-url-auth-token", &cli.StringFlag{
+			Usage: "auth token for health check and/or supervisor check URL (may be \"file://path/to/file\")",
 		}),
 	}
 
@@ -290,6 +308,7 @@ type Config struct {
 	LogTimeout          time.Duration `config:"log-timeout"`
 	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
 	StartupTimeout      time.Duration `config:"startup-timeout"`
+	MaxLogLength        int           `config:"max-log-length"`
 
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`

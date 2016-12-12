@@ -1,6 +1,6 @@
 language: go
 
-go: 1.5.2
+go: 1.7.x
 
 dist: trusty
 
@@ -23,8 +23,8 @@ env:
 addons:
   artifacts:
     paths:
-    - "./build/linux/amd64/travis-worker"
-    - "./build/darwin/amd64/travis-worker"
+    - ./build/linux/amd64/travis-worker
+    - ./build/darwin/amd64/travis-worker
     target_paths:
     - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
     - travis-ci/worker/$(git describe --always --dirty --tags)
@@ -33,7 +33,6 @@ addons:
 install:
 - go get github.com/FiloSottile/gvt
 - go get -u github.com/alecthomas/gometalinter
-- go get github.com/laher/goxc
 - gometalinter --install --update
 - gem install package_cloud --no-ri --no-rdoc
 
@@ -44,7 +43,12 @@ script:
 - make test-race
 - make crossbuild
 - make smoke
-- if [[ $PACKAGECLOUD_TOKEN ]]; then make package && make smoke-package; fi
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
+    make docker-build smoke-docker docker-push;
+  fi
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
+    make package smoke-package;
+  fi
 
 notifications:
   slack:
