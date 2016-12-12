@@ -118,7 +118,7 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 		}
 
 		if resp.StatusCode != 200 {
-			return errors.Errorf("expected 200 status code from Job Board, received status=%d body=%q",
+			return errors.Errorf("expected 200 status code from job-board, received status=%d body=%q",
 				resp.StatusCode,
 				responseBody)
 		}
