@@ -19,6 +19,7 @@ func (s *stepSubscribeCancellation) Run(state multistep.StateBag) multistep.Step
 	err := s.canceller.Subscribe(buildJob.Payload().Job.ID, ch)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't subscribe to canceller, attempting requeue")
+		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue()
 		if err != nil {

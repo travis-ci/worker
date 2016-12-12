@@ -61,6 +61,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if r.err != nil {
 			if !r.result.Completed {
 				context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script, attempting requeue")
+				context.CaptureError(ctx, r.err)
+
 				err := buildJob.Requeue()
 				if err != nil {
 					context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
