@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/multistep"
+	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
@@ -27,12 +28,13 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	err := instance.UploadScript(ctx, script)
 	if err != nil {
 		errMetric := "worker.job.upload.error"
-		if err == backend.ErrStaleVM {
+		if errors.Cause(err) == backend.ErrStaleVM {
 			errMetric += ".stalevm"
 		}
 		metrics.Mark(errMetric)
 
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't upload script, attemping requeue")
+		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue()
 		if err != nil {

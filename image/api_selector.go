@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/cenk/backoff"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -102,7 +103,7 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 	b.MaxInterval = 10 * time.Second
 	b.MaxElapsedTime = time.Minute
 
-	err := backoff.Retry(func() (err error) {
+	err := backoff.Retry(func() error {
 		resp, err := http.Post(urlString, imageAPIRequestContentType,
 			strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
 
@@ -110,8 +111,19 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 			return err
 		}
 		defer resp.Body.Close()
+
 		responseBody, err = ioutil.ReadAll(resp.Body)
-		return
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode != 200 {
+			return errors.Errorf("expected 200 status code from job-board, received status=%d body=%q",
+				resp.StatusCode,
+				responseBody)
+		}
+
+		return nil
 	}, b)
 
 	if err != nil {

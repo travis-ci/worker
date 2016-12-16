@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/multistep"
+	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	gocontext "golang.org/x/net/context"
@@ -42,7 +43,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	select {
 	case r := <-resultChan:
-		if r.err == ErrWrotePastMaxLogLength {
+		if errors.Cause(r.err) == ErrWrotePastMaxLogLength {
 			context.LoggerFromContext(ctx).Info("wrote past maximum log length")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
@@ -51,7 +52,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		// We need to check for this since it's possible that the RunScript
 		// implementation returns with the error too quickly for the ctx.Done()
 		// case branch below to catch it.
-		if r.err == gocontext.DeadlineExceeded {
+		if errors.Cause(r.err) == gocontext.DeadlineExceeded {
 			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
@@ -60,6 +61,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if r.err != nil {
 			if !r.result.Completed {
 				context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script, attempting requeue")
+				context.CaptureError(ctx, r.err)
+
 				err := buildJob.Requeue()
 				if err != nil {
 					context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")

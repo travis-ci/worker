@@ -13,13 +13,12 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
-	"github.com/pkg/sftp"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ratelimit"
-	"golang.org/x/crypto/ssh"
+	"github.com/travis-ci/worker/ssh"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -56,9 +55,10 @@ func init() {
 }
 
 type cbProvider struct {
-	client *cbClient
-	ic     *cbInstanceConfig
-	cfg    *config.ProviderConfig
+	client    *cbClient
+	ic        *cbInstanceConfig
+	cfg       *config.ProviderConfig
+	sshDialer ssh.Dialer
 
 	provider string
 
@@ -78,9 +78,8 @@ type cbProvider struct {
 }
 
 type cbInstanceConfig struct {
-	SSHKeySigner ssh.Signer
-	SSHPubKey    string
-	PublicIP     bool
+	SSHPubKey string
+	PublicIP  bool
 }
 
 type cbStartMultistepWrapper struct {
@@ -237,13 +236,12 @@ func newCloudBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	pubKey, err := ssh.NewPublicKey(&privKey.PublicKey)
+	pubKey, err := ssh.FormatPublicKey(&privKey.PublicKey)
 	if err != nil {
 		return nil, err
 	}
 
-	sshKeySigner, err := ssh.NewSignerFromKey(privKey)
-
+	sshDialer, err := ssh.NewDialerWithKey(privKey)
 	if err != nil {
 		return nil, err
 	}
@@ -258,12 +256,12 @@ func newCloudBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		cfg:    cfg,
 
 		ic: &cbInstanceConfig{
-			PublicIP:     publicIP,
-			SSHKeySigner: sshKeySigner,
-			SSHPubKey:    string(ssh.MarshalAuthorizedKey(pubKey)),
+			PublicIP:  publicIP,
+			SSHPubKey: string(pubKey),
 		},
 
 		provider:           provider,
+		sshDialer:          sshDialer,
 		defaultImage:       defaultImage,
 		imageSelector:      imageSelector,
 		imageSelectorType:  imageSelectorType,
@@ -460,7 +458,7 @@ func buildCloudBrainImageSelector(selectorType string, cfg *config.ProviderConfi
 	}
 }
 
-func (i *cbInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
+func (i *cbInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
 	if i.cachedIPAddr == "" {
 		err := i.refreshInstance(ctx)
 		if err != nil {
@@ -475,12 +473,7 @@ func (i *cbInstance) sshClient(ctx gocontext.Context) (*ssh.Client, error) {
 		i.cachedIPAddr = ipAddr
 	}
 
-	return ssh.Dial("tcp", fmt.Sprintf("%s:22", i.cachedIPAddr), &ssh.ClientConfig{
-		User: i.authUser,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(i.ic.SSHKeySigner),
-		},
-	})
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser)
 }
 
 func (i *cbInstance) getIP() string {
@@ -536,68 +529,33 @@ func (i *cbInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 }
 
 func (i *cbInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
-	client, err := i.sshClient(ctx)
+	conn, err := i.sshConnection(ctx)
 	if err != nil {
 		return err
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	sftp, err := sftp.NewClient(client)
-	if err != nil {
-		return err
-	}
-	defer sftp.Close()
-
-	_, err = sftp.Lstat("build.sh")
-	if err == nil {
+	existed, err := conn.UploadFile("build.sh", script)
+	if existed {
 		return ErrStaleVM
 	}
-
-	f, err := sftp.Create("build.sh")
 	if err != nil {
-		return err
-	}
-
-	if _, err := f.Write(script); err != nil {
-		return err
+		return errors.Wrap(err, "couldn't upload build script")
 	}
 
 	return nil
 }
 
 func (i *cbInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	client, err := i.sshClient(ctx)
+	conn, err := i.sshConnection(ctx)
 	if err != nil {
-		return &RunResult{Completed: false}, err
+		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
 	}
-	defer client.Close()
+	defer conn.Close()
 
-	session, err := client.NewSession()
-	if err != nil {
-		return &RunResult{Completed: false}, err
-	}
-	defer session.Close()
+	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
 
-	err = session.RequestPty("xterm", 40, 80, ssh.TerminalModes{})
-	if err != nil {
-		return &RunResult{Completed: false}, err
-	}
-
-	session.Stdout = output
-	session.Stderr = output
-
-	err = session.Run("bash ~/build.sh")
-
-	if err == nil {
-		return &RunResult{Completed: true, ExitCode: 0}, nil
-	}
-
-	switch err := err.(type) {
-	case *ssh.ExitError:
-		return &RunResult{Completed: true, ExitCode: uint8(err.ExitStatus())}, nil
-	default:
-		return &RunResult{Completed: false}, err
-	}
+	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
 func (i *cbInstance) Stop(ctx gocontext.Context) error {

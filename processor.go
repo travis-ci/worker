@@ -21,6 +21,7 @@ type Processor struct {
 	logTimeout          time.Duration
 	scriptUploadTimeout time.Duration
 	startupTimeout      time.Duration
+	maxLogLength        int
 
 	ctx           gocontext.Context
 	buildJobsChan <-chan Job
@@ -46,26 +47,41 @@ type Processor struct {
 	SkipShutdownOnLogTimeout bool
 }
 
+type ProcessorConfig struct {
+	HardTimeout         time.Duration
+	LogTimeout          time.Duration
+	ScriptUploadTimeout time.Duration
+	StartupTimeout      time.Duration
+	MaxLogLength        int
+}
+
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan Job,
+func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
-	hardTimeout, logTimeout, scriptUploadTimeout, startupTimeout time.Duration) (*Processor, error) {
+	config ProcessorConfig) (*Processor, error) {
 
 	uuidString, _ := context.ProcessorFromContext(ctx)
 	processorUUID := uuid.Parse(uuidString)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
 
+	buildJobsChan, err := queue.Jobs(ctx)
+	if err != nil {
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
+		return nil, err
+	}
+
 	return &Processor{
 		ID:       processorUUID,
 		hostname: hostname,
 
-		hardTimeout:         hardTimeout,
-		logTimeout:          logTimeout,
-		scriptUploadTimeout: scriptUploadTimeout,
-		startupTimeout:      startupTimeout,
+		hardTimeout:         config.HardTimeout,
+		logTimeout:          config.LogTimeout,
+		scriptUploadTimeout: config.ScriptUploadTimeout,
+		startupTimeout:      config.StartupTimeout,
+		maxLogLength:        config.MaxLogLength,
 
 		ctx:           ctx,
 		buildJobsChan: buildJobsChan,
@@ -86,6 +102,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 func (p *Processor) Run() {
 	context.LoggerFromContext(p.ctx).Info("starting processor")
 	defer context.LoggerFromContext(p.ctx).Info("processor done")
+	defer func() { p.CurrentStatus = "done" }()
 
 	for {
 		select {
@@ -94,6 +111,7 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			return
 		default:
 		}
@@ -101,15 +119,14 @@ func (p *Processor) Run() {
 		select {
 		case <-p.ctx.Done():
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
-			p.CurrentStatus = "done"
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
-			p.CurrentStatus = "done"
+			p.terminate()
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
-				p.CurrentStatus = "done"
+				p.terminate()
 				return
 			}
 
@@ -182,7 +199,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepUpdateState{},
 		&stepOpenLogWriter{
 			logTimeout:   logTimeout,
-			maxLogLength: 4500000,
+			maxLogLength: p.maxLogLength,
 		},
 		&stepRunScript{
 			logTimeout:               logTimeout,

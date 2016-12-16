@@ -12,9 +12,8 @@ GENERATED_VAR := $(PACKAGE).GeneratedString
 GENERATED_VALUE ?= $(shell date -u +'%Y-%m-%dT%H:%M:%S%z')
 COPYRIGHT_VAR := $(PACKAGE).CopyrightString
 COPYRIGHT_VALUE ?= $(shell grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')
-DOCKER_IMAGE_REPO ?= quay.io/travisci/worker
+DOCKER_IMAGE_REPO ?= travisci/worker
 DOCKER_DEST ?= $(DOCKER_IMAGE_REPO):$(VERSION_VALUE)
-DOCKER_CREDS ?= quay
 
 DOCKER ?= docker
 GO ?= go
@@ -30,7 +29,6 @@ GOBUILD_LDFLAGS ?= \
 
 export GO15VENDOREXPERIMENT
 export DOCKER_DEST
-export DOCKER_CREDS
 
 COVERPROFILES := \
 	backend-coverage.coverprofile \
@@ -38,6 +36,9 @@ COVERPROFILES := \
 	context-coverage.coverprofile \
 	image-coverage.coverprofile \
 	metrics-coverage.coverprofile
+CROSSBUILD_BINARIES := \
+	build/darwin/amd64/travis-worker \
+	build/linux/amd64/travis-worker
 
 %-coverage.coverprofile:
 	$(GO) test -v -covermode=count -coverprofile=$@ \
@@ -74,17 +75,19 @@ build: deps
 	$(GO) install -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
-crossbuild: deps
+crossbuild: deps $(CROSSBUILD_BINARIES)
+
+.PHONY: docker-build
+docker-build: $(CROSSBUILD_BINARIES)
+	$(DOCKER) build -t $(DOCKER_DEST) .
+
+$(CROSSBUILD_BINARIES):
 	GOARCH=amd64 GOOS=darwin CGO_ENABLED=0 \
 		$(GO) build -o build/darwin/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 \
 		$(GO) build -o build/linux/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
-
-.PHONY: docker-build
-docker-build: crossbuild
-	$(DOCKER) build -t quay.io/travisci/worker:$(VERSION_VALUE) .
 
 .PHONY: distclean
 distclean: clean
