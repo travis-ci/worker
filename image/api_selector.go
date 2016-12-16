@@ -190,7 +190,7 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 	}
 
 	if params.Dist != "" && params.Group != "" && hasLang {
-		addTags("dist:"+params.Dist, "group:"+params.Group, "language_"+params.Language+":true")
+		addTags("dist:"+params.Dist, "group_"+params.Group+":true", "language_"+params.Language+":true")
 	}
 
 	if params.Dist != "" && hasLang {
@@ -198,7 +198,7 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 	}
 
 	if params.Group != "" && hasLang {
-		addTags("group:"+params.Group, "language_"+params.Language+":true")
+		addTags("group_"+params.Group+":true", "language_"+params.Language+":true")
 	}
 
 	if params.OS != "" && hasLang {
@@ -218,7 +218,7 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 	}
 
 	if params.Group != "" {
-		addDefaultTag("group:" + params.Group)
+		addDefaultTag("group_" + params.Group + ":true")
 	}
 
 	if params.OS != "" {
