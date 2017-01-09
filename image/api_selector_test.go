@@ -204,13 +204,36 @@ func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
 	assert.Error(t, err, "unexpected end of JSON input")
 }
 
+func TestAPISelector_SelectTrailingComma(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(w, testAPIServerString)
+	}))
+	defer ts.Close()
+
+	u, _ := url.Parse(ts.URL)
+
+	as := NewAPISelector(u)
+
+	actual, err := as.Select(&Params{
+		Infra:    "test,",
+		Language: "ruby,",
+		OsxImage: "meow,",
+		Dist:     "yosamitty,",
+		Group:    "dev,",
+		OS:       "osx,",
+	})
+	assert.Equal(t, actual, "default")
+	assert.Error(t, err, "tag \"a\" contained \",\", which is not supported by job-board -- check .travis.yml for trailing comma")
+}
+
 func TestAPISelector_buildCandidateTags(t *testing.T) {
 	as := NewAPISelector(nil)
 
 	for _, tc := range testAPITagTestCases {
 		for i, params := range tc.P {
 			expectedJSON, _ := json.MarshalIndent(tc.E[i], "", "  ")
-			actualJSON, _ := json.MarshalIndent(as.buildCandidateTags(params), "", "  ")
+			tagSets, _ := as.buildCandidateTags(params)
+			actualJSON, _ := json.MarshalIndent(tagSets, "", "  ")
 			assert.JSONEq(t, string(expectedJSON), string(actualJSON))
 		}
 	}
