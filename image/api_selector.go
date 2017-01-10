@@ -12,7 +12,7 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
-	workerErrors "github.com/travis-ci/worker/errors"
+	workererrors "github.com/travis-ci/worker/errors"
 )
 
 const (
@@ -239,7 +239,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	for _, ts := range result {
 		for _, tag := range ts.Tags {
 			if strings.Contains(tag, ",") {
-				return result, workerErrors.NewWrappedJobAbortError(errors.Errorf("tag %v contained \",\", which is not supported by job-board -- check .travis.yml for trailing comma", tag))
+				return result, workererrors.NewWrappedJobAbortError(errors.Errorf("tag %v contained \",\", which is not supported by job-board -- check .travis.yml for trailing comma", tag))
 			}
 		}
 	}

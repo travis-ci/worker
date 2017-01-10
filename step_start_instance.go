@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	workerErrors "github.com/travis-ci/worker/errors"
+	workererrors "github.com/travis-ci/worker/errors"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -33,7 +33,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
 		context.CaptureError(ctx, err)
 
-		jobAbortErr, ok := errors.Cause(err).(workerErrors.JobAbortError)
+		jobAbortErr, ok := errors.Cause(err).(workererrors.JobAbortError)
 		if ok {
 			logWriter := state.Get("logWriter").(LogWriter)
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
