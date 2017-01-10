@@ -189,8 +189,7 @@ func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
 	u, _ := url.Parse(ts.URL)
 	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "expected 200 status code from job-board, received status=500")
+	assert.EqualError(t, err, "expected 200 status code from job-board, received status=500")
 }
 
 func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
@@ -201,7 +200,7 @@ func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
 	u, _ := url.Parse(ts.URL)
 	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
-	assert.Error(t, err, "unexpected end of JSON input")
+	assert.EqualError(t, err, "unexpected end of JSON input")
 }
 
 func TestAPISelector_SelectTrailingComma(t *testing.T) {
@@ -223,7 +222,7 @@ func TestAPISelector_SelectTrailingComma(t *testing.T) {
 		OS:       "osx,",
 	})
 	assert.Equal(t, actual, "default")
-	assert.Error(t, err, "tag \"a\" contained \",\", which is not supported by job-board -- check .travis.yml for trailing comma")
+	assert.EqualError(t, err, "tag \"a\" contained \",\", which is not supported by job-board -- check .travis.yml for trailing comma")
 }
 
 func TestAPISelector_buildCandidateTags(t *testing.T) {
