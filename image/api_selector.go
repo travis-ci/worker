@@ -239,7 +239,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	for _, ts := range result {
 		for _, tag := range ts.Tags {
 			if strings.Contains(tag, ",") {
-				return result, workererrors.NewWrappedJobAbortError(errors.Errorf("job was aborted because tag %v contained \",\", this can happen when .travis.yml has a trailing comma", tag))
+				return result, workererrors.NewWrappedJobAbortError(errors.Errorf("job was aborted because tag \"%v\" contained \",\", this can happen when .travis.yml has a trailing comma", tag))
 			}
 		}
 	}

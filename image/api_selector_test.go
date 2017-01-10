@@ -222,7 +222,7 @@ func TestAPISelector_SelectTrailingComma(t *testing.T) {
 		OS:       "osx,",
 	})
 	assert.Equal(t, actual, "default")
-	assert.EqualError(t, err, "tag \"a\" contained \",\", which is not supported by job-board -- check .travis.yml for trailing comma")
+	assert.EqualError(t, err, "job was aborted because tag \"dist:yosamitty,\" contained \",\", this can happen when .travis.yml has a trailing comma")
 }
 
 func TestAPISelector_buildCandidateTags(t *testing.T) {
