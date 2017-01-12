@@ -70,7 +70,7 @@ var jsonPayload = `
 }
 `
 
-func TestUnarshalJobPayload(t *testing.T) {
+func TestUnmarshalJobPayload(t *testing.T) {
 	var job JobPayload
 
 	err := json.Unmarshal([]byte(jsonPayload), &job)
