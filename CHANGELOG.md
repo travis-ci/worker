@@ -1,4 +1,29 @@
 ## Unreleased
+
+## [2.6.0] - 2017-01-16
+### Added
+- cli: log processor pool total on shutdown
+- amqp_job: meter for job finish state (#184)
+- amqp_job: track queue time via queued_at field from payload
+- amqp_job_queue: log job id immediately after json decode
+- capture every requeue and send the error to sentry
+
+### Changed
+- update to latest go version
+- image/api_selector: selection of candidates by multiple groups
+- amqp_canceller: change verbosity of canceller missing job id to debug
+
+### Fixed
+- processor: always mark job as done when Run finishes
+- processor: use errors.Cause when checking error values
+- backend/jupiterbrain: parse SSH key on backend init (#206)
+- backend/jupiterbrain: add sleep between creating and wait-for-ip
+- backend/docker: run bash with `-l` (login shell) in docker native mode
+- image/api_selector: check job-board response status code on image selection
+- image/api_selector: check tagsets for trailing commas before querying job-board
+- amqp_job_queue: handle context cancellation when delivering build job
+- ssh: request a 80x40 PTY
+
 ## [2.5.0] - 2016-10-03
 ### Added
 - support for heartbeat URL checks a la [legacy
