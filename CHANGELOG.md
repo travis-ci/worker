@@ -14,6 +14,7 @@
 ### Changed
 - image/api_selector: selection of candidates by multiple groups
 - amqp_canceller: change verbosity of canceller missing job id to debug
+- docker: SIGINT `STOPSIGNAL` for graceful shutdown
 
 ### Fixed
 - processor: always mark job as done when Run finishes
