@@ -48,6 +48,8 @@ const (
 	defaultGCEBootPrePollSleep   = 15 * time.Second
 	defaultGCEStopPollSleep      = 3 * time.Second
 	defaultGCEStopPrePollSleep   = 15 * time.Second
+	defaultGCESubnet             = "default"
+	defaultGCERegion             = "us-central1"
 	defaultGCEUploadRetries      = uint64(120)
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
@@ -79,9 +81,11 @@ var (
 		"RATE_LIMIT_REDIS_URL":  "URL to Redis instance to use for rate limiting",
 		"RATE_LIMIT_MAX_CALLS":  fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
 		"RATE_LIMIT_DURATION":   fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
+		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
 		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
 		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
+		"SUBNETWORK":            fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
 		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
 		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
@@ -98,7 +102,7 @@ EOF
 `))
 
 	// FIXME: get rid of the need for this global goop
-	gceCustomHTTPTransport     http.RoundTripper = nil
+	gceCustomHTTPTransport     http.RoundTripper
 	gceCustomHTTPTransportLock sync.Mutex
 )
 
@@ -527,8 +531,13 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		return err
 	}
 
-	if p.cfg.IsSet("REGION") && p.cfg.IsSet("SUBNETWORK") {
-		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, p.cfg.Get("REGION"), p.cfg.Get("SUBNETWORK")).Do()
+	region := defaultGCERegion
+	if p.cfg.IsSet("REGION") {
+		region = p.cfg.Get("REGION")
+	}
+
+	if p.cfg.IsSet("SUBNETWORK") {
+		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).Do()
 		if err != nil {
 			return err
 		}

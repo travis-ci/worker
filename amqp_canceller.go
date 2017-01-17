@@ -132,7 +132,7 @@ func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
 
 	cancelChan, ok := d.cancelMap[command.JobID]
 	if !ok {
-		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Info("no job with this ID found on this worker")
+		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Debug("no job with this ID found on this worker")
 		return nil
 	}
 
