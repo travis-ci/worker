@@ -1,4 +1,32 @@
 ## Unreleased
+
+## [2.6.0] - 2017-01-17
+### Security
+- update to go `v1.7.4`
+
+### Added
+- cli: log processor pool total on shutdown
+- amqp_job: meter for job finish state (#184)
+- amqp_job: track queue time via queued_at field from payload
+- amqp_job_queue: log job id immediately after json decode
+- capture every requeue and send the error to sentry
+
+### Changed
+- image/api_selector: selection of candidates by multiple groups
+- amqp_canceller: change verbosity of canceller missing job id to debug
+- docker: SIGINT `STOPSIGNAL` for graceful shutdown
+
+### Fixed
+- processor: always mark job as done when Run finishes
+- processor: use errors.Cause when checking error values
+- backend/jupiterbrain: parse SSH key on backend init (#206)
+- backend/jupiterbrain: add sleep between creating and wait-for-ip
+- backend/docker: run bash with `-l` (login shell) in docker native mode
+- image/api_selector: check job-board response status code on image selection
+- image/api_selector: check tagsets for trailing commas before querying job-board
+- amqp_job_queue: handle context cancellation when delivering build job
+- ssh: request a 80x40 PTY
+
 ## [2.5.0] - 2016-10-03
 ### Added
 - support for heartbeat URL checks a la [legacy
@@ -354,7 +382,9 @@
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/travis-ci/worker/compare/v2.5.0...v2.6.0
+[2.5.0]: https://github.com/travis-ci/worker/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/travis-ci/worker/compare/v2.3.1...v2.4.0
 [2.3.1]: https://github.com/travis-ci/worker/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/travis-ci/worker/compare/v2.2.0...v2.3.0
