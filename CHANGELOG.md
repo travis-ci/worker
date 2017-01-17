@@ -1,6 +1,9 @@
 ## Unreleased
 
-## [2.6.0] - 2017-01-16
+## [2.6.0] - 2017-01-17
+### Security
+- update to go `v1.7.4`
+
 ### Added
 - cli: log processor pool total on shutdown
 - amqp_job: meter for job finish state (#184)
@@ -9,7 +12,6 @@
 - capture every requeue and send the error to sentry
 
 ### Changed
-- update to latest go version
 - image/api_selector: selection of candidates by multiple groups
 - amqp_canceller: change verbosity of canceller missing job id to debug
 
