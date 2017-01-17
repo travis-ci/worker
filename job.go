@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"time"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 	gocontext "golang.org/x/net/context"
@@ -29,8 +31,9 @@ type JobPayload struct {
 
 // JobJobPayload contains information about the job.
 type JobJobPayload struct {
-	ID     uint64 `json:"id"`
-	Number string `json:"number"`
+	ID       uint64     `json:"id"`
+	Number   string     `json:"number"`
+	QueuedAt *time.Time `json:"queued_at"`
 }
 
 // BuildPayload contains information about the build.
