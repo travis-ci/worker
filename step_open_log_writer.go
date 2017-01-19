@@ -1,15 +1,11 @@
 package worker
 
 import (
-	"fmt"
-	"io"
-	"strings"
 	"time"
 
 	gocontext "golang.org/x/net/context"
 
 	"github.com/mitchellh/multistep"
-	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 )
 
@@ -37,25 +33,9 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter.SetTimeout(s.logTimeout)
 	logWriter.SetMaxLogLength(s.maxLogLength)
 
-	s.writeUsingWorker(state, logWriter)
-
 	state.Put("logWriter", logWriter)
 
 	return multistep.ActionContinue
-}
-
-func (s *stepOpenLogWriter) writeUsingWorker(state multistep.StateBag, w io.Writer) {
-	instance := state.Get("instance").(backend.Instance)
-
-	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
-		_, _ = writeFold(w, "worker_info", []byte(strings.Join([]string{
-			"\033[33;1mWorker information\033[0m",
-			fmt.Sprintf("hostname: %s", hostname),
-			fmt.Sprintf("version: %s %s", VersionString, RevisionURLString),
-			fmt.Sprintf("instance: %s", instance.ID()),
-			fmt.Sprintf("startup: %v", instance.StartupDuration()),
-		}, "\n")))
-	}
 }
 
 func (s *stepOpenLogWriter) Cleanup(state multistep.StateBag) {

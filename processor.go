@@ -201,6 +201,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			uploadTimeout: p.scriptUploadTimeout,
 		},
 		&stepUpdateState{},
+		&stepWriteWorkerInfo{},
 		&stepRunScript{
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,
