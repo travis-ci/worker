@@ -3,6 +3,7 @@ package worker
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	gocontext "golang.org/x/net/context"
 
@@ -12,7 +13,29 @@ import (
 	"github.com/travis-ci/worker/config"
 )
 
-func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *bytes.Buffer, multistep.StateBag) {
+type byteBufferLogWriter struct {
+	*bytes.Buffer
+}
+
+func (w *byteBufferLogWriter) Close() error {
+	return nil
+}
+
+func (w *byteBufferLogWriter) WriteAndClose(p []byte) (int, error) {
+	return w.Write(p)
+}
+
+func (w *byteBufferLogWriter) SetTimeout(time.Duration) {
+}
+
+func (w *byteBufferLogWriter) Timeout() <-chan time.Time {
+	return make(<-chan time.Time)
+}
+
+func (w *byteBufferLogWriter) SetMaxLogLength(m int) {
+}
+
+func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *byteBufferLogWriter, multistep.StateBag) {
 	s := &stepWriteWorkerInfo{}
 
 	bp, _ := backend.NewBackendProvider("fake",
@@ -23,7 +46,9 @@ func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *bytes.Buffer, multistep.
 	ctx := gocontext.TODO()
 	instance, _ := bp.Start(ctx, nil)
 
-	logWriter := bytes.NewBufferString("")
+	logWriter := &byteBufferLogWriter{
+		bytes.NewBufferString(""),
+	}
 
 	state := &multistep.BasicStateBag{}
 	state.Put("logWriter", logWriter)
@@ -34,10 +59,11 @@ func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *bytes.Buffer, multistep.
 }
 
 func TestStepWriteWorkerInfo_Run(t *testing.T) {
-	s, out, state := setupStepWriteWorkerInfo()
+	s, logWriter, state := setupStepWriteWorkerInfo()
 
 	s.Run(state)
 
+	out := logWriter.String()
 	assert.Contains(t, out, "travis_fold:start:worker_info\r\033[0K")
 	assert.Contains(t, out, "\033[33;1mWorker information\033[0m\n")
 	assert.Contains(t, out, "\nhostname: frizzlefry.example.local\n")
