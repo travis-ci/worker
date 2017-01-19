@@ -3,7 +3,6 @@ package worker
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	gocontext "golang.org/x/net/context"
 
@@ -13,8 +12,8 @@ import (
 	"github.com/travis-ci/worker/config"
 )
 
-func setupStepWriteWorkerInfo() (*stepOpenLogWriter, *bytes.Buffer, multistep.StateBag) {
-	s := &stepOpenLogWriter{logTimeout: time.Second, maxLogLength: 4}
+func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *bytes.Buffer, multistep.StateBag) {
+	s := &stepWriteWorkerInfo{}
 
 	bp, _ := backend.NewBackendProvider("fake",
 		config.ProviderConfigFromMap(map[string]string{
