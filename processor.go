@@ -189,6 +189,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			generator: p.generator,
 		},
 		&stepSendReceived{},
+		&stepOpenLogWriter{},
 		&stepStartInstance{
 			provider:     p.provider,
 			startTimeout: p.startupTimeout,
@@ -197,7 +198,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			uploadTimeout: p.scriptUploadTimeout,
 		},
 		&stepUpdateState{},
-		&stepOpenLogWriter{
+		&stepWriteWorkerInfo{},
+		&stepStartLogTimer{
 			logTimeout:   logTimeout,
 			maxLogLength: p.maxLogLength,
 		},
