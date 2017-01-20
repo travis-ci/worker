@@ -31,7 +31,7 @@ instructions](https://packagecloud.io/travisci/worker/install).
   * `go get -u github.com/FiloSottile/gvt`
 1. install [gometalinter](https://github.com/alecthomas/gometalinter):
   * `go get -u github.com/alecthomas/gometalinter`
-  * `gometalinter --install --update`
+  * `gometalinter --install`
 1. `make`
 
 ## Configuring Travis Worker
