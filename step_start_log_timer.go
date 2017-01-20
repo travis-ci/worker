@@ -7,14 +7,12 @@ import (
 )
 
 type stepStartLogTimer struct {
-	logTimeout   time.Duration
-	maxLogLength int
+	logTimeout time.Duration
 }
 
 func (s *stepStartLogTimer) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
 	logWriter.SetTimeout(s.logTimeout)
-	logWriter.SetMaxLogLength(s.maxLogLength)
 
 	return multistep.ActionContinue
 }
