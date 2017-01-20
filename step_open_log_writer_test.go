@@ -2,7 +2,6 @@ package worker
 
 import (
 	"testing"
-	"time"
 
 	gocontext "golang.org/x/net/context"
 
@@ -11,7 +10,7 @@ import (
 )
 
 func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
-	s := &stepOpenLogWriter{logTimeout: time.Second, maxLogLength: 4}
+	s := &stepOpenLogWriter{}
 
 	ctx := gocontext.TODO()
 

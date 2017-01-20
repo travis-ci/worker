@@ -1,8 +1,6 @@
 package worker
 
 import (
-	"time"
-
 	gocontext "golang.org/x/net/context"
 
 	"github.com/mitchellh/multistep"
@@ -10,8 +8,6 @@ import (
 )
 
 type stepOpenLogWriter struct {
-	logTimeout   time.Duration
-	maxLogLength int
 }
 
 func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
@@ -29,9 +25,6 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		return multistep.ActionHalt
 	}
-
-	logWriter.SetTimeout(s.logTimeout)
-	logWriter.SetMaxLogLength(s.maxLogLength)
 
 	state.Put("logWriter", logWriter)
 
