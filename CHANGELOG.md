@@ -1,5 +1,9 @@
 ## Unreleased
 
+## [2.6.1] - 2017-xx-xx
+### Fixed
+- processor: open log writer early, prevent panic
+
 ## [2.6.0] - 2017-01-17
 ### Security
 - update to go `v1.7.4`
