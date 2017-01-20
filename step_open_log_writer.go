@@ -8,6 +8,7 @@ import (
 )
 
 type stepOpenLogWriter struct {
+	maxLogLength int
 }
 
 func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
@@ -25,6 +26,7 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		return multistep.ActionHalt
 	}
+	logWriter.SetMaxLogLength(s.maxLogLength)
 
 	state.Put("logWriter", logWriter)
 
