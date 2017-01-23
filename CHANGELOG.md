@@ -1,5 +1,9 @@
 ## Unreleased
 
+## [2.6.1] - 2017-01-23
+### Fixed
+- processor: open log writer early, prevent panic
+
 ## [2.6.0] - 2017-01-17
 ### Security
 - update to go `v1.7.4`
@@ -382,7 +386,8 @@
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/travis-ci/worker/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/travis-ci/worker/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/travis-ci/worker/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/travis-ci/worker/compare/v2.3.1...v2.4.0
