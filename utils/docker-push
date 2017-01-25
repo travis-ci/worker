@@ -5,7 +5,6 @@ set -o errexit
 main() {
   set +o xtrace
 
-
   if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
     DOCKER_LOGIN_EMAIL=.
     DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
@@ -44,8 +43,8 @@ main() {
     docker login "${login_args[@]}"
   fi
 
-  : "${DOCKER_PUSH_RETRIES:=2}"
-  : "${DOCKER_LOGOUT_POST_PUSH:=1}"
+  : "${DOCKER_PUSH_RETRIES:=6}"
+  : "${DOCKER_LOGOUT_POST_PUSH:=0}"
 
   local attempt=0
   local sleep_interval=10
@@ -61,7 +60,8 @@ main() {
 
       if [[ ${DOCKER_LOGOUT_POST_PUSH} = 1 ]]; then
         __log 'msg="docker logout"'
-        docker logout "${DOCKER_LOGIN_SERVER}"
+        # shellcheck disable=SC2086
+        docker logout ${DOCKER_LOGIN_SERVER}
         __log 'msg="docker logout complete"'
       fi
       exit 0

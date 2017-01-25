@@ -13,10 +13,10 @@ import (
 	"golang.org/x/net/context"
 )
 
-type buildScriptGeneratorFunction func(context.Context, *simplejson.Json) ([]byte, error)
+type buildScriptGeneratorFunction func(context.Context, Job) ([]byte, error)
 
-func (bsg buildScriptGeneratorFunction) Generate(ctx context.Context, json *simplejson.Json) ([]byte, error) {
-	return bsg(ctx, json)
+func (bsg buildScriptGeneratorFunction) Generate(ctx context.Context, job Job) ([]byte, error) {
+	return bsg(ctx, job)
 }
 
 type fakeCanceller struct {
@@ -127,7 +127,7 @@ func TestProcessor(t *testing.T) {
 		t.Error(err)
 	}
 
-	generator := buildScriptGeneratorFunction(func(ctx context.Context, json *simplejson.Json) ([]byte, error) {
+	generator := buildScriptGeneratorFunction(func(ctx context.Context, job Job) ([]byte, error) {
 		return []byte("hello, world"), nil
 	})
 

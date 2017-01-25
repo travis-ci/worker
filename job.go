@@ -17,6 +17,10 @@ type jobPayloadStartAttrs struct {
 	Config *backend.StartAttributes `json:"config"`
 }
 
+type httpJobPayloadStartAttrs struct {
+	Data *jobPayloadStartAttrs `json:"data"`
+}
+
 // JobPayload is the payload we receive over RabbitMQ.
 type JobPayload struct {
 	Type       string                 `json:"type"`

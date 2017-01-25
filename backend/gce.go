@@ -890,16 +890,6 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		NetworkInterfaces: []*compute.NetworkInterface{
 			networkInterface,
 		},
-		ServiceAccounts: []*compute.ServiceAccount{
-			&compute.ServiceAccount{
-				Email: "default",
-				Scopes: []string{
-					"https://www.googleapis.com/auth/userinfo.email",
-					compute.DevstorageFullControlScope,
-					compute.ComputeScope,
-				},
-			},
-		},
 		Tags: &compute.Tags{
 			Items: []string{
 				"testing",
