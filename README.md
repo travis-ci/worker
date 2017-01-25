@@ -25,8 +25,16 @@ instructions](https://packagecloud.io/travisci/worker/install).
 
 ### from source
 
-1. clone this down
-1. install [Go](http://golang.org) and [gvt](https://github.com/FiloSottile/gvt).
+1. install [Go](http://golang.org) `v1.7+`
+1. clone this down into your `$GOPATH`
+  * `mkdir -p $GOPATH/src/github.com/travis-ci`
+  * `git clone https://github.com/travis-ci/worker $GOPATH/src/github.com/travis-ci/worker`
+  * `cd $GOPATH/src/github.com/travis-ci/worker`
+1. install [gvt](https://github.com/FiloSottile/gvt):
+  * `go get -u github.com/FiloSottile/gvt`
+1. install [gometalinter](https://github.com/alecthomas/gometalinter):
+  * `go get -u github.com/alecthomas/gometalinter`
+  * `gometalinter --install`
 1. `make`
 
 ## Configuring Travis Worker

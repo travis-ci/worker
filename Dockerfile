@@ -9,3 +9,4 @@ RUN apk add --no-cache ca-certificates curl bash
 VOLUME ["/var/tmp"]
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["travis-worker"]
+STOPSIGNAL SIGINT
