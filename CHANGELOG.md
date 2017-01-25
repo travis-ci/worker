@@ -1,4 +1,6 @@
 ## Unreleased
+### Security
+- backend/gce: remove service account from booted instances
 
 ## [2.6.1] - 2017-01-23
 ### Fixed
