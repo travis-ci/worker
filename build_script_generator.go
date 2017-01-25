@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
@@ -26,7 +25,7 @@ type BuildScriptGeneratorError struct {
 
 // A BuildScriptGenerator generates a build script for a given job payload.
 type BuildScriptGenerator interface {
-	Generate(gocontext.Context, *simplejson.Json) ([]byte, error)
+	Generate(gocontext.Context, Job) ([]byte, error)
 }
 
 type webBuildScriptGenerator struct {
@@ -81,7 +80,9 @@ func NewBuildScriptGenerator(cfg *config.Config) BuildScriptGenerator {
 	}
 }
 
-func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, payload *simplejson.Json) ([]byte, error) {
+func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, job Job) ([]byte, error) {
+	payload := job.RawPayload()
+
 	if g.aptCacheHost != "" {
 		payload.SetPath([]string{"hosts", "apt_cache"}, g.aptCacheHost)
 	}
