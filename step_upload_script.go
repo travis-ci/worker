@@ -34,6 +34,7 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		metrics.Mark(errMetric)
 
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't upload script, attemping requeue")
+		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue()
 		if err != nil {

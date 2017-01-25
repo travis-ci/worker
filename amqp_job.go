@@ -69,6 +69,11 @@ func (j *amqpJob) Requeue() error {
 
 func (j *amqpJob) Received() error {
 	j.received = time.Now()
+
+	if j.payload.Job.QueuedAt != nil {
+		metrics.TimeSince("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
+	}
+
 	return j.sendStateUpdate("job:test:receive", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       "received",
@@ -99,6 +104,8 @@ func (j *amqpJob) Finish(state FinishState) error {
 	if startedAt.IsZero() {
 		startedAt = finishedAt
 	}
+
+	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 
 	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
 		"id":          j.Payload().Job.ID,

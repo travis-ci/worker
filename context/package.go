@@ -158,4 +158,6 @@ func CaptureError(ctx context.Context, err error) {
 		interfaces...,
 	)
 	raven.DefaultClient.Capture(packet, tags)
+
+	// TODO: check if send to sentry succeeded
 }

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/cenk/backoff"
+	"github.com/pkg/errors"
+	workererrors "github.com/travis-ci/worker/errors"
 )
 
 const (
@@ -34,7 +36,12 @@ func NewAPISelector(u *url.URL) *APISelector {
 }
 
 func (as *APISelector) Select(params *Params) (string, error) {
-	imageName, err := as.queryWithTags(params.Infra, as.buildCandidateTags(params))
+	tagSets, err := as.buildCandidateTags(params)
+	if err != nil {
+		return "default", err
+	}
+
+	imageName, err := as.queryWithTags(params.Infra, tagSets)
 	if err != nil {
 		return "default", err
 	}
@@ -102,7 +109,7 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 	b.MaxInterval = 10 * time.Second
 	b.MaxElapsedTime = time.Minute
 
-	err := backoff.Retry(func() (err error) {
+	err := backoff.Retry(func() error {
 		resp, err := http.Post(urlString, imageAPIRequestContentType,
 			strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
 
@@ -110,8 +117,19 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 			return err
 		}
 		defer resp.Body.Close()
+
 		responseBody, err = ioutil.ReadAll(resp.Body)
-		return
+		if err != nil {
+			return err
+		}
+
+		if resp.StatusCode != 200 {
+			return errors.Errorf("expected 200 status code from job-board, received status=%d body=%q",
+				resp.StatusCode,
+				responseBody)
+		}
+
+		return nil
 	}, b)
 
 	if err != nil {
@@ -142,7 +160,7 @@ func (ts *tagSet) GoString() string {
 	return fmt.Sprintf("&image.tagSet{IsDefault: %v, Tags: %#v}", ts.IsDefault, ts.Tags)
 }
 
-func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
+func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	fullTagSet := &tagSet{
 		Tags:  []string{},
 		JobID: params.JobID,
@@ -178,7 +196,7 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 	}
 
 	if params.Dist != "" && params.Group != "" && hasLang {
-		addTags("dist:"+params.Dist, "group:"+params.Group, "language_"+params.Language+":true")
+		addTags("dist:"+params.Dist, "group_"+params.Group+":true", "language_"+params.Language+":true")
 	}
 
 	if params.Dist != "" && hasLang {
@@ -186,7 +204,7 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 	}
 
 	if params.Group != "" && hasLang {
-		addTags("group:"+params.Group, "language_"+params.Language+":true")
+		addTags("group_"+params.Group+":true", "language_"+params.Language+":true")
 	}
 
 	if params.OS != "" && hasLang {
@@ -206,7 +224,7 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 	}
 
 	if params.Group != "" {
-		addDefaultTag("group:" + params.Group)
+		addDefaultTag("group_" + params.Group + ":true")
 	}
 
 	if params.OS != "" {
@@ -218,7 +236,15 @@ func (as *APISelector) buildCandidateTags(params *Params) []*tagSet {
 		sort.Strings(ts.Tags)
 	}
 
-	return result
+	for _, ts := range result {
+		for _, tag := range ts.Tags {
+			if strings.Contains(tag, ",") {
+				return result, workererrors.NewWrappedJobAbortError(errors.Errorf("job was aborted because tag \"%v\" contained \",\", this can happen when .travis.yml has a trailing comma", tag))
+			}
+		}
+	}
+
+	return result, nil
 }
 
 type apiSelectorImageResponse struct {

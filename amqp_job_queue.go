@@ -94,6 +94,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 					continue
 				}
 
+				context.LoggerFromContext(ctx).WithField("job", buildJob.payload.Job.ID).Info("received amqp delivery")
+
 				err = json.Unmarshal(delivery.Body, &startAttrs)
 				if err != nil {
 					context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
@@ -120,7 +122,12 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.conn = q.conn
 				buildJob.delivery = delivery
 
-				buildJobChan <- buildJob
+				select {
+				case buildJobChan <- buildJob:
+				case <-ctx.Done():
+					delivery.Nack(false, true)
+					return
+				}
 			}
 		}
 	}()

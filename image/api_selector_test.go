@@ -1,6 +1,7 @@
 package image
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -91,22 +92,22 @@ var (
 					&tagSet{[]string{"os:linux"}, true, uint64(4), "corp/frob"},
 				},
 				{
-					&tagSet{[]string{"group:dev", "language_go:true", "os:linux"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:dev", "language_go:true"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_dev:true", "language_go:true", "os:linux"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_dev:true", "language_go:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_go:true", "os:linux"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_go:true"}, true, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:dev"}, true, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_dev:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:linux"}, true, uint64(4), "corp/frob"},
 				},
 				{
-					&tagSet{[]string{"dist:precise", "group:edge", "language_ruby:true", "os:linux"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"dist:precise", "group:edge", "language_ruby:true"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:precise", "group_edge:true", "language_ruby:true", "os:linux"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:precise", "group_edge:true", "language_ruby:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:precise", "language_ruby:true"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:edge", "language_ruby:true"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_edge:true", "language_ruby:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_ruby:true", "os:linux"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_ruby:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:precise"}, true, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:edge"}, true, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_edge:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:linux"}, true, uint64(4), "corp/frob"},
 				},
 				{
@@ -126,16 +127,16 @@ var (
 					&tagSet{[]string{"os:osx"}, true, uint64(4), "corp/frob"},
 				},
 				{
-					&tagSet{[]string{"dist:yosammity", "group:fancy", "language_node_js:true", "os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:yosammity", "group_fancy:true", "language_node_js:true", "os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:osx", "osx_image:xcode6.1"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"dist:yosammity", "group:fancy", "language_node_js:true"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:yosammity", "group_fancy:true", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity", "language_node_js:true"}, false, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:fancy", "language_node_js:true"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_fancy:true", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_node_js:true", "os:osx"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_node_js:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"osx_image:xcode6.1"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity"}, true, uint64(4), "corp/frob"},
-					&tagSet{[]string{"group:fancy"}, true, uint64(4), "corp/frob"},
+					&tagSet{[]string{"group_fancy:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"os:osx"}, true, uint64(4), "corp/frob"},
 				},
 			},
@@ -175,8 +176,9 @@ func TestAPISelector_SelectDefault(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, _ := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
+	assert.NoError(t, err)
 }
 
 func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
@@ -185,8 +187,9 @@ func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, _ := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
+	assert.EqualError(t, err, "expected 200 status code from job-board, received status=500 body=\"\"")
 }
 
 func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
@@ -195,8 +198,31 @@ func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, _ := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(&Params{})
 	assert.Equal(t, actual, "default")
+	assert.EqualError(t, err, "unexpected end of JSON input")
+}
+
+func TestAPISelector_SelectTrailingComma(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(w, testAPIServerString)
+	}))
+	defer ts.Close()
+
+	u, _ := url.Parse(ts.URL)
+
+	as := NewAPISelector(u)
+
+	actual, err := as.Select(&Params{
+		Infra:    "test,",
+		Language: "ruby,",
+		OsxImage: "meow,",
+		Dist:     "yosamitty,",
+		Group:    "dev,",
+		OS:       "osx,",
+	})
+	assert.Equal(t, actual, "default")
+	assert.EqualError(t, err, "job was aborted because tag \"dist:yosamitty,\" contained \",\", this can happen when .travis.yml has a trailing comma")
 }
 
 func TestAPISelector_buildCandidateTags(t *testing.T) {
@@ -204,7 +230,10 @@ func TestAPISelector_buildCandidateTags(t *testing.T) {
 
 	for _, tc := range testAPITagTestCases {
 		for i, params := range tc.P {
-			assert.Equal(t, tc.E[i], as.buildCandidateTags(params))
+			expectedJSON, _ := json.MarshalIndent(tc.E[i], "", "  ")
+			tagSets, _ := as.buildCandidateTags(params)
+			actualJSON, _ := json.MarshalIndent(tagSets, "", "  ")
+			assert.JSONEq(t, string(expectedJSON), string(actualJSON))
 		}
 	}
 }
