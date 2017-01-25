@@ -2,6 +2,13 @@
 ### Security
 - backend/gce: remove service account from booted instances
 
+### Added
+- HTTP queue type, including implementations of `JobQueue`, `Job`, and
+  `LogWriter`
+
+### Changed
+- build script generator accepts `Job` instead of `*simplejson.Json`
+
 ## [2.6.1] - 2017-01-23
 ### Fixed
 - processor: open log writer early, prevent panic
