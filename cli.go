@@ -1,19 +1,25 @@
 package worker
 
 import (
+	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	"gopkg.in/urfave/cli.v1"
 
 	// include for conditional pprof HTTP server
 	_ "net/http/pprof"
@@ -22,6 +28,7 @@ import (
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
+	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
@@ -29,12 +36,12 @@ import (
 	"github.com/travis-ci/worker/context"
 	travismetrics "github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
-	"gopkg.in/urfave/cli.v1"
 )
 
 // CLI is the top level of execution for the whole shebang
 type CLI struct {
 	c        *cli.Context
+	id       string
 	bootTime time.Time
 
 	ctx    gocontext.Context
@@ -86,11 +93,15 @@ func (i *CLI) Setup() (bool, error) {
 
 	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true})
 
-	cfg := config.FromCLIContext(i.c)
-	i.Config = cfg
+	i.Config = config.FromCLIContext(i.c)
+
+	err := i.setupWorkerID()
+	if err != nil {
+		return false, err
+	}
 
 	if i.c.Bool("echo-config") {
-		config.WriteEnvConfig(cfg, os.Stdout)
+		config.WriteEnvConfig(i.Config, os.Stdout)
 		return false, nil
 	}
 
@@ -102,26 +113,28 @@ func (i *CLI) Setup() (bool, error) {
 	}
 
 	logger.WithFields(logrus.Fields{
-		"cfg": fmt.Sprintf("%#v", cfg),
+		"cfg": fmt.Sprintf("%#v", i.Config),
 	}).Debug("read config")
 
 	i.setupSentry()
 	i.setupMetrics()
 
-	err := i.setupJobQueueAndCanceller()
-	if err != nil {
-		logger.WithField("err", err).Error("couldn't create job queue and canceller")
-		return false, err
+	if i.Config.QueueType != "http" {
+		err = i.setupJobQueueAndCanceller()
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't create job queue and canceller")
+			return false, err
+		}
 	}
 
-	generator := NewBuildScriptGenerator(cfg)
+	generator := NewBuildScriptGenerator(i.Config)
 	logger.WithFields(logrus.Fields{
 		"build_script_generator": fmt.Sprintf("%#v", generator),
 	}).Debug("built")
 
 	i.BuildScriptGenerator = generator
 
-	provider, err := backend.NewBackendProvider(cfg.ProviderName, cfg.ProviderConfig)
+	provider, err := backend.NewBackendProvider(i.Config.ProviderName, i.Config.ProviderConfig)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create backend provider")
 		return false, err
@@ -140,23 +153,31 @@ func (i *CLI) Setup() (bool, error) {
 	i.BackendProvider = provider
 
 	ppc := &ProcessorPoolConfig{
-		Hostname:            cfg.Hostname,
+		Hostname:            i.Config.Hostname,
 		Context:             ctx,
-		HardTimeout:         cfg.HardTimeout,
-		LogTimeout:          cfg.LogTimeout,
-		ScriptUploadTimeout: cfg.ScriptUploadTimeout,
-		StartupTimeout:      cfg.StartupTimeout,
-		MaxLogLength:        cfg.MaxLogLength,
+		HardTimeout:         i.Config.HardTimeout,
+		LogTimeout:          i.Config.LogTimeout,
+		ScriptUploadTimeout: i.Config.ScriptUploadTimeout,
+		StartupTimeout:      i.Config.StartupTimeout,
+		MaxLogLength:        i.Config.MaxLogLength,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.Canceller)
 
-	pool.SkipShutdownOnLogTimeout = cfg.SkipShutdownOnLogTimeout
+	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
 	logger.WithFields(logrus.Fields{
 		"pool": pool,
 	}).Debug("built")
 
 	i.ProcessorPool = pool
+
+	if i.Config.QueueType == "http" {
+		err := i.setupJobQueueForHTTP(pool)
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't setup job queue for http")
+			return false, err
+		}
+	}
 
 	return true, nil
 }
@@ -189,6 +210,19 @@ func (i *CLI) Run() {
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
+}
+
+func (i *CLI) setupWorkerID() error {
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return errors.Wrap(err, "error reading random bytes")
+	}
+
+	hash := sha1.Sum(randomBytes)
+	i.id = fmt.Sprintf("worker+%s@%d.%s",
+		hex.EncodeToString(hash[:]), os.Getpid(), i.Config.Hostname)
+	return nil
 }
 
 func (i *CLI) setupHeartbeat() {
@@ -498,6 +532,28 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 	}
 
 	return fmt.Errorf("unknown queue type %q", i.Config.QueueType)
+}
+
+func (i *CLI) setupJobQueueForHTTP(pool *ProcessorPool) error {
+	jobBoardURL, err := url.Parse(i.Config.JobBoardURL)
+	if err != nil {
+		return errors.Wrap(err, "error parsing job board URL")
+	}
+
+	jobQueue, err := NewHTTPJobQueue(
+		pool, jobBoardURL, i.Config.TravisSite,
+		i.Config.ProviderName, i.Config.QueueName, i.id)
+	if err != nil {
+		return errors.Wrap(err, "error creating HTTP job queue")
+	}
+
+	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
+	jobQueue.DefaultDist = i.Config.DefaultDist
+	jobQueue.DefaultGroup = i.Config.DefaultGroup
+	jobQueue.DefaultOS = i.Config.DefaultOS
+
+	i.JobQueue = jobQueue
+	return nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {

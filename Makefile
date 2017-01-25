@@ -103,3 +103,7 @@ vendor/.deps-fetched:
 .PHONY: annotations
 annotations:
 	@git grep -E '(TODO|FIXME|XXX):' | grep -v -E 'Makefile|vendor/'
+
+$(DOCKER_ENV_FILE):
+	env | grep ^DOCKER | sort >$@
+	echo 'DOCKER_DEST=$(DOCKER_DEST)' >>$@

@@ -20,9 +20,9 @@ func TestBuildScriptGenerator(t *testing.T) {
 
 	gen := NewBuildScriptGenerator(&config.Config{BuildAPIURI: ts.URL})
 
-	payload := simplejson.New()
-
-	script, err := gen.Generate(context.TODO(), payload)
+	script, err := gen.Generate(context.TODO(), &fakeJob{
+		rawPayload: simplejson.New(),
+	})
 	require.Nil(t, err)
 	require.Equal(t, []byte("Hello, client\n"), script)
 }

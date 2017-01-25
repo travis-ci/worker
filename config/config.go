@@ -52,7 +52,7 @@ var (
 		}),
 		NewConfigDef("QueueType", &cli.StringFlag{
 			Value: defaultQueueType,
-			Usage: `The name of the queue type to use ("amqp" or "file")`,
+			Usage: `The name of the queue type to use ("amqp", "http", or "file")`,
 		}),
 		NewConfigDef("AmqpURI", &cli.StringFlag{
 			Value: defaultAmqpURI,
@@ -140,6 +140,12 @@ var (
 		NewConfigDef("MaxLogLength", &cli.IntFlag{
 			Value: defaultMaxLogLength,
 			Usage: "The maximum length of a log in bytes",
+		}),
+		NewConfigDef("JobBoardURL", &cli.StringFlag{
+			Usage: "The base URL for job-board used with http queue",
+		}),
+		NewConfigDef("TravisSite", &cli.StringFlag{
+			Usage: "Either 'org' or 'com', used for job-board",
 		}),
 
 		// build script generator flags
@@ -302,6 +308,8 @@ type Config struct {
 	DefaultDist     string `config:"default-dist"`
 	DefaultGroup    string `config:"default-group"`
 	DefaultOS       string `config:"default-os"`
+	JobBoardURL     string `config:"job-board-url"`
+	TravisSite      string `config:"travis-site"`
 
 	FilePollingInterval time.Duration `config:"file-polling-interval"`
 	HardTimeout         time.Duration `config:"hard-timeout"`
