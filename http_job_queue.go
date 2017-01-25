@@ -102,18 +102,18 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 		return nil, errors.Wrap(err, "failed to marshal job board jobs request payload")
 	}
 
-	url := *q.jobBoardURL
+	u := *q.jobBoardURL
 
-	query := url.Query()
+	query := u.Query()
 	query.Add("count", strconv.Itoa(numWaiting))
 	query.Add("queue", q.queue)
 
-	url.Path = "/jobs"
-	url.RawQuery = query.Encode()
+	u.Path = "/jobs"
+	u.RawQuery = query.Encode()
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(jobIdsJSON))
+	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jobIdsJSON))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create job board jobs request")
 	}
@@ -161,6 +161,10 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 			Data: &JobPayload{},
 		},
 		startAttributes: &backend.StartAttributes{},
+
+		jobBoardURL: q.jobBoardURL,
+		site:        q.site,
+		workerID:    q.workerID,
 	}
 	startAttrs := &httpJobPayloadStartAttrs{
 		Data: &jobPayloadStartAttrs{
@@ -168,12 +172,10 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 		},
 	}
 
-	url := *q.jobBoardURL
-	url.Path = fmt.Sprintf("/jobs/%d", id)
+	u := *q.jobBoardURL
+	u.Path = fmt.Sprintf("/jobs/%d", id)
 
-	client := &http.Client{}
-
-	req, err := http.NewRequest("GET", url.String(), nil)
+	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't make job board job request")
 	}
@@ -185,7 +187,7 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", q.workerID)
 
-	resp, err := client.Do(req)
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "error making job board job request")
 	}
@@ -199,7 +201,7 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 		var errorResp jobBoardErrorResponse
 		err := json.Unmarshal(body, &errorResp)
 		if err != nil {
-			return nil, errors.Errorf("job board job fetch request errored with status %d and didn't send an error response", resp.StatusCode)
+			return nil, errors.Wrapf(err, "job board job fetch request errored with status %d and didn't send an error response", resp.StatusCode)
 		}
 
 		return nil, errors.Errorf("job board job fetch request errored with status %d: %s", resp.StatusCode, errorResp.Error)

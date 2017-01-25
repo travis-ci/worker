@@ -5,7 +5,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -22,6 +24,10 @@ type httpJob struct {
 	startAttributes *backend.StartAttributes
 	received        time.Time
 	started         time.Time
+
+	jobBoardURL *url.URL
+	site        string
+	workerID    string
 }
 
 type jobScriptPayload struct {
@@ -123,24 +129,51 @@ func (j *httpJob) currentState() string {
 }
 
 func (j *httpJob) Finish(state FinishState) error {
-	currentState := j.currentState()
+	u := *j.jobBoardURL
+	u.Path = fmt.Sprintf("/jobs/%d", j.Payload().Job.ID)
+	u.User = nil
+
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Travis-Site", j.site)
+	req.Header.Add("Authorization", "Bearer "+j.payload.JWT)
+	req.Header.Add("From", j.workerID)
+
+	resp, err := (&http.Client{}).Do(req)
+	if err != nil {
+		return err
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		var errorResp jobBoardErrorResponse
+		err := json.Unmarshal(body, &errorResp)
+		if err != nil {
+			return errors.Wrapf(err, "job board job delete request errored with status %d and didn't send an error response", resp.StatusCode)
+		}
+
+		return errors.Errorf("job board job delete request errored with status %d: %s", resp.StatusCode, errorResp.Error)
+	}
 
 	finishedAt := time.Now()
 	receivedAt := j.received
 	if receivedAt.IsZero() {
 		receivedAt = finishedAt
 	}
+
 	startedAt := j.started
 	if startedAt.IsZero() {
 		startedAt = finishedAt
 	}
 
-	err := j.sendStateUpdate(currentState, string(state))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return j.sendStateUpdate(j.currentState(), string(state))
 }
 
 func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
