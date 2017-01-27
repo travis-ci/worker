@@ -31,7 +31,7 @@
 
 ### Fixed
 - processor: always mark job as done when Run finishes
-- processor: use errors.Cause when checking error values (error job on log limit and similar errors)
+- processor: use errors.Cause when checking error values (error job on log limit reached and similar conditions)
 - backend/jupiterbrain: parse SSH key on backend init (#206)
 - backend/jupiterbrain: add sleep between creating and wait-for-ip
 - backend/docker: run bash with `-l` (login shell) in docker native mode
