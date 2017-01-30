@@ -28,6 +28,8 @@ import (
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
+	opentracing "github.com/opentracing/opentracing-go"
+	zipkin "github.com/openzipkin/zipkin-go-opentracing"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
 	"github.com/streadway/amqp"
@@ -118,6 +120,11 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.setupSentry()
 	i.setupMetrics()
+
+	err = i.setupTracing()
+	if err != nil {
+		return false, err
+	}
 
 	if i.Config.QueueType != "http" {
 		err = i.setupJobQueueAndCanceller()
@@ -330,6 +337,30 @@ func (i *CLI) setupMetrics() {
 		go metrics.Log(metrics.DefaultRegistry, time.Minute,
 			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
+}
+
+func (i *CLI) setupTracing() error {
+	zipkinHTTPEndpoint := "http://localhost:9411/api/v1/spans"
+	debug := false
+
+	collector, err := zipkin.NewHTTPCollector(zipkinHTTPEndpoint)
+	if err != nil {
+		return errors.Wrap(err, "couldn't create zipkin collector")
+	}
+
+	recorder := zipkin.NewRecorder(collector, debug, "", "worker")
+
+	tracer, err := zipkin.NewTracer(
+		recorder,
+		zipkin.TraceID128Bit(true),
+	)
+	if err != nil {
+		return errors.Wrap(err, "couldn't create zipkin tracer")
+	}
+
+	opentracing.InitGlobalTracer(tracer)
+
+	return nil
 }
 
 func (i *CLI) heartbeatHandler(heartbeatURL, heartbeatAuthToken string) {

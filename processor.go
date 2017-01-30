@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/multistep"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -171,6 +172,9 @@ func (p *Processor) Terminate() {
 }
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "processor.process")
+	defer span.Finish()
+
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.fullHostname())
 	state.Put("buildJob", buildJob)
