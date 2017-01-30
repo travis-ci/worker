@@ -25,9 +25,6 @@ func (w *byteBufferLogWriter) WriteAndClose(p []byte) (int, error) {
 	return w.Write(p)
 }
 
-func (w *byteBufferLogWriter) SetTimeout(time.Duration) {
-}
-
 func (w *byteBufferLogWriter) Timeout() <-chan time.Time {
 	return make(<-chan time.Time)
 }

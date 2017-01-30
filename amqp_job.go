@@ -40,7 +40,7 @@ func (j *amqpJob) StartAttributes() *backend.StartAttributes {
 }
 
 func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
-	log, err := j.LogWriter(ctx)
+	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
 		return err
 	}
@@ -121,8 +121,13 @@ func (j *amqpJob) Finish(state FinishState) error {
 	return j.delivery.Ack(false)
 }
 
-func (j *amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID)
+func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
+	logTimeout := time.Duration(j.payload.Timeouts.LogSilence) * time.Second
+	if logTimeout == 0 {
+		logTimeout = defaultLogTimeout
+	}
+
+	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
 }
 
 func (j *amqpJob) sendStateUpdate(event string, body map[string]interface{}) error {

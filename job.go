@@ -84,5 +84,5 @@ type Job interface {
 	Requeue() error
 	Finish(FinishState) error
 
-	LogWriter(gocontext.Context) (LogWriter, error)
+	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
 }
