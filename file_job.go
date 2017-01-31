@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
@@ -45,7 +46,7 @@ func (j *fileJob) Started() error {
 }
 
 func (j *fileJob) Error(ctx gocontext.Context, errMessage string) error {
-	log, err := j.LogWriter(ctx)
+	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
 		return err
 	}
@@ -89,6 +90,11 @@ func (j *fileJob) Finish(state FinishState) error {
 		[]byte(state), os.FileMode(0644))
 }
 
-func (j *fileJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newFileLogWriter(ctx, j.logFile)
+func (j *fileJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
+	logTimeout := time.Duration(j.payload.Timeouts.LogSilence) * time.Second
+	if logTimeout == 0 {
+		logTimeout = defaultLogTimeout
+	}
+
+	return newFileLogWriter(ctx, j.logFile, logTimeout)
 }

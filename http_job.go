@@ -70,7 +70,7 @@ func (j *httpJob) StartAttributes() *backend.StartAttributes {
 }
 
 func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
-	log, err := j.LogWriter(ctx)
+	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
 		return err
 	}
@@ -176,8 +176,13 @@ func (j *httpJob) Finish(state FinishState) error {
 	return j.sendStateUpdate(j.currentState(), string(state))
 }
 
-func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Data.Job.ID)
+func (j *httpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
+	logTimeout := time.Duration(j.payload.Data.Timeouts.LogSilence) * time.Second
+	if logTimeout == 0 {
+		logTimeout = defaultLogTimeout
+	}
+
+	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Data.Job.ID, logTimeout)
 }
 
 func (j *httpJob) Generate(ctx gocontext.Context, job Job) ([]byte, error) {

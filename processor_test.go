@@ -90,7 +90,7 @@ func (fj *fakeJob) Finish(state FinishState) error {
 	return nil
 }
 
-func (fj *fakeJob) LogWriter(ctx context.Context) (LogWriter, error) {
+func (fj *fakeJob) LogWriter(ctx context.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
 	return &fakeLogWriter{}, nil
 }
 
@@ -107,8 +107,6 @@ func (flw *fakeLogWriter) Close() error {
 func (flw *fakeLogWriter) WriteAndClose(p []byte) (int, error) {
 	return 0, nil
 }
-
-func (flw *fakeLogWriter) SetTimeout(d time.Duration) {}
 
 func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 	return make(chan time.Time)
