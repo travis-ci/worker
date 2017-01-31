@@ -27,6 +27,7 @@ const (
 	defaultJupiterBrainImageSelectorType = "env"
 	defaultBootPollDialTimeout           = 3 * time.Second
 	defaultBootPollWaitForError          = 2 * time.Second
+	defaultJupiterBrainSSHDialTimeout    = 5 * time.Second
 )
 
 var (
@@ -43,6 +44,7 @@ var (
 		"BOOT_POLL_SLEEP":          "sleep interval between polling server for instance status (default 3s)",
 		"BOOT_POLL_DIAL_TIMEOUT":   "how long to wait for a TCP connection to be made when polling SSH port (default 3s)",
 		"BOOT_POLL_WAIT_FOR_ERROR": "time to wait for an error message after cancelling the boot polling (default 2s)",
+		"SSH_DIAL_TIMEOUT":         fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultJupiterBrainSSHDialTimeout),
 	}
 )
 
@@ -66,6 +68,7 @@ func init() {
 
 type jupiterBrainProvider struct {
 	sshDialer            ssh.Dialer
+	sshDialTimeout       time.Duration
 	keychainPassword     string
 	bootPollSleep        time.Duration
 	bootPollDialTimeout  time.Duration
@@ -104,6 +107,14 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 	baseURL, err := url.Parse(cfg.Get("ENDPOINT"))
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing Jupiter Brain endpoint URL")
+	}
+
+	sshDialTimeout := defaultJupiterBrainSSHDialTimeout
+	if cfg.IsSet("SSH_DIAL_TIMEOUT") {
+		sshDialTimeout, err = time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !cfg.IsSet("SSH_KEY_PATH") {
@@ -168,6 +179,7 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	return &jupiterBrainProvider{
 		sshDialer:            sshDialer,
+		sshDialTimeout:       sshDialTimeout,
 		keychainPassword:     keychainPassword,
 		bootPollSleep:        bootPollSleep,
 		bootPollDialTimeout:  bootPollDialTimeout,
@@ -362,7 +374,7 @@ func (i *jupiterBrainInstance) sshConnection() (ssh.Connection, error) {
 		return nil, errors.Errorf("no valid IPv4 address")
 	}
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", ip.String()), "travis")
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", ip.String()), "travis", i.provider.sshDialTimeout)
 }
 
 func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttributes *StartAttributes) (string, error) {

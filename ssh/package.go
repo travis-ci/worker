@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"io"
 	"io/ioutil"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 
@@ -14,7 +15,7 @@ import (
 )
 
 type Dialer interface {
-	Dial(address, username string) (Connection, error)
+	Dial(address, username string, timeout time.Duration) (Connection, error)
 }
 type Connection interface {
 	UploadFile(path string, data []byte) (bool, error)
@@ -76,10 +77,11 @@ func NewDialer(keyPath, keyPassphrase string) (*SSHDialer, error) {
 	return NewDialerWithKey(key)
 }
 
-func (d *SSHDialer) Dial(address, username string) (Connection, error) {
+func (d *SSHDialer) Dial(address, username string, timeout time.Duration) (Connection, error) {
 	client, err := ssh.Dial("tcp", address, &ssh.ClientConfig{
-		User: username,
-		Auth: d.authMethods,
+		User:    username,
+		Auth:    d.authMethods,
+		Timeout: timeout,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't connect to SSH server")

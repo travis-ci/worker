@@ -56,6 +56,7 @@ const (
 	defaultGCEImage              = "travis-ci.+"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
+	defaultGCESSHDialTimeout     = 5 * time.Second
 )
 
 var (
@@ -83,6 +84,7 @@ var (
 		"RATE_LIMIT_DURATION":   fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
 		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
+		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
 		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
 		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
 		"SUBNETWORK":            fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
@@ -151,6 +153,7 @@ type gceProvider struct {
 	uploadRetries     uint64
 	uploadRetrySleep  time.Duration
 	sshDialer         ssh.Dialer
+	sshDialTimeout    time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -412,6 +415,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimitDuration = rld
 	}
 
+	sshDialTimeout := defaultGCESSHDialTimeout
+	if cfg.IsSet("SSH_DIAL_TIMEOUT") {
+		sshDialTimeout, err = time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
@@ -443,6 +454,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageProjectID: imageProjectID,
 		cfg:            cfg,
 		sshDialer:      sshDialer,
+		sshDialTimeout: sshDialTimeout,
 
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
@@ -913,7 +925,7 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, erro
 		i.cachedIPAddr = ipAddr
 	}
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser)
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser, i.provider.sshDialTimeout)
 }
 
 func (i *gceInstance) getIP() string {

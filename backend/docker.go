@@ -24,17 +24,19 @@ import (
 )
 
 var (
-	dockerHelp = map[string]string{
-		"ENDPOINT / HOST": "[REQUIRED] tcp or unix address for connecting to Docker",
-		"CERT_PATH":       "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
-		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
-		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
-		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
-		"CPU_SET_SIZE":    "size of available cpu set (default detected locally via runtime.NumCPU)",
-		"NATIVE":          "upload and run build script via docker API instead of over ssh (default false)",
-		"PRIVILEGED":      "run containers in privileged mode (default false)",
+	defaultDockerNumCPUer       dockerNumCPUer = &stdlibNumCPUer{}
+	defaultDockerSSHDialTimeout                = 5 * time.Second
+	dockerHelp                                 = map[string]string{
+		"ENDPOINT / HOST":  "[REQUIRED] tcp or unix address for connecting to Docker",
+		"CERT_PATH":        "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
+		"CMD":              "command (CMD) to run when creating containers (default \"/sbin/init\")",
+		"MEMORY":           "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"CPUS":             "cpu count to allocate to each container (0 disables allocation, default 2)",
+		"CPU_SET_SIZE":     "size of available cpu set (default detected locally via runtime.NumCPU)",
+		"NATIVE":           "upload and run build script via docker API instead of over ssh (default false)",
+		"PRIVILEGED":       "run containers in privileged mode (default false)",
+		"SSH_DIAL_TIMEOUT": fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
 	}
-	defaultDockerNumCPUer dockerNumCPUer = &stdlibNumCPUer{}
 )
 
 func init() {
@@ -52,8 +54,9 @@ func (nc *stdlibNumCPUer) NumCPU() int {
 }
 
 type dockerProvider struct {
-	client    *docker.Client
-	sshDialer ssh.Dialer
+	client         *docker.Client
+	sshDialer      ssh.Dialer
+	sshDialTimeout time.Duration
 
 	runPrivileged bool
 	runCmd        []string
@@ -137,14 +140,23 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	sshDialTimeout := defaultDockerSSHDialTimeout
+	if cfg.IsSet("SSH_DIAL_TIMEOUT") {
+		sshDialTimeout, err = time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	sshDialer, err := ssh.NewDialerWithPassword("travis")
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create SSH dialer")
 	}
 
 	return &dockerProvider{
-		client:    client,
-		sshDialer: sshDialer,
+		client:         client,
+		sshDialer:      sshDialer,
+		sshDialTimeout: sshDialTimeout,
 
 		runPrivileged: privileged,
 		runCmd:        cmd,
@@ -357,7 +369,7 @@ func (i *dockerInstance) sshConnection() (ssh.Connection, error) {
 
 	time.Sleep(2 * time.Second)
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis")
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis", i.provider.sshDialTimeout)
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
