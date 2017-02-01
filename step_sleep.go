@@ -1,5 +1,11 @@
 package worker
 
+import (
+	"time"
+
+	"github.com/mitchellh/multistep"
+)
+
 type stepSleep struct {
 	duration time.Duration
 }
