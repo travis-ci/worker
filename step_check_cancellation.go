@@ -1,6 +1,7 @@
 package worker
 
 import (
+	gocontext "context"
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
 )
