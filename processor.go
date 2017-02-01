@@ -191,19 +191,24 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepSendReceived{},
 		// XXX: This is a temporary fix to avoid calling to the vSphere API for "stale" jobs that get immediately cancelled when hub gets the "received" event.
 		&stepSleep{duration: time.Second},
+		&stepCheckCancellation{},
 		&stepOpenLogWriter{
 			maxLogLength:      p.maxLogLength,
 			defaultLogTimeout: p.logTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepStartInstance{
 			provider:     p.provider,
 			startTimeout: p.startupTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepUploadScript{
 			uploadTimeout: p.scriptUploadTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepUpdateState{},
 		&stepWriteWorkerInfo{},
+		&stepCheckCancellation{},
 		&stepRunScript{
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,
