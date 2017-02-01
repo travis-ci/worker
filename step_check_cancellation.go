@@ -2,6 +2,7 @@ package worker
 
 import (
 	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
 )
@@ -19,7 +20,8 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 			buildJob := state.Get("buildJob").(Job)
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
 		} else {
-			err = buildJob.Finish(FinishStateCancelled)
+			buildJob := state.Get("buildJob").(Job)
+			err := buildJob.Finish(FinishStateCancelled)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 			}
@@ -28,7 +30,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 	default:
 	}
 
-	return multiste.ActionContinue
+	return multistep.ActionContinue
 }
 
 func (s *stepCheckCancellation) Cleanup(state multistep.StateBag) {
