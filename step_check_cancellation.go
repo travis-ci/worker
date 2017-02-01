@@ -9,18 +9,26 @@ import (
 type stepCheckCancellation struct{}
 
 func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepAction {
-	ctx := state.Get("ctx").(gocontext.Context)
-	buildJob := state.Get("buildJob").(Job)
-	logWriter := state.Get("logWriter").(LogWriter)
 	cancelChan := state.Get("cancelChan").(<-chan struct{})
 
 	select {
 	case <-cancelChan:
-		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
+		ctx := state.Get("ctx").(gocontext.Context)
+		if _, ok := state.GetOk("logWriter"); ok {
+			logWriter := state.Get("logWriter").(LogWriter)
+			buildJob := state.Get("buildJob").(Job)
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
+		} else {
+			err = buildJob.Finish(FinishStateCancelled)
+			if err != nil {
+				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
+			}
+		}
+		return multistep.ActionHalt
 	default:
 	}
 
-	return multistep.ActionHalt
+	return multiste.ActionContinue
 }
 
 func (s *stepCheckCancellation) Cleanup(state multistep.StateBag) {
