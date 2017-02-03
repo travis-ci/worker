@@ -71,6 +71,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	buildJobsChan, err := queue.Jobs(ctx)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
+		cancel()
 		return nil, err
 	}
 
