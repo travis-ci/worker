@@ -98,7 +98,7 @@ func (j *amqpJob) Started() error {
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithField("job", j.payload.Job.ID).WithField("state", state).Info("finishing job")
+	context.LoggerFromContext(ctx).WithField("job", j.Payload().Job.ID).WithField("state", state).Info("finishing job")
 
 	finishedAt := time.Now()
 	receivedAt := j.received
