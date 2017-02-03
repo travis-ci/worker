@@ -31,7 +31,7 @@ var (
 		"ENDPOINT / HOST":  "[REQUIRED] tcp or unix address for connecting to Docker",
 		"CERT_PATH":        "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
 		"CMD":              "command (CMD) to run when creating containers (default \"/sbin/init\")",
-		"EXEC_CMD":         fmt.Sprintf("command to run when exec'ing the running container (default %q)", defaultExecCmd),
+		"EXEC_CMD":         fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
 		"MEMORY":           "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"CPUS":             "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":     "size of available cpu set (default detected locally via runtime.NumCPU)",
@@ -506,7 +506,7 @@ func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (
 	}
 	defer conn.Close()
 
-	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
+	exitStatus, err := conn.RunCommand(strings.Join(i.provider.execCmd, " "), output)
 
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
