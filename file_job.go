@@ -60,7 +60,9 @@ func (j *fileJob) Error(ctx gocontext.Context, errMessage string) error {
 	return j.Finish(ctx, FinishStateErrored)
 }
 
-func (j *fileJob) Requeue() error {
+func (j *fileJob) Requeue(ctx gocontext.Context) error {
+	context.LoggerFromContext(ctx).WithField("job", j.Payload().Job.ID).Info("requeueing job")
+
 	metrics.Mark("worker.job.requeue")
 
 	var err error

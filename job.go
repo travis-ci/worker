@@ -81,7 +81,7 @@ type Job interface {
 	Received() error
 	Started() error
 	Error(gocontext.Context, string) error
-	Requeue() error
+	Requeue(gocontext.Context) error
 	Finish(gocontext.Context, FinishState) error
 
 	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)

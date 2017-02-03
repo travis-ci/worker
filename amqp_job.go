@@ -54,7 +54,9 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 	return j.Finish(ctx, FinishStateErrored)
 }
 
-func (j *amqpJob) Requeue() error {
+func (j *amqpJob) Requeue(ctx gocontext.Context) error {
+	context.LoggerFromContext(ctx).WithField("job", j.Payload().Job.ID).Info("requeueing job")
+
 	metrics.Mark("worker.job.requeue")
 
 	err := j.sendStateUpdate("job:test:reset", map[string]interface{}{

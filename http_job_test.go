@@ -120,12 +120,15 @@ func TestHTTPJob_Requeue(t *testing.T) {
 		fmt.Fprintln(w, "hai")
 	}))
 	defer ts.Close()
+
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
 	job.jobBoardURL, _ = url.Parse(ts.URL)
 
-	err := job.Requeue()
+	ctx := gocontext.TODO()
+
+	err := job.Requeue(ctx)
 	if err != nil {
 		t.Error(err)
 	}

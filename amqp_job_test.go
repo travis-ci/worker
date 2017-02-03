@@ -129,8 +129,9 @@ func TestAMQPJob_Error(t *testing.T) {
 
 func TestAMQPJob_Requeue(t *testing.T) {
 	job := newTestAMQPJob(t)
+	ctx := gocontext.TODO()
 
-	err := job.Requeue()
+	err := job.Requeue(ctx)
 	if err != nil {
 		t.Error(err)
 	}

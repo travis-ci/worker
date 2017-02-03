@@ -84,7 +84,9 @@ func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
 	return j.Finish(ctx, FinishStateErrored)
 }
 
-func (j *httpJob) Requeue() error {
+func (j *httpJob) Requeue(ctx gocontext.Context) error {
+	context.LoggerFromContext(ctx).WithField("job", j.Payload().Job.ID).Info("requeueing job")
+
 	metrics.Mark("worker.job.requeue")
 
 	currentState := j.currentState()
