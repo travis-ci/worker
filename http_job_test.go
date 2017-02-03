@@ -171,12 +171,15 @@ func TestHTTPJob_Finish(t *testing.T) {
 		fmt.Fprintln(w, "hai")
 	}))
 	defer ts.Close()
+
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
 	job.jobBoardURL, _ = url.Parse(ts.URL)
 
-	err := job.Finish(FinishStatePassed)
+	ctx := gocontext.TODO()
+
+	err := job.Finish(ctx, FinishStatePassed)
 	if err != nil {
 		t.Error(err)
 	}

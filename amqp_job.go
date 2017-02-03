@@ -8,6 +8,7 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
 )
@@ -50,7 +51,7 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 		return err
 	}
 
-	return j.Finish(FinishStateErrored)
+	return j.Finish(ctx, FinishStateErrored)
 }
 
 func (j *amqpJob) Requeue() error {
@@ -94,7 +95,9 @@ func (j *amqpJob) Started() error {
 	})
 }
 
-func (j *amqpJob) Finish(state FinishState) error {
+func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
+	context.LoggerFromContext(ctx).WithField("job", j.payload.Job.ID).WithField("state", state).Info("finishing job")
+
 	finishedAt := time.Now()
 	receivedAt := j.received
 	if receivedAt.IsZero() {

@@ -85,7 +85,7 @@ func (fj *fakeJob) Requeue() error {
 	return nil
 }
 
-func (fj *fakeJob) Finish(state FinishState) error {
+func (fj *fakeJob) Finish(ctx context.Context, state FinishState) error {
 	fj.events = append(fj.events, string(state))
 	return nil
 }

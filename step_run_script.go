@@ -108,7 +108,7 @@ func (s *stepRunScript) writeLogAndFinishWithState(ctx gocontext.Context, logWri
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write final log message")
 	}
 
-	err = buildJob.Finish(state)
+	err = buildJob.Finish(ctx, state)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 	}

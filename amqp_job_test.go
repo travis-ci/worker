@@ -161,8 +161,9 @@ func TestAMQPJob_Started(t *testing.T) {
 
 func TestAMQPJob_Finish(t *testing.T) {
 	job := newTestAMQPJob(t)
+	ctx := gocontext.TODO()
 
-	err := job.Finish(FinishStatePassed)
+	err := job.Finish(ctx, FinishStatePassed)
 	if err != nil {
 		t.Error(err)
 	}

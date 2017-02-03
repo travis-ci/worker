@@ -82,7 +82,7 @@ type Job interface {
 	Started() error
 	Error(gocontext.Context, string) error
 	Requeue() error
-	Finish(FinishState) error
+	Finish(gocontext.Context, FinishState) error
 
 	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
 }

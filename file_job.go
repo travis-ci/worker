@@ -9,6 +9,7 @@ import (
 
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	gocontext "golang.org/x/net/context"
 )
@@ -56,7 +57,7 @@ func (j *fileJob) Error(ctx gocontext.Context, errMessage string) error {
 		return err
 	}
 
-	return j.Finish(FinishStateErrored)
+	return j.Finish(ctx, FinishStateErrored)
 }
 
 func (j *fileJob) Requeue() error {
@@ -78,7 +79,9 @@ func (j *fileJob) Requeue() error {
 	return err
 }
 
-func (j *fileJob) Finish(state FinishState) error {
+func (j *fileJob) Finish(ctx gocontext.Context, state FinishState) error {
+	context.LoggerFromContext(ctx).WithField("job", j.Payload().Job.ID).WithField("state", state).Info("finishing job")
+
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 
 	err := os.Rename(j.startedFile, j.finishedFile)

@@ -34,11 +34,11 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 
 		switch result.ExitCode {
 		case 0:
-			err = buildJob.Finish(FinishStatePassed)
+			err = buildJob.Finish(ctx, FinishStatePassed)
 		case 1:
-			err = buildJob.Finish(FinishStateFailed)
+			err = buildJob.Finish(ctx, FinishStateFailed)
 		default:
-			err = buildJob.Finish(FinishStateErrored)
+			err = buildJob.Finish(ctx, FinishStateErrored)
 		}
 
 		if err != nil {
