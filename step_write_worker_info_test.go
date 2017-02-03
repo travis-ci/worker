@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 
 	"github.com/mitchellh/multistep"
 	"github.com/stretchr/testify/assert"

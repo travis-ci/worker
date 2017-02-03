@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // A Processor gets jobs off the job queue and coordinates running it with other

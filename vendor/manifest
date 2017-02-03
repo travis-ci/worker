@@ -314,13 +314,6 @@
 			"path": "/ssh"
 		},
 		{
-			"importpath": "golang.org/x/net/context",
-			"repository": "https://go.googlesource.com/net",
-			"revision": "45b61eaf18dd5c1b942e7666ff170b77dbbaf87b",
-			"branch": "master",
-			"path": "/context"
-		},
-		{
 			"importpath": "golang.org/x/oauth2",
 			"repository": "https://go.googlesource.com/oauth2",
 			"revision": "4470bd844ebb05a09d21d3f54d5824a81b5f45af",

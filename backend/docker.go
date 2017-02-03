@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
@@ -20,7 +22,6 @@ import (
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ssh"
-	gocontext "golang.org/x/net/context"
 )
 
 var (

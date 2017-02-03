@@ -9,9 +9,10 @@ import (
 	"net/url"
 	"time"
 
+	gocontext "context"
+
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/metrics"
-	gocontext "golang.org/x/net/context"
 )
 
 // A BuildScriptGeneratorError is sometimes used by the Generate method on a

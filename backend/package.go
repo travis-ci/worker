@@ -29,13 +29,12 @@ New providers should call Register in init() to register the alias it should be 
 package backend
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 var (
