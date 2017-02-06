@@ -3,11 +3,12 @@ package worker
 import (
 	"encoding/json"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // AMQPJobQueue is a JobQueue that uses AMQP

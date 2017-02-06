@@ -3,10 +3,11 @@ package worker
 import (
 	"time"
 
+	gocontext "context"
+
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type stepGenerateScript struct {

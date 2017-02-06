@@ -3,13 +3,14 @@ package worker
 import (
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	workererrors "github.com/travis-ci/worker/errors"
-	gocontext "golang.org/x/net/context"
 )
 
 type stepStartInstance struct {

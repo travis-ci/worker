@@ -1,8 +1,9 @@
 package worker
 
 import (
+	gocontext "context"
+
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // FileCanceller fulfills the Canceller interface for file-based queues

@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
+	gocontext "context"
+
 	"github.com/pborman/uuid"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 func newTestAMQPCanceller(t *testing.T) *AMQPCanceller {

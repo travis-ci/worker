@@ -9,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
 )
 
 func newTestHTTPJob(t *testing.T) *httpJob {

@@ -8,12 +8,12 @@
 package context
 
 import (
+	"context"
 	"os"
 	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
-	"golang.org/x/net/context"
 )
 
 type contextKey int

@@ -7,11 +7,12 @@ import (
 	"strings"
 	"time"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
-	gocontext "golang.org/x/net/context"
 )
 
 type fileJob struct {

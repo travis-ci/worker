@@ -24,6 +24,8 @@ import (
 	// include for conditional pprof HTTP server
 	_ "net/http/pprof"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
@@ -35,7 +37,6 @@ import (
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	travismetrics "github.com/travis-ci/worker/metrics"
-	gocontext "golang.org/x/net/context"
 )
 
 // CLI is the top level of execution for the whole shebang

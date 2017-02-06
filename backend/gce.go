@@ -19,6 +19,8 @@ import (
 	"text/template"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
@@ -30,7 +32,6 @@ import (
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ratelimit"
 	"github.com/travis-ci/worker/ssh"
-	gocontext "golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
