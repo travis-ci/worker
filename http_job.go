@@ -86,7 +86,7 @@ func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *httpJob) Requeue(ctx gocontext.Context) error {
-	context.LoggerFromContext(ctx).WithField("job", j.Payload().Job.ID).Info("requeueing job")
+	context.LoggerFromContext(ctx).Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
 
@@ -133,7 +133,7 @@ func (j *httpJob) currentState() string {
 }
 
 func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithField("job", j.Payload().Job.ID).WithField("state", state).Info("finishing job")
+	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
 
 	u := *j.jobBoardURL
 	u.Path = fmt.Sprintf("/jobs/%d", j.Payload().Job.ID)
