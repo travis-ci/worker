@@ -80,12 +80,12 @@ func (fj *fakeJob) Error(ctx context.Context, msg string) error {
 	return nil
 }
 
-func (fj *fakeJob) Requeue() error {
+func (fj *fakeJob) Requeue(ctx context.Context) error {
 	fj.events = append(fj.events, "requeued")
 	return nil
 }
 
-func (fj *fakeJob) Finish(state FinishState) error {
+func (fj *fakeJob) Finish(ctx context.Context, state FinishState) error {
 	fj.events = append(fj.events, string(state))
 	return nil
 }

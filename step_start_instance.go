@@ -39,7 +39,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			logWriter := state.Get("logWriter").(LogWriter)
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
 
-			err = buildJob.Finish(FinishStateErrored)
+			err = buildJob.Finish(ctx, FinishStateErrored)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
 			}
@@ -47,7 +47,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
-		err := buildJob.Requeue()
+		err := buildJob.Requeue(ctx)
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
 		}
