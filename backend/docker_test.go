@@ -3,6 +3,7 @@ package backend
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
-	"golang.org/x/net/context"
 )
 
 var (

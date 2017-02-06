@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
 )
 
 type fakeAMQPAcknowledger struct {

@@ -1,12 +1,11 @@
 package backend
 
 import (
+	"context"
 	"io"
 	"time"
 
 	"github.com/travis-ci/worker/config"
-
-	"golang.org/x/net/context"
 )
 
 func init() {

@@ -3,7 +3,7 @@ package worker
 import (
 	"time"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"

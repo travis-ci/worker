@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/streadway/amqp"
 	workerctx "github.com/travis-ci/worker/context"
-	"golang.org/x/net/context"
 )
 
 func setupConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
