@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 func TestNewCLI(t *testing.T) {

@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/jtacoma/uritemplates"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type httpLogPart struct {

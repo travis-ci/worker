@@ -3,9 +3,10 @@ package worker
 import (
 	"time"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
 )
 
 const (

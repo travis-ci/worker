@@ -5,11 +5,12 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // A ProcessorPool spins up multiple Processors handling build jobs from the

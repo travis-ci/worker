@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
+	gocontext "context"
+
 	"github.com/travis-ci/worker/config"
-	gocontext "golang.org/x/net/context"
 )
 
 var (

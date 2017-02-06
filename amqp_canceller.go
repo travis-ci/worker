@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"sync"
 
+	gocontext "context"
+
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type cancelCommand struct {

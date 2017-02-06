@@ -1,7 +1,7 @@
 package worker
 
 import (
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 )
 
 // JobQueue is the minimal interface needed by a ProcessorPool

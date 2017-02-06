@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type runScriptReturn struct {
