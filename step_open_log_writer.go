@@ -1,26 +1,29 @@
 package worker
 
 import (
-	gocontext "golang.org/x/net/context"
+	"time"
+
+	gocontext "context"
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
 )
 
 type stepOpenLogWriter struct {
-	maxLogLength int
+	maxLogLength      int
+	defaultLogTimeout time.Duration
 }
 
 func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 
-	logWriter, err := buildJob.LogWriter(ctx)
+	logWriter, err := buildJob.LogWriter(ctx, s.defaultLogTimeout)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue()
+		err := buildJob.Requeue(ctx)
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
 		}

@@ -5,10 +5,11 @@ import (
 	"strings"
 	"testing"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
 )
 
 type fakeAMQPAcknowledger struct {
@@ -129,8 +130,9 @@ func TestAMQPJob_Error(t *testing.T) {
 
 func TestAMQPJob_Requeue(t *testing.T) {
 	job := newTestAMQPJob(t)
+	ctx := gocontext.TODO()
 
-	err := job.Requeue()
+	err := job.Requeue(ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -161,8 +163,9 @@ func TestAMQPJob_Started(t *testing.T) {
 
 func TestAMQPJob_Finish(t *testing.T) {
 	job := newTestAMQPJob(t)
+	ctx := gocontext.TODO()
 
-	err := job.Finish(FinishStatePassed)
+	err := job.Finish(ctx, FinishStatePassed)
 	if err != nil {
 		t.Error(err)
 	}

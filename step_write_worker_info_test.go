@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 
 	"github.com/mitchellh/multistep"
 	"github.com/stretchr/testify/assert"
@@ -23,9 +23,6 @@ func (w *byteBufferLogWriter) Close() error {
 
 func (w *byteBufferLogWriter) WriteAndClose(p []byte) (int, error) {
 	return w.Write(p)
-}
-
-func (w *byteBufferLogWriter) SetTimeout(time.Duration) {
 }
 
 func (w *byteBufferLogWriter) Timeout() <-chan time.Time {

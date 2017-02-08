@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
@@ -19,7 +21,6 @@ import (
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ratelimit"
 	"github.com/travis-ci/worker/ssh"
-	gocontext "golang.org/x/net/context"
 )
 
 const (
@@ -29,6 +30,7 @@ const (
 	defaultCloudBrainUploadRetrySleep  = 1 * time.Second
 	defaultCloudBrainImageSelectorType = "env"
 	defaultCloudBrainImage             = "travis-ci.+"
+	defaultCloudBrainSSHDialTimeout    = 5 * time.Second
 )
 
 var (
@@ -42,6 +44,7 @@ var (
 		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
 		"IMAGE_SELECTOR_INFRA":  "Infra to pass to image selector API, e.g. \"gce\"",
 		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultCloudBrainSSHDialTimeout),
 		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultCloudBrainUploadRetries),
 		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultCloudBrainUploadRetrySleep),
 	}
@@ -55,10 +58,11 @@ func init() {
 }
 
 type cbProvider struct {
-	client    *cbClient
-	ic        *cbInstanceConfig
-	cfg       *config.ProviderConfig
-	sshDialer ssh.Dialer
+	client         *cbClient
+	ic             *cbInstanceConfig
+	cfg            *config.ProviderConfig
+	sshDialer      ssh.Dialer
+	sshDialTimeout time.Duration
 
 	provider string
 
@@ -231,6 +235,14 @@ func newCloudBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	sshDialTimeout := defaultCloudBrainSSHDialTimeout
+	if cfg.IsSet("SSH_DIAL_TIMEOUT") {
+		sshDialTimeout, err = time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, err
@@ -262,6 +274,7 @@ func newCloudBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		provider:           provider,
 		sshDialer:          sshDialer,
+		sshDialTimeout:     sshDialTimeout,
 		defaultImage:       defaultImage,
 		imageSelector:      imageSelector,
 		imageSelectorType:  imageSelectorType,
@@ -473,7 +486,7 @@ func (i *cbInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error
 		i.cachedIPAddr = ipAddr
 	}
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser)
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser, i.provider.sshDialTimeout)
 }
 
 func (i *cbInstance) getIP() string {

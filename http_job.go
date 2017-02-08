@@ -10,12 +10,14 @@ import (
 	"net/url"
 	"time"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/jtacoma/uritemplates"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
-	gocontext "golang.org/x/net/context"
 )
 
 type httpJob struct {
@@ -70,7 +72,7 @@ func (j *httpJob) StartAttributes() *backend.StartAttributes {
 }
 
 func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
-	log, err := j.LogWriter(ctx)
+	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
 		return err
 	}
@@ -80,10 +82,12 @@ func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
 		return err
 	}
 
-	return j.Finish(FinishStateErrored)
+	return j.Finish(ctx, FinishStateErrored)
 }
 
-func (j *httpJob) Requeue() error {
+func (j *httpJob) Requeue(ctx gocontext.Context) error {
+	context.LoggerFromContext(ctx).Info("requeueing job")
+
 	metrics.Mark("worker.job.requeue")
 
 	currentState := j.currentState()
@@ -128,7 +132,9 @@ func (j *httpJob) currentState() string {
 	return currentState
 }
 
-func (j *httpJob) Finish(state FinishState) error {
+func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
+	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
+
 	u := *j.jobBoardURL
 	u.Path = fmt.Sprintf("/jobs/%d", j.Payload().Job.ID)
 	u.User = nil
@@ -176,8 +182,13 @@ func (j *httpJob) Finish(state FinishState) error {
 	return j.sendStateUpdate(j.currentState(), string(state))
 }
 
-func (j *httpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Data.Job.ID)
+func (j *httpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
+	logTimeout := time.Duration(j.payload.Data.Timeouts.LogSilence) * time.Second
+	if logTimeout == 0 {
+		logTimeout = defaultLogTimeout
+	}
+
+	return newHTTPLogWriter(ctx, j.payload.JobPartsURL, j.payload.JWT, j.payload.Data.Job.ID, logTimeout)
 }
 
 func (j *httpJob) Generate(ctx gocontext.Context, job Job) ([]byte, error) {

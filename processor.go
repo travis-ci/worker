@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // A Processor gets jobs off the job queue and coordinates running it with other
@@ -70,6 +71,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	buildJobsChan, err := queue.Jobs(ctx)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
+		cancel()
 		return nil, err
 	}
 
@@ -190,7 +192,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		},
 		&stepSendReceived{},
 		&stepOpenLogWriter{
-			maxLogLength: p.maxLogLength,
+			maxLogLength:      p.maxLogLength,
+			defaultLogTimeout: p.logTimeout,
 		},
 		&stepStartInstance{
 			provider:     p.provider,
@@ -201,9 +204,6 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		},
 		&stepUpdateState{},
 		&stepWriteWorkerInfo{},
-		&stepStartLogTimer{
-			logTimeout: logTimeout,
-		},
 		&stepRunScript{
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,

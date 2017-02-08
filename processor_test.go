@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
-	"golang.org/x/net/context"
 )
 
 type buildScriptGeneratorFunction func(context.Context, Job) ([]byte, error)
@@ -80,17 +80,17 @@ func (fj *fakeJob) Error(ctx context.Context, msg string) error {
 	return nil
 }
 
-func (fj *fakeJob) Requeue() error {
+func (fj *fakeJob) Requeue(ctx context.Context) error {
 	fj.events = append(fj.events, "requeued")
 	return nil
 }
 
-func (fj *fakeJob) Finish(state FinishState) error {
+func (fj *fakeJob) Finish(ctx context.Context, state FinishState) error {
 	fj.events = append(fj.events, string(state))
 	return nil
 }
 
-func (fj *fakeJob) LogWriter(ctx context.Context) (LogWriter, error) {
+func (fj *fakeJob) LogWriter(ctx context.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
 	return &fakeLogWriter{}, nil
 }
 
@@ -107,8 +107,6 @@ func (flw *fakeLogWriter) Close() error {
 func (flw *fakeLogWriter) WriteAndClose(p []byte) (int, error) {
 	return 0, nil
 }
-
-func (flw *fakeLogWriter) SetTimeout(d time.Duration) {}
 
 func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 	return make(chan time.Time)

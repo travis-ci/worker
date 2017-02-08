@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/streadway/amqp"
 	workerctx "github.com/travis-ci/worker/context"
-	"golang.org/x/net/context"
 )
 
 func setupConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
@@ -49,12 +49,11 @@ func TestAMQPLogWriterWrite(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(1000)
-	logWriter.SetTimeout(time.Second)
 
 	_, err = fmt.Fprintf(logWriter, "Hello, ")
 	if err != nil {
@@ -107,12 +106,11 @@ func TestAMQPLogWriterClose(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(1000)
-	logWriter.SetTimeout(time.Second)
 
 	// Close the log writer to force it to flush out the buffer
 	err = logWriter.Close()
@@ -156,12 +154,11 @@ func TestAMQPMaxLogLength(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(4)
-	logWriter.SetTimeout(time.Second)
 
 	_, err = fmt.Fprintf(logWriter, "1234")
 	if err != nil {

@@ -3,9 +3,10 @@ package worker
 import (
 	"time"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
 )
 
 const (
@@ -81,8 +82,8 @@ type Job interface {
 	Received() error
 	Started() error
 	Error(gocontext.Context, string) error
-	Requeue() error
-	Finish(FinishState) error
+	Requeue(gocontext.Context) error
+	Finish(gocontext.Context, FinishState) error
 
-	LogWriter(gocontext.Context) (LogWriter, error)
+	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
 }

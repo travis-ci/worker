@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
@@ -20,22 +22,25 @@ import (
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ssh"
-	gocontext "golang.org/x/net/context"
 )
 
 var (
-	dockerHelp = map[string]string{
-		"ENDPOINT / HOST": "[REQUIRED] tcp or unix address for connecting to Docker",
-		"CERT_PATH":       "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
-		"CMD":             "command (CMD) to run when creating containers (default \"/sbin/init\")",
-		"MEMORY":          "memory to allocate to each container (0 disables allocation, default \"4G\")",
-		"SHM":             "/dev/shm to allocate to each container (0 disables allocation, default \"64MB\")",
-		"CPUS":            "cpu count to allocate to each container (0 disables allocation, default 2)",
-		"CPU_SET_SIZE":    "size of available cpu set (default detected locally via runtime.NumCPU)",
-		"NATIVE":          "upload and run build script via docker API instead of over ssh (default false)",
-		"PRIVILEGED":      "run containers in privileged mode (default false)",
+	defaultDockerNumCPUer       dockerNumCPUer = &stdlibNumCPUer{}
+	defaultDockerSSHDialTimeout                = 5 * time.Second
+	defaultExecCmd                             = "bash /home/travis/build.sh"
+	dockerHelp                                 = map[string]string{
+		"ENDPOINT / HOST":  "[REQUIRED] tcp or unix address for connecting to Docker",
+		"CERT_PATH":        "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
+		"CMD":              "command (CMD) to run when creating containers (default \"/sbin/init\")",
+		"EXEC_CMD":         fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
+		"MEMORY":           "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"SHM":              "/dev/shm to allocate to each container (0 disables allocation, default \"64MB\")",
+		"CPUS":             "cpu count to allocate to each container (0 disables allocation, default 2)",
+		"CPU_SET_SIZE":     "size of available cpu set (default detected locally via runtime.NumCPU)",
+		"NATIVE":           "upload and run build script via docker API instead of over ssh (default false)",
+		"PRIVILEGED":       "run containers in privileged mode (default false)",
+		"SSH_DIAL_TIMEOUT": fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
 	}
-	defaultDockerNumCPUer dockerNumCPUer = &stdlibNumCPUer{}
 )
 
 func init() {
@@ -53,8 +58,9 @@ func (nc *stdlibNumCPUer) NumCPU() int {
 }
 
 type dockerProvider struct {
-	client    *docker.Client
-	sshDialer ssh.Dialer
+	client         *docker.Client
+	sshDialer      ssh.Dialer
+	sshDialTimeout time.Duration
 
 	runPrivileged bool
 	runCmd        []string
@@ -62,6 +68,7 @@ type dockerProvider struct {
 	runShm        uint64
 	runCPUs       int
 	runNative     bool
+	execCmd       []string
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -125,6 +132,11 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		cmd = strings.Split(cfg.Get("CMD"), " ")
 	}
 
+	execCmd := strings.Split(defaultExecCmd, " ")
+	if cfg.IsSet("EXEC_CMD") {
+		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
+	}
+
 	memory := uint64(1024 * 1024 * 1024 * 4)
 	if cfg.IsSet("MEMORY") {
 		if parsedMemory, err := humanize.ParseBytes(cfg.Get("MEMORY")); err == nil {
@@ -146,14 +158,23 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	sshDialTimeout := defaultDockerSSHDialTimeout
+	if cfg.IsSet("SSH_DIAL_TIMEOUT") {
+		sshDialTimeout, err = time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	sshDialer, err := ssh.NewDialerWithPassword("travis")
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create SSH dialer")
 	}
 
 	return &dockerProvider{
-		client:    client,
-		sshDialer: sshDialer,
+		client:         client,
+		sshDialer:      sshDialer,
+		sshDialTimeout: sshDialTimeout,
 
 		runPrivileged: privileged,
 		runCmd:        cmd,
@@ -161,6 +182,8 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runShm:        shm,
 		runCPUs:       int(cpus),
 		runNative:     runNative,
+
+		execCmd: execCmd,
 
 		cpuSets: make([]bool, cpuSetSize),
 	}, nil
@@ -368,7 +391,7 @@ func (i *dockerInstance) sshConnection() (ssh.Connection, error) {
 
 	time.Sleep(2 * time.Second)
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis")
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis", i.provider.sshDialTimeout)
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
@@ -438,7 +461,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		AttachStdout: true,
 		AttachStderr: true,
 		Tty:          true,
-		Cmd:          []string{"bash", "-l", "/home/travis/build.sh"},
+		Cmd:          i.provider.execCmd,
 		User:         "travis",
 		Container:    i.container.ID,
 	}
@@ -495,7 +518,7 @@ func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (
 	}
 	defer conn.Close()
 
-	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
+	exitStatus, err := conn.RunCommand(strings.Join(i.provider.execCmd, " "), output)
 
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }

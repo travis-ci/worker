@@ -1,9 +1,10 @@
 package worker
 
 import (
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type stepSubscribeCancellation struct {
@@ -25,7 +26,7 @@ func (s *stepSubscribeCancellation) Run(state multistep.StateBag) multistep.Step
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't subscribe to canceller, attempting requeue")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue()
+		err := buildJob.Requeue(ctx)
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
 		}

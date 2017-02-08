@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 )
 
 // HTTPJobQueue is a JobQueue that uses http

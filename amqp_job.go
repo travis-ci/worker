@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
-	gocontext "golang.org/x/net/context"
 )
 
 type amqpJob struct {
@@ -40,7 +42,7 @@ func (j *amqpJob) StartAttributes() *backend.StartAttributes {
 }
 
 func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
-	log, err := j.LogWriter(ctx)
+	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
 		return err
 	}
@@ -50,10 +52,12 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 		return err
 	}
 
-	return j.Finish(FinishStateErrored)
+	return j.Finish(ctx, FinishStateErrored)
 }
 
-func (j *amqpJob) Requeue() error {
+func (j *amqpJob) Requeue(ctx gocontext.Context) error {
+	context.LoggerFromContext(ctx).Info("requeueing job")
+
 	metrics.Mark("worker.job.requeue")
 
 	err := j.sendStateUpdate("job:test:reset", map[string]interface{}{
@@ -94,7 +98,9 @@ func (j *amqpJob) Started() error {
 	})
 }
 
-func (j *amqpJob) Finish(state FinishState) error {
+func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
+	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
+
 	finishedAt := time.Now()
 	receivedAt := j.received
 	if receivedAt.IsZero() {
@@ -121,8 +127,13 @@ func (j *amqpJob) Finish(state FinishState) error {
 	return j.delivery.Ack(false)
 }
 
-func (j *amqpJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID)
+func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
+	logTimeout := time.Duration(j.payload.Timeouts.LogSilence) * time.Second
+	if logTimeout == 0 {
+		logTimeout = defaultLogTimeout
+	}
+
+	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
 }
 
 func (j *amqpJob) sendStateUpdate(event string, body map[string]interface{}) error {

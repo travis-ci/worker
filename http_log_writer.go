@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/jtacoma/uritemplates"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type httpLogPart struct {
@@ -45,14 +46,14 @@ type httpLogWriter struct {
 	timeout time.Duration
 }
 
-func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64) (*httpLogWriter, error) {
+func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64, timeout time.Duration) (*httpLogWriter, error) {
 	return &httpLogWriter{
 		ctx:        context.FromComponent(ctx, "log_writer"),
 		jobID:      jobID,
 		closeChan:  make(chan struct{}),
 		buffer:     new(bytes.Buffer),
 		timer:      time.NewTimer(time.Hour),
-		timeout:    0,
+		timeout:    timeout,
 		httpClient: &http.Client{},
 		baseURL:    url,
 		authToken:  authToken,
@@ -117,11 +118,6 @@ func (w *httpLogWriter) Close() error {
 	}
 	w.logPartNumber++
 	return w.publishLogPart(part)
-}
-
-func (w *httpLogWriter) SetTimeout(d time.Duration) {
-	w.timeout = d
-	w.timer.Reset(w.timeout)
 }
 
 func (w *httpLogWriter) Timeout() <-chan time.Time {

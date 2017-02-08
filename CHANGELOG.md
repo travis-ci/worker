@@ -1,4 +1,6 @@
 ## Unreleased
+
+## [2.6.2] - 2017-01-31
 ### Security
 - backend/gce: remove service account from booted instances
 
@@ -8,6 +10,9 @@
 
 ### Changed
 - build_script_generator: accepts `Job` instead of `*simplejson.Json`
+
+### Fixed
+- log_writer: pass timeout on creation and start timer on first write
 
 ## [2.6.1] - 2017-01-23
 ### Fixed
@@ -31,7 +36,7 @@
 
 ### Fixed
 - processor: always mark job as done when Run finishes
-- processor: use errors.Cause when checking error values
+- processor: use errors.Cause when checking error values (error job on log limit reached and similar conditions)
 - backend/jupiterbrain: parse SSH key on backend init (#206)
 - backend/jupiterbrain: add sleep between creating and wait-for-ip
 - backend/docker: run bash with `-l` (login shell) in docker native mode
@@ -395,7 +400,8 @@
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.6.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.6.2...HEAD
+[2.6.2]: https://github.com/travis-ci/worker/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/travis-ci/worker/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/travis-ci/worker/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/travis-ci/worker/compare/v2.4.0...v2.5.0
