@@ -78,6 +78,8 @@ var (
 		"PREEMPTIBLE":           "boot job instances with preemptible flag enabled (default true)",
 		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
 		"PROJECT_ID":            "[REQUIRED] GCE project id",
+		"PUBLIC_IP":             "boot job instances with a public ip, disable this for NAT (default true)",
+		"PUBLIC_IP_CONNECT":     "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
 		"IMAGE_PROJECT_ID":      "GCE project id to use for images, will use PROJECT_ID if not specified",
 		"RATE_LIMIT_PREFIX":     "prefix for the rate limit key in Redis",
 		"RATE_LIMIT_REDIS_URL":  "URL to Redis instance to use for rate limiting",
@@ -178,6 +180,7 @@ type gceInstanceConfig struct {
 	SkipStopPoll       bool
 	Preemptible        bool
 	PublicIP           bool
+	PublicIPConnect    bool
 }
 
 type gceStartMultistepWrapper struct {
@@ -449,6 +452,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		publicIP = asBool(cfg.Get("PUBLIC_IP"))
 	}
 
+	publicIPConnect := true
+	if cfg.IsSet("PUBLIC_IP_CONNECT") {
+		publicIPConnect = asBool(cfg.Get("PUBLIC_IP_CONNECT"))
+	}
+
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -460,6 +468,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		ic: &gceInstanceConfig{
 			Preemptible:      preemptible,
 			PublicIP:         publicIP,
+			PublicIPConnect:  publicIPConnect,
 			DiskSize:         diskSize,
 			SSHPubKey:        string(pubKey),
 			AutoImplode:      autoImplode,
@@ -930,23 +939,23 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, erro
 }
 
 func (i *gceInstance) getIP() string {
-	// if instance has no public IP, return first private one
-	if !i.ic.PublicIP {
+	if i.ic.PublicIP && i.ic.PublicIPConnect {
 		for _, ni := range i.instance.NetworkInterfaces {
-			return ni.NetworkIP
+			if ni.AccessConfigs == nil {
+				continue
+			}
+
+			for _, ac := range ni.AccessConfigs {
+				if ac.NatIP != "" {
+					return ac.NatIP
+				}
+			}
 		}
 	}
 
+	// if instance has no public IP, return first private one
 	for _, ni := range i.instance.NetworkInterfaces {
-		if ni.AccessConfigs == nil {
-			continue
-		}
-
-		for _, ac := range ni.AccessConfigs {
-			if ac.NatIP != "" {
-				return ac.NatIP
-			}
-		}
+		return ni.NetworkIP
 	}
 
 	// TODO: return an error?

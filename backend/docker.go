@@ -34,6 +34,7 @@ var (
 		"CMD":              "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":         fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
 		"MEMORY":           "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"SHM":              "/dev/shm to allocate to each container (0 disables allocation, default \"64MB\")",
 		"CPUS":             "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":     "size of available cpu set (default detected locally via runtime.NumCPU)",
 		"NATIVE":           "upload and run build script via docker API instead of over ssh (default false)",
@@ -64,6 +65,7 @@ type dockerProvider struct {
 	runPrivileged bool
 	runCmd        []string
 	runMemory     uint64
+	runShm        uint64
 	runCPUs       int
 	runNative     bool
 	execCmd       []string
@@ -142,6 +144,13 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	shm := uint64(1024 * 1024 * 64)
+	if cfg.IsSet("SHM") {
+		if parsedShm, err := humanize.ParseBytes(cfg.Get("SHM")); err == nil {
+			shm = parsedShm
+		}
+	}
+
 	cpus := uint64(2)
 	if cfg.IsSet("CPUS") {
 		if parsedCPUs, err := strconv.ParseUint(cfg.Get("CPUS"), 10, 64); err == nil {
@@ -170,6 +179,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runPrivileged: privileged,
 		runCmd:        cmd,
 		runMemory:     memory,
+		runShm:        shm,
 		runCPUs:       int(cpus),
 		runNative:     runNative,
 
@@ -225,6 +235,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	dockerHostConfig := &docker.HostConfig{
 		Privileged: p.runPrivileged,
 		Memory:     int64(p.runMemory),
+		ShmSize:    int64(p.runShm),
 	}
 
 	if cpuSets != "" {
