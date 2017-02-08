@@ -1,5 +1,17 @@
 ## Unreleased
 
+## [2.7.0] - 2017-02-08
+### Added
+- backend: add "SSH dial timeout" to all backends, with a default of 5 seconds, configurable with `SSH_DIAL_TIMEOUT` backend setting
+- backend/docker: make the command to run the build script configurable with `BACKEND_DOCKER_EXEC_CMD` env var, default to `bash /home/travis/build.sh`
+- backend/gce: make it configurable whether to give a booted instance a "public" IP with `BACKEND_GCE_PUBLIC_IP`, defaults to `true`
+- backend/gce: make it configurable whether to connect to an instance's "public" IP with `BACKEND_GCE_PUBLIC_IP_CONNECT`, defaults to `true`
+- log when a job is finished, including its "finishing state" (passed, failed, errored, etc.)
+- log when a job is requeued
+
+### Changed
+- backend/docker: change default command run in Docker native mode from `bash -l /home/travis/build.sh` back to `bash /home/travis/build.sh`, reverting the change made in 2.6.0
+
 ## [2.6.2] - 2017-01-31
 ### Security
 - backend/gce: remove service account from booted instances
