@@ -150,7 +150,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error decoding docker client container create request: %s", err.Error())
 			w.WriteHeader(400)
-		} else if req.HostConfig.Privileged == false {
+		} else if !req.HostConfig.Privileged {
 			t.Errorf("Expected Privileged flag to be true, instead false")
 			w.WriteHeader(400)
 		} else {
