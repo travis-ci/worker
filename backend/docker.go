@@ -34,7 +34,7 @@ var (
 		"CMD":              "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":         fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
 		"MEMORY":           "memory to allocate to each container (0 disables allocation, default \"4G\")",
-		"SHM":              "/dev/shm to allocate to each container (0 disables allocation, default \"64MB\")",
+		"SHM":              "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
 		"CPUS":             "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":     "size of available cpu set (default detected locally via runtime.NumCPU)",
 		"NATIVE":           "upload and run build script via docker API instead of over ssh (default false)",
