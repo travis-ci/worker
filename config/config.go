@@ -243,8 +243,7 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 		panic("empty field name")
 	}
 
-	name := ""
-
+	var name string
 	if string(fieldName[0]) == strings.ToLower(string(fieldName[0])) {
 		name = fieldName
 	} else {
