@@ -33,9 +33,7 @@ export DOCKER_DEST
 COVERPROFILES := \
 	backend-coverage.coverprofile \
 	config-coverage.coverprofile \
-	context-coverage.coverprofile \
-	image-coverage.coverprofile \
-	metrics-coverage.coverprofile
+	image-coverage.coverprofile
 CROSSBUILD_BINARIES := \
 	build/darwin/amd64/travis-worker \
 	build/linux/amd64/travis-worker
