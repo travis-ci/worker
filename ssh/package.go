@@ -32,28 +32,28 @@ func FormatPublicKey(key interface{}) ([]byte, error) {
 	return ssh.MarshalAuthorizedKey(pubKey), nil
 }
 
-type SSHDialer struct {
+type AuthDialer struct {
 	authMethods []ssh.AuthMethod
 }
 
-func NewDialerWithKey(key crypto.Signer) (*SSHDialer, error) {
+func NewDialerWithKey(key crypto.Signer) (*AuthDialer, error) {
 	signer, err := ssh.NewSignerFromKey(key)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create signer from SSH key")
 	}
 
-	return &SSHDialer{
+	return &AuthDialer{
 		authMethods: []ssh.AuthMethod{ssh.PublicKeys(signer)},
 	}, nil
 }
 
-func NewDialerWithPassword(password string) (*SSHDialer, error) {
-	return &SSHDialer{
+func NewDialerWithPassword(password string) (*AuthDialer, error) {
+	return &AuthDialer{
 		authMethods: []ssh.AuthMethod{ssh.Password(password)},
 	}, nil
 }
 
-func NewDialer(keyPath, keyPassphrase string) (*SSHDialer, error) {
+func NewDialer(keyPath, keyPassphrase string) (*AuthDialer, error) {
 	file, err := ioutil.ReadFile(keyPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't read SSH key")
@@ -77,7 +77,7 @@ func NewDialer(keyPath, keyPassphrase string) (*SSHDialer, error) {
 	return NewDialerWithKey(key)
 }
 
-func (d *SSHDialer) Dial(address, username string, timeout time.Duration) (Connection, error) {
+func (d *AuthDialer) Dial(address, username string, timeout time.Duration) (Connection, error) {
 	client, err := ssh.Dial("tcp", address, &ssh.ClientConfig{
 		User:    username,
 		Auth:    d.authMethods,
