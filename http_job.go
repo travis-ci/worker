@@ -95,13 +95,7 @@ func (j *httpJob) Requeue(ctx gocontext.Context) error {
 	j.received = time.Time{}
 	j.started = time.Time{}
 
-	err := j.sendStateUpdate(currentState, "created")
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return j.sendStateUpdate(currentState, "created")
 }
 
 func (j *httpJob) Received() error {
