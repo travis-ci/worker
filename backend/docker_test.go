@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -228,18 +227,6 @@ func TestNewDockerProvider_WithRequiredConfig(t *testing.T) {
 	assert.Equal(t, 3, len(provider.cpuSets))
 	assert.Equal(t, []string{"/sbin/init"}, provider.runCmd)
 	assert.Equal(t, 2, provider.runCPUs)
-}
-
-func TestNewDockerProvider_WithCertPath(t *testing.T) {
-	certPath := fmt.Sprintf("/%v/secret/nonexistent/dir", time.Now().UTC().UnixNano())
-	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{
-		"HOST":      "tcp://fleeflahflew.example.com:8080",
-		"CERT_PATH": certPath,
-	}))
-	assert.NotNil(t, err)
-	assert.Nil(t, provider)
-	assert.Equal(t, err.(*os.PathError).Op, "open")
-	assert.Equal(t, err.(*os.PathError).Path, fmt.Sprintf("%s/cert.pem", certPath))
 }
 
 func TestNewDockerProvider_WithNative(t *testing.T) {
