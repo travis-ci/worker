@@ -83,10 +83,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
-		} else {
-			context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
 		}
 
+		context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
 		return multistep.ActionHalt
 	case <-cancelChan:
 		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
