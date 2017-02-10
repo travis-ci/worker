@@ -314,6 +314,8 @@ func (i *CLI) setupSentry() {
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't set DSN in raven")
 	}
+
+	raven.SetRelease(VersionString)
 }
 
 func (i *CLI) setupMetrics() {
