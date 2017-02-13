@@ -32,7 +32,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -47,7 +46,6 @@ var (
 	// an 'ENDPOINT' configuration, but one is required.
 	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
 
-	punctRegex   = regexp.MustCompile(`[&+/=\\]`)
 	zeroDuration time.Duration
 )
 

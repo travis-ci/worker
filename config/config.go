@@ -38,13 +38,6 @@ var (
 
 	configType = reflect.ValueOf(Config{}).Type()
 
-	boolFlagType     = reflect.ValueOf(cli.BoolFlag{}).Type()
-	durationFlagType = reflect.ValueOf(cli.DurationFlag{}).Type()
-	intFlagType      = reflect.ValueOf(cli.IntFlag{}).Type()
-	stringFlagType   = reflect.ValueOf(cli.StringFlag{}).Type()
-
-	zeroStringValue = reflect.Zero(reflect.ValueOf("").Type())
-
 	defs = []*ConfigDef{
 		NewConfigDef("ProviderName", &cli.StringFlag{
 			Value: defaultProviderName,
@@ -250,8 +243,7 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 		panic("empty field name")
 	}
 
-	name := ""
-
+	var name string
 	if string(fieldName[0]) == strings.ToLower(string(fieldName[0])) {
 		name = fieldName
 	} else {

@@ -49,8 +49,7 @@ var (
 		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultCloudBrainUploadRetrySleep),
 	}
 
-	errCloudBrainMissingIPAddressError   = fmt.Errorf("no IP address found")
-	errCloudBrainInstanceDeletionNotDone = fmt.Errorf("instance deletion not done")
+	errCloudBrainMissingIPAddressError = fmt.Errorf("no IP address found")
 )
 
 func init() {

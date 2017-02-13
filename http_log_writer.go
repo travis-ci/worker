@@ -102,21 +102,6 @@ func (w *httpLogWriter) Close() error {
 		Final:  true,
 	}
 	w.logPartNumber++
-	if w.closed() {
-		return nil
-	}
-
-	w.timer.Stop()
-
-	close(w.closeChan)
-	w.flush()
-
-	part = httpLogPart{
-		JobID:  w.jobID,
-		Number: w.logPartNumber,
-		Final:  true,
-	}
-	w.logPartNumber++
 	return w.publishLogPart(part)
 }
 
