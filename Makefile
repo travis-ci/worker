@@ -90,7 +90,7 @@ distclean: clean
 .PHONY: deps
 deps: vendor/.deps-fetched
 
-vendor/.deps-fetched:
+vendor/.deps-fetched: vendor/manifest
 	$(GVT) rebuild
 	touch $@
 
