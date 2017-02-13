@@ -1,4 +1,10 @@
 ## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
 
 ## [2.7.0] - 2017-02-08
 ### Added
