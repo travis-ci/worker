@@ -11,6 +11,10 @@ services:
 - docker
 - redis
 
+cache:
+  directories:
+  - vendor
+
 env:
   global:
   - AMQP_URI="amqp://"
@@ -40,7 +44,6 @@ script:
 - travis_retry make deps
 - make lintall
 - make test
-- make test-race
 - make crossbuild
 - make smoke
 - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then

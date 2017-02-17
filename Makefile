@@ -55,10 +55,6 @@ test: deps lintall build fmtpolice test-no-cover coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test -v -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
-
-.PHONY: test-race
-test-race: deps
 	$(GO) test -v -race -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
@@ -94,7 +90,7 @@ distclean: clean
 .PHONY: deps
 deps: vendor/.deps-fetched
 
-vendor/.deps-fetched:
+vendor/.deps-fetched: vendor/manifest
 	$(GVT) rebuild
 	touch $@
 

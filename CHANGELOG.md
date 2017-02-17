@@ -1,4 +1,14 @@
-## Unreleased
+# Change Log
+
+The format is based on [Keep a Changelog](http://keepachangelog.com/).
+
+## [Unreleased]
+### Added
+### Changed
+### Deprecated
+### Removed
+### Fixed
+### Security
 
 ## [2.7.0] - 2017-02-08
 ### Added
@@ -412,7 +422,8 @@
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.6.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/travis-ci/worker/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/travis-ci/worker/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/travis-ci/worker/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/travis-ci/worker/compare/v2.5.0...v2.6.0
