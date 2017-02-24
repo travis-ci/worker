@@ -112,6 +112,7 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	}
 
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
+	metrics.Mark("travis.worker.job.finish")
 
 	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
 		"id":          j.Payload().Job.ID,
