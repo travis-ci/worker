@@ -24,11 +24,11 @@ type Processor struct {
 	startupTimeout      time.Duration
 	maxLogLength        int
 
-	ctx           gocontext.Context
-	buildJobsChan <-chan Job
-	provider      backend.Provider
-	generator     BuildScriptGenerator
-	canceller     Canceller
+	ctx                     gocontext.Context
+	buildJobsChan           <-chan Job
+	provider                backend.Provider
+	generator               BuildScriptGenerator
+	cancellationBroadcaster *CancellationBroadcaster
 
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
@@ -60,7 +60,7 @@ type ProcessorConfig struct {
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
+	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	uuidString, _ := context.ProcessorFromContext(ctx)
@@ -85,11 +85,11 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		startupTimeout:      config.StartupTimeout,
 		maxLogLength:        config.MaxLogLength,
 
-		ctx:           ctx,
-		buildJobsChan: buildJobsChan,
-		provider:      provider,
-		generator:     generator,
-		canceller:     canceller,
+		ctx:                     ctx,
+		buildJobsChan:           buildJobsChan,
+		provider:                provider,
+		generator:               generator,
+		cancellationBroadcaster: cancellationBroadcaster,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -185,7 +185,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{
-			canceller: p.canceller,
+			cancellationBroadcaster: p.cancellationBroadcaster,
 		},
 		&stepGenerateScript{
 			generator: p.generator,

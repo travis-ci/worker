@@ -11,23 +11,24 @@ import (
 	"github.com/travis-ci/worker/context"
 )
 
-func newTestAMQPCanceller(t *testing.T) *AMQPCanceller {
+func newTestAMQPCanceller(t *testing.T, cancellationBroadcaster *CancellationBroadcaster) *AMQPCanceller {
 	amqpConn, _ := setupConn(t)
 
 	uuid := uuid.NewRandom()
 	ctx := context.FromUUID(gocontext.TODO(), uuid.String())
 
-	return NewAMQPCanceller(ctx, amqpConn)
+	return NewAMQPCanceller(ctx, amqpConn, cancellationBroadcaster)
 }
 
 func TestNewAMQPCanceller(t *testing.T) {
-	if newTestAMQPCanceller(t) == nil {
+	if newTestAMQPCanceller(t, NewCancellationBroadcaster()) == nil {
 		t.Fail()
 	}
 }
 
 func TestAMQPCanceller_Run(t *testing.T) {
-	canceller := newTestAMQPCanceller(t)
+	cancellationBroadcaster := NewCancellationBroadcaster()
+	canceller := newTestAMQPCanceller(t, cancellationBroadcaster)
 
 	errChan := make(chan interface{})
 
@@ -47,47 +48,9 @@ func TestAMQPCanceller_Run(t *testing.T) {
 	}
 }
 
-func TestAMQPCanceller_Subscribe(t *testing.T) {
-	canceller := newTestAMQPCanceller(t)
-	jobID := uint64(123)
-	subChan := make(chan<- struct{})
-
-	err := canceller.Subscribe(jobID, subChan)
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = canceller.Subscribe(jobID, subChan)
-	if err == nil {
-		t.Fatalf("no error returned for duplicate subscription")
-	}
-}
-
-func TestAMQPCanceller_Unsubscribe(t *testing.T) {
-	canceller := newTestAMQPCanceller(t)
-	jobID := uint64(123)
-	subChan := make(chan<- struct{})
-
-	err := canceller.Subscribe(jobID, subChan)
-	if err != nil {
-		t.Error(err)
-	}
-
-	canceller.Unsubscribe(jobID)
-
-	err = canceller.Subscribe(jobID, subChan)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestAMQPCanceller_processCommand(t *testing.T) {
-	canceller := newTestAMQPCanceller(t)
-
-	jobID := uint64(123)
-	subChan := make(chan<- struct{})
-
-	canceller.Subscribe(jobID, subChan)
+	cancellationBroadcaster := NewCancellationBroadcaster()
+	canceller := newTestAMQPCanceller(t, cancellationBroadcaster)
 
 	err := canceller.processCommand(amqp.Delivery{Body: []byte("{")})
 	if err == nil {

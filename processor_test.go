@@ -19,20 +19,6 @@ func (bsg buildScriptGeneratorFunction) Generate(ctx context.Context, job Job) (
 	return bsg(ctx, job)
 }
 
-type fakeCanceller struct {
-	subscribedIDs   []uint64
-	unsubscribedIDs []uint64
-}
-
-func (fc *fakeCanceller) Subscribe(id uint64, ch chan<- struct{}) error {
-	fc.subscribedIDs = append(fc.subscribedIDs, id)
-	return nil
-}
-
-func (fc *fakeCanceller) Unsubscribe(id uint64) {
-	fc.unsubscribedIDs = append(fc.unsubscribedIDs, id)
-}
-
 type fakeJobQueue struct {
 	c chan Job
 }
@@ -131,9 +117,9 @@ func TestProcessor(t *testing.T) {
 
 	jobChan := make(chan Job)
 	jobQueue := &fakeJobQueue{c: jobChan}
-	canceller := &fakeCanceller{}
+	cancellationBroadcaster := NewCancellationBroadcaster()
 
-	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, canceller, ProcessorConfig{
+	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, cancellationBroadcaster, ProcessorConfig{
 		HardTimeout:         2 * time.Second,
 		LogTimeout:          time.Second,
 		ScriptUploadTimeout: 3 * time.Second,
@@ -183,12 +169,5 @@ func TestProcessor(t *testing.T) {
 	expectedEvents := []string{"received", "started", string(FinishStatePassed)}
 	if !reflect.DeepEqual(expectedEvents, job.events) {
 		t.Errorf("job.events = %#v, expected %#v", job.events, expectedEvents)
-	}
-
-	if canceller.subscribedIDs[0] != 2 {
-		t.Errorf("canceller.subscribedIDs[0] = %d, expected 2", canceller.subscribedIDs[0])
-	}
-	if canceller.unsubscribedIDs[0] != 2 {
-		t.Errorf("canceller.unsubscribedIDs[0] = %d, expected 2", canceller.unsubscribedIDs[0])
 	}
 }

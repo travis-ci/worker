@@ -49,12 +49,12 @@ type CLI struct {
 	cancel gocontext.CancelFunc
 	logger *logrus.Entry
 
-	Config               *config.Config
-	BuildScriptGenerator BuildScriptGenerator
-	BackendProvider      backend.Provider
-	ProcessorPool        *ProcessorPool
-	Canceller            Canceller
-	JobQueue             JobQueue
+	Config                  *config.Config
+	BuildScriptGenerator    BuildScriptGenerator
+	BackendProvider         backend.Provider
+	ProcessorPool           *ProcessorPool
+	CancellationBroadcaster *CancellationBroadcaster
+	JobQueue                JobQueue
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
@@ -68,6 +68,8 @@ func NewCLI(c *cli.Context) *CLI {
 
 		heartbeatSleep:    5 * time.Minute,
 		heartbeatErrSleep: 30 * time.Second,
+
+		CancellationBroadcaster: NewCancellationBroadcaster(),
 	}
 }
 
@@ -163,7 +165,7 @@ func (i *CLI) Setup() (bool, error) {
 		MaxLogLength:        i.Config.MaxLogLength,
 	}
 
-	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.Canceller)
+	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)
 
 	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
 	logger.WithFields(logrus.Fields{
@@ -493,12 +495,10 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 
 		i.logger.Debug("connected to AMQP")
 
-		canceller := NewAMQPCanceller(i.ctx, amqpConn)
+		canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
 		i.logger.WithFields(logrus.Fields{
 			"canceller": fmt.Sprintf("%#v", canceller),
 		}).Debug("built")
-
-		i.Canceller = canceller
 
 		go canceller.Run()
 
@@ -515,11 +515,6 @@ func (i *CLI) setupJobQueueAndCanceller() error {
 		i.JobQueue = jobQueue
 		return nil
 	case "file":
-		canceller := NewFileCanceller(i.ctx, i.Config.BaseDir)
-		go canceller.Run()
-
-		i.Canceller = canceller
-
 		jobQueue, err := NewFileJobQueue(i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
 		if err != nil {
 			return err

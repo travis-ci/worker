@@ -2,8 +2,6 @@ package worker
 
 import (
 	"encoding/json"
-	"fmt"
-	"sync"
 
 	gocontext "context"
 
@@ -21,22 +19,21 @@ type cancelCommand struct {
 // dispatching the commands to the right place. Currently the only valid command
 // is the 'cancel job' command.
 type AMQPCanceller struct {
-	conn *amqp.Connection
-	ctx  gocontext.Context
-
-	cancelMutex sync.Mutex
-	cancelMap   map[uint64](chan<- struct{})
+	conn                    *amqp.Connection
+	ctx                     gocontext.Context
+	cancellationBroadcaster *CancellationBroadcaster
 }
 
 // NewAMQPCanceller creates a new AMQPCanceller. No network traffic
 // occurs until you call Run()
-func NewAMQPCanceller(ctx gocontext.Context, conn *amqp.Connection) *AMQPCanceller {
+func NewAMQPCanceller(ctx gocontext.Context, conn *amqp.Connection, cancellationBroadcaster *CancellationBroadcaster) *AMQPCanceller {
 	ctx = context.FromComponent(ctx, "canceller")
 
 	return &AMQPCanceller{
-		ctx:       ctx,
-		conn:      conn,
-		cancelMap: make(map[uint64](chan<- struct{})),
+		ctx:  ctx,
+		conn: conn,
+
+		cancellationBroadcaster: cancellationBroadcaster,
 	}
 }
 
@@ -93,28 +90,6 @@ func (d *AMQPCanceller) Run() {
 	}
 }
 
-// Subscribe is an implementation of Canceller.Subscribe.
-func (d *AMQPCanceller) Subscribe(id uint64, ch chan<- struct{}) error {
-	d.cancelMutex.Lock()
-	defer d.cancelMutex.Unlock()
-
-	if _, ok := d.cancelMap[id]; ok {
-		return fmt.Errorf("there's already a subscription for job %d", id)
-	}
-
-	d.cancelMap[id] = ch
-
-	return nil
-}
-
-// Unsubscribe is an implementation of Canceller.Unsubscribe.
-func (d *AMQPCanceller) Unsubscribe(id uint64) {
-	d.cancelMutex.Lock()
-	defer d.cancelMutex.Unlock()
-
-	delete(d.cancelMap, id)
-}
-
 func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
 	command := &cancelCommand{}
 	err := json.Unmarshal(delivery.Body, command)
@@ -128,20 +103,7 @@ func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
 		return nil
 	}
 
-	d.cancelMutex.Lock()
-	defer d.cancelMutex.Unlock()
-
-	cancelChan, ok := d.cancelMap[command.JobID]
-	if !ok {
-		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Debug("no job with this ID found on this worker")
-		return nil
-	}
-
-	if tryClose(cancelChan) {
-		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Info("cancelling job")
-	} else {
-		context.LoggerFromContext(d.ctx).WithField("command", command.Type).WithField("job", command.JobID).Warn("job already cancelled")
-	}
+	d.cancellationBroadcaster.Broadcast(command.JobID)
 
 	return nil
 }
