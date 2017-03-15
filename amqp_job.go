@@ -74,15 +74,18 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 func (j *amqpJob) Received() error {
 	j.received = time.Now()
 
-	if j.payload.Job.QueuedAt != nil {
-		metrics.TimeSince("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
-	}
-
-	return j.sendStateUpdate("job:test:receive", map[string]interface{}{
+	payload := map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       "received",
 		"received_at": j.received.UTC().Format(time.RFC3339),
-	})
+	}
+
+	if j.Payload().Job.QueuedAt != nil {
+		metrics.TimeSince("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
+		payload["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+
+	return j.sendStateUpdate("job:test:receive", payload)
 }
 
 func (j *amqpJob) Started() error {
@@ -90,12 +93,18 @@ func (j *amqpJob) Started() error {
 
 	metrics.TimeSince("travis.worker.job.start_time", j.received)
 
-	return j.sendStateUpdate("job:test:start", map[string]interface{}{
+	payload := map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       "started",
 		"received_at": j.received.UTC().Format(time.RFC3339),
 		"started_at":  j.started.UTC().Format(time.RFC3339),
-	})
+	}
+
+	if j.Payload().Job.QueuedAt != nil {
+		payload["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+
+	return j.sendStateUpdate("job:test:start", payload)
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
@@ -114,13 +123,19 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 	metrics.Mark("travis.worker.job.finish")
 
-	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
+	payload := map[string]interface{}{
 		"id":          j.Payload().Job.ID,
 		"state":       state,
 		"received_at": receivedAt.UTC().Format(time.RFC3339),
 		"started_at":  startedAt.UTC().Format(time.RFC3339),
 		"finished_at": finishedAt.UTC().Format(time.RFC3339),
-	})
+	}
+
+	if j.Payload().Job.QueuedAt != nil {
+		payload["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+
+	err := j.sendStateUpdate("job:test:finish", payload)
 	if err != nil {
 		return err
 	}
