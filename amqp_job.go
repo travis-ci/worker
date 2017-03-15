@@ -60,10 +60,23 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 
 	metrics.Mark("worker.job.requeue")
 
-	err := j.sendStateUpdate("job:test:reset", map[string]interface{}{
+	payload := map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": "reset",
-	})
+	}
+
+	if j.Payload().Job.QueuedAt != nil {
+		payload["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+
+	if !j.received.IsZero() {
+		payload["received_at"] = j.received.UTC().Format(time.RFC3339)
+	}
+	if !j.started.IsZero() {
+		payload["started_at"] = j.started.UTC().Format(time.RFC3339)
+	}
+
+	err := j.sendStateUpdate("job:test:reset", payload)
 	if err != nil {
 		return err
 	}
