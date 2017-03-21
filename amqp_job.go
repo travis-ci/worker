@@ -70,6 +70,11 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 
 func (j *amqpJob) Received() error {
 	j.received = time.Now()
+
+	if j.payload.Job.QueuedAt != nil {
+		metrics.TimeSince("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
+	}
+
 	return j.sendStateUpdate("job:test:receive", "received")
 }
 
