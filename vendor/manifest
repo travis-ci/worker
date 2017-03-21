@@ -628,7 +628,7 @@
 			"importpath": "golang.org/x/crypto/ssh",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "bed12803fa9663d7aa2c2346b0c634ad2dcd43b7",
+			"revision": "728b753d0135da6801d45a38e6f43ff55779c5c2",
 			"branch": "master",
 			"path": "/ssh",
 			"notests": true
