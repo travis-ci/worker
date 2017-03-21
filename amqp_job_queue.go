@@ -69,6 +69,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 	go func() {
 		defer channel.Close()
+		defer close(buildJobChan)
 
 		for {
 			if ctx.Err() != nil {
