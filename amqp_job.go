@@ -60,10 +60,7 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 
 	metrics.Mark("worker.job.requeue")
 
-	err := j.sendStateUpdate("job:test:reset", map[string]interface{}{
-		"id":    j.Payload().Job.ID,
-		"state": "reset",
-	})
+	err := j.sendStateUpdate("job:test:reset", "reset")
 	if err != nil {
 		return err
 	}
@@ -78,11 +75,7 @@ func (j *amqpJob) Received() error {
 		metrics.TimeSince("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
 	}
 
-	return j.sendStateUpdate("job:test:receive", map[string]interface{}{
-		"id":          j.Payload().Job.ID,
-		"state":       "received",
-		"received_at": j.received.UTC().Format(time.RFC3339),
-	})
+	return j.sendStateUpdate("job:test:receive", "received")
 }
 
 func (j *amqpJob) Started() error {
@@ -90,12 +83,7 @@ func (j *amqpJob) Started() error {
 
 	metrics.TimeSince("travis.worker.job.start_time", j.received)
 
-	return j.sendStateUpdate("job:test:start", map[string]interface{}{
-		"id":          j.Payload().Job.ID,
-		"state":       "started",
-		"received_at": j.received.UTC().Format(time.RFC3339),
-		"started_at":  j.started.UTC().Format(time.RFC3339),
-	})
+	return j.sendStateUpdate("job:test:start", "started")
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
@@ -114,13 +102,7 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 	metrics.Mark("travis.worker.job.finish")
 
-	err := j.sendStateUpdate("job:test:finish", map[string]interface{}{
-		"id":          j.Payload().Job.ID,
-		"state":       state,
-		"received_at": receivedAt.UTC().Format(time.RFC3339),
-		"started_at":  startedAt.UTC().Format(time.RFC3339),
-		"finished_at": finishedAt.UTC().Format(time.RFC3339),
-	})
+	err := j.sendStateUpdate("job:test:finish", string(state))
 	if err != nil {
 		return err
 	}
@@ -137,12 +119,27 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
 }
 
-func (j *amqpJob) sendStateUpdate(event string, body map[string]interface{}) error {
+func (j *amqpJob) sendStateUpdate(event, state string) error {
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
 		return err
 	}
 	defer amqpChan.Close()
+
+	body := map[string]interface{}{
+		"id":    j.Payload().Job.ID,
+		"state": state,
+	}
+
+	if j.Payload().Job.QueuedAt != nil {
+		body["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+	if !j.received.IsZero() {
+		body["received_at"] = j.received.UTC().Format(time.RFC3339)
+	}
+	if !j.started.IsZero() {
+		body["started_at"] = j.started.UTC().Format(time.RFC3339)
+	}
 
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
