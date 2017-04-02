@@ -236,7 +236,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Privileged: p.runPrivileged,
 		Memory:     int64(p.runMemory),
 		ShmSize:    int64(p.runShm),
-		TmpFS:		map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k"},
+		Tmpfs:		map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k"},
 	}
 
 	if cpuSets != "" {
