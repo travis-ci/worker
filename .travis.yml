@@ -11,10 +11,6 @@ services:
 - docker
 - redis
 
-cache:
-  directories:
-  - vendor
-
 env:
   global:
   - AMQP_URI="amqp://"
