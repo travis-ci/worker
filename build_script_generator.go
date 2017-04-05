@@ -121,6 +121,13 @@ func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, job Job) ([]by
 		u.User = nil
 	}
 
+	jp := job.Payload()
+	if jp != nil {
+		q := u.Query()
+		q.Add("job_id", jp.Job.ID)
+		u.RawQuery = q.Encode()
+	}
+
 	buf := bytes.NewBuffer(b)
 	req, err := http.NewRequest("POST", u.String(), buf)
 	if err != nil {
