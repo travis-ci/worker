@@ -124,7 +124,7 @@ func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, job Job) ([]by
 	jp := job.Payload()
 	if jp != nil {
 		q := u.Query()
-		q.Add("job_id", jp.Job.ID)
+		q.Add("job_id", fmt.Sprintf("%d", jp.Job.ID))
 		u.RawQuery = q.Encode()
 	}
 
