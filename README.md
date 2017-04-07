@@ -129,6 +129,6 @@ The parts of the release process that haven't yet been automated look like this:
 
 ## License and Copyright Information
 
-See LICENSE file.
+See [LICENSE file](./LICENSE).
 
-© 2014-2016 Travis CI GmbH
+© 2017 Travis CI GmbH
