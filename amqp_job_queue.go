@@ -69,6 +69,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 	go func() {
 		defer channel.Close()
+		defer close(buildJobChan)
 
 		for {
 			if ctx.Err() != nil {
@@ -78,7 +79,12 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 			select {
 			case <-ctx.Done():
 				return
-			case delivery := <-deliveries:
+			case delivery, ok := <-deliveries:
+				if !ok {
+					context.LoggerFromContext(ctx).Info("job queue channel closed")
+					return
+				}
+
 				buildJob := &amqpJob{
 					payload:         &JobPayload{},
 					startAttributes: &backend.StartAttributes{},
