@@ -28,11 +28,13 @@ var (
 	defaultDockerNumCPUer       dockerNumCPUer = &stdlibNumCPUer{}
 	defaultDockerSSHDialTimeout                = 5 * time.Second
 	defaultExecCmd                             = "bash /home/travis/build.sh"
+	defaultTmpfsMap                            = map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k"}
 	dockerHelp                                 = map[string]string{
 		"ENDPOINT / HOST":  "[REQUIRED] tcp or unix address for connecting to Docker",
 		"CERT_PATH":        "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
 		"CMD":              "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":         fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
+		"TMPFS_MAP":        fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
 		"MEMORY":           "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"SHM":              "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
 		"CPUS":             "cpu count to allocate to each container (0 disables allocation, default 2)",
@@ -69,6 +71,7 @@ type dockerProvider struct {
 	runCPUs       int
 	runNative     bool
 	execCmd       []string
+	tmpFs         map[string]string
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -137,6 +140,11 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
 	}
 
+	tmpFs := str2map(cfg.Get("TMPFS_MAP"))
+	if len(tmpFs) == 0 {
+		tmpFs = defaultTmpfsMap
+	}
+
 	memory := uint64(1024 * 1024 * 1024 * 4)
 	if cfg.IsSet("MEMORY") {
 		if parsedMemory, err := humanize.ParseBytes(cfg.Get("MEMORY")); err == nil {
@@ -184,6 +192,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runNative:     runNative,
 
 		execCmd: execCmd,
+		tmpFs:   tmpFs,
 
 		cpuSets: make([]bool, cpuSetSize),
 	}, nil
@@ -236,7 +245,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Privileged: p.runPrivileged,
 		Memory:     int64(p.runMemory),
 		ShmSize:    int64(p.runShm),
-		Tmpfs:      map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k"},
+		Tmpfs:      p.tmpFs,
 	}
 
 	if cpuSets != "" {
