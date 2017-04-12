@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	gocontext "context"
@@ -124,7 +125,7 @@ func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, job Job) ([]by
 	jp := job.Payload()
 	if jp != nil {
 		q := u.Query()
-		q.Add("job_id", fmt.Sprintf("%d", jp.Job.ID))
+		q.Set("job_id", strconv.FormatUint(jp.Job.ID, 10))
 		u.RawQuery = q.Encode()
 	}
 
