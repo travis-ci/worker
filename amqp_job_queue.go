@@ -128,6 +128,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 				buildJob.conn = q.conn
 				buildJob.delivery = delivery
+				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
 
 				select {
 				case buildJobChan <- buildJob:

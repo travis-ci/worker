@@ -22,6 +22,7 @@ type amqpJob struct {
 	startAttributes *backend.StartAttributes
 	received        time.Time
 	started         time.Time
+	stateCount      uint
 }
 
 func (j *amqpJob) GoString() string {
@@ -126,9 +127,13 @@ func (j *amqpJob) sendStateUpdate(event, state string) error {
 	}
 	defer amqpChan.Close()
 
+	j.stateCount++
 	body := map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": state,
+		"meta": map[string]interface{}{
+			"state_update_count": j.stateCount,
+		},
 	}
 
 	if j.Payload().Job.QueuedAt != nil {
