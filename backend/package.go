@@ -100,3 +100,18 @@ func asBool(s string) bool {
 		return true
 	}
 }
+
+func str2map(s string) map[string]string {
+	ret := map[string]string{}
+
+	for _, kv := range strings.Split(s, " ") {
+		kvParts := strings.SplitN(kv, ":", 2)
+		if len(kvParts) == 1 {
+			ret[strings.TrimSpace(kvParts[0])] = ""
+		} else {
+			ret[strings.TrimSpace(kvParts[0])] = strings.TrimSpace(kvParts[1])
+		}
+	}
+
+	return ret
+}
