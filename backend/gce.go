@@ -1006,7 +1006,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	case err := <-uploadedChan:
 		return err
 	case <-ctx.Done():
-		context.LoggerFromContext(ctx).WithField("err", lastErr).Info("stopping upload retries, error from last attempt")
+		context.LoggerFromContext(ctx).WithField("err", lastErr).Error("stopping upload retries, error from last attempt")
 		return ctx.Err()
 	}
 }
