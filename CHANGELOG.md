@@ -10,6 +10,24 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 ### Security
 
+## [2.8.0] - 2017-04-12
+### Added
+- amqp-job: include a state message counter in messages sent to hub
+- backend/docker: mount a tmpfs as /run and make it executable, fixing [travis-ci/travis-ci#7062](https://github.com/travis-ci/travis-ci/issues/7062)
+- backend/docker: support configurable SHM size, default to 64 MiB
+- build-script-generator: include job ID in requests parameters to travis-build
+- metrics: add a metric for when a job is finished, without including state name
+- sentry: send the current version string to Sentry when reporting errors
+
+### Changed
+- amqp-job: send all known timestamps to hub on each state update, including queued-at
+- build: support and build using Go 1.8.1
+
+### Fixed
+- amqp-canceller: fix error occurring if a job was requeued on the same worker before the previous instance had completely finished, causing cancellations to break
+- amqp-job: fix a panic that could occur during shutdown due to an AMQP connection issue
+- ssh: update the SSH library, pulling in the fix for [golang/go#18861](https://github.com/golang/go/issues/18861)
+
 ## [2.7.0] - 2017-02-08
 ### Added
 - backend: add "SSH dial timeout" to all backends, with a default of 5 seconds, configurable with `SSH_DIAL_TIMEOUT` backend setting
@@ -422,7 +440,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.7.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.8.0...HEAD
+[2.8.0]: https://github.com/travis-ci/worker/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/travis-ci/worker/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/travis-ci/worker/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/travis-ci/worker/compare/v2.6.0...v2.6.1
