@@ -106,10 +106,14 @@ func str2map(s string) map[string]string {
 
 	for _, kv := range strings.Split(s, " ") {
 		kvParts := strings.SplitN(kv, ":", 2)
+		key := strings.TrimSpace(kvParts[0])
+		if key == "" {
+			continue
+		}
 		if len(kvParts) == 1 {
-			ret[strings.TrimSpace(kvParts[0])] = ""
+			ret[key] = ""
 		} else {
-			ret[strings.TrimSpace(kvParts[0])] = strings.TrimSpace(kvParts[1])
+			ret[key] = strings.TrimSpace(kvParts[1])
 		}
 	}
 
