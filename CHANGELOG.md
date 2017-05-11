@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 ### Security
 
+## [2.8.1] - 2017-05-11
+### Fixed
+- backend/docker: ensure parsed tmpfs mount mapping does not include empty keys
+
 ## [2.8.0] - 2017-04-12
 ### Added
 - amqp-job: include a state message counter in messages sent to hub
@@ -440,7 +444,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.8.1...HEAD
+[2.8.1]: https://github.com/travis-ci/worker/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/travis-ci/worker/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/travis-ci/worker/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/travis-ci/worker/compare/v2.6.1...v2.6.2
