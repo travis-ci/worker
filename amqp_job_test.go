@@ -48,8 +48,9 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 	payload := &JobPayload{
 		Type: "job:test",
 		Job: JobJobPayload{
-			ID:     uint64(123),
-			Number: "1",
+			ID:       uint64(123),
+			Number:   "1",
+			QueuedAt: new(time.Time),
 		},
 		Build: BuildPayload{
 			ID:     uint64(456),
@@ -196,7 +197,7 @@ func TestAMQPJob_createStateUpdateBody(t *testing.T) {
 	job.received = time.Time{}
 	assert.NotContains(t, job.createStateUpdateBody("foo"), "received_at")
 
-	job.Payload().Job.QueuedAt = &time.Time{}
+	job.Payload().Job.QueuedAt = nil
 	assert.NotContains(t, job.createStateUpdateBody("foo"), "queued_at")
 
 	job.started = time.Time{}
