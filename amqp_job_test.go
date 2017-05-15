@@ -182,7 +182,26 @@ func TestAMQPJob_createStateUpdateBody(t *testing.T) {
 
 	assert.Equal(t, "foo", body["state"])
 
-	for _, key := range []string{"id", "state", "meta", "queued_at", "received_at", "started_at", "finished_at"} {
+	for _, key := range []string{
+		"finished_at",
+		"id",
+		"meta",
+		"queued_at",
+		"received_at",
+		"started_at",
+	} {
 		assert.Contains(t, body, key)
 	}
+
+	job.received = time.Time{}
+	assert.NotContains(t, job.createStateUpdateBody("foo"), "received_at")
+
+	job.Payload().Job.QueuedAt = &time.Time{}
+	assert.NotContains(t, job.createStateUpdateBody("foo"), "queued_at")
+
+	job.started = time.Time{}
+	assert.NotContains(t, job.createStateUpdateBody("foo"), "started_at")
+
+	job.finished = time.Time{}
+	assert.NotContains(t, job.createStateUpdateBody("foo"), "finished_at")
 }
