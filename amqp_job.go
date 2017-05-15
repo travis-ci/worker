@@ -22,6 +22,7 @@ type amqpJob struct {
 	startAttributes *backend.StartAttributes
 	received        time.Time
 	started         time.Time
+	finished        time.Time
 	stateCount      uint
 }
 
@@ -90,14 +91,13 @@ func (j *amqpJob) Started() error {
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
 
-	finishedAt := time.Now()
-	receivedAt := j.received
-	if receivedAt.IsZero() {
-		receivedAt = finishedAt
+	j.finished = time.Now()
+	if j.received.IsZero() {
+		j.received = j.finished
 	}
-	startedAt := j.started
-	if startedAt.IsZero() {
-		startedAt = finishedAt
+
+	if j.started.IsZero() {
+		j.started = j.finished
 	}
 
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
@@ -120,14 +120,7 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
 }
 
-func (j *amqpJob) sendStateUpdate(event, state string) error {
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
-
-	j.stateCount++
+func (j *amqpJob) createStateUpdateBody(state string) map[string]interface{} {
 	body := map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": state,
@@ -145,6 +138,22 @@ func (j *amqpJob) sendStateUpdate(event, state string) error {
 	if !j.started.IsZero() {
 		body["started_at"] = j.started.UTC().Format(time.RFC3339)
 	}
+	if !j.finished.IsZero() {
+		body["finished_at"] = j.finished.UTC().Format(time.RFC3339)
+	}
+
+	return body
+}
+
+func (j *amqpJob) sendStateUpdate(event, state string) error {
+	amqpChan, err := j.conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer amqpChan.Close()
+
+	j.stateCount++
+	body := j.createStateUpdateBody(state)
 
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {

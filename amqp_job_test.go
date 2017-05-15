@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	gocontext "context"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/backend"
 )
 
@@ -42,7 +44,7 @@ func (a *fakeAMQPAcknowledger) Reject(tag uint64, req bool) error {
 }
 
 func newTestAMQPJob(t *testing.T) *amqpJob {
-	amqpConn, _ := setupConn(t)
+	amqpConn, _ := setupAMQPConn(t)
 	payload := &JobPayload{
 		Type: "job:test",
 		Job: JobJobPayload{
@@ -86,6 +88,9 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 		payload:         payload,
 		rawPayload:      rawPayload,
 		startAttributes: startAttributes,
+		received:        time.Now().Add(-3 * time.Minute),
+		started:         time.Now().Add(-2 * time.Minute),
+		finished:        time.Now().Add(-3 * time.Second),
 	}
 }
 
@@ -168,5 +173,16 @@ func TestAMQPJob_Finish(t *testing.T) {
 	err := job.Finish(ctx, FinishStatePassed)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestAMQPJob_createStateUpdateBody(t *testing.T) {
+	job := newTestAMQPJob(t)
+	body := job.createStateUpdateBody("foo")
+
+	assert.Equal(t, "foo", body["state"])
+
+	for _, key := range []string{"id", "state", "meta", "queued_at", "received_at", "started_at", "finished_at"} {
+		assert.Contains(t, body, key)
 	}
 }
