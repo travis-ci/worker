@@ -10,6 +10,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Deprecated
 ### Removed
 ### Fixed
+- amqp-job: ensure `finished_at` timestamp is included with state event when available
+
 ### Security
 
 ## [2.8.1] - 2017-05-11

@@ -1,6 +1,6 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
-ALL_PACKAGES := $(shell utils/list-packages) $(PACKAGE)/cmd/...
+ALL_PACKAGES := $(PACKAGE) $(shell utils/list-packages) $(PACKAGE)/cmd/...
 
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
