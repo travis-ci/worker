@@ -302,7 +302,10 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
-		imageIDName, err := p.imageSelector.Select(&image.Params{Language: startAttributes.Language})
+		imageIDName, err := p.imageSelector.Select(&image.Params{
+			Language: startAttributes.Language,
+			Infra:    "docker",
+		})
 		if err != nil {
 			return nil, err
 		}
