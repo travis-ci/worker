@@ -7,13 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 
 	gocontext "context"
 )
@@ -58,26 +58,31 @@ func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerNa
 
 // Jobs consumes new jobs from job-board
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+	logger := context.LoggerFromContext(ctx)
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
 	go func() {
 		for {
+			logger.Debug("fetching job ids")
 			jobIds, err := q.fetchJobs()
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJobs: %#v", err)
+				logger.WithField("err", err).Error("TODO: handle error from httpJobQueue.fetchJobs")
 				panic("whoops!")
 			}
 			for _, id := range jobIds {
 				go func(id uint64) {
+					logger.WithField("job_id", id).Debug("fetching complete job")
 					buildJob, err := q.fetchJob(id)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJob: %#v", err)
+						logger.WithField("err", err).Warn("TODO: handle error from httpJobQueue.fetchJob")
 					}
+					logger.WithField("job", buildJob).Debug("sending job to output channel")
 					buildJobChan <- buildJob
 				}(id)
 			}
 
+			logger.Debug("sleeping 1s")
 			time.Sleep(time.Second)
 		}
 	}()
