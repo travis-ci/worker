@@ -155,6 +155,7 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 		return nil, errors.Wrap(err, "failed to decode job board jobs response")
 	}
 
+	logger.WithField("jobs", fetchResponsePayload.Jobs).Debug("fetched raw jobs")
 	var jobIds []uint64
 	for _, strID := range fetchResponsePayload.Jobs {
 		alreadyRunning := false
@@ -175,6 +176,7 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 		jobIds = append(jobIds, id)
 	}
 
+	logger.WithField("jobs", jobIds).Debug("returning filtered job IDs")
 	return jobIds, nil
 }
 
