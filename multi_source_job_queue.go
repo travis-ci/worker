@@ -1,11 +1,13 @@
 package worker
 
 import (
+	"strings"
 	"sync"
 	"time"
 
 	gocontext "context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
 )
 
@@ -22,27 +24,31 @@ func NewMultiSourceJobQueue(queues ...JobQueue) *MultiSourceJobQueue {
 	}
 }
 
-func (tjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
-	tjq.buildJobChansMutex.Lock()
-	defer tjq.buildJobChansMutex.Unlock()
+// Jobs returns a Job channel that selects over each source queue Job channel
+func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+	msjq.buildJobChansMutex.Lock()
+	defer msjq.buildJobChansMutex.Unlock()
 	logger := context.LoggerFromContext(ctx)
 
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
-	go func() {
-		tjq.buildJobChans = []<-chan Job{}
-		for _, queue := range tjq.queues {
-			jc, err := queue.Jobs(ctx)
-			if err != nil {
-				logger.WithField("err", err).Error("failed to get job chan from queue")
-				return
-			}
-			tjq.buildJobChans = append(tjq.buildJobChans, jc)
+	msjq.buildJobChans = []<-chan Job{}
+	for _, queue := range msjq.queues {
+		jc, err := queue.Jobs(ctx)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err":  err,
+				"name": queue.Name(),
+			}).Error("failed to get job chan from queue")
+			return nil, err
 		}
+		msjq.buildJobChans = append(msjq.buildJobChans, jc)
+	}
 
+	go func() {
 		for {
-			for _, bjc := range tjq.buildJobChans {
+			for _, bjc := range msjq.buildJobChans {
 				select {
 				case job := <-bjc:
 					buildJobChan <- job
@@ -56,8 +62,19 @@ func (tjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job,
 	return outChan, nil
 }
 
-func (tjq *MultiSourceJobQueue) Cleanup() error {
-	for _, queue := range tjq.queues {
+// Name builds a name from each source queue name
+func (msjq *MultiSourceJobQueue) Name() string {
+	s := []string{}
+	for _, queue := range msjq.queues {
+		s = append(s, queue.Name())
+	}
+
+	return strings.Join(s, ",")
+}
+
+// Cleanup runs cleanup for each source queue
+func (msjq *MultiSourceJobQueue) Cleanup() error {
+	for _, queue := range msjq.queues {
 		err := queue.Cleanup()
 		if err != nil {
 			return err

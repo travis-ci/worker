@@ -27,9 +27,9 @@ func (jq *fakeJobQueue) Jobs(ctx context.Context) (<-chan Job, error) {
 	return jq.c, nil
 }
 
-func (jq *fakeJobQueue) Cleanup() error {
-	return nil
-}
+func (jq *fakeJobQueue) Name() string { return "fake" }
+
+func (jq *fakeJobQueue) Cleanup() error { return nil }
 
 type fakeJob struct {
 	payload         *JobPayload

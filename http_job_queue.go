@@ -261,6 +261,11 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	return buildJob, nil
 }
 
+// Name returns the name of this queue type, wow!
+func (q *HTTPJobQueue) Name() string {
+	return "http"
+}
+
 // Cleanup does not do anything!
 func (q *HTTPJobQueue) Cleanup() error {
 	return nil

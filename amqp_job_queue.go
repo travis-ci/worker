@@ -143,6 +143,11 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	return
 }
 
+// Name returns the name of this queue type, wow!
+func (q *AMQPJobQueue) Name() string {
+	return "amqp"
+}
+
 // Cleanup closes the underlying AMQP connection
 func (q *AMQPJobQueue) Cleanup() error {
 	return q.conn.Close()

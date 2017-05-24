@@ -152,6 +152,11 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 	}
 }
 
+// Name returns the name of this queue type, wow!
+func (q *FileJobQueue) Name() string {
+	return "file"
+}
+
 // Cleanup is a no-op
 func (f *FileJobQueue) Cleanup() error {
 	return nil
