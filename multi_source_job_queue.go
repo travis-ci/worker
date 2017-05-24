@@ -23,6 +23,8 @@ func NewMultiSourceJobQueue(queues ...JobQueue) *MultiSourceJobQueue {
 }
 
 func (tjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+	tjq.buildJobChansMutex.Lock()
+	defer tjq.buildJobChansMutex.Unlock()
 	logger := context.LoggerFromContext(ctx)
 
 	buildJobChan := make(chan Job)
