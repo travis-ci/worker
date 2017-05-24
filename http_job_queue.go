@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -20,13 +21,14 @@ import (
 
 // HTTPJobQueue is a JobQueue that uses http
 type HTTPJobQueue struct {
-	processorPool *ProcessorPool
-	jobBoardURL   *url.URL
-	site          string
-	providerName  string
-	queue         string
-	workerID      string
-	buildJobChan  chan Job
+	processorPool     *ProcessorPool
+	jobBoardURL       *url.URL
+	site              string
+	providerName      string
+	queue             string
+	workerID          string
+	buildJobChan      chan Job
+	buildJobChanMutex *sync.Mutex
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -48,17 +50,20 @@ type jobBoardErrorResponse struct {
 // NewHTTPJobQueue creates a new job-board job queue
 func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
-		processorPool: pool,
-		jobBoardURL:   jobBoardURL,
-		site:          site,
-		providerName:  providerName,
-		queue:         queue,
-		workerID:      workerID,
+		processorPool:     pool,
+		jobBoardURL:       jobBoardURL,
+		site:              site,
+		providerName:      providerName,
+		queue:             queue,
+		workerID:          workerID,
+		buildJobChanMutex: &sync.Mutex{},
 	}, nil
 }
 
 // Jobs consumes new jobs from job-board
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+	q.buildJobChanMutex.Lock()
+	defer q.buildJobChanMutex.Unlock()
 	logger := context.LoggerFromContext(ctx)
 	if q.buildJobChan != nil {
 		return q.buildJobChan, nil
