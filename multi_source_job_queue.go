@@ -51,10 +51,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 			for queueName, bjc := range msjq.buildJobChans {
 				select {
 				case job := <-bjc:
-					logger.WithFields(logrus.Fields{
-						"source": queueName,
-						"job_id": job.Payload().Job.ID,
-					}).Info("sending job to multi source output")
+					logger.WithField("source", queueName).Info("sending job to multi source output")
 					buildJobChan <- job
 				default:
 					time.Sleep(time.Millisecond)

@@ -256,3 +256,7 @@ func (j *httpJob) sendStateUpdate(curState, newState string) error {
 
 	return nil
 }
+
+func (j *httpJob) Name() string {
+	return "http"
+}

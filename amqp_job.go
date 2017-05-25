@@ -177,3 +177,7 @@ func (j *amqpJob) sendStateUpdate(event, state string) error {
 		Body:         bodyBytes,
 	})
 }
+
+func (j *amqpJob) Name() string {
+	return "amqp"
+}

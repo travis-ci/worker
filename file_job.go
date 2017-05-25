@@ -108,3 +108,7 @@ func (j *fileJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 
 	return newFileLogWriter(ctx, j.logFile, logTimeout)
 }
+
+func (j *fileJob) Name() string {
+	return "file"
+}

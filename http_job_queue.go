@@ -89,7 +89,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 						logger.WithField("err", err).Warn("breaking after failing to get complete job")
 						return
 					}
-					logger.WithField("job", buildJob).Debug("sending job to output channel")
+					logger.Debug("sending job to output channel")
 					buildJobChan <- buildJob
 				}(id)
 			}
