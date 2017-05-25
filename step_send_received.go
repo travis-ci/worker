@@ -3,6 +3,7 @@ package worker
 import (
 	gocontext "context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
 )
@@ -15,7 +16,10 @@ func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 
 	err := buildJob.Received()
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't send received event")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "step_send_received",
+		}).Error("couldn't send received event")
 	}
 
 	return multistep.ActionContinue

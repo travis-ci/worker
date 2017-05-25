@@ -69,7 +69,9 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
 
-	context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+	logger := context.LoggerFromContext(w.ctx).WithField("self", "http_log_writer")
+
+	logger.WithFields(logrus.Fields{
 		"length": len(p),
 		"bytes":  string(p),
 	}).Debug("writing bytes")
@@ -80,7 +82,7 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 	if w.bytesWritten > w.maxLength {
 		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
 		if err != nil {
-			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
+			logger.WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
 		}
 		return 0, ErrWrotePastMaxLogLength
 	}
@@ -198,7 +200,10 @@ func (w *httpLogWriter) flush() {
 
 		err = w.publishLogPart(part)
 		if err != nil {
-			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part")
+			context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+				"err":  err,
+				"self": "http_log_writer",
+			}).Error("couldn't publish log part")
 		}
 	}
 }
