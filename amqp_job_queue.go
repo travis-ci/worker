@@ -101,7 +101,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 					continue
 				}
 
-				context.LoggerFromContext(ctx).WithField("job", buildJob.payload.Job.ID).Info("received amqp delivery")
+				context.LoggerFromContext(ctx).WithField("job_id", buildJob.payload.Job.ID).Info("received amqp delivery")
 
 				err = json.Unmarshal(delivery.Body, &startAttrs)
 				if err != nil {

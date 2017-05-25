@@ -13,7 +13,7 @@ import (
 
 type MultiSourceJobQueue struct {
 	queues             []JobQueue
-	buildJobChans      []<-chan Job
+	buildJobChans      map[string]<-chan Job
 	buildJobChansMutex *sync.Mutex
 }
 
@@ -33,7 +33,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
-	msjq.buildJobChans = []<-chan Job{}
+	msjq.buildJobChans = map[string]<-chan Job{}
 	for _, queue := range msjq.queues {
 		jc, err := queue.Jobs(ctx)
 		if err != nil {
@@ -43,14 +43,18 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 			}).Error("failed to get job chan from queue")
 			return nil, err
 		}
-		msjq.buildJobChans = append(msjq.buildJobChans, jc)
+		msjq.buildJobChans[queue.Name()] = jc
 	}
 
 	go func() {
 		for {
-			for _, bjc := range msjq.buildJobChans {
+			for queueName, bjc := range msjq.buildJobChans {
 				select {
 				case job := <-bjc:
+					logger.WithFields(logrus.Fields{
+						"source": queueName,
+						"job_id": job.Payload().Job.ID,
+					}).Info("sending job to multi source output")
 					buildJobChan <- job
 				default:
 					time.Sleep(time.Millisecond)

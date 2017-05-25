@@ -120,7 +120,7 @@ func LoggerFromContext(ctx context.Context) *logrus.Entry {
 	}
 
 	if jobID, ok := JobIDFromContext(ctx); ok {
-		entry = entry.WithField("job", jobID)
+		entry = entry.WithField("job_id", jobID)
 	}
 
 	if repository, ok := RepositoryFromContext(ctx); ok {
