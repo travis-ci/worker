@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- multi-source-job-queue: funnels arbitrary other job queues into a single source
+- "self" field in various log records for correlation
 
 ### Changed
 - amqp-log-writer, http-log-writer: check context done to prevent goroutine leakage
@@ -12,6 +14,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
     - check context done to prevent goroutine leakage
     - attach context to all HTTP requests
     - more debug logging
+- step-write-worker-info: report the job type (amqp/http/file) in instance line
 
 ### Deprecated
 
