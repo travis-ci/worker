@@ -7,6 +7,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
@@ -58,7 +59,7 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *amqpJob) Requeue(ctx gocontext.Context) error {
-	context.LoggerFromContext(ctx).Info("requeueing job")
+	context.LoggerFromContext(ctx).WithField("self", "amqp_job").Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
 
@@ -89,7 +90,10 @@ func (j *amqpJob) Started() error {
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"state": state,
+		"self":  "amqp_job",
+	}).Info("finishing job")
 
 	j.finished = time.Now()
 	if j.received.IsZero() {

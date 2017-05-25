@@ -71,6 +71,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 		defer channel.Close()
 		defer close(buildJobChan)
 
+		logger := context.LoggerFromContext(ctx).WithField("self", "amqp_job_queue")
+
 		for {
 			if ctx.Err() != nil {
 				return
@@ -81,7 +83,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				return
 			case delivery, ok := <-deliveries:
 				if !ok {
-					context.LoggerFromContext(ctx).Info("job queue channel closed")
+					logger.Info("job queue channel closed")
 					return
 				}
 
@@ -93,32 +95,32 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 				err := json.Unmarshal(delivery.Body, buildJob.payload)
 				if err != nil {
-					context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error, attempting to nack delivery")
+					logger.WithField("err", err).Error("payload JSON parse error, attempting to nack delivery")
 					err := delivery.Ack(false)
 					if err != nil {
-						context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
 					}
 					continue
 				}
 
-				context.LoggerFromContext(ctx).WithField("job_id", buildJob.payload.Job.ID).Info("received amqp delivery")
+				logger.WithField("job_id", buildJob.payload.Job.ID).Info("received amqp delivery")
 
 				err = json.Unmarshal(delivery.Body, &startAttrs)
 				if err != nil {
-					context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
+					logger.WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
 					err := delivery.Ack(false)
 					if err != nil {
-						context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
 					}
 					continue
 				}
 
 				buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
 				if err != nil {
-					context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error, attempting to nack delivery")
+					logger.WithField("err", err).Error("raw payload JSON parse error, attempting to nack delivery")
 					err := delivery.Ack(false)
 					if err != nil {
-						context.LoggerFromContext(ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
 					}
 					continue
 				}

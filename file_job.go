@@ -9,6 +9,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -62,7 +63,7 @@ func (j *fileJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *fileJob) Requeue(ctx gocontext.Context) error {
-	context.LoggerFromContext(ctx).Info("requeueing job")
+	context.LoggerFromContext(ctx).WithField("self", "file_job").Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
 
@@ -83,7 +84,10 @@ func (j *fileJob) Requeue(ctx gocontext.Context) error {
 }
 
 func (j *fileJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"state": state,
+		"self":  "file_job",
+	}).Info("finishing job")
 
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 

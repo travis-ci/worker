@@ -27,7 +27,7 @@ func TestCLI_heartbeatHandler(t *testing.T) {
 	i.heartbeatErrSleep = time.Duration(0)
 
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "cli_test")
 	i.ctx = ctx
 	i.cancel = cancel
 	i.logger = logger

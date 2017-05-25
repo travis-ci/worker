@@ -88,7 +88,7 @@ func (i *CLI) Setup() (bool, error) {
 	}
 
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "cli")
 
 	i.ctx = ctx
 	i.cancel = cancel
@@ -115,17 +115,13 @@ func (i *CLI) Setup() (bool, error) {
 		return false, nil
 	}
 
-	logger.WithFields(logrus.Fields{
-		"cfg": fmt.Sprintf("%#v", i.Config),
-	}).Debug("read config")
+	logger.WithField("cfg", fmt.Sprintf("%#v", i.Config)).Debug("read config")
 
 	i.setupSentry()
 	i.setupMetrics()
 
 	generator := NewBuildScriptGenerator(i.Config)
-	logger.WithFields(logrus.Fields{
-		"build_script_generator": fmt.Sprintf("%#v", generator),
-	}).Debug("built")
+	logger.WithField("build_script_generator", fmt.Sprintf("%#v", generator)).Debug("built")
 
 	i.BuildScriptGenerator = generator
 
@@ -141,9 +137,7 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
-	logger.WithFields(logrus.Fields{
-		"provider": fmt.Sprintf("%#v", provider),
-	}).Debug("built")
+	logger.WithField("provider", fmt.Sprintf("%#v", provider)).Debug("built")
 
 	i.BackendProvider = provider
 
@@ -160,9 +154,7 @@ func (i *CLI) Setup() (bool, error) {
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)
 
 	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
-	logger.WithFields(logrus.Fields{
-		"pool": pool,
-	}).Debug("built")
+	logger.WithField("pool", pool).Debug("built")
 
 	i.ProcessorPool = pool
 
@@ -522,9 +514,7 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	i.logger.Debug("connected to AMQP")
 
 	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
-	i.logger.WithFields(logrus.Fields{
-		"canceller": fmt.Sprintf("%#v", canceller),
-	}).Debug("built")
+	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
 	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName)
 	if err != nil {

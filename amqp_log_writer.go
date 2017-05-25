@@ -90,7 +90,9 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
 
-	context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+	logger := context.LoggerFromContext(w.ctx).WithField("self", "amqp_log_writer")
+
+	logger.WithFields(logrus.Fields{
 		"length": len(p),
 		"bytes":  string(p),
 	}).Debug("writing bytes")
@@ -101,7 +103,7 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 	if w.bytesWritten > w.maxLength {
 		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
 		if err != nil {
-			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
+			logger.WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
 		}
 		return 0, ErrWrotePastMaxLogLength
 	}
@@ -203,6 +205,7 @@ func (w *amqpLogWriter) flush() {
 	}
 
 	buf := make([]byte, LogChunkSize)
+	logger := context.LoggerFromContext(w.ctx).WithField("self", "amqp_log_writer")
 
 	for w.buffer.Len() > 0 {
 		w.bufferMutex.Lock()
@@ -228,15 +231,15 @@ func (w *amqpLogWriter) flush() {
 			switch err.(type) {
 			case *amqp.Error:
 				if w.reopenChannel() != nil {
-					context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part and couldn't reopen channel")
+					logger.WithField("err", err).Error("couldn't publish log part and couldn't reopen channel")
 					// Close or something
 					return
 				}
 
 				err = w.publishLogPart(part)
-				context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part, even after reopening channel")
+				logger.WithField("err", err).Error("couldn't publish log part, even after reopening channel")
 			default:
-				context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part")
+				logger.WithField("err", err).Error("couldn't publish log part")
 			}
 		}
 	}

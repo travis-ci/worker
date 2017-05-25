@@ -30,8 +30,10 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
 	cancelChan := state.Get("cancelChan").(<-chan struct{})
 
-	context.LoggerFromContext(ctx).Info("running script")
-	defer context.LoggerFromContext(ctx).Info("finished script")
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
+
+	logger.Info("running script")
+	defer logger.Info("finished script")
 
 	resultChan := make(chan runScriptReturn, 1)
 	go func() {
@@ -45,7 +47,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	select {
 	case r := <-resultChan:
 		if errors.Cause(r.err) == ErrWrotePastMaxLogLength {
-			context.LoggerFromContext(ctx).Info("wrote past maximum log length")
+			logger.Info("wrote past maximum log length")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
@@ -54,22 +56,22 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		// implementation returns with the error too quickly for the ctx.Done()
 		// case branch below to catch it.
 		if errors.Cause(r.err) == gocontext.DeadlineExceeded {
-			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
+			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
 		if r.err != nil {
 			if !r.result.Completed {
-				context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script, attempting requeue")
+				logger.WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script, attempting requeue")
 				context.CaptureError(ctx, r.err)
 
 				err := buildJob.Requeue(ctx)
 				if err != nil {
-					context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+					logger.WithField("err", err).Error("couldn't requeue job")
 				}
 			} else {
-				context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
+				logger.WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
 			}
 
 			return multistep.ActionHalt
@@ -80,12 +82,12 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionContinue
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
-			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
+			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
-		context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
+		logger.Info("context was cancelled, stopping job")
 		return multistep.ActionHalt
 	case <-cancelChan:
 		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
@@ -103,14 +105,15 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 }
 
 func (s *stepRunScript) writeLogAndFinishWithState(ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
 	_, err := logWriter.WriteAndClose([]byte(logMessage))
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write final log message")
+		logger.WithField("err", err).Error("couldn't write final log message")
 	}
 
 	err = buildJob.Finish(ctx, state)
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
+		logger.WithField("err", err).WithField("state", state).Error("couldn't update job state")
 	}
 }
 

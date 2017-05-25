@@ -64,7 +64,7 @@ func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerNa
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 	q.buildJobChanMutex.Lock()
 	defer q.buildJobChanMutex.Unlock()
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
 	if q.buildJobChan != nil {
 		return q.buildJobChan, nil
 	}
@@ -111,7 +111,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 }
 
 func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
 	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
 	numWaiting := 0
 	q.processorPool.Each(func(i int, p *Processor) {

@@ -222,7 +222,7 @@ func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 }
 
 func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
 
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil && cpuSets != "" {
@@ -465,7 +465,7 @@ func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*Ru
 }
 
 func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_instance")
 	createExecOpts := docker.CreateExecOptions{
 		AttachStdin:  false,
 		AttachStdout: true,

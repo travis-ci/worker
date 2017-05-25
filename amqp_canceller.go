@@ -41,65 +41,67 @@ func NewAMQPCanceller(ctx gocontext.Context, conn *amqp.Connection, cancellation
 // start dispatching any incoming commands.
 func (d *AMQPCanceller) Run() {
 	amqpChan, err := d.conn.Channel()
+	logger := context.LoggerFromContext(d.ctx).WithField("self", "amqp_canceller")
 	if err != nil {
-		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't open channel")
+		logger.WithField("err", err).Error("couldn't open channel")
 		return
 	}
 	defer amqpChan.Close()
 
 	err = amqpChan.Qos(1, 0, false)
 	if err != nil {
-		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't set prefetch")
+		logger.WithField("err", err).Error("couldn't set prefetch")
 		return
 	}
 
 	err = amqpChan.ExchangeDeclare("worker.commands", "fanout", false, false, false, false, nil)
 	if err != nil {
-		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't declare exchange")
+		logger.WithField("err", err).Error("couldn't declare exchange")
 		return
 	}
 
 	queue, err := amqpChan.QueueDeclare("", true, false, true, false, nil)
 	if err != nil {
-		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't declare queue")
+		logger.WithField("err", err).Error("couldn't declare queue")
 		return
 	}
 
 	err = amqpChan.QueueBind(queue.Name, "", "worker.commands", false, nil)
 	if err != nil {
-		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't bind queue to exchange")
+		logger.WithField("err", err).Error("couldn't bind queue to exchange")
 		return
 	}
 
 	deliveries, err := amqpChan.Consume(queue.Name, "commands", false, true, false, false, nil)
 	if err != nil {
-		context.LoggerFromContext(d.ctx).WithField("err", err).Error("couldn't consume queue")
+		logger.WithField("err", err).Error("couldn't consume queue")
 		return
 	}
 
 	for delivery := range deliveries {
 		err := d.processCommand(delivery)
 		if err != nil {
-			context.LoggerFromContext(d.ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't process delivery")
+			logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't process delivery")
 		}
 
 		err = delivery.Ack(false)
 		if err != nil {
-			context.LoggerFromContext(d.ctx).WithField("err", err).WithField("delivery", delivery).Error("couldn't ack delivery")
+			logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't ack delivery")
 		}
 	}
 }
 
 func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
 	command := &cancelCommand{}
+	logger := context.LoggerFromContext(d.ctx).WithField("self", "amqp_canceller")
 	err := json.Unmarshal(delivery.Body, command)
 	if err != nil {
-		context.LoggerFromContext(d.ctx).WithField("err", err).Error("unable to parse JSON")
+		logger.WithField("err", err).Error("unable to parse JSON")
 		return err
 	}
 
 	if command.Type != "cancel_job" {
-		context.LoggerFromContext(d.ctx).WithField("command", command.Type).Error("unknown worker command")
+		logger.WithField("command", command.Type).Error("unknown worker command")
 		return nil
 	}
 
