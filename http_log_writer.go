@@ -21,7 +21,6 @@ type httpLogPart struct {
 	JobID   uint64 `json:"id"`
 	Content string `json:"log"`
 	Number  int    `json:"number"`
-	UUID    string `json:"uuid"`
 	Final   bool   `json:"final"`
 }
 
@@ -37,6 +36,7 @@ type httpLogWriter struct {
 
 	bytesWritten int
 	maxLength    int
+	maxBatchSize int
 
 	httpClient *http.Client
 	baseURL    string
@@ -46,17 +46,25 @@ type httpLogWriter struct {
 	timeout time.Duration
 }
 
+type httpLogPartPayload struct {
+	Type     string `json:"@type"`
+	Final    bool   `json:"final"`
+	Content  string `json:"content"`
+	Encoding string `json:"encoding"`
+}
+
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64, timeout time.Duration) (*httpLogWriter, error) {
 	writer := &httpLogWriter{
-		ctx:        context.FromComponent(ctx, "log_writer"),
-		jobID:      jobID,
-		closeChan:  make(chan struct{}),
-		buffer:     new(bytes.Buffer),
-		timer:      time.NewTimer(time.Hour),
-		timeout:    timeout,
-		httpClient: &http.Client{},
-		baseURL:    url,
-		authToken:  authToken,
+		ctx:          context.FromComponent(ctx, "log_writer"),
+		jobID:        jobID,
+		closeChan:    make(chan struct{}),
+		buffer:       new(bytes.Buffer),
+		timer:        time.NewTimer(time.Hour),
+		timeout:      timeout,
+		maxBatchSize: 16,
+		httpClient:   &http.Client{},
+		baseURL:      url,
+		authToken:    authToken,
 	}
 
 	go writer.flushRegularly(ctx)
@@ -102,7 +110,7 @@ func (w *httpLogWriter) Close() error {
 	close(w.closeChan)
 	w.flush()
 
-	part := httpLogPart{
+	part := &httpLogPart{
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
 		Final:  true,
@@ -137,7 +145,7 @@ func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {
 
 	w.flush()
 
-	part := httpLogPart{
+	part := &httpLogPart{
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
 		Final:  true,
@@ -177,6 +185,7 @@ func (w *httpLogWriter) flush() {
 		return
 	}
 
+	logPartsPayload := []*httpLogPart{}
 	buf := make([]byte, LogChunkSize)
 
 	for w.buffer.Len() > 0 {
@@ -191,40 +200,60 @@ func (w *httpLogWriter) flush() {
 			panic("non-empty buffer shouldn't return an error on Read")
 		}
 
-		part := httpLogPart{
+		logPartsPayload = append(logPartsPayload, &httpLogPart{
 			JobID:   w.jobID,
 			Content: string(buf[0:n]),
 			Number:  w.logPartNumber,
-		}
+		})
 		w.logPartNumber++
 
-		err = w.publishLogPart(part)
-		if err != nil {
-			context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
-				"err":  err,
-				"self": "http_log_writer",
-			}).Error("couldn't publish log part")
+		if len(logPartsPayload) >= w.maxBatchSize {
+			w.logFlushError(w.publishLogParts(logPartsPayload))
+			logPartsPayload = []*httpLogPart{}
 		}
 	}
+
+	w.logFlushError(w.publishLogParts(logPartsPayload))
 }
 
-func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
-	part.UUID, _ = context.UUIDFromContext(w.ctx)
-
-	type logPartPayload struct {
-		Type     string `json:"@type"`
-		Final    bool   `json:"final"`
-		Content  string `json:"content"`
-		Encoding string `json:"encoding"`
+func (w *httpLogWriter) logFlushError(err error) {
+	if err == nil {
+		return
 	}
 
-	payload := logPartPayload{
+	context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+		"err":  err,
+		"self": "http_log_writer",
+	}).Error("couldn't publish log parts")
+}
+
+func (w *httpLogWriter) publishLogPart(part *httpLogPart) error {
+	payload := &httpLogPartPayload{
 		Type:     "log_part",
 		Final:    part.Final,
 		Content:  base64.StdEncoding.EncodeToString([]byte(part.Content)),
 		Encoding: "base64",
 	}
 
+	return w.publishLogPartOrParts(payload, "PUT", fmt.Sprintf("%d", part.Number))
+}
+
+func (w *httpLogWriter) publishLogParts(parts []*httpLogPart) error {
+	payload := []*httpLogPartPayload{}
+
+	for _, part := range parts {
+		payload = append(payload, &httpLogPartPayload{
+			Type:     "log_part",
+			Final:    part.Final,
+			Content:  base64.StdEncoding.EncodeToString([]byte(part.Content)),
+			Encoding: "base64",
+		})
+	}
+
+	return w.publishLogPartOrParts(payload, "POST", "multi")
+}
+
+func (w *httpLogWriter) publishLogPartOrParts(payload interface{}, publishMethod, payloadID string) error {
 	template, err := uritemplates.Parse(w.baseURL)
 	if err != nil {
 		return errors.Wrap(err, "couldn't parse base URL template")
@@ -232,7 +261,7 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 
 	partURL, err := template.Expand(map[string]interface{}{
 		"job_id":      w.jobID,
-		"log_part_id": part.Number,
+		"log_part_id": payloadID,
 	})
 	if err != nil {
 		return errors.Wrap(err, "couldn't expand base URL template")
@@ -243,7 +272,7 @@ func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
 		return errors.Wrap(err, "couldn't marshal JSON")
 	}
 
-	req, err := http.NewRequest("PUT", partURL, bytes.NewReader(partBody))
+	req, err := http.NewRequest(publishMethod, partURL, bytes.NewReader(partBody))
 	if err != nil {
 		return errors.Wrap(err, "couldn't create request")
 	}
