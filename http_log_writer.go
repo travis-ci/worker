@@ -114,6 +114,10 @@ func (w *httpLogWriter) Close() error {
 	})
 
 	if err != nil {
+		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "http_log_writer",
+		}).Error("could not add log part to sink")
 		return err
 	}
 
@@ -156,6 +160,10 @@ func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {
 	err = w.lps.Add(part)
 
 	if err != nil {
+		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "http_log_writer",
+		}).Error("could not add log part to sink")
 		return n, err
 	}
 	w.logPartNumber++

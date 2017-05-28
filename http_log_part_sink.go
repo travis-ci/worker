@@ -13,6 +13,7 @@ import (
 	gocontext "context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/cenkalti/backoff"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
 )
@@ -35,9 +36,10 @@ const (
 )
 
 type httpLogPartSink struct {
-	httpClient *http.Client
-	baseURL    string
-	authToken  string
+	httpClient  *http.Client
+	httpBackOff *backoff.ExponentialBackOff
+	baseURL     string
+	authToken   string
 
 	partsBuffer      []*httpLogPart
 	partsBufferMutex *sync.Mutex
@@ -46,8 +48,14 @@ type httpLogPartSink struct {
 }
 
 func newHTTPLogPartSink(ctx gocontext.Context, url, authToken string, maxBufferSize uint64) *httpLogPartSink {
+	httpBackOff := backoff.NewExponentialBackOff()
+	// TODO: make this configurable?
+	httpBackOff.MaxInterval = 10 * time.Second
+	httpBackOff.MaxElapsedTime = 3 * time.Minute
+
 	lps := &httpLogPartSink{
 		httpClient:       &http.Client{},
+		httpBackOff:      httpBackOff,
 		baseURL:          url,
 		authToken:        authToken,
 		partsBuffer:      []*httpLogPart{},
@@ -62,6 +70,10 @@ func newHTTPLogPartSink(ctx gocontext.Context, url, authToken string, maxBufferS
 
 func (lps *httpLogPartSink) Add(part *httpLogPart) error {
 	if len(lps.partsBuffer) >= int(lps.maxBufferSize) {
+		// NOTE: This error may deserve special handling at a higher level to do
+		// something like canceling and resetting the job.  The implementation here
+		// will result in a sentry error being captured (in http_log_writer)
+		// assuming the necessary config bits are set.
 		return maxHTTPLogPartSinkBufferSizeErr
 	}
 
@@ -103,6 +115,11 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 
 	err := lps.publishLogParts(payload)
 	if err != nil {
+		// NOTE: This is the point of origin for log parts backpressure, in
+		// combination with the error returned by `.Add` when maxBufferSize is
+		// reached.  Because running jobs will not be able to send their log parts
+		// anywhere, it remains to be determined whether we should cancel (and
+		// reset) running jobs or allow them to complete without capturing output.
 		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 			"self": "http_log_part_sink",
 			"err":  err,
@@ -132,13 +149,17 @@ func (lps *httpLogPartSink) publishLogParts(payload []*httpLogPartPayload) error
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", lps.authToken))
 
-	resp, err := lps.httpClient.Do(req)
-	if err != nil {
-		return errors.Wrap(err, "error making request")
-	}
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = lps.httpClient.Do(req)
+		if resp != nil && resp.StatusCode != http.StatusNoContent {
+			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
+		}
+		return
+	}, lps.httpBackOff)
 
-	if resp.StatusCode != http.StatusNoContent {
-		return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
+	if err != nil {
+		return errors.Wrap(err, "failed to send log parts with retries")
 	}
 
 	return nil
