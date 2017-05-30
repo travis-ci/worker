@@ -29,13 +29,11 @@ New providers should call Register in init() to register the alias it should be 
 package backend
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 var (
@@ -48,7 +46,6 @@ var (
 	// an 'ENDPOINT' configuration, but one is required.
 	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
 
-	punctRegex   = regexp.MustCompile(`[&+/=\\]`)
 	zeroDuration time.Duration
 )
 
@@ -102,4 +99,23 @@ func asBool(s string) bool {
 	default:
 		return true
 	}
+}
+
+func str2map(s string) map[string]string {
+	ret := map[string]string{}
+
+	for _, kv := range strings.Split(s, " ") {
+		kvParts := strings.SplitN(kv, ":", 2)
+		key := strings.TrimSpace(kvParts[0])
+		if key == "" {
+			continue
+		}
+		if len(kvParts) == 1 {
+			ret[key] = ""
+		} else {
+			ret[key] = strings.TrimSpace(kvParts[1])
+		}
+	}
+
+	return ret
 }

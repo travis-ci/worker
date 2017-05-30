@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
@@ -19,7 +21,6 @@ import (
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ratelimit"
 	"github.com/travis-ci/worker/ssh"
-	gocontext "golang.org/x/net/context"
 )
 
 const (
@@ -48,8 +49,7 @@ var (
 		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultCloudBrainUploadRetrySleep),
 	}
 
-	errCloudBrainMissingIPAddressError   = fmt.Errorf("no IP address found")
-	errCloudBrainInstanceDeletionNotDone = fmt.Errorf("instance deletion not done")
+	errCloudBrainMissingIPAddressError = fmt.Errorf("no IP address found")
 )
 
 func init() {

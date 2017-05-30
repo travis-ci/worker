@@ -3,13 +3,14 @@ package worker
 import (
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	workererrors "github.com/travis-ci/worker/errors"
-	gocontext "golang.org/x/net/context"
 )
 
 type stepStartInstance struct {
@@ -38,7 +39,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			logWriter := state.Get("logWriter").(LogWriter)
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
 
-			err = buildJob.Finish(FinishStateErrored)
+			err = buildJob.Finish(ctx, FinishStateErrored)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
 			}
@@ -46,7 +47,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
-		err := buildJob.Requeue()
+		err := buildJob.Requeue(ctx)
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
 		}
@@ -54,7 +55,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	context.LoggerFromContext(ctx).WithField("boot_time", time.Now().Sub(startTime)).Info("started instance")
+	context.LoggerFromContext(ctx).WithField("boot_time", time.Since(startTime)).Info("started instance")
 
 	state.Put("instance", instance)
 

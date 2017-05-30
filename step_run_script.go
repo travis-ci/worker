@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type runScriptReturn struct {
@@ -63,7 +64,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 				context.LoggerFromContext(ctx).WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script, attempting requeue")
 				context.CaptureError(ctx, r.err)
 
-				err := buildJob.Requeue()
+				err := buildJob.Requeue(ctx)
 				if err != nil {
 					context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
 				}
@@ -82,10 +83,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			context.LoggerFromContext(ctx).Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
-		} else {
-			context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
 		}
 
+		context.LoggerFromContext(ctx).Info("context was cancelled, stopping job")
 		return multistep.ActionHalt
 	case <-cancelChan:
 		s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
@@ -108,7 +108,7 @@ func (s *stepRunScript) writeLogAndFinishWithState(ctx gocontext.Context, logWri
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write final log message")
 	}
 
-	err = buildJob.Finish(state)
+	err = buildJob.Finish(ctx, state)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 	}

@@ -3,9 +3,10 @@ package worker
 import (
 	"time"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
 )
 
 const (
@@ -31,6 +32,12 @@ type JobPayload struct {
 	Config     map[string]interface{} `json:"config"`
 	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
 	VMType     string                 `json:"vm_type"`
+	Meta       JobMetaPayload         `json:"meta"`
+}
+
+// JobMetaPayload contains meta information about the job.
+type JobMetaPayload struct {
+	StateUpdateCount uint `json:"state_update_count"`
 }
 
 // JobJobPayload contains information about the job.
@@ -81,8 +88,8 @@ type Job interface {
 	Received() error
 	Started() error
 	Error(gocontext.Context, string) error
-	Requeue() error
-	Finish(FinishState) error
+	Requeue(gocontext.Context) error
+	Finish(gocontext.Context, FinishState) error
 
 	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
 }

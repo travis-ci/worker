@@ -3,7 +3,7 @@ package worker
 import (
 	"time"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
@@ -23,7 +23,7 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue()
+		err := buildJob.Requeue(ctx)
 		if err != nil {
 			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
 		}

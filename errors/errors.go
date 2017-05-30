@@ -9,7 +9,7 @@ type wrappedJobAbortError struct {
 	message string
 }
 
-func NewWrappedJobAbortError(err error) *wrappedJobAbortError {
+func NewWrappedJobAbortError(err error) error {
 	return &wrappedJobAbortError{
 		err: err,
 	}

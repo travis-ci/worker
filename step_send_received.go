@@ -1,9 +1,10 @@
 package worker
 
 import (
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type stepSendReceived struct{}

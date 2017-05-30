@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // FileJobQueue is a JobQueue that uses directories for input, state, and output

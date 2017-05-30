@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // A Processor gets jobs off the job queue and coordinates running it with other
@@ -23,11 +24,11 @@ type Processor struct {
 	startupTimeout      time.Duration
 	maxLogLength        int
 
-	ctx           gocontext.Context
-	buildJobsChan <-chan Job
-	provider      backend.Provider
-	generator     BuildScriptGenerator
-	canceller     Canceller
+	ctx                     gocontext.Context
+	buildJobsChan           <-chan Job
+	provider                backend.Provider
+	generator               BuildScriptGenerator
+	cancellationBroadcaster *CancellationBroadcaster
 
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
@@ -59,7 +60,7 @@ type ProcessorConfig struct {
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
+	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	uuidString, _ := context.ProcessorFromContext(ctx)
@@ -70,6 +71,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	buildJobsChan, err := queue.Jobs(ctx)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
+		cancel()
 		return nil, err
 	}
 
@@ -83,11 +85,11 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		startupTimeout:      config.StartupTimeout,
 		maxLogLength:        config.MaxLogLength,
 
-		ctx:           ctx,
-		buildJobsChan: buildJobsChan,
-		provider:      provider,
-		generator:     generator,
-		canceller:     canceller,
+		ctx:                     ctx,
+		buildJobsChan:           buildJobsChan,
+		provider:                provider,
+		generator:               generator,
+		cancellationBroadcaster: cancellationBroadcaster,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -183,7 +185,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{
-			canceller: p.canceller,
+			cancellationBroadcaster: p.cancellationBroadcaster,
 		},
 		&stepGenerateScript{
 			generator: p.generator,

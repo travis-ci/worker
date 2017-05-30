@@ -3,18 +3,17 @@ package backend
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
-	"golang.org/x/net/context"
 )
 
 var (
@@ -151,7 +150,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error decoding docker client container create request: %s", err.Error())
 			w.WriteHeader(400)
-		} else if req.HostConfig.Privileged == false {
+		} else if !req.HostConfig.Privileged {
 			t.Errorf("Expected Privileged flag to be true, instead false")
 			w.WriteHeader(400)
 		} else {
@@ -228,18 +227,6 @@ func TestNewDockerProvider_WithRequiredConfig(t *testing.T) {
 	assert.Equal(t, 3, len(provider.cpuSets))
 	assert.Equal(t, []string{"/sbin/init"}, provider.runCmd)
 	assert.Equal(t, 2, provider.runCPUs)
-}
-
-func TestNewDockerProvider_WithCertPath(t *testing.T) {
-	certPath := fmt.Sprintf("/%v/secret/nonexistent/dir", time.Now().UTC().UnixNano())
-	provider, err := newDockerProvider(config.ProviderConfigFromMap(map[string]string{
-		"HOST":      "tcp://fleeflahflew.example.com:8080",
-		"CERT_PATH": certPath,
-	}))
-	assert.NotNil(t, err)
-	assert.Nil(t, provider)
-	assert.Equal(t, err.(*os.PathError).Op, "open")
-	assert.Equal(t, err.(*os.PathError).Path, fmt.Sprintf("%s/cert.pem", certPath))
 }
 
 func TestNewDockerProvider_WithNative(t *testing.T) {

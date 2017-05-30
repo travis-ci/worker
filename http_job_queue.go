@@ -7,25 +7,28 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 )
 
 // HTTPJobQueue is a JobQueue that uses http
 type HTTPJobQueue struct {
-	processorPool *ProcessorPool
-	jobBoardURL   *url.URL
-	site          string
-	providerName  string
-	queue         string
-	workerID      string
+	processorPool     *ProcessorPool
+	jobBoardURL       *url.URL
+	site              string
+	providerName      string
+	queue             string
+	workerID          string
+	buildJobChan      chan Job
+	buildJobChanMutex *sync.Mutex
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -47,45 +50,68 @@ type jobBoardErrorResponse struct {
 // NewHTTPJobQueue creates a new job-board job queue
 func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
-		processorPool: pool,
-		jobBoardURL:   jobBoardURL,
-		site:          site,
-		providerName:  providerName,
-		queue:         queue,
-		workerID:      workerID,
+		processorPool:     pool,
+		jobBoardURL:       jobBoardURL,
+		site:              site,
+		providerName:      providerName,
+		queue:             queue,
+		workerID:          workerID,
+		buildJobChanMutex: &sync.Mutex{},
 	}, nil
 }
 
 // Jobs consumes new jobs from job-board
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+	q.buildJobChanMutex.Lock()
+	defer q.buildJobChanMutex.Unlock()
+	logger := context.LoggerFromContext(ctx)
+	if q.buildJobChan != nil {
+		return q.buildJobChan, nil
+	}
+
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
 	go func() {
 		for {
-			jobIds, err := q.fetchJobs()
+			logger.Debug("fetching job ids")
+			jobIds, err := q.fetchJobs(ctx)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJobs: %#v", err)
-				panic("whoops!")
+				logger.WithField("err", err).Warn("continuing after failing to get job ids")
+				time.Sleep(time.Second)
+				continue
 			}
 			for _, id := range jobIds {
 				go func(id uint64) {
-					buildJob, err := q.fetchJob(id)
+					logger.WithField("job_id", id).Debug("fetching complete job")
+					buildJob, err := q.fetchJob(ctx, id)
 					if err != nil {
-						fmt.Fprintf(os.Stderr, "TODO: handle error from httpJobQueue.fetchJob: %#v", err)
+						logger.WithField("err", err).Warn("breaking after failing to get complete job")
+						return
 					}
+					logger.WithField("job", buildJob).Debug("sending job to output channel")
 					buildJobChan <- buildJob
 				}(id)
 			}
 
-			time.Sleep(time.Second)
+			select {
+			case <-time.After(time.Second):
+				logger.Debug("jobs loop again after 1s sleep")
+				continue
+			case <-ctx.Done():
+				logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
+				q.buildJobChan = nil
+				return
+			}
 		}
 	}()
 
+	q.buildJobChan = buildJobChan
 	return outChan, nil
 }
 
-func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
+func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
+	logger := context.LoggerFromContext(ctx)
 	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
 	numWaiting := 0
 	q.processorPool.Each(func(i int, p *Processor) {
@@ -121,6 +147,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", q.workerID)
+	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -133,6 +160,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 		return nil, errors.Wrap(err, "failed to decode job board jobs response")
 	}
 
+	logger.WithField("jobs", fetchResponsePayload.Jobs).Debug("fetched raw jobs")
 	var jobIds []uint64
 	for _, strID := range fetchResponsePayload.Jobs {
 		alreadyRunning := false
@@ -142,6 +170,7 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 			}
 		}
 		if alreadyRunning {
+			logger.WithField("job_id", strID).Debug("skipping running job")
 			continue
 		}
 
@@ -152,10 +181,11 @@ func (q *HTTPJobQueue) fetchJobs() ([]uint64, error) {
 		jobIds = append(jobIds, id)
 	}
 
+	logger.WithField("jobs", jobIds).Debug("returning filtered job IDs")
 	return jobIds, nil
 }
 
-func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
+func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	buildJob := &httpJob{
 		payload: &httpJobPayload{
 			Data: &JobPayload{},
@@ -186,6 +216,7 @@ func (q *HTTPJobQueue) fetchJob(id uint64) (Job, error) {
 	req.Header.Add("Travis-Infrastructure", q.providerName)
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", q.workerID)
+	req = req.WithContext(ctx)
 
 	resp, err := (&http.Client{}).Do(req)
 	if err != nil {

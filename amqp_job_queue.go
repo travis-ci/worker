@@ -3,11 +3,12 @@ package worker
 import (
 	"encoding/json"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // AMQPJobQueue is a JobQueue that uses AMQP
@@ -68,6 +69,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 	go func() {
 		defer channel.Close()
+		defer close(buildJobChan)
 
 		for {
 			if ctx.Err() != nil {
@@ -77,7 +79,12 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 			select {
 			case <-ctx.Done():
 				return
-			case delivery := <-deliveries:
+			case delivery, ok := <-deliveries:
+				if !ok {
+					context.LoggerFromContext(ctx).Info("job queue channel closed")
+					return
+				}
+
 				buildJob := &amqpJob{
 					payload:         &JobPayload{},
 					startAttributes: &backend.StartAttributes{},
@@ -121,6 +128,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 				buildJob.conn = q.conn
 				buildJob.delivery = delivery
+				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
 
 				select {
 				case buildJobChan <- buildJob:

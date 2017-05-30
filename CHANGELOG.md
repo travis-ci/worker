@@ -1,4 +1,67 @@
-## Unreleased
+# Change Log
+
+The format is based on [Keep a Changelog](http://keepachangelog.com/).
+
+## [Unreleased]
+### Added
+
+### Changed
+- amqp-log-writer, http-log-writer: check context done to prevent goroutine leakage
+- http-job-queue:
+    - reuse cached build job channel if present
+    - check context done to prevent goroutine leakage
+    - attach context to all HTTP requests
+    - more debug logging
+
+### Deprecated
+
+### Removed
+
+### Fixed
+- http-log-writer: flush buffer regularly in the background
+
+### Security
+
+## [2.8.2] - 2017-05-17
+### Changed
+- vagrant: general refresh for development purposes
+
+### Fixed
+- amqp-job: ensure `finished_at` timestamp is included with state event when available
+
+## [2.8.1] - 2017-05-11
+### Fixed
+- backend/docker: ensure parsed tmpfs mount mapping does not include empty keys
+
+## [2.8.0] - 2017-04-12
+### Added
+- amqp-job: include a state message counter in messages sent to hub
+- backend/docker: mount a tmpfs as /run and make it executable, fixing [travis-ci/travis-ci#7062](https://github.com/travis-ci/travis-ci/issues/7062)
+- backend/docker: support configurable SHM size, default to 64 MiB
+- build-script-generator: include job ID in requests parameters to travis-build
+- metrics: add a metric for when a job is finished, without including state name
+- sentry: send the current version string to Sentry when reporting errors
+
+### Changed
+- amqp-job: send all known timestamps to hub on each state update, including queued-at
+- build: support and build using Go 1.8.1
+
+### Fixed
+- amqp-canceller: fix error occurring if a job was requeued on the same worker before the previous instance had completely finished, causing cancellations to break
+- amqp-job: fix a panic that could occur during shutdown due to an AMQP connection issue
+- ssh: update the SSH library, pulling in the fix for [golang/go#18861](https://github.com/golang/go/issues/18861)
+
+## [2.7.0] - 2017-02-08
+### Added
+- backend: add "SSH dial timeout" to all backends, with a default of 5 seconds, configurable with `SSH_DIAL_TIMEOUT` backend setting
+- backend/docker: make the command to run the build script configurable with `BACKEND_DOCKER_EXEC_CMD` env var, default to `bash /home/travis/build.sh`
+- backend/gce: make it configurable whether to give a booted instance a "public" IP with `BACKEND_GCE_PUBLIC_IP`, defaults to `true`
+- backend/gce: make it configurable whether to connect to an instance's "public" IP with `BACKEND_GCE_PUBLIC_IP_CONNECT`, defaults to `true`
+- log when a job is finished, including its "finishing state" (passed, failed, errored, etc.)
+- log when a job is requeued
+
+### Changed
+- backend/docker: change default command run in Docker native mode from `bash -l /home/travis/build.sh` back to `bash /home/travis/build.sh`, reverting the change made in 2.6.0
 
 ## [2.6.2] - 2017-01-31
 ### Security
@@ -400,7 +463,11 @@
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.6.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.8.2...HEAD
+[2.8.2]: https://github.com/travis-ci/worker/compare/v2.8.1...v2.8.2
+[2.8.1]: https://github.com/travis-ci/worker/compare/v2.8.0...v2.8.1
+[2.8.0]: https://github.com/travis-ci/worker/compare/v2.7.0...v2.8.0
+[2.7.0]: https://github.com/travis-ci/worker/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/travis-ci/worker/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/travis-ci/worker/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/travis-ci/worker/compare/v2.5.0...v2.6.0

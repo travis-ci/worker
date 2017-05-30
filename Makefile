@@ -1,6 +1,6 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
-ALL_PACKAGES := $(shell utils/list-packages) $(PACKAGE)/cmd/...
+ALL_PACKAGES := $(PACKAGE) $(shell utils/list-packages) $(PACKAGE)/cmd/...
 
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
@@ -33,9 +33,7 @@ export DOCKER_DEST
 COVERPROFILES := \
 	backend-coverage.coverprofile \
 	config-coverage.coverprofile \
-	context-coverage.coverprofile \
-	image-coverage.coverprofile \
-	metrics-coverage.coverprofile
+	image-coverage.coverprofile
 CROSSBUILD_BINARIES := \
 	build/darwin/amd64/travis-worker \
 	build/linux/amd64/travis-worker
@@ -57,10 +55,6 @@ test: deps lintall build fmtpolice test-no-cover coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test -v -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
-
-.PHONY: test-race
-test-race: deps
 	$(GO) test -v -race -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
@@ -96,7 +90,7 @@ distclean: clean
 .PHONY: deps
 deps: vendor/.deps-fetched
 
-vendor/.deps-fetched:
+vendor/.deps-fetched: vendor/manifest
 	$(GVT) rebuild
 	touch $@
 

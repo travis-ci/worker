@@ -5,21 +5,22 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // A ProcessorPool spins up multiple Processors handling build jobs from the
 // same queue.
 type ProcessorPool struct {
-	Context   gocontext.Context
-	Provider  backend.Provider
-	Generator BuildScriptGenerator
-	Canceller Canceller
-	Hostname  string
+	Context                 gocontext.Context
+	Provider                backend.Provider
+	Generator               BuildScriptGenerator
+	CancellationBroadcaster *CancellationBroadcaster
+	Hostname                string
 
 	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
 	MaxLogLength                                                 int
@@ -45,7 +46,7 @@ type ProcessorPoolConfig struct {
 // NewProcessorPool creates a new processor pool using the given arguments.
 func NewProcessorPool(ppc *ProcessorPoolConfig,
 	provider backend.Provider, generator BuildScriptGenerator,
-	canceller Canceller) *ProcessorPool {
+	cancellationBroadcaster *CancellationBroadcaster) *ProcessorPool {
 
 	return &ProcessorPool{
 		Hostname: ppc.Hostname,
@@ -57,9 +58,9 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		StartupTimeout:      ppc.StartupTimeout,
 		MaxLogLength:        ppc.MaxLogLength,
 
-		Provider:  provider,
-		Generator: generator,
-		Canceller: canceller,
+		Provider:                provider,
+		Generator:               generator,
+		CancellationBroadcaster: cancellationBroadcaster,
 	}
 }
 
@@ -174,7 +175,7 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 	ctx := context.FromProcessor(p.Context, processorUUID.String())
 
 	proc, err := NewProcessor(ctx, p.Hostname,
-		queue, p.Provider, p.Generator, p.Canceller,
+		queue, p.Provider, p.Generator, p.CancellationBroadcaster,
 		ProcessorConfig{
 			HardTimeout:         p.HardTimeout,
 			LogTimeout:          p.LogTimeout,

@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 )
 
 type fileLogWriter struct {

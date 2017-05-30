@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -10,27 +11,12 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
-	"golang.org/x/net/context"
 )
 
 type buildScriptGeneratorFunction func(context.Context, Job) ([]byte, error)
 
 func (bsg buildScriptGeneratorFunction) Generate(ctx context.Context, job Job) ([]byte, error) {
 	return bsg(ctx, job)
-}
-
-type fakeCanceller struct {
-	subscribedIDs   []uint64
-	unsubscribedIDs []uint64
-}
-
-func (fc *fakeCanceller) Subscribe(id uint64, ch chan<- struct{}) error {
-	fc.subscribedIDs = append(fc.subscribedIDs, id)
-	return nil
-}
-
-func (fc *fakeCanceller) Unsubscribe(id uint64) {
-	fc.unsubscribedIDs = append(fc.unsubscribedIDs, id)
 }
 
 type fakeJobQueue struct {
@@ -80,12 +66,12 @@ func (fj *fakeJob) Error(ctx context.Context, msg string) error {
 	return nil
 }
 
-func (fj *fakeJob) Requeue() error {
+func (fj *fakeJob) Requeue(ctx context.Context) error {
 	fj.events = append(fj.events, "requeued")
 	return nil
 }
 
-func (fj *fakeJob) Finish(state FinishState) error {
+func (fj *fakeJob) Finish(ctx context.Context, state FinishState) error {
 	fj.events = append(fj.events, string(state))
 	return nil
 }
@@ -131,9 +117,9 @@ func TestProcessor(t *testing.T) {
 
 	jobChan := make(chan Job)
 	jobQueue := &fakeJobQueue{c: jobChan}
-	canceller := &fakeCanceller{}
+	cancellationBroadcaster := NewCancellationBroadcaster()
 
-	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, canceller, ProcessorConfig{
+	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, cancellationBroadcaster, ProcessorConfig{
 		HardTimeout:         2 * time.Second,
 		LogTimeout:          time.Second,
 		ScriptUploadTimeout: 3 * time.Second,
@@ -183,12 +169,5 @@ func TestProcessor(t *testing.T) {
 	expectedEvents := []string{"received", "started", string(FinishStatePassed)}
 	if !reflect.DeepEqual(expectedEvents, job.events) {
 		t.Errorf("job.events = %#v, expected %#v", job.events, expectedEvents)
-	}
-
-	if canceller.subscribedIDs[0] != 2 {
-		t.Errorf("canceller.subscribedIDs[0] = %d, expected 2", canceller.subscribedIDs[0])
-	}
-	if canceller.unsubscribedIDs[0] != 2 {
-		t.Errorf("canceller.unsubscribedIDs[0] = %d, expected 2", canceller.unsubscribedIDs[0])
 	}
 }

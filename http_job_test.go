@@ -9,9 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
 )
 
 func newTestHTTPJob(t *testing.T) *httpJob {
@@ -120,12 +121,15 @@ func TestHTTPJob_Requeue(t *testing.T) {
 		fmt.Fprintln(w, "hai")
 	}))
 	defer ts.Close()
+
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
 	job.jobBoardURL, _ = url.Parse(ts.URL)
 
-	err := job.Requeue()
+	ctx := gocontext.TODO()
+
+	err := job.Requeue(ctx)
 	if err != nil {
 		t.Error(err)
 	}
@@ -171,12 +175,15 @@ func TestHTTPJob_Finish(t *testing.T) {
 		fmt.Fprintln(w, "hai")
 	}))
 	defer ts.Close()
+
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
 	job.jobBoardURL, _ = url.Parse(ts.URL)
 
-	err := job.Finish(FinishStatePassed)
+	ctx := gocontext.TODO()
+
+	err := job.Finish(ctx, FinishStatePassed)
 	if err != nil {
 		t.Error(err)
 	}

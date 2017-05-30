@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/jtacoma/uritemplates"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type httpLogPart struct {
@@ -46,7 +47,7 @@ type httpLogWriter struct {
 }
 
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64, timeout time.Duration) (*httpLogWriter, error) {
-	return &httpLogWriter{
+	writer := &httpLogWriter{
 		ctx:        context.FromComponent(ctx, "log_writer"),
 		jobID:      jobID,
 		closeChan:  make(chan struct{}),
@@ -56,7 +57,11 @@ func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID
 		httpClient: &http.Client{},
 		baseURL:    url,
 		authToken:  authToken,
-	}, nil
+	}
+
+	go writer.flushRegularly(ctx)
+
+	return writer, nil
 }
 
 func (w *httpLogWriter) Write(p []byte) (int, error) {
@@ -96,21 +101,6 @@ func (w *httpLogWriter) Close() error {
 	w.flush()
 
 	part := httpLogPart{
-		JobID:  w.jobID,
-		Number: w.logPartNumber,
-		Final:  true,
-	}
-	w.logPartNumber++
-	if w.closed() {
-		return nil
-	}
-
-	w.timer.Stop()
-
-	close(w.closeChan)
-	w.flush()
-
-	part = httpLogPart{
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
 		Final:  true,
@@ -165,7 +155,7 @@ func (w *httpLogWriter) closed() bool {
 	}
 }
 
-func (w *httpLogWriter) flushRegularly() {
+func (w *httpLogWriter) flushRegularly(ctx gocontext.Context) {
 	ticker := time.NewTicker(LogWriterTick)
 	defer ticker.Stop()
 	for {
@@ -174,6 +164,8 @@ func (w *httpLogWriter) flushRegularly() {
 			return
 		case <-ticker.C:
 			w.flush()
+		case <-ctx.Done():
+			return
 		}
 	}
 }

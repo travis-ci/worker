@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,7 +10,6 @@ import (
 	"github.com/bitly/go-simplejson"
 	"github.com/stretchr/testify/require"
 	"github.com/travis-ci/worker/config"
-	"golang.org/x/net/context"
 )
 
 func TestBuildScriptGenerator(t *testing.T) {
