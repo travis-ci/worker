@@ -4,6 +4,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- config: Initial sleep duration prior to beginning job execution
 
 ### Changed
 - amqp-log-writer, http-log-writer: check context done to prevent goroutine leakage
@@ -12,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
     - check context done to prevent goroutine leakage
     - attach context to all HTTP requests
     - more debug logging
+- processor: check for cancellation in between various steps
 
 ### Deprecated
 
