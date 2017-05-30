@@ -1,56 +1,29 @@
 package worker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/pborman/uuid"
-	"github.com/streadway/amqp"
 	workerctx "github.com/travis-ci/worker/context"
-	"golang.org/x/net/context"
 )
 
-func setupConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
-	amqpConn, err := amqp.Dial(os.Getenv("AMQP_URI"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	amqpChan, err := amqpConn.Channel()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = amqpChan.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	_, err = amqpChan.QueuePurge("reporting.jobs.logs", false)
-	if err != nil {
-		t.Error(err)
-	}
-
-	return amqpConn, amqpChan
-}
-
 func TestAMQPLogWriterWrite(t *testing.T) {
-	amqpConn, amqpChan := setupConn(t)
+	amqpConn, amqpChan := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(1000)
-	logWriter.SetTimeout(time.Second)
 
 	_, err = fmt.Fprintf(logWriter, "Hello, ")
 	if err != nil {
@@ -96,19 +69,18 @@ func TestAMQPLogWriterWrite(t *testing.T) {
 }
 
 func TestAMQPLogWriterClose(t *testing.T) {
-	amqpConn, amqpChan := setupConn(t)
+	amqpConn, amqpChan := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(1000)
-	logWriter.SetTimeout(time.Second)
 
 	// Close the log writer to force it to flush out the buffer
 	err = logWriter.Close()
@@ -145,19 +117,18 @@ func TestAMQPLogWriterClose(t *testing.T) {
 }
 
 func TestAMQPMaxLogLength(t *testing.T) {
-	amqpConn, amqpChan := setupConn(t)
+	amqpConn, amqpChan := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4)
+	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(4)
-	logWriter.SetTimeout(time.Second)
 
 	_, err = fmt.Fprintf(logWriter, "1234")
 	if err != nil {

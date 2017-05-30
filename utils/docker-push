@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+set -o errexit
+
+main() {
+  set +o xtrace
+
+  if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
+    DOCKER_LOGIN_EMAIL=.
+    DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
+    DOCKER_LOGIN_PASSWORD="${QUAY_DOCKER_LOGIN_PASSWORD}"
+    DOCKER_LOGIN_SERVER="${QUAY_DOCKER_LOGIN_SERVER}"
+  fi
+
+  [[ ${DOCKER_LOGIN_USERNAME} ]] || {
+    __log error="missing \$DOCKER_LOGIN_USERNAME"
+    exit 1
+  }
+
+  [[ ${DOCKER_LOGIN_PASSWORD} ]] || {
+    __log error="missing \$DOCKER_LOGIN_PASSWORD"
+    exit 1
+  }
+
+  [[ ${DOCKER_DEST} ]] || {
+    __log error="missing \$DOCKER_DEST"
+    exit 1
+  }
+
+  local login_args=(
+    -u "${DOCKER_LOGIN_USERNAME}"
+    -p "${DOCKER_LOGIN_PASSWORD}"
+  )
+
+  if [[ "${DOCKER_LOGIN_EMAIL}" ]]; then
+    login_args=("${login_args[@]}" -e "${DOCKER_LOGIN_EMAIL}")
+  fi
+
+  __log 'msg="docker login"'
+  if [[ "${DOCKER_LOGIN_SERVER}" ]]; then
+    docker login "${login_args[@]}" "${DOCKER_LOGIN_SERVER}"
+  else
+    docker login "${login_args[@]}"
+  fi
+
+  : "${DOCKER_PUSH_RETRIES:=6}"
+  : "${DOCKER_LOGOUT_POST_PUSH:=0}"
+
+  local attempt=0
+  local sleep_interval=10
+  local push_start
+
+  while true; do
+    __log "msg=\"docker push\" dest=${DOCKER_DEST} attempt=$((attempt + 1))"
+    push_start=$(date +%s)
+    if docker push "${DOCKER_DEST}"; then
+      __log 'msg="docker push complete"' \
+        "dest=${DOCKER_DEST} " \
+        "duration=$(($(date +%s) - push_start))s"
+
+      if [[ ${DOCKER_LOGOUT_POST_PUSH} = 1 ]]; then
+        __log 'msg="docker logout"'
+        # shellcheck disable=SC2086
+        docker logout ${DOCKER_LOGIN_SERVER}
+        __log 'msg="docker logout complete"'
+      fi
+      exit 0
+    fi
+
+    attempt=$((attempt + 1))
+
+    if [[ $attempt -gt ${DOCKER_PUSH_RETRIES} ]]; then
+      break
+    fi
+
+    __log "msg=\"sleeping\" interval=$((attempt * sleep_interval))"
+    sleep $((attempt * sleep_interval))
+  done
+
+  exit 86
+}
+
+__log() {
+  echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$@"
+}
+
+main "$@"

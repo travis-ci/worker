@@ -4,61 +4,97 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
-// A Processor will process build jobs on a channel, one by one, until it is
-// told to shut down or the channel of build jobs closes.
+// A Processor gets jobs off the job queue and coordinates running it with other
+// components.
 type Processor struct {
-	ID          uuid.UUID
-	hostname    string
-	hardTimeout time.Duration
-	logTimeout  time.Duration
+	ID       uuid.UUID
+	hostname string
 
-	ctx           gocontext.Context
-	buildJobsChan <-chan Job
-	provider      backend.Provider
-	generator     BuildScriptGenerator
-	canceller     Canceller
+	hardTimeout         time.Duration
+	logTimeout          time.Duration
+	scriptUploadTimeout time.Duration
+	startupTimeout      time.Duration
+	maxLogLength        int
+
+	ctx                     gocontext.Context
+	buildJobsChan           <-chan Job
+	provider                backend.Provider
+	generator               BuildScriptGenerator
+	cancellationBroadcaster *CancellationBroadcaster
 
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
 
+	// ProcessedCount contains the number of jobs that has been processed
+	// by this Processor. This value should not be modified outside of the
+	// Processor.
 	ProcessedCount int
 
+	// CurrentStatus contains the current status of the processor, and can
+	// be one of "new", "waiting", "processing" or "done".
+	CurrentStatus string
+
+	// LastJobID contains the ID of the last job the processor processed.
+	LastJobID uint64
+
 	SkipShutdownOnLogTimeout bool
+}
+
+type ProcessorConfig struct {
+	HardTimeout         time.Duration
+	LogTimeout          time.Duration
+	ScriptUploadTimeout time.Duration
+	StartupTimeout      time.Duration
+	MaxLogLength        int
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
-func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan Job,
-	provider backend.Provider, generator BuildScriptGenerator, canceller Canceller,
-	hardTimeout time.Duration, logTimeout time.Duration) (*Processor, error) {
+func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
+	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
+	config ProcessorConfig) (*Processor, error) {
 
 	uuidString, _ := context.ProcessorFromContext(ctx)
 	processorUUID := uuid.Parse(uuidString)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
 
-	return &Processor{
-		ID:          processorUUID,
-		hostname:    hostname,
-		hardTimeout: hardTimeout,
-		logTimeout:  logTimeout,
+	buildJobsChan, err := queue.Jobs(ctx)
+	if err != nil {
+		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
+		cancel()
+		return nil, err
+	}
 
-		ctx:           ctx,
-		buildJobsChan: buildJobsChan,
-		provider:      provider,
-		generator:     generator,
-		canceller:     canceller,
+	return &Processor{
+		ID:       processorUUID,
+		hostname: hostname,
+
+		hardTimeout:         config.HardTimeout,
+		logTimeout:          config.LogTimeout,
+		scriptUploadTimeout: config.ScriptUploadTimeout,
+		startupTimeout:      config.StartupTimeout,
+		maxLogLength:        config.MaxLogLength,
+
+		ctx:                     ctx,
+		buildJobsChan:           buildJobsChan,
+		provider:                provider,
+		generator:               generator,
+		cancellationBroadcaster: cancellationBroadcaster,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
+
+		CurrentStatus: "new",
 	}, nil
 }
 
@@ -68,6 +104,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, buildJobsChan <-chan J
 func (p *Processor) Run() {
 	context.LoggerFromContext(p.ctx).Info("starting processor")
 	defer context.LoggerFromContext(p.ctx).Info("processor done")
+	defer func() { p.CurrentStatus = "done" }()
 
 	for {
 		select {
@@ -76,6 +113,7 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			return
 		default:
 		}
@@ -86,9 +124,11 @@ func (p *Processor) Run() {
 			return
 		case <-p.graceful:
 			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			p.terminate()
 			return
 		case buildJob, ok := <-p.buildJobsChan:
 			if !ok {
+				p.terminate()
 				return
 			}
 
@@ -96,13 +136,17 @@ func (p *Processor) Run() {
 			if buildJob.Payload().Timeouts.HardLimit != 0 {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
 			}
+			buildJob.StartAttributes().HardTimeout = hardTimeout
 
 			ctx := context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID)
 			if buildJob.Payload().UUID != "" {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
 			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
+			p.LastJobID = buildJob.Payload().Job.ID
+			p.CurrentStatus = "processing"
 			p.process(ctx, buildJob)
+			p.CurrentStatus = "waiting"
 			cancel()
 		}
 	}
@@ -141,24 +185,25 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{
-			canceller: p.canceller,
+			cancellationBroadcaster: p.cancellationBroadcaster,
 		},
 		&stepGenerateScript{
 			generator: p.generator,
 		},
 		&stepSendReceived{},
+		&stepOpenLogWriter{
+			maxLogLength:      p.maxLogLength,
+			defaultLogTimeout: p.logTimeout,
+		},
 		&stepStartInstance{
 			provider:     p.provider,
-			startTimeout: 4 * time.Minute,
+			startTimeout: p.startupTimeout,
 		},
 		&stepUploadScript{
-			uploadTimeout: 1 * time.Minute,
+			uploadTimeout: p.scriptUploadTimeout,
 		},
 		&stepUpdateState{},
-		&stepOpenLogWriter{
-			logTimeout:   logTimeout,
-			maxLogLength: 4500000,
-		},
+		&stepWriteWorkerInfo{},
 		&stepRunScript{
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,

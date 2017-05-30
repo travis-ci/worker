@@ -180,7 +180,7 @@ __install_docker_stable() {
 }
 
 __install_docker_edge() {
-  __install_docker_version_with_options '1.9.0-0~trusty' ''
+  __install_docker_version_with_options '1.9.1-0~trusty' ''
 }
 
 __install_docker_version_with_options() {

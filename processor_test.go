@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -10,27 +11,24 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	workerctx "github.com/travis-ci/worker/context"
-	"golang.org/x/net/context"
 )
 
-type buildScriptGeneratorFunction func(context.Context, *simplejson.Json) ([]byte, error)
+type buildScriptGeneratorFunction func(context.Context, Job) ([]byte, error)
 
-func (bsg buildScriptGeneratorFunction) Generate(ctx context.Context, json *simplejson.Json) ([]byte, error) {
-	return bsg(ctx, json)
+func (bsg buildScriptGeneratorFunction) Generate(ctx context.Context, job Job) ([]byte, error) {
+	return bsg(ctx, job)
 }
 
-type fakeCanceller struct {
-	subscribedIDs   []uint64
-	unsubscribedIDs []uint64
+type fakeJobQueue struct {
+	c chan Job
 }
 
-func (fc *fakeCanceller) Subscribe(id uint64, ch chan<- struct{}) error {
-	fc.subscribedIDs = append(fc.subscribedIDs, id)
+func (jq *fakeJobQueue) Jobs(ctx context.Context) (<-chan Job, error) {
+	return jq.c, nil
+}
+
+func (jq *fakeJobQueue) Cleanup() error {
 	return nil
-}
-
-func (fc *fakeCanceller) Unsubscribe(id uint64) {
-	fc.unsubscribedIDs = append(fc.unsubscribedIDs, id)
 }
 
 type fakeJob struct {
@@ -68,17 +66,17 @@ func (fj *fakeJob) Error(ctx context.Context, msg string) error {
 	return nil
 }
 
-func (fj *fakeJob) Requeue() error {
+func (fj *fakeJob) Requeue(ctx context.Context) error {
 	fj.events = append(fj.events, "requeued")
 	return nil
 }
 
-func (fj *fakeJob) Finish(state FinishState) error {
+func (fj *fakeJob) Finish(ctx context.Context, state FinishState) error {
 	fj.events = append(fj.events, string(state))
 	return nil
 }
 
-func (fj *fakeJob) LogWriter(ctx context.Context) (LogWriter, error) {
+func (fj *fakeJob) LogWriter(ctx context.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
 	return &fakeLogWriter{}, nil
 }
 
@@ -95,8 +93,6 @@ func (flw *fakeLogWriter) Close() error {
 func (flw *fakeLogWriter) WriteAndClose(p []byte) (int, error) {
 	return 0, nil
 }
-
-func (flw *fakeLogWriter) SetTimeout(d time.Duration) {}
 
 func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 	return make(chan time.Time)
@@ -115,14 +111,21 @@ func TestProcessor(t *testing.T) {
 		t.Error(err)
 	}
 
-	generator := buildScriptGeneratorFunction(func(ctx context.Context, json *simplejson.Json) ([]byte, error) {
+	generator := buildScriptGeneratorFunction(func(ctx context.Context, job Job) ([]byte, error) {
 		return []byte("hello, world"), nil
 	})
 
 	jobChan := make(chan Job)
-	canceller := &fakeCanceller{}
+	jobQueue := &fakeJobQueue{c: jobChan}
+	cancellationBroadcaster := NewCancellationBroadcaster()
 
-	processor, err := NewProcessor(ctx, "test-hostname", jobChan, provider, generator, canceller, 2*time.Second, time.Second)
+	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, cancellationBroadcaster, ProcessorConfig{
+		HardTimeout:         2 * time.Second,
+		LogTimeout:          time.Second,
+		ScriptUploadTimeout: 3 * time.Second,
+		StartupTimeout:      4 * time.Second,
+		MaxLogLength:        4500000,
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -152,6 +155,7 @@ func TestProcessor(t *testing.T) {
 			Config:   map[string]interface{}{},
 			Timeouts: TimeoutsPayload{},
 		},
+		startAttributes: &backend.StartAttributes{},
 	}
 	jobChan <- job
 
@@ -165,12 +169,5 @@ func TestProcessor(t *testing.T) {
 	expectedEvents := []string{"received", "started", string(FinishStatePassed)}
 	if !reflect.DeepEqual(expectedEvents, job.events) {
 		t.Errorf("job.events = %#v, expected %#v", job.events, expectedEvents)
-	}
-
-	if canceller.subscribedIDs[0] != 2 {
-		t.Errorf("canceller.subscribedIDs[0] = %d, expected 2", canceller.subscribedIDs[0])
-	}
-	if canceller.unsubscribedIDs[0] != 2 {
-		t.Errorf("canceller.unsubscribedIDs[0] = %d, expected 2", canceller.unsubscribedIDs[0])
 	}
 }

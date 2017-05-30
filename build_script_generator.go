@@ -7,12 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
-	"github.com/bitly/go-simplejson"
+	gocontext "context"
+
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/metrics"
-	gocontext "golang.org/x/net/context"
 )
 
 // A BuildScriptGeneratorError is sometimes used by the Generate method on a
@@ -26,7 +27,7 @@ type BuildScriptGeneratorError struct {
 
 // A BuildScriptGenerator generates a build script for a given job payload.
 type BuildScriptGenerator interface {
-	Generate(gocontext.Context, *simplejson.Json) ([]byte, error)
+	Generate(gocontext.Context, Job) ([]byte, error)
 }
 
 type webBuildScriptGenerator struct {
@@ -81,7 +82,9 @@ func NewBuildScriptGenerator(cfg *config.Config) BuildScriptGenerator {
 	}
 }
 
-func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, payload *simplejson.Json) ([]byte, error) {
+func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, job Job) ([]byte, error) {
+	payload := job.RawPayload()
+
 	if g.aptCacheHost != "" {
 		payload.SetPath([]string{"hosts", "apt_cache"}, g.aptCacheHost)
 	}
@@ -117,6 +120,13 @@ func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, payload *simpl
 	if u.User != nil {
 		token = u.User.Username()
 		u.User = nil
+	}
+
+	jp := job.Payload()
+	if jp != nil {
+		q := u.Query()
+		q.Set("job_id", strconv.FormatUint(jp.Job.ID, 10))
+		u.RawQuery = q.Encode()
 	}
 
 	buf := bytes.NewBuffer(b)

@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 // FileJobQueue is a JobQueue that uses directories for input, state, and output
@@ -139,7 +140,8 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 		}
 
 		buildJob.startAttributes = startAttrs.Config
-		buildJob.startAttributes.SetDefaults(f.DefaultLanguage, f.DefaultDist, f.DefaultGroup, f.DefaultOS)
+		buildJob.startAttributes.VMType = buildJob.payload.VMType
+		buildJob.startAttributes.SetDefaults(f.DefaultLanguage, f.DefaultDist, f.DefaultGroup, f.DefaultOS, VMTypeDefault)
 		buildJob.receivedFile = filepath.Join(f.receivedDir, entry.Name())
 		buildJob.startedFile = filepath.Join(f.startedDir, entry.Name())
 		buildJob.finishedFile = filepath.Join(f.finishedDir, entry.Name())

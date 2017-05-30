@@ -5,8 +5,8 @@ import (
 	"io"
 	"sort"
 
-	"github.com/codegangsta/cli"
 	"github.com/travis-ci/worker/backend"
+	"gopkg.in/urfave/cli.v1"
 )
 
 var (

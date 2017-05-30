@@ -1,6 +1,6 @@
 language: go
 
-go: 1.5.1
+go: 1.8.1
 
 dist: trusty
 
@@ -9,6 +9,7 @@ group: edge
 services:
 - rabbitmq
 - docker
+- redis
 
 env:
   global:
@@ -17,12 +18,13 @@ env:
   - PATH="bin:$HOME/gopath/bin:$HOME/bin:$PATH"
   - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
   - GO15VENDOREXPERIMENT='1'
+  - REDIS_URL="redis://"
 
 addons:
   artifacts:
     paths:
-    - "./build/linux/amd64/travis-worker"
-    - "./build/darwin/amd64/travis-worker"
+    - ./build/linux/amd64/travis-worker
+    - ./build/darwin/amd64/travis-worker
     target_paths:
     - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
     - travis-ci/worker/$(git describe --always --dirty --tags)
@@ -30,24 +32,22 @@ addons:
 
 install:
 - go get github.com/FiloSottile/gvt
-- go get github.com/alecthomas/gometalinter
-- go get github.com/laher/goxc
-- gometalinter --install --update
+- go get -u github.com/alecthomas/gometalinter
+- gometalinter --install
 - gem install package_cloud --no-ri --no-rdoc
 
 script:
 - travis_retry make deps
 - make lintall
 - make test
-- make test-race
 - make crossbuild
 - make smoke
-- make package
-- make smoke-package
-
-after_success:
-- utils/atlas-push
-- echo $ARTIFACTS_PATHS
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
+    make docker-build smoke-docker docker-push;
+  fi
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
+    make package smoke-package;
+  fi
 
 notifications:
   slack:

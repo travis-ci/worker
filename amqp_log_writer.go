@@ -7,10 +7,11 @@ import (
 	"sync"
 	"time"
 
+	gocontext "context"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
 )
 
 type amqpLogPart struct {
@@ -42,7 +43,7 @@ type amqpLogWriter struct {
 	timeout time.Duration
 }
 
-func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64) (*amqpLogWriter, error) {
+func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64, timeout time.Duration) (*amqpLogWriter, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -71,7 +72,7 @@ func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64
 		closeChan: make(chan struct{}),
 		buffer:    new(bytes.Buffer),
 		timer:     time.NewTimer(time.Hour),
-		timeout:   0,
+		timeout:   timeout,
 	}
 
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -79,7 +80,7 @@ func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64
 		"job_id": jobID,
 	}).Debug("created new log writer")
 
-	go writer.flushRegularly()
+	go writer.flushRegularly(ctx)
 
 	return writer, nil
 }
@@ -132,11 +133,6 @@ func (w *amqpLogWriter) Close() error {
 	return err
 }
 
-func (w *amqpLogWriter) SetTimeout(d time.Duration) {
-	w.timeout = d
-	w.timer.Reset(w.timeout)
-}
-
 func (w *amqpLogWriter) Timeout() <-chan time.Time {
 	return w.timer.C
 }
@@ -186,7 +182,7 @@ func (w *amqpLogWriter) closed() bool {
 	}
 }
 
-func (w *amqpLogWriter) flushRegularly() {
+func (w *amqpLogWriter) flushRegularly(ctx gocontext.Context) {
 	ticker := time.NewTicker(LogWriterTick)
 	defer ticker.Stop()
 	for {
@@ -195,6 +191,8 @@ func (w *amqpLogWriter) flushRegularly() {
 			return
 		case <-ticker.C:
 			w.flush()
+		case <-ctx.Done():
+			return
 		}
 	}
 }

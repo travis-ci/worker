@@ -1,36 +1,31 @@
 package worker
 
-import (
-	"github.com/mitchellh/multistep"
-	"github.com/travis-ci/worker/context"
-	gocontext "golang.org/x/net/context"
-)
+import "github.com/mitchellh/multistep"
 
 type stepSubscribeCancellation struct {
-	canceller Canceller
+	cancellationBroadcaster *CancellationBroadcaster
 }
 
 func (s *stepSubscribeCancellation) Run(state multistep.StateBag) multistep.StepAction {
-	ctx := state.Get("ctx").(gocontext.Context)
-	buildJob := state.Get("buildJob").(Job)
-
-	ch := make(chan struct{})
-	state.Put("cancelChan", (<-chan struct{})(ch))
-	err := s.canceller.Subscribe(buildJob.Payload().Job.ID, ch)
-	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't subscribe to canceller, attempting requeue")
-
-		err := buildJob.Requeue()
-		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
-		}
-		return multistep.ActionHalt
+	if s.cancellationBroadcaster == nil {
+		ch := make(chan struct{})
+		state.Put("cancelChan", (<-chan struct{})(ch))
+		return multistep.ActionContinue
 	}
+
+	buildJob := state.Get("buildJob").(Job)
+	ch := s.cancellationBroadcaster.Subscribe(buildJob.Payload().Job.ID)
+	state.Put("cancelChan", ch)
 
 	return multistep.ActionContinue
 }
 
 func (s *stepSubscribeCancellation) Cleanup(state multistep.StateBag) {
+	if s.cancellationBroadcaster == nil {
+		return
+	}
+
 	buildJob := state.Get("buildJob").(Job)
-	s.canceller.Unsubscribe(buildJob.Payload().Job.ID)
+	ch := state.Get("cancelChan").(<-chan struct{})
+	s.cancellationBroadcaster.Unsubscribe(buildJob.Payload().Job.ID, ch)
 }

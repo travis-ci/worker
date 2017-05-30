@@ -1,15 +1,12 @@
+// Package main implements the CLI for the travis-worker binary
 package main
 
 import (
 	"os"
 
-	"github.com/codegangsta/cli"
 	"github.com/travis-ci/worker"
 	"github.com/travis-ci/worker/config"
-)
-
-const (
-	exitAlarm = 14
+	"gopkg.in/urfave/cli.v1"
 )
 
 func main() {
@@ -26,14 +23,14 @@ func main() {
 	app.Run(os.Args)
 }
 
-func runWorker(c *cli.Context) {
+func runWorker(c *cli.Context) error {
 	workerCLI := worker.NewCLI(c)
 	canRun, err := workerCLI.Setup()
-	if !canRun {
-		if err != nil {
-			os.Exit(exitAlarm)
-		}
-		return
+	if err != nil {
+		return err
 	}
-	workerCLI.Run()
+	if canRun {
+		workerCLI.Run()
+	}
+	return nil
 }

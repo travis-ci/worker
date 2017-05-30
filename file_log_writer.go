@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	gocontext "golang.org/x/net/context"
+	gocontext "context"
 )
 
 type fileLogWriter struct {
@@ -16,7 +16,7 @@ type fileLogWriter struct {
 	timeout time.Duration
 }
 
-func newFileLogWriter(ctx gocontext.Context, logFile string) (LogWriter, error) {
+func newFileLogWriter(ctx gocontext.Context, logFile string, timeout time.Duration) (LogWriter, error) {
 	fd, err := os.Create(logFile)
 	if err != nil {
 		return nil, err
@@ -28,7 +28,7 @@ func newFileLogWriter(ctx gocontext.Context, logFile string) (LogWriter, error) 
 		fd:      fd,
 
 		timer:   time.NewTimer(time.Hour),
-		timeout: 0,
+		timeout: timeout,
 	}, nil
 }
 
@@ -42,11 +42,6 @@ func (w *fileLogWriter) Close() error {
 
 func (w *fileLogWriter) SetMaxLogLength(n int) {
 	return
-}
-
-func (w *fileLogWriter) SetTimeout(d time.Duration) {
-	w.timeout = d
-	w.timer.Reset(w.timeout)
 }
 
 func (w *fileLogWriter) Timeout() <-chan time.Time {

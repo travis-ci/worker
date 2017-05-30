@@ -61,7 +61,7 @@ __build_all_platforms() {
 
     export PC_REPO='worker'
 
-    if [[ $VERSION =~ dev ]] ; then
+    if [[ -z $TRAVIS_TAG ]] ; then
       export PC_REPO='worker-testing'
     fi
 

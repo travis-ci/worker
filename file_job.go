@@ -1,14 +1,18 @@
 package worker
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
+
+	gocontext "context"
 
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
-	gocontext "golang.org/x/net/context"
 )
 
 type fileJob struct {
@@ -44,7 +48,7 @@ func (j *fileJob) Started() error {
 }
 
 func (j *fileJob) Error(ctx gocontext.Context, errMessage string) error {
-	log, err := j.LogWriter(ctx)
+	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
 		return err
 	}
@@ -54,10 +58,12 @@ func (j *fileJob) Error(ctx gocontext.Context, errMessage string) error {
 		return err
 	}
 
-	return j.Finish(FinishStateErrored)
+	return j.Finish(ctx, FinishStateErrored)
 }
 
-func (j *fileJob) Requeue() error {
+func (j *fileJob) Requeue(ctx gocontext.Context) error {
+	context.LoggerFromContext(ctx).Info("requeueing job")
+
 	metrics.Mark("worker.job.requeue")
 
 	var err error
@@ -76,7 +82,11 @@ func (j *fileJob) Requeue() error {
 	return err
 }
 
-func (j *fileJob) Finish(state FinishState) error {
+func (j *fileJob) Finish(ctx gocontext.Context, state FinishState) error {
+	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
+
+	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
+
 	err := os.Rename(j.startedFile, j.finishedFile)
 	if err != nil {
 		return err
@@ -86,6 +96,11 @@ func (j *fileJob) Finish(state FinishState) error {
 		[]byte(state), os.FileMode(0644))
 }
 
-func (j *fileJob) LogWriter(ctx gocontext.Context) (LogWriter, error) {
-	return newFileLogWriter(ctx, j.logFile)
+func (j *fileJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
+	logTimeout := time.Duration(j.payload.Timeouts.LogSilence) * time.Second
+	if logTimeout == 0 {
+		logTimeout = defaultLogTimeout
+	}
+
+	return newFileLogWriter(ctx, j.logFile, logTimeout)
 }

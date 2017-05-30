@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
+	gocontext "context"
+
 	"github.com/travis-ci/worker/config"
-	gocontext "golang.org/x/net/context"
 )
 
 var (
@@ -47,7 +48,7 @@ func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttri
 	return newLocalInstance(p)
 }
 
-func (p *localProvider) Setup() error { return nil }
+func (p *localProvider) Setup(ctx gocontext.Context) error { return nil }
 
 type localInstance struct {
 	p *localProvider

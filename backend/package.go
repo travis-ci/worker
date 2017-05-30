@@ -1,12 +1,39 @@
+/*
+Package backend provides the compute instance backends supported by Worker.
+
+Other code will primarily interact with this package by creating a Provider
+implementation and creating Instances. An example using the "fake" provider
+(error handling omitted):
+
+	provider := backend.NewBackendProvider(
+		"fake",
+		config.ProviderConfigFromMap(map[string]string{
+			"STARTUP_DURATION": "1s",
+			"LOG_OUTPUT": "Hello, world!",
+		}),
+	)
+
+	provider.Setup(ctx)
+
+	instance, _ := provider.Start(ctx, &backend.StartAttributes{
+		Language: "go",
+		OS: "linux",
+	})
+	defer instance.Stop(ctx)
+
+	instance.UploadScript(ctx, []byte("#!/bin/sh\necho 'Hello, world!'))
+	instance.RunScript(ctx, os.Stdout)
+
+New providers should call Register in init() to register the alias it should be called with and the options it supports for the --help output.
+*/
 package backend
 
 import (
+	"context"
 	"fmt"
 	"io"
-	"regexp"
+	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 var (
@@ -19,7 +46,6 @@ var (
 	// an 'ENDPOINT' configuration, but one is required.
 	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
 
-	punctRegex   = regexp.MustCompile(`[&+/=\\]`)
 	zeroDuration time.Duration
 )
 
@@ -29,7 +55,7 @@ var (
 type Provider interface {
 	// Setup performs whatever is necessary in order to be ready to start
 	// instances.
-	Setup() error
+	Setup(context.Context) error
 
 	// Start starts an instance. It shouldn't return until the instance is
 	// ready to call UploadScript on (this may, for example, mean that it
@@ -64,4 +90,32 @@ type RunResult struct {
 	// Whether the script finished running or not. Can be false if there was a
 	// connection error in the middle of the script run.
 	Completed bool
+}
+
+func asBool(s string) bool {
+	switch strings.ToLower(s) {
+	case "0", "no", "off", "false", "":
+		return false
+	default:
+		return true
+	}
+}
+
+func str2map(s string) map[string]string {
+	ret := map[string]string{}
+
+	for _, kv := range strings.Split(s, " ") {
+		kvParts := strings.SplitN(kv, ":", 2)
+		key := strings.TrimSpace(kvParts[0])
+		if key == "" {
+			continue
+		}
+		if len(kvParts) == 1 {
+			ret[key] = ""
+		} else {
+			ret[key] = strings.TrimSpace(kvParts[1])
+		}
+	}
+
+	return ret
 }

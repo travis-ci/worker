@@ -1,13 +1,25 @@
 package worker
 
 import (
+	"time"
+
+	gocontext "context"
+
 	"github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
-	gocontext "golang.org/x/net/context"
+)
+
+const (
+	VMTypeDefault = "default"
+	VMTypePremium = "premium"
 )
 
 type jobPayloadStartAttrs struct {
 	Config *backend.StartAttributes `json:"config"`
+}
+
+type httpJobPayloadStartAttrs struct {
+	Data *jobPayloadStartAttrs `json:"data"`
 }
 
 // JobPayload is the payload we receive over RabbitMQ.
@@ -19,12 +31,20 @@ type JobPayload struct {
 	UUID       string                 `json:"uuid"`
 	Config     map[string]interface{} `json:"config"`
 	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
+	VMType     string                 `json:"vm_type"`
+	Meta       JobMetaPayload         `json:"meta"`
+}
+
+// JobMetaPayload contains meta information about the job.
+type JobMetaPayload struct {
+	StateUpdateCount uint `json:"state_update_count"`
 }
 
 // JobJobPayload contains information about the job.
 type JobJobPayload struct {
-	ID     uint64 `json:"id"`
-	Number string `json:"number"`
+	ID       uint64     `json:"id"`
+	Number   string     `json:"number"`
+	QueuedAt *time.Time `json:"queued_at"`
 }
 
 // BuildPayload contains information about the build.
@@ -68,8 +88,8 @@ type Job interface {
 	Received() error
 	Started() error
 	Error(gocontext.Context, string) error
-	Requeue() error
-	Finish(FinishState) error
+	Requeue(gocontext.Context) error
+	Finish(gocontext.Context, FinishState) error
 
-	LogWriter(gocontext.Context) (LogWriter, error)
+	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
 }
