@@ -80,7 +80,7 @@ func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64
 		"job_id": jobID,
 	}).Debug("created new log writer")
 
-	go writer.flushRegularly()
+	go writer.flushRegularly(ctx)
 
 	return writer, nil
 }
@@ -182,7 +182,7 @@ func (w *amqpLogWriter) closed() bool {
 	}
 }
 
-func (w *amqpLogWriter) flushRegularly() {
+func (w *amqpLogWriter) flushRegularly(ctx gocontext.Context) {
 	ticker := time.NewTicker(LogWriterTick)
 	defer ticker.Stop()
 	for {
@@ -191,6 +191,8 @@ func (w *amqpLogWriter) flushRegularly() {
 			return
 		case <-ticker.C:
 			w.flush()
+		case <-ctx.Done():
+			return
 		}
 	}
 }

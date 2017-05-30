@@ -4,10 +4,24 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- config: Initial sleep duration prior to beginning job execution
+
 ### Changed
+- amqp-log-writer, http-log-writer: check context done to prevent goroutine leakage
+- http-job-queue:
+    - reuse cached build job channel if present
+    - check context done to prevent goroutine leakage
+    - attach context to all HTTP requests
+    - more debug logging
+- processor: check for cancellation in between various steps
+
 ### Deprecated
+
 ### Removed
+
 ### Fixed
+- http-log-writer: flush buffer regularly in the background
+
 ### Security
 
 ## [2.8.2] - 2017-05-17
