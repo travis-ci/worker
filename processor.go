@@ -19,10 +19,11 @@ type Processor struct {
 	hostname string
 
 	hardTimeout         time.Duration
+	initialSleep        time.Duration
 	logTimeout          time.Duration
+	maxLogLength        int
 	scriptUploadTimeout time.Duration
 	startupTimeout      time.Duration
-	maxLogLength        int
 
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
@@ -50,10 +51,11 @@ type Processor struct {
 
 type ProcessorConfig struct {
 	HardTimeout         time.Duration
+	InitialSleep        time.Duration
 	LogTimeout          time.Duration
+	MaxLogLength        int
 	ScriptUploadTimeout time.Duration
 	StartupTimeout      time.Duration
-	MaxLogLength        int
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
@@ -79,6 +81,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		ID:       processorUUID,
 		hostname: hostname,
 
+		initialSleep:        config.InitialSleep,
 		hardTimeout:         config.HardTimeout,
 		logTimeout:          config.LogTimeout,
 		scriptUploadTimeout: config.ScriptUploadTimeout,
@@ -195,19 +198,25 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			generator: p.generator,
 		},
 		&stepSendReceived{},
+		&stepSleep{duration: p.initialSleep},
+		&stepCheckCancellation{},
 		&stepOpenLogWriter{
 			maxLogLength:      p.maxLogLength,
 			defaultLogTimeout: p.logTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepStartInstance{
 			provider:     p.provider,
 			startTimeout: p.startupTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepUploadScript{
 			uploadTimeout: p.scriptUploadTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepUpdateState{},
 		&stepWriteWorkerInfo{},
+		&stepCheckCancellation{},
 		&stepRunScript{
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,
