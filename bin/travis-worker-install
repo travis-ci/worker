@@ -43,6 +43,9 @@ main() {
         export INSTALL_MODE=edge
         export PACKAGECLOUD_SOURCE='travisci/worker-testing'
         ;;
+      --enterprise)
+        export TRAVIS_ENTERPRISE=1
+        ;;
       --docker[-_]install[-_]mode=*)
         export INSTALL_MODE="${1#*=}"
         ;;
@@ -59,15 +62,19 @@ main() {
         ;;
       --travis[-_]enterprise[-_]build[-_]endpoint=*)
         export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="${1#*=}"
+        export TRAVIS_ENTERPRISE=1
         ;;
       --travis[-_]enterprise[-_]config=*)
         export TRAVIS_ENTERPRISE_CONFIG="${1#*=}"
+        export TRAVIS_ENTERPRISE=1
         ;;
       --travis[-_]enterprise[-_]host=*)
         export TRAVIS_ENTERPRISE_HOST="${1#*=}"
+        export TRAVIS_ENTERPRISE=1
         ;;
       --travis[-_]enterprise[-_]security[-_]token=*)
         export TRAVIS_ENTERPRISE_SECURITY_TOKEN="${1#*=}"
+        export TRAVIS_ENTERPRISE=1
         ;;
       --travis[-_]queue[-_]name=*)
         export TRAVIS_QUEUE_NAME="${1#*=}"
@@ -138,6 +145,7 @@ OPTIONS:
   --docker-image-languages - travis-specific language docker images to pull [\$DOCKER_IMAGE_LANGUAGES]
   --docker-install-mode - install docker "edge" or "stable" (default: $INSTALL_MODE) [\$INSTALL_MODE]
   --edge - shortcut for --docker-install-mode=edge & --packagecloud-source=travisci/worker-testing
+  --enterprise - assume running as part of a Travis Enterprise installation [\$TRAVIS_ENTERPRISE]
   --packagecloud-source - name of source for travis-worker installation (default: travisci/worker) [\$PACKAGECLOUD_SOURCE]
   --skip-docker-populate - skip pulling docker images for jobs [\$SKIP_DOCKER_POPULATE]
   --stable - shortcut for --docker-install-mode=stable & --packagecloud-source=travisci/worker
@@ -146,7 +154,7 @@ OPTIONS:
   --travis-enterprise-config - path to enterprise-specific config file [\$TRAVIS_ENTERPRISE_CONFIG]
   --travis-enterprise-host - hostname of enterprise platform (default: demo.enterprise.travis-ci.com) [\$TRAVIS_ENTERPRISE_HOST]
   --travis-enterprise-security-token - auth token for communicating with enterprise platform [\$TRAVIS_ENTERPRISE_SECURITY_TOKEN] 
-  --travis-queue-name - enterprise platform queue from which to consume jobs [\$TRAVIS_QUEUE_NAME]
+  --travis-queue-name - queue from which to consume jobs [\$TRAVIS_QUEUE_NAME]
   --travis-worker-version - travis-worker version to install (default: latest) [\$TRAVIS_WORKER_VERSION]
   -h / --help - show this help text and exit 0
 
@@ -252,6 +260,20 @@ __configure_travis_worker() {
   : ${TRAVIS_ENTERPRISE_CONFIG:=/etc/default/travis-enterprise}
   : ${TRAVIS_WORKER_CONFIG:=/etc/default/travis-worker}
 
+  if [[ $TRAVIS_QUEUE_NAME ]] ; then
+    sed -i \
+      "s/export QUEUE_NAME='builds.linux'/export QUEUE_NAME=\'$TRAVIS_QUEUE_NAME\'/" \
+      $TRAVIS_WORKER_CONFIG
+  fi
+
+  if [[ ! $TRAVIS_ENTERPRISE ]] ; then
+    return
+  fi
+
+  sed -i \
+    "/\# export TRAVIS_WORKER_DOCKER_PRIVILEGED/s/^\# //"
+    $TRAVIS_ENTERPRISE_CONFIG
+
   if [[ $TRAVIS_ENTERPRISE_HOST ]] ; then
     sed -i \
       "s/\# export TRAVIS_ENTERPRISE_HOST=\"enterprise.yourhostname.corp\"/export TRAVIS_ENTERPRISE_HOST=\"$TRAVIS_ENTERPRISE_HOST\"/" \
@@ -268,12 +290,6 @@ __configure_travis_worker() {
     sed -i \
       "s/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"__build__\"/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"$TRAVIS_ENTERPRISE_BUILD_ENDPOINT\"/" \
       $TRAVIS_ENTERPRISE_CONFIG
-  fi
-
-  if [[ $TRAVIS_QUEUE_NAME ]] ; then
-    sed -i \
-      "s/export QUEUE_NAME='builds.linux'/export QUEUE_NAME=\'$TRAVIS_QUEUE_NAME\'/" \
-      $TRAVIS_WORKER_CONFIG
   fi
 }
 
