@@ -21,7 +21,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
 		} else {
 			buildJob := state.Get("buildJob").(Job)
-			err := buildJob.Finish(FinishStateCancelled)
+			err := buildJob.Finish(ctx, FinishStateCancelled)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 			}
@@ -42,7 +42,7 @@ func (s *stepCheckCancellation) writeLogAndFinishWithState(ctx gocontext.Context
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write final log message")
 	}
 
-	err = buildJob.Finish(state)
+	err = buildJob.Finish(ctx, state)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 	}
