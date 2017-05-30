@@ -156,13 +156,15 @@ func (i *CLI) Setup() (bool, error) {
 	i.BackendProvider = provider
 
 	ppc := &ProcessorPoolConfig{
-		Hostname:            i.Config.Hostname,
-		Context:             ctx,
+		Hostname: i.Config.Hostname,
+		Context:  ctx,
+
 		HardTimeout:         i.Config.HardTimeout,
+		InitialSleep:        i.Config.InitialSleep,
 		LogTimeout:          i.Config.LogTimeout,
+		MaxLogLength:        i.Config.MaxLogLength,
 		ScriptUploadTimeout: i.Config.ScriptUploadTimeout,
 		StartupTimeout:      i.Config.StartupTimeout,
-		MaxLogLength:        i.Config.MaxLogLength,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)

@@ -21,14 +21,15 @@ var (
 	defaultProviderName           = "docker"
 	defaultQueueType              = "amqp"
 
-	defaultHardTimeout, _            = time.ParseDuration("50m")
-	defaultLogTimeout, _             = time.ParseDuration("10m")
-	defaultScriptUploadTimeout, _    = time.ParseDuration("3m30s")
-	defaultStartupTimeout, _         = time.ParseDuration("4m")
+	defaultHardTimeout, _         = time.ParseDuration("50m")
+	defaultInitialSleep, _        = time.ParseDuration("1s")
+	defaultLogTimeout, _          = time.ParseDuration("10m")
+	defaultMaxLogLength           = 4500000
+	defaultScriptUploadTimeout, _ = time.ParseDuration("3m30s")
+	defaultStartupTimeout, _      = time.ParseDuration("4m")
+
 	defaultBuildCacheFetchTimeout, _ = time.ParseDuration("5m")
 	defaultBuildCachePushTimeout, _  = time.ParseDuration("5m")
-
-	defaultMaxLogLength = 4500000
 
 	defaultHostname, _ = os.Hostname()
 	defaultLanguage    = "default"
@@ -117,6 +118,10 @@ var (
 		NewConfigDef("HardTimeout", &cli.DurationFlag{
 			Value: defaultHardTimeout,
 			Usage: "The outermost (maximum) timeout for a given job, at which time the job is cancelled",
+		}),
+		NewConfigDef("InitialSleep", &cli.DurationFlag{
+			Value: defaultInitialSleep,
+			Usage: "The time to sleep prior to opening log and starting job",
 		}),
 		NewConfigDef("LogTimeout", &cli.DurationFlag{
 			Value: defaultLogTimeout,
@@ -304,11 +309,13 @@ type Config struct {
 	TravisSite      string `config:"travis-site"`
 
 	FilePollingInterval time.Duration `config:"file-polling-interval"`
+
 	HardTimeout         time.Duration `config:"hard-timeout"`
+	InitialSleep        time.Duration `config:"initial-sleep"`
 	LogTimeout          time.Duration `config:"log-timeout"`
+	MaxLogLength        int           `config:"max-log-length"`
 	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
 	StartupTimeout      time.Duration `config:"startup-timeout"`
-	MaxLogLength        int           `config:"max-log-length"`
 
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`

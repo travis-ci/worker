@@ -22,8 +22,8 @@ type ProcessorPool struct {
 	CancellationBroadcaster *CancellationBroadcaster
 	Hostname                string
 
-	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
-	MaxLogLength                                                 int
+	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                               int
 
 	SkipShutdownOnLogTimeout bool
 
@@ -39,8 +39,8 @@ type ProcessorPoolConfig struct {
 	Hostname string
 	Context  gocontext.Context
 
-	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
-	MaxLogLength                                                 int
+	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                               int
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -53,6 +53,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Context:  ppc.Context,
 
 		HardTimeout:         ppc.HardTimeout,
+		InitialSleep:        ppc.InitialSleep,
 		LogTimeout:          ppc.LogTimeout,
 		ScriptUploadTimeout: ppc.ScriptUploadTimeout,
 		StartupTimeout:      ppc.StartupTimeout,
@@ -178,10 +179,11 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 		queue, p.Provider, p.Generator, p.CancellationBroadcaster,
 		ProcessorConfig{
 			HardTimeout:         p.HardTimeout,
+			InitialSleep:        p.InitialSleep,
 			LogTimeout:          p.LogTimeout,
+			MaxLogLength:        p.MaxLogLength,
 			ScriptUploadTimeout: p.ScriptUploadTimeout,
 			StartupTimeout:      p.StartupTimeout,
-			MaxLogLength:        p.MaxLogLength,
 		})
 
 	if err != nil {
