@@ -31,6 +31,7 @@ export GO15VENDOREXPERIMENT
 export DOCKER_DEST
 
 COVERPROFILES := \
+	root-coverage.coverprofile \
 	backend-coverage.coverprofile \
 	config-coverage.coverprofile \
 	image-coverage.coverprofile
@@ -41,7 +42,7 @@ CROSSBUILD_BINARIES := \
 %-coverage.coverprofile:
 	$(GO) test -v -covermode=count -coverprofile=$@ \
 		-x -ldflags "$(GOBUILD_LDFLAGS)" \
-		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
+		$(PACKAGE)/$(subst -,/,$(subst root,,$(subst -coverage.coverprofile,,$@)))
 
 .PHONY: %
 %:

@@ -69,6 +69,9 @@ func newHTTPLogPartSink(ctx gocontext.Context, url, authToken string, maxBufferS
 }
 
 func (lps *httpLogPartSink) Add(part *httpLogPart) error {
+	lps.partsBufferMutex.Lock()
+	defer lps.partsBufferMutex.Unlock()
+
 	if len(lps.partsBuffer) >= int(lps.maxBufferSize) {
 		// NOTE: This error may deserve special handling at a higher level to do
 		// something like canceling and resetting the job.  The implementation here
@@ -76,9 +79,6 @@ func (lps *httpLogPartSink) Add(part *httpLogPart) error {
 		// assuming the necessary config bits are set.
 		return maxHTTPLogPartSinkBufferSizeErr
 	}
-
-	lps.partsBufferMutex.Lock()
-	defer lps.partsBufferMutex.Unlock()
 
 	lps.partsBuffer = append(lps.partsBuffer, part)
 	return nil
