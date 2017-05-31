@@ -2,7 +2,11 @@ package worker
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"time"
+
+	gocontext "context"
 
 	"github.com/Sirupsen/logrus"
 	simplejson "github.com/bitly/go-simplejson"
@@ -11,6 +15,7 @@ import (
 
 func init() {
 	logrus.SetLevel(logrus.FatalLevel)
+	defaultHTTPLogPartSink = buildTestHTTPLogPartSink()
 }
 
 type fakeJobQueue struct {
@@ -100,3 +105,21 @@ func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 }
 
 func (flw *fakeLogWriter) SetMaxLogLength(l int) {}
+
+func buildTestHTTPLogPartSink() *httpLogPartSink {
+	return newHTTPLogPartSink(
+		gocontext.TODO(),
+		buildTestHTTPLogPartSinkServer().URL,
+		"fafafaf",
+		uint64(1000))
+}
+
+func buildTestHTTPLogPartSinkServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" && r.URL.Path == "/log-parts/multi" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.WriteHeader(http.StatusNotImplemented)
+	}))
+}
