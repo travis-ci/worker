@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +35,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 	outChan = buildJobChan
 
 	msjq.buildJobChans = map[string]<-chan Job{}
-	for _, queue := range msjq.queues {
+	for i, queue := range msjq.queues {
 		jc, err := queue.Jobs(ctx)
 		if err != nil {
 			logger.WithFields(logrus.Fields{
@@ -43,7 +44,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 			}).Error("failed to get job chan from queue")
 			return nil, err
 		}
-		msjq.buildJobChans[queue.Name()] = jc
+		msjq.buildJobChans[fmt.Sprintf("%s.%d", queue.Name(), i)] = jc
 	}
 
 	go func() {

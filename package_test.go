@@ -15,6 +15,8 @@ func init() {
 
 type fakeJobQueue struct {
 	c chan Job
+
+	cleanedUp bool
 }
 
 func (jq *fakeJobQueue) Jobs(ctx context.Context) (<-chan Job, error) {
@@ -23,7 +25,10 @@ func (jq *fakeJobQueue) Jobs(ctx context.Context) (<-chan Job, error) {
 
 func (jq *fakeJobQueue) Name() string { return "fake" }
 
-func (jq *fakeJobQueue) Cleanup() error { return nil }
+func (jq *fakeJobQueue) Cleanup() error {
+	jq.cleanedUp = true
+	return nil
+}
 
 type fakeJob struct {
 	payload         *JobPayload
