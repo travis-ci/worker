@@ -47,9 +47,8 @@ type httpLogPartEncodedPayload struct {
 }
 
 type httpLogPartSink struct {
-	httpClient  *http.Client
-	httpBackOff *backoff.ExponentialBackOff
-	baseURL     string
+	httpClient *http.Client
+	baseURL    string
 
 	partsBuffer      []*httpLogPart
 	partsBufferMutex *sync.Mutex
@@ -58,14 +57,8 @@ type httpLogPartSink struct {
 }
 
 func newHTTPLogPartSink(ctx gocontext.Context, url string, maxBufferSize uint64) *httpLogPartSink {
-	httpBackOff := backoff.NewExponentialBackOff()
-	// TODO: make this configurable?
-	httpBackOff.MaxInterval = 10 * time.Second
-	httpBackOff.MaxElapsedTime = 3 * time.Minute
-
 	lps := &httpLogPartSink{
 		httpClient:       &http.Client{},
-		httpBackOff:      httpBackOff,
 		baseURL:          url,
 		partsBuffer:      []*httpLogPart{},
 		partsBufferMutex: &sync.Mutex{},
@@ -114,9 +107,9 @@ func (lps *httpLogPartSink) flushRegularly(ctx gocontext.Context) {
 
 func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
-	logger.WithField("size", len(lps.partsBuffer)).Debug("flushing log parts buffer")
 
 	lps.partsBufferMutex.Lock()
+	logger.WithField("size", len(lps.partsBuffer)).Debug("flushing log parts buffer")
 	bufferSample := make([]*httpLogPart, len(lps.partsBuffer))
 	copy(bufferSample, lps.partsBuffer)
 	lps.partsBuffer = []*httpLogPart{}
@@ -177,6 +170,11 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 	req.Header.Set("Authorization", fmt.Sprintf("token sig:%s", lps.generatePayloadSignature(payload)))
 	req = req.WithContext(ctx)
 
+	httpBackOff := backoff.NewExponentialBackOff()
+	// TODO: make this configurable?
+	httpBackOff.MaxInterval = 10 * time.Second
+	httpBackOff.MaxElapsedTime = 3 * time.Minute
+
 	var resp *http.Response
 	err = backoff.Retry(func() (err error) {
 		resp, err = lps.httpClient.Do(req)
@@ -184,7 +182,7 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
 		}
 		return
-	}, lps.httpBackOff)
+	}, httpBackOff)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to send log parts with retries")

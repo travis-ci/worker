@@ -13,6 +13,10 @@ import (
 	"github.com/travis-ci/worker/backend"
 )
 
+var (
+	testHTTPLogSinkServer = buildTestHTTPLogPartSinkServer()
+)
+
 func init() {
 	logrus.SetLevel(logrus.FatalLevel)
 	buildTestHTTPLogPartSink()
@@ -109,8 +113,7 @@ func (flw *fakeLogWriter) SetMaxLogLength(l int) {}
 func buildTestHTTPLogPartSink() {
 	httpLogPartSinksByURLMutex.Lock()
 	defer httpLogPartSinksByURLMutex.Unlock()
-	url := buildTestHTTPLogPartSinkServer().URL
-	httpLogPartSinksByURL[url] = newHTTPLogPartSink(gocontext.TODO(), url, uint64(1000))
+	httpLogPartSinksByURL[testHTTPLogSinkServer.URL] = newHTTPLogPartSink(gocontext.TODO(), testHTTPLogSinkServer.URL, uint64(1000))
 }
 
 func buildTestHTTPLogPartSinkServer() *httptest.Server {
