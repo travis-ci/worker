@@ -14,16 +14,19 @@ func TestNewHTTPLogPartSink(t *testing.T) {
 	lps := newHTTPLogPartSink(
 		ctx,
 		"http://example.org/log-parts/multi",
-		"fafafaf",
 		uint64(1000))
 
 	assert.NotNil(t, lps)
 }
 
 func TestHTTPLogPartSink_flush(t *testing.T) {
-	lps := defaultHTTPLogPartSink
+	ctx := gocontext.TODO()
+	var lps *httpLogPartSink
+	for _, lpsValue := range httpLogPartSinksByURL {
+		lps = lpsValue
+	}
 	lps.flush(gocontext.TODO())
-	lps.Add(&httpLogPart{
+	lps.Add(ctx, &httpLogPart{
 		JobID:   uint64(4),
 		Content: "wat",
 		Number:  3,
@@ -31,6 +34,6 @@ func TestHTTPLogPartSink_flush(t *testing.T) {
 	})
 
 	assert.Len(t, lps.partsBuffer, 1)
-	lps.flush(gocontext.TODO())
+	lps.flush(ctx)
 	assert.Len(t, lps.partsBuffer, 0)
 }

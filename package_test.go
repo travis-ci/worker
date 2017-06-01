@@ -15,7 +15,7 @@ import (
 
 func init() {
 	logrus.SetLevel(logrus.FatalLevel)
-	defaultHTTPLogPartSink = buildTestHTTPLogPartSink()
+	buildTestHTTPLogPartSink()
 }
 
 type fakeJobQueue struct {
@@ -106,12 +106,11 @@ func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 
 func (flw *fakeLogWriter) SetMaxLogLength(l int) {}
 
-func buildTestHTTPLogPartSink() *httpLogPartSink {
-	return newHTTPLogPartSink(
-		gocontext.TODO(),
-		buildTestHTTPLogPartSinkServer().URL,
-		"fafafaf",
-		uint64(1000))
+func buildTestHTTPLogPartSink() {
+	httpLogPartSinksByURLMutex.Lock()
+	defer httpLogPartSinksByURLMutex.Unlock()
+	url := buildTestHTTPLogPartSinkServer().URL
+	httpLogPartSinksByURL[url] = newHTTPLogPartSink(gocontext.TODO(), url, uint64(1000))
 }
 
 func buildTestHTTPLogPartSinkServer() *httptest.Server {

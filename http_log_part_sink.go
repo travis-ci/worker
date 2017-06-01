@@ -2,24 +2,28 @@ package worker
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	gocontext "context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
 )
 
 var (
-	defaultHTTPLogPartSink      *httpLogPartSink
-	defaultHTTPLogPartSinkMutex = &sync.Mutex{}
+	httpLogPartSinksByURL      = map[string]*httpLogPartSink{}
+	httpLogPartSinksByURLMutex = &sync.Mutex{}
 )
 
 const (
@@ -38,6 +42,7 @@ type httpLogPartEncodedPayload struct {
 	Final    bool   `json:"final"`
 	JobID    uint64 `json:"job_id"`
 	Number   int    `json:"number"`
+	Token    string `json:"tok"`
 	Type     string `json:"@type"`
 }
 
@@ -45,7 +50,6 @@ type httpLogPartSink struct {
 	httpClient  *http.Client
 	httpBackOff *backoff.ExponentialBackOff
 	baseURL     string
-	authToken   string
 
 	partsBuffer      []*httpLogPart
 	partsBufferMutex *sync.Mutex
@@ -53,7 +57,7 @@ type httpLogPartSink struct {
 	maxBufferSize uint64
 }
 
-func newHTTPLogPartSink(ctx gocontext.Context, url, authToken string, maxBufferSize uint64) *httpLogPartSink {
+func newHTTPLogPartSink(ctx gocontext.Context, url string, maxBufferSize uint64) *httpLogPartSink {
 	httpBackOff := backoff.NewExponentialBackOff()
 	// TODO: make this configurable?
 	httpBackOff.MaxInterval = 10 * time.Second
@@ -63,7 +67,6 @@ func newHTTPLogPartSink(ctx gocontext.Context, url, authToken string, maxBufferS
 		httpClient:       &http.Client{},
 		httpBackOff:      httpBackOff,
 		baseURL:          url,
-		authToken:        authToken,
 		partsBuffer:      []*httpLogPart{},
 		partsBufferMutex: &sync.Mutex{},
 		maxBufferSize:    maxBufferSize,
@@ -74,7 +77,7 @@ func newHTTPLogPartSink(ctx gocontext.Context, url, authToken string, maxBufferS
 	return lps
 }
 
-func (lps *httpLogPartSink) Add(part *httpLogPart) error {
+func (lps *httpLogPartSink) Add(ctx gocontext.Context, part *httpLogPart) error {
 	lps.partsBufferMutex.Lock()
 	defer lps.partsBufferMutex.Unlock()
 
@@ -87,6 +90,12 @@ func (lps *httpLogPartSink) Add(part *httpLogPart) error {
 	}
 
 	lps.partsBuffer = append(lps.partsBuffer, part)
+
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "http_log_part_sink",
+		"size": len(lps.partsBuffer),
+	}).Debug("appended to log parts buffer")
+
 	return nil
 }
 
@@ -104,6 +113,9 @@ func (lps *httpLogPartSink) flushRegularly(ctx gocontext.Context) {
 }
 
 func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
+	logger.WithField("size", len(lps.partsBuffer)).Debug("flushing log parts buffer")
+
 	lps.partsBufferMutex.Lock()
 	bufferSample := make([]*httpLogPart, len(lps.partsBuffer))
 	copy(bufferSample, lps.partsBuffer)
@@ -113,26 +125,31 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 	payload := []*httpLogPartEncodedPayload{}
 
 	for _, part := range bufferSample {
+		logger.WithFields(logrus.Fields{
+			"job_id": part.JobID,
+			"number": part.Number,
+		}).Debug("appending encoded log part to payload")
+
 		payload = append(payload, &httpLogPartEncodedPayload{
 			Content:  base64.StdEncoding.EncodeToString([]byte(part.Content)),
 			Encoding: "base64",
 			Final:    part.Final,
 			JobID:    part.JobID,
 			Number:   part.Number,
+			Token:    part.Token,
 			Type:     "log_part",
 		})
 	}
 
-	err := lps.publishLogParts(payload)
+	err := lps.publishLogParts(ctx, payload)
 	if err != nil {
 		// NOTE: This is the point of origin for log parts backpressure, in
 		// combination with the error returned by `.Add` when maxBufferSize is
 		// reached.  Because running jobs will not be able to send their log parts
 		// anywhere, it remains to be determined whether we should cancel (and
 		// reset) running jobs or allow them to complete without capturing output.
-		logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
 		for _, part := range bufferSample {
-			addErr := lps.Add(part)
+			addErr := lps.Add(ctx, part)
 			if addErr != nil {
 				logger.WithField("err", addErr).Error("failed to re-add buffer sample log part")
 			}
@@ -141,12 +158,11 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 	}
 }
 
-func (lps *httpLogPartSink) publishLogParts(payload []*httpLogPartEncodedPayload) error {
+func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*httpLogPartEncodedPayload) error {
 	publishURL, err := url.Parse(lps.baseURL)
 	if err != nil {
 		return errors.Wrap(err, "couldn't parse base URL")
 	}
-	publishURL.Path = "/log-parts/multi"
 
 	payloadBody, err := json.Marshal(payload)
 	if err != nil {
@@ -158,7 +174,8 @@ func (lps *httpLogPartSink) publishLogParts(payload []*httpLogPartEncodedPayload
 		return errors.Wrap(err, "couldn't create request")
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", lps.authToken))
+	req.Header.Set("Authorization", fmt.Sprintf("token sig:%s", lps.generatePayloadSignature(payload)))
+	req = req.WithContext(ctx)
 
 	var resp *http.Response
 	err = backoff.Retry(func() (err error) {
@@ -174,4 +191,14 @@ func (lps *httpLogPartSink) publishLogParts(payload []*httpLogPartEncodedPayload
 	}
 
 	return nil
+}
+
+func (lps *httpLogPartSink) generatePayloadSignature(payload []*httpLogPartEncodedPayload) string {
+	authTokens := []string{}
+	for _, logPart := range payload {
+		authTokens = append(authTokens, logPart.Token)
+	}
+
+	sig := sha1.Sum([]byte(strings.Join(authTokens, "")))
+	return fmt.Sprintf("%s", hex.EncodeToString(sig[:]))
 }

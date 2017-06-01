@@ -13,15 +13,17 @@ import (
 )
 
 type httpLogPart struct {
-	Content string `json:"log"`
-	Final   bool   `json:"final"`
-	JobID   uint64 `json:"id"`
-	Number  int    `json:"number"`
+	Content string
+	Final   bool
+	JobID   uint64
+	Number  int
+	Token   string
 }
 
 type httpLogWriter struct {
-	ctx   gocontext.Context
-	jobID uint64
+	ctx       gocontext.Context
+	jobID     uint64
+	authToken string
 
 	closeChan chan struct{}
 
@@ -39,21 +41,29 @@ type httpLogWriter struct {
 }
 
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64, timeout time.Duration) (*httpLogWriter, error) {
-	defaultHTTPLogPartSinkMutex.Lock()
-	defer defaultHTTPLogPartSinkMutex.Unlock()
+	httpLogPartSinksByURLMutex.Lock()
+	defer httpLogPartSinksByURLMutex.Unlock()
 
-	if defaultHTTPLogPartSink == nil {
-		defaultHTTPLogPartSink = newHTTPLogPartSink(ctx, url, authToken, defaultHTTPLogPartSinkMaxBufferSize)
+	var (
+		lps *httpLogPartSink
+		ok  bool
+	)
+
+	if lps, ok = httpLogPartSinksByURL[url]; !ok {
+		lps = newHTTPLogPartSink(context.FromComponent(ctx, "log_part_sink"),
+			url, defaultHTTPLogPartSinkMaxBufferSize)
+		httpLogPartSinksByURL[url] = lps
 	}
 
 	writer := &httpLogWriter{
 		ctx:       context.FromComponent(ctx, "log_writer"),
 		jobID:     jobID,
+		authToken: authToken,
 		closeChan: make(chan struct{}),
 		buffer:    new(bytes.Buffer),
 		timer:     time.NewTimer(time.Hour),
 		timeout:   timeout,
-		lps:       defaultHTTPLogPartSink,
+		lps:       lps,
 	}
 
 	go writer.flushRegularly(ctx)
@@ -99,10 +109,11 @@ func (w *httpLogWriter) Close() error {
 	close(w.closeChan)
 	w.flush()
 
-	err := w.lps.Add(&httpLogPart{
+	err := w.lps.Add(w.ctx, &httpLogPart{
+		Final:  true,
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
-		Final:  true,
+		Token:  w.authToken,
 	})
 
 	if err != nil {
@@ -144,12 +155,13 @@ func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {
 	w.flush()
 
 	part := &httpLogPart{
+		Final:  true,
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
-		Final:  true,
+		Token:  w.authToken,
 	}
 
-	err = w.lps.Add(part)
+	err = w.lps.Add(w.ctx, part)
 
 	if err != nil {
 		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
@@ -205,10 +217,11 @@ func (w *httpLogWriter) flush() {
 			panic("non-empty buffer shouldn't return an error on Read")
 		}
 
-		err = w.lps.Add(&httpLogPart{
-			JobID:   w.jobID,
+		err = w.lps.Add(w.ctx, &httpLogPart{
 			Content: string(buf[0:n]),
+			JobID:   w.jobID,
 			Number:  w.logPartNumber,
+			Token:   w.authToken,
 		})
 		if err != nil {
 			context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
