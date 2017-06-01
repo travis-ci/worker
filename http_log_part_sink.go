@@ -12,7 +12,6 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
@@ -21,8 +20,6 @@ import (
 var (
 	defaultHTTPLogPartSink      *httpLogPartSink
 	defaultHTTPLogPartSinkMutex = &sync.Mutex{}
-
-	maxHTTPLogPartSinkBufferSizeErr = fmt.Errorf("log sink buffer size maximum reached")
 )
 
 const (
@@ -86,7 +83,7 @@ func (lps *httpLogPartSink) Add(part *httpLogPart) error {
 		// something like canceling and resetting the job.  The implementation here
 		// will result in a sentry error being captured (in http_log_writer)
 		// assuming the necessary config bits are set.
-		return maxHTTPLogPartSinkBufferSizeErr
+		return fmt.Errorf("log sink buffer reached maximum size %d", lps.maxBufferSize)
 	}
 
 	lps.partsBuffer = append(lps.partsBuffer, part)
@@ -108,11 +105,14 @@ func (lps *httpLogPartSink) flushRegularly(ctx gocontext.Context) {
 
 func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 	lps.partsBufferMutex.Lock()
-	defer lps.partsBufferMutex.Unlock()
+	bufferSample := make([]*httpLogPart, len(lps.partsBuffer))
+	copy(bufferSample, lps.partsBuffer)
+	lps.partsBuffer = []*httpLogPart{}
+	lps.partsBufferMutex.Unlock()
 
 	payload := []*httpLogPartEncodedPayload{}
 
-	for _, part := range lps.partsBuffer {
+	for _, part := range bufferSample {
 		payload = append(payload, &httpLogPartEncodedPayload{
 			Content:  base64.StdEncoding.EncodeToString([]byte(part.Content)),
 			Encoding: "base64",
@@ -130,14 +130,15 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 		// reached.  Because running jobs will not be able to send their log parts
 		// anywhere, it remains to be determined whether we should cancel (and
 		// reset) running jobs or allow them to complete without capturing output.
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-			"self": "http_log_part_sink",
-			"err":  err,
-		}).Error("failed to publish buffered parts")
-		return
+		logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
+		for _, part := range bufferSample {
+			addErr := lps.Add(part)
+			if addErr != nil {
+				logger.WithField("err", addErr).Error("failed to re-add buffer sample log part")
+			}
+		}
+		logger.WithField("err", err).Error("failed to publish buffered parts")
 	}
-
-	lps.partsBuffer = []*httpLogPart{}
 }
 
 func (lps *httpLogPartSink) publishLogParts(payload []*httpLogPartEncodedPayload) error {
