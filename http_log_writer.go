@@ -13,10 +13,10 @@ import (
 )
 
 type httpLogPart struct {
-	JobID   uint64 `json:"id"`
 	Content string `json:"log"`
-	Number  int    `json:"number"`
 	Final   bool   `json:"final"`
+	JobID   uint64 `json:"id"`
+	Number  int    `json:"number"`
 }
 
 type httpLogWriter struct {
@@ -36,14 +36,6 @@ type httpLogWriter struct {
 
 	timer   *time.Timer
 	timeout time.Duration
-}
-
-type httpLogPartPayload struct {
-	Type     string `json:"@type"`
-	JobID    uint64 `json:"job_id"`
-	Final    bool   `json:"final"`
-	Content  string `json:"content"`
-	Encoding string `json:"encoding"`
 }
 
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64, timeout time.Duration) (*httpLogWriter, error) {

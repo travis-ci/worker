@@ -35,6 +35,15 @@ const (
 	defaultHTTPLogPartSinkMaxBufferSize = 150
 )
 
+type httpLogPartEncodedPayload struct {
+	Content  string `json:"content"`
+	Encoding string `json:"encoding"`
+	Final    bool   `json:"final"`
+	JobID    uint64 `json:"job_id"`
+	Number   int    `json:"number"`
+	Type     string `json:"@type"`
+}
+
 type httpLogPartSink struct {
 	httpClient  *http.Client
 	httpBackOff *backoff.ExponentialBackOff
@@ -101,15 +110,16 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 	lps.partsBufferMutex.Lock()
 	defer lps.partsBufferMutex.Unlock()
 
-	payload := []*httpLogPartPayload{}
+	payload := []*httpLogPartEncodedPayload{}
 
 	for _, part := range lps.partsBuffer {
-		payload = append(payload, &httpLogPartPayload{
-			Type:     "log_part",
-			JobID:    part.JobID,
-			Final:    part.Final,
+		payload = append(payload, &httpLogPartEncodedPayload{
 			Content:  base64.StdEncoding.EncodeToString([]byte(part.Content)),
 			Encoding: "base64",
+			Final:    part.Final,
+			JobID:    part.JobID,
+			Number:   part.Number,
+			Type:     "log_part",
 		})
 	}
 
@@ -130,7 +140,7 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 	lps.partsBuffer = []*httpLogPart{}
 }
 
-func (lps *httpLogPartSink) publishLogParts(payload []*httpLogPartPayload) error {
+func (lps *httpLogPartSink) publishLogParts(payload []*httpLogPartEncodedPayload) error {
 	publishURL, err := url.Parse(lps.baseURL)
 	if err != nil {
 		return errors.Wrap(err, "couldn't parse base URL")
