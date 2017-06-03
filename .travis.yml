@@ -33,6 +33,7 @@ addons:
 install:
 - go get github.com/FiloSottile/gvt
 - go get -u github.com/alecthomas/gometalinter
+- go get -u golang.org/x/crypto/ssh
 - gometalinter --install
 - gem install package_cloud --no-ri --no-rdoc
 
