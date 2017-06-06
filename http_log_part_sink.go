@@ -52,6 +52,7 @@ type httpLogPartSink struct {
 
 	partsBuffer      []*httpLogPart
 	partsBufferMutex *sync.Mutex
+	flushChan        chan struct{}
 
 	maxBufferSize uint64
 }
@@ -80,6 +81,7 @@ func newHTTPLogPartSink(ctx gocontext.Context, url string, maxBufferSize uint64)
 		baseURL:          url,
 		partsBuffer:      []*httpLogPart{},
 		partsBufferMutex: &sync.Mutex{},
+		flushChan:        make(chan struct{}),
 		maxBufferSize:    maxBufferSize,
 	}
 
@@ -92,19 +94,14 @@ func (lps *httpLogPartSink) Add(ctx gocontext.Context, part *httpLogPart) error 
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
 
 	lps.partsBufferMutex.Lock()
-	bufLen := len(lps.partsBuffer)
+	bufLen := uint64(len(lps.partsBuffer))
 	lps.partsBufferMutex.Unlock()
 
-	if bufLen >= int(lps.maxBufferSize) {
-		logger.Debug("max buffer flushing")
-		if err := lps.flush(ctx); err != nil {
-			// NOTE: This error may deserve special handling at a higher level to do
-			// something like canceling and resetting the job.  The implementation here
-			// will result in a sentry error being captured (in http_log_writer)
-			// assuming the necessary config bits are set.
-			return errors.Wrap(err, fmt.Sprintf("log sink buffer could not be flushed "+
-				"and has reached the maximum size %d", lps.maxBufferSize))
-		}
+	if bufLen >= lps.maxBufferSize {
+		return fmt.Errorf("log sink buffer has reached max size %d", lps.maxBufferSize)
+	} else if (bufLen + (lps.maxBufferSize / uint64(10))) >= lps.maxBufferSize {
+		logger.WithField("size", bufLen).Debug("triggering flush because of large buffer size")
+		lps.flushChan <- struct{}{}
 	}
 
 	lps.partsBufferMutex.Lock()
@@ -124,7 +121,10 @@ func (lps *httpLogPartSink) flushRegularly(ctx gocontext.Context) {
 		select {
 		case <-ticker.C:
 			logger.Debug("ticker flushing")
-			_ = lps.flush(ctx)
+			lps.flush(ctx)
+		case <-lps.flushChan:
+			logger.Debug("event-based flushing")
+			lps.flush(ctx)
 		case <-ctx.Done():
 			logger.Debug("exiting from context done")
 			return
