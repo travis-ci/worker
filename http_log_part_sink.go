@@ -89,23 +89,29 @@ func newHTTPLogPartSink(ctx gocontext.Context, url string, maxBufferSize uint64)
 }
 
 func (lps *httpLogPartSink) Add(ctx gocontext.Context, part *httpLogPart) error {
-	lps.partsBufferMutex.Lock()
-	defer lps.partsBufferMutex.Unlock()
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
 
-	if len(lps.partsBuffer) >= int(lps.maxBufferSize) {
-		// NOTE: This error may deserve special handling at a higher level to do
-		// something like canceling and resetting the job.  The implementation here
-		// will result in a sentry error being captured (in http_log_writer)
-		// assuming the necessary config bits are set.
-		return fmt.Errorf("log sink buffer reached maximum size %d", lps.maxBufferSize)
+	lps.partsBufferMutex.Lock()
+	bufLen := len(lps.partsBuffer)
+	lps.partsBufferMutex.Unlock()
+
+	if bufLen >= int(lps.maxBufferSize) {
+		logger.Debug("max buffer flushing")
+		if err := lps.flush(ctx); err != nil {
+			// NOTE: This error may deserve special handling at a higher level to do
+			// something like canceling and resetting the job.  The implementation here
+			// will result in a sentry error being captured (in http_log_writer)
+			// assuming the necessary config bits are set.
+			return errors.Wrap(err, fmt.Sprintf("log sink buffer could not be flushed "+
+				"and has reached the maximum size %d", lps.maxBufferSize))
+		}
 	}
 
+	lps.partsBufferMutex.Lock()
 	lps.partsBuffer = append(lps.partsBuffer, part)
+	lps.partsBufferMutex.Unlock()
 
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"self": "http_log_part_sink",
-		"size": len(lps.partsBuffer),
-	}).Debug("appended to log parts buffer")
+	logger.WithField("size", bufLen+1).Debug("appended to log parts buffer")
 
 	return nil
 }
@@ -118,7 +124,7 @@ func (lps *httpLogPartSink) flushRegularly(ctx gocontext.Context) {
 		select {
 		case <-ticker.C:
 			logger.Debug("ticker flushing")
-			lps.flush(ctx)
+			_ = lps.flush(ctx)
 		case <-ctx.Done():
 			logger.Debug("exiting from context done")
 			return
@@ -126,20 +132,19 @@ func (lps *httpLogPartSink) flushRegularly(ctx gocontext.Context) {
 	}
 }
 
-func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
+func (lps *httpLogPartSink) flush(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
 
 	lps.partsBufferMutex.Lock()
-
 	bufLen := len(lps.partsBuffer)
 	if bufLen == 0 {
 		logger.WithField("size", bufLen).Debug("not flushing empty log parts buffer")
 		lps.partsBufferMutex.Unlock()
-		return
+		return nil
 	}
 
 	logger.WithField("size", bufLen).Debug("flushing log parts buffer")
-	bufferSample := make([]*httpLogPart, len(lps.partsBuffer))
+	bufferSample := make([]*httpLogPart, bufLen)
 	copy(bufferSample, lps.partsBuffer)
 	lps.partsBuffer = []*httpLogPart{}
 
@@ -178,8 +183,10 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 			}
 		}
 		logger.WithField("err", err).Error("failed to publish buffered parts")
+		return err
 	}
 	logger.Debug("successfully published buffered parts")
+	return nil
 }
 
 func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*httpLogPartEncodedPayload) error {
