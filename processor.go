@@ -105,17 +105,18 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 // terminated, either by calling the GracefulShutdown or Terminate methods, or
 // if the build jobs channel is closed.
 func (p *Processor) Run() {
-	context.LoggerFromContext(p.ctx).Info("starting processor")
-	defer context.LoggerFromContext(p.ctx).Info("processor done")
+	logger := context.LoggerFromContext(p.ctx).WithField("self", "processor")
+	logger.Info("starting processor")
+	defer logger.Info("processor done")
 	defer func() { p.CurrentStatus = "done" }()
 
 	for {
 		select {
 		case <-p.ctx.Done():
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			p.terminate()
 			return
 		default:
@@ -123,10 +124,10 @@ func (p *Processor) Run() {
 
 		select {
 		case <-p.ctx.Done():
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			p.terminate()
 			return
 		case buildJob, ok := <-p.buildJobsChan:
@@ -159,13 +160,14 @@ func (p *Processor) Run() {
 // processing, but not pick up any new jobs. This method will return
 // immediately, the processor is done when Run() returns.
 func (p *Processor) GracefulShutdown() {
+	logger := context.LoggerFromContext(p.ctx).WithField("self", "processor")
 	defer func() {
 		err := recover()
 		if err != nil {
-			context.LoggerFromContext(p.ctx).WithField("err", err).Error("recovered from panic")
+			logger.WithField("err", err).Error("recovered from panic")
 		}
 	}()
-	context.LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
+	logger.Info("processor initiating graceful shutdown")
 	tryClose(p.graceful)
 }
 
@@ -180,6 +182,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("hostname", p.fullHostname())
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "processor")
 
 	logTimeout := p.logTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
@@ -222,9 +226,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	runner := &multistep.BasicRunner{Steps: steps}
 
-	context.LoggerFromContext(ctx).Info("starting job")
+	logger.Info("starting job")
 	runner.Run(state)
-	context.LoggerFromContext(ctx).Info("finished job")
+	logger.Info("finished job")
 	p.ProcessedCount++
 }
 

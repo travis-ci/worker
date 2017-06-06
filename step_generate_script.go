@@ -18,6 +18,8 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_generate_script")
+
 	b := backoff.NewExponentialBackOff()
 	b.MaxInterval = 10 * time.Second
 	b.MaxElapsedTime = time.Minute
@@ -26,10 +28,10 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	var err error
 	switch job := buildJob.(type) {
 	case BuildScriptGenerator:
-		context.LoggerFromContext(ctx).Info("using job to get script")
+		logger.Info("using job to get script")
 		script, err = job.Generate(ctx, buildJob)
 	default:
-		context.LoggerFromContext(ctx).Info("using build script generator to generate script")
+		logger.Info("using build script generator to generate script")
 		err = backoff.Retry(func() (err error) {
 			script, err = s.generator.Generate(ctx, buildJob)
 			return
@@ -37,16 +39,16 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	}
 
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't generate build script, erroring job")
+		logger.WithField("err", err).Error("couldn't generate build script, erroring job")
 		err := buildJob.Error(ctx, "An error occurred while generating the build script.")
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+			logger.WithField("err", err).Error("couldn't requeue job")
 		}
 
 		return multistep.ActionHalt
 	}
 
-	context.LoggerFromContext(ctx).Info("generated script")
+	logger.Info("generated script")
 
 	state.Put("script", script)
 

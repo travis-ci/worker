@@ -17,15 +17,16 @@ type stepOpenLogWriter struct {
 func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_open_log_writer")
 
 	logWriter, err := buildJob.LogWriter(ctx, s.defaultLogTimeout)
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't open a log writer")
+		logger.WithField("err", err).Error("couldn't open a log writer")
 		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue(ctx)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+			logger.WithField("err", err).Error("couldn't requeue job")
 		}
 		return multistep.ActionHalt
 	}

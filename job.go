@@ -92,4 +92,5 @@ type Job interface {
 	Finish(gocontext.Context, FinishState) error
 
 	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
+	Name() string
 }

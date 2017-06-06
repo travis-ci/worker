@@ -2,32 +2,28 @@ package worker
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"sync"
 	"time"
 
 	gocontext "context"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/jtacoma/uritemplates"
-	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/context"
 )
 
 type httpLogPart struct {
-	JobID   uint64 `json:"id"`
-	Content string `json:"log"`
-	Number  int    `json:"number"`
-	UUID    string `json:"uuid"`
-	Final   bool   `json:"final"`
+	Content string
+	Final   bool
+	JobID   uint64
+	Number  int
+	Token   string
 }
 
 type httpLogWriter struct {
-	ctx   gocontext.Context
-	jobID uint64
+	ctx       gocontext.Context
+	jobID     uint64
+	authToken string
 
 	closeChan chan struct{}
 
@@ -38,9 +34,7 @@ type httpLogWriter struct {
 	bytesWritten int
 	maxLength    int
 
-	httpClient *http.Client
-	baseURL    string
-	authToken  string
+	lps *httpLogPartSink
 
 	timer   *time.Timer
 	timeout time.Duration
@@ -48,15 +42,14 @@ type httpLogWriter struct {
 
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64, timeout time.Duration) (*httpLogWriter, error) {
 	writer := &httpLogWriter{
-		ctx:        context.FromComponent(ctx, "log_writer"),
-		jobID:      jobID,
-		closeChan:  make(chan struct{}),
-		buffer:     new(bytes.Buffer),
-		timer:      time.NewTimer(time.Hour),
-		timeout:    timeout,
-		httpClient: &http.Client{},
-		baseURL:    url,
-		authToken:  authToken,
+		ctx:       context.FromComponent(ctx, "log_writer"),
+		jobID:     jobID,
+		authToken: authToken,
+		closeChan: make(chan struct{}),
+		buffer:    new(bytes.Buffer),
+		timer:     time.NewTimer(time.Hour),
+		timeout:   timeout,
+		lps:       getHTTPLogPartSinkByURL(url),
 	}
 
 	go writer.flushRegularly(ctx)
@@ -69,7 +62,9 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
 
-	context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+	logger := context.LoggerFromContext(w.ctx).WithField("self", "http_log_writer")
+
+	logger.WithFields(logrus.Fields{
 		"length": len(p),
 		"bytes":  string(p),
 	}).Debug("writing bytes")
@@ -80,7 +75,7 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 	if w.bytesWritten > w.maxLength {
 		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
 		if err != nil {
-			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
+			logger.WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
 		}
 		return 0, ErrWrotePastMaxLogLength
 	}
@@ -100,13 +95,23 @@ func (w *httpLogWriter) Close() error {
 	close(w.closeChan)
 	w.flush()
 
-	part := httpLogPart{
+	err := w.lps.Add(w.ctx, &httpLogPart{
+		Final:  true,
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
-		Final:  true,
+		Token:  w.authToken,
+	})
+
+	if err != nil {
+		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "http_log_writer",
+		}).Error("could not add log part to sink")
+		return err
 	}
+
 	w.logPartNumber++
-	return w.publishLogPart(part)
+	return nil
 }
 
 func (w *httpLogWriter) Timeout() <-chan time.Time {
@@ -135,15 +140,24 @@ func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {
 
 	w.flush()
 
-	part := httpLogPart{
+	part := &httpLogPart{
+		Final:  true,
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
-		Final:  true,
+		Token:  w.authToken,
+	}
+
+	err = w.lps.Add(w.ctx, part)
+
+	if err != nil {
+		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "http_log_writer",
+		}).Error("could not add log part to sink")
+		return n, err
 	}
 	w.logPartNumber++
-
-	err = w.publishLogPart(part)
-	return n, err
+	return n, nil
 }
 
 func (w *httpLogWriter) closed() bool {
@@ -189,70 +203,19 @@ func (w *httpLogWriter) flush() {
 			panic("non-empty buffer shouldn't return an error on Read")
 		}
 
-		part := httpLogPart{
-			JobID:   w.jobID,
+		err = w.lps.Add(w.ctx, &httpLogPart{
 			Content: string(buf[0:n]),
+			JobID:   w.jobID,
 			Number:  w.logPartNumber,
+			Token:   w.authToken,
+		})
+		if err != nil {
+			context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+				"err":  err,
+				"self": "http_log_writer",
+			}).Error("could not add log part to sink")
+			return
 		}
 		w.logPartNumber++
-
-		err = w.publishLogPart(part)
-		if err != nil {
-			context.LoggerFromContext(w.ctx).WithField("err", err).Error("couldn't publish log part")
-		}
 	}
-}
-
-func (w *httpLogWriter) publishLogPart(part httpLogPart) error {
-	part.UUID, _ = context.UUIDFromContext(w.ctx)
-
-	type logPartPayload struct {
-		Type     string `json:"@type"`
-		Final    bool   `json:"final"`
-		Content  string `json:"content"`
-		Encoding string `json:"encoding"`
-	}
-
-	payload := logPartPayload{
-		Type:     "log_part",
-		Final:    part.Final,
-		Content:  base64.StdEncoding.EncodeToString([]byte(part.Content)),
-		Encoding: "base64",
-	}
-
-	template, err := uritemplates.Parse(w.baseURL)
-	if err != nil {
-		return errors.Wrap(err, "couldn't parse base URL template")
-	}
-
-	partURL, err := template.Expand(map[string]interface{}{
-		"job_id":      w.jobID,
-		"log_part_id": part.Number,
-	})
-	if err != nil {
-		return errors.Wrap(err, "couldn't expand base URL template")
-	}
-
-	partBody, err := json.Marshal(payload)
-	if err != nil {
-		return errors.Wrap(err, "couldn't marshal JSON")
-	}
-
-	req, err := http.NewRequest("PUT", partURL, bytes.NewReader(partBody))
-	if err != nil {
-		return errors.Wrap(err, "couldn't create request")
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", w.authToken))
-
-	resp, err := w.httpClient.Do(req)
-	if err != nil {
-		return errors.Wrap(err, "error making request")
-	}
-
-	if resp.StatusCode != http.StatusNoContent {
-		return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
-	}
-
-	return nil
 }

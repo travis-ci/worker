@@ -3,6 +3,7 @@ package worker
 import (
 	gocontext "context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -16,7 +17,10 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 
 	err := buildJob.Started()
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't mark job as started")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "step_update_state",
+		}).Error("couldn't mark job as started")
 	}
 
 	return multistep.ActionContinue
@@ -43,7 +47,10 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 		}
 
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't mark job as finished")
+			context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+				"err":  err,
+				"self": "step_update_state",
+			}).Error("couldn't mark job as finished")
 		}
 	}
 }
