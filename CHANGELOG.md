@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
     - more debug logging
 - step-write-worker-info: report the job type (amqp/http/file) in instance line
 - processor: check for cancellation in between various steps
+- build: support and build using Go 1.8.3
 
 ### Deprecated
 
