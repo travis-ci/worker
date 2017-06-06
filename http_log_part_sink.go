@@ -56,6 +56,24 @@ type httpLogPartSink struct {
 	maxBufferSize uint64
 }
 
+func getHTTPLogPartSinkByURL(url string) *httpLogPartSink {
+	httpLogPartSinksByURLMutex.Lock()
+	defer httpLogPartSinksByURLMutex.Unlock()
+
+	var (
+		lps *httpLogPartSink
+		ok  bool
+	)
+
+	if lps, ok = httpLogPartSinksByURL[url]; !ok {
+		lps = newHTTPLogPartSink(context.FromComponent(RootContext, "log_part_sink"),
+			url, defaultHTTPLogPartSinkMaxBufferSize)
+		httpLogPartSinksByURL[url] = lps
+	}
+
+	return lps
+}
+
 func newHTTPLogPartSink(ctx gocontext.Context, url string, maxBufferSize uint64) *httpLogPartSink {
 	lps := &httpLogPartSink{
 		httpClient:       &http.Client{},
@@ -93,13 +111,16 @@ func (lps *httpLogPartSink) Add(ctx gocontext.Context, part *httpLogPart) error 
 }
 
 func (lps *httpLogPartSink) flushRegularly(ctx gocontext.Context) {
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
 	ticker := time.NewTicker(LogWriterTick)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
+			logger.Debug("ticker flushing")
 			lps.flush(ctx)
 		case <-ctx.Done():
+			logger.Debug("exiting from context done")
 			return
 		}
 	}
@@ -158,6 +179,7 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 		}
 		logger.WithField("err", err).Error("failed to publish buffered parts")
 	}
+	logger.Debug("successfully published buffered parts")
 }
 
 func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*httpLogPartEncodedPayload) error {
@@ -184,10 +206,18 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 	httpBackOff.MaxInterval = 10 * time.Second
 	httpBackOff.MaxElapsedTime = 3 * time.Minute
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
+	logger.WithField("req", req).Debug("attempting to publish log parts")
+
 	var resp *http.Response
 	err = backoff.Retry(func() (err error) {
 		resp, err = lps.httpClient.Do(req)
 		if resp != nil && resp.StatusCode != http.StatusNoContent {
+			logger.WithFields(logrus.Fields{
+				"expected_status": http.StatusNoContent,
+				"actual_status":   resp.StatusCode,
+			}).Debug("publish failed")
+
 			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
 		}
 		return

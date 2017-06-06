@@ -41,20 +41,6 @@ type httpLogWriter struct {
 }
 
 func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID uint64, timeout time.Duration) (*httpLogWriter, error) {
-	httpLogPartSinksByURLMutex.Lock()
-	defer httpLogPartSinksByURLMutex.Unlock()
-
-	var (
-		lps *httpLogPartSink
-		ok  bool
-	)
-
-	if lps, ok = httpLogPartSinksByURL[url]; !ok {
-		lps = newHTTPLogPartSink(context.FromComponent(ctx, "log_part_sink"),
-			url, defaultHTTPLogPartSinkMaxBufferSize)
-		httpLogPartSinksByURL[url] = lps
-	}
-
 	writer := &httpLogWriter{
 		ctx:       context.FromComponent(ctx, "log_writer"),
 		jobID:     jobID,
@@ -63,7 +49,7 @@ func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID
 		buffer:    new(bytes.Buffer),
 		timer:     time.NewTimer(time.Hour),
 		timeout:   timeout,
-		lps:       lps,
+		lps:       getHTTPLogPartSinkByURL(url),
 	}
 
 	go writer.flushRegularly(ctx)

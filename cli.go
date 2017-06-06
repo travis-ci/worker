@@ -19,8 +19,6 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/urfave/cli.v1"
-
 	// include for conditional pprof HTTP server
 	_ "net/http/pprof"
 
@@ -37,6 +35,15 @@ import (
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	travismetrics "github.com/travis-ci/worker/metrics"
+	cli "gopkg.in/urfave/cli.v1"
+)
+
+var (
+	// RootContext is a Context that may be used by anything else
+	// in the process to check for cleanup actions, such as when
+	// selecting over ctx.Done().  It is initialized at the package
+	// level, but then overwritten once a CLI is created.
+	RootContext = gocontext.TODO()
 )
 
 // CLI is the top level of execution for the whole shebang
@@ -91,6 +98,7 @@ func (i *CLI) Setup() (bool, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "cli")
 
 	i.ctx = ctx
+	RootContext = ctx
 	i.cancel = cancel
 	i.logger = logger
 
