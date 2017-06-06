@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	gocontext "context"
@@ -20,9 +22,21 @@ func TestNewHTTPLogPartSink(t *testing.T) {
 }
 
 func TestHTTPLogPartSink_flush(t *testing.T) {
-	t.SkipNow()
+	lss := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		w.WriteHeader(http.StatusNotImplemented)
+	}))
+	defer lss.Close()
+
+	httpLogPartSinksByURLMutex.Lock()
+	httpLogPartSinksByURL[lss.URL] = newHTTPLogPartSink(gocontext.TODO(), lss.URL, uint64(1000))
+	httpLogPartSinksByURLMutex.Unlock()
+
 	ctx := gocontext.TODO()
-	lps := newHTTPLogPartSink(ctx, testHTTPLogSinkServer.URL, uint64(10))
+	lps := newHTTPLogPartSink(ctx, lss.URL, uint64(10))
 	lps.flush(gocontext.TODO())
 	lps.Add(ctx, &httpLogPart{
 		JobID:   uint64(4),

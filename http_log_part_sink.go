@@ -109,10 +109,19 @@ func (lps *httpLogPartSink) flush(ctx gocontext.Context) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
 
 	lps.partsBufferMutex.Lock()
-	logger.WithField("size", len(lps.partsBuffer)).Debug("flushing log parts buffer")
+
+	bufLen := len(lps.partsBuffer)
+	if bufLen == 0 {
+		logger.WithField("size", bufLen).Debug("not flushing empty log parts buffer")
+		lps.partsBufferMutex.Unlock()
+		return
+	}
+
+	logger.WithField("size", bufLen).Debug("flushing log parts buffer")
 	bufferSample := make([]*httpLogPart, len(lps.partsBuffer))
 	copy(bufferSample, lps.partsBuffer)
 	lps.partsBuffer = []*httpLogPart{}
+
 	lps.partsBufferMutex.Unlock()
 
 	payload := []*httpLogPartEncodedPayload{}

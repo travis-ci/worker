@@ -2,24 +2,19 @@ package worker
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
+	"os"
 	"time"
-
-	gocontext "context"
 
 	"github.com/Sirupsen/logrus"
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/travis-ci/worker/backend"
 )
 
-var (
-	testHTTPLogSinkServer = buildTestHTTPLogPartSinkServer()
-)
-
 func init() {
 	logrus.SetLevel(logrus.FatalLevel)
-	buildTestHTTPLogPartSink()
+	if os.Getenv("TRAVIS_WORKER_TEST_DEBUG") == "1" {
+		logrus.SetLevel(logrus.DebugLevel)
+	}
 }
 
 type fakeJobQueue struct {
@@ -109,19 +104,3 @@ func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 }
 
 func (flw *fakeLogWriter) SetMaxLogLength(l int) {}
-
-func buildTestHTTPLogPartSink() {
-	httpLogPartSinksByURLMutex.Lock()
-	defer httpLogPartSinksByURLMutex.Unlock()
-	httpLogPartSinksByURL[testHTTPLogSinkServer.URL] = newHTTPLogPartSink(gocontext.TODO(), testHTTPLogSinkServer.URL, uint64(1000))
-}
-
-func buildTestHTTPLogPartSinkServer() *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "POST" && r.URL.Path == "/log-parts/multi" {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-		w.WriteHeader(http.StatusNotImplemented)
-	}))
-}
