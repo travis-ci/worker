@@ -39,11 +39,7 @@ import (
 )
 
 var (
-	// RootContext is a Context that may be used by anything else
-	// in the process to check for cleanup actions, such as when
-	// selecting over ctx.Done().  It is initialized at the package
-	// level, but then overwritten once a CLI is created.
-	RootContext = gocontext.TODO()
+	rootContext = gocontext.TODO()
 )
 
 // CLI is the top level of execution for the whole shebang
@@ -98,7 +94,7 @@ func (i *CLI) Setup() (bool, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "cli")
 
 	i.ctx = ctx
-	RootContext = ctx
+	rootContext = ctx
 	i.cancel = cancel
 	i.logger = logger
 

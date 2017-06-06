@@ -66,7 +66,7 @@ func getHTTPLogPartSinkByURL(url string) *httpLogPartSink {
 	)
 
 	if lps, ok = httpLogPartSinksByURL[url]; !ok {
-		lps = newHTTPLogPartSink(context.FromComponent(RootContext, "log_part_sink"),
+		lps = newHTTPLogPartSink(context.FromComponent(rootContext, "log_part_sink"),
 			url, defaultHTTPLogPartSinkMaxBufferSize)
 		httpLogPartSinksByURL[url] = lps
 	}
