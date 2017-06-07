@@ -4,6 +4,19 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [2.9.0] - 2017-06-07
+### Added
 - multi-source-job-queue: funnels arbitrary other job queues into a single source
 - "self" field in various log records for correlation
 - config: initial sleep duration prior to beginning job execution
@@ -20,14 +33,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - processor: check for cancellation in between various steps
 - build: support and build using Go 1.8.3
 
-### Deprecated
-
-### Removed
-
 ### Fixed
 - http-log-writer: flush buffer regularly in the background
-
-### Security
 
 ## [2.8.2] - 2017-05-17
 ### Changed
@@ -470,7 +477,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.8.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.9.0...HEAD
+[2.9.0]: https://github.com/travis-ci/worker/compare/v2.8.2...v2.9.0
 [2.8.2]: https://github.com/travis-ci/worker/compare/v2.8.1...v2.8.2
 [2.8.1]: https://github.com/travis-ci/worker/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/travis-ci/worker/compare/v2.7.0...v2.8.0
