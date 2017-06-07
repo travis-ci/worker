@@ -226,7 +226,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		}
 	}
 
-  logger := context.LoggerFromContext(ctx).WithField("self", "backend/jupiterbrain_provider")
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/jupiterbrain_provider")
 
 	logger.WithFields(logrus.Fields{
 		"image_name": imageName,
