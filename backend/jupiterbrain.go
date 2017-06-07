@@ -226,7 +226,9 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		}
 	}
 
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+  logger := context.LoggerFromContext(ctx).WithField("self", "backend/jupiterbrain_provider")
+
+	logger.WithFields(logrus.Fields{
 		"image_name": imageName,
 		"osx_image":  startAttributes.OsxImage,
 		"language":   startAttributes.Language,
@@ -281,7 +283,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 	metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
 	normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
 	metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
-	context.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
+	logger.WithField("instance_uuid", payload.ID).Info("booted instance")
 
 	if payload.BaseImage == "" {
 		payload.BaseImage = imageName

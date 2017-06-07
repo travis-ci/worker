@@ -506,7 +506,10 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 			errCount++
 			if errCount >= 5 {
 				context.CaptureError(ctx, err)
-				context.LoggerFromContext(ctx).WithField("err", err).Info("rate limiter errored 5 times")
+				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+					"err":  err,
+					"self": "backend/gce_provider",
+				}).Info("rate limiter errored 5 times")
 				return err
 			}
 		} else {
@@ -615,7 +618,7 @@ func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
 }
 
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
 	state := &multistep.BasicStateBag{}
 
@@ -695,6 +698,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	inst := p.buildInstance(c.startAttributes, c.image.SelfLink, c.script)
 
 	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+		"self":     "backend/gce_provider",
 		"instance": inst,
 	}).Debug("inserting instance")
 
@@ -713,11 +717,9 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 }
 
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
-	logger := context.LoggerFromContext(c.ctx)
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
-	logger.WithFields(logrus.Fields{
-		"duration": p.bootPrePollSleep,
-	}).Debug("sleeping before first checking instance insert operation")
+	logger.WithField("duration", p.bootPrePollSleep).Debug("sleeping before first checking instance insert operation")
 
 	time.Sleep(p.bootPrePollSleep)
 
@@ -1012,7 +1014,10 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	case err := <-uploadedChan:
 		return err
 	case <-ctx.Done():
-		context.LoggerFromContext(ctx).WithField("err", lastErr).Info("stopping upload retries, error from last attempt")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  lastErr,
+			"self": "backend/gce_instance",
+		}).Info("stopping upload retries, error from last attempt")
 		return ctx.Err()
 	}
 }
@@ -1081,7 +1086,10 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 
 	preempted, googleErr := i.isPreempted(ctx)
 	if googleErr != nil {
-		context.LoggerFromContext(ctx).WithField("err", googleErr).Error("couldn't determine if instance was preempted")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  googleErr,
+			"self": "backend/gce_instance",
+		}).Error("couldn't determine if instance was preempted")
 		// could not get answer from google
 		// requeue just in case
 		return &RunResult{Completed: false}, googleErr
@@ -1095,7 +1103,7 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 }
 
 func (i *gceInstance) Stop(ctx gocontext.Context) error {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 	state := &multistep.BasicStateBag{}
 
 	c := &gceInstanceStopContext{
@@ -1137,7 +1145,7 @@ func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.St
 }
 
 func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) multistep.StepAction {
-	logger := context.LoggerFromContext(c.ctx)
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 
 	if i.ic.SkipStopPoll {
 		logger.Debug("skipping instance deletion polling")

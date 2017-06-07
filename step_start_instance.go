@@ -21,8 +21,9 @@ type stepStartInstance struct {
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 
-	context.LoggerFromContext(ctx).Info("starting instance")
+	logger.Info("starting instance")
 
 	ctx, cancel := gocontext.WithTimeout(ctx, s.startTimeout)
 	defer cancel()
@@ -31,7 +32,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
 	if err != nil {
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't start instance")
+		logger.WithField("err", err).Error("couldn't start instance")
 		context.CaptureError(ctx, err)
 
 		jobAbortErr, ok := errors.Cause(err).(workererrors.JobAbortError)
@@ -41,7 +42,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 			err = buildJob.Finish(ctx, FinishStateErrored)
 			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
+				logger.WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
 			}
 
 			return multistep.ActionHalt
@@ -49,13 +50,13 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 		err := buildJob.Requeue(ctx)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+			logger.WithField("err", err).Error("couldn't requeue job")
 		}
 
 		return multistep.ActionHalt
 	}
 
-	context.LoggerFromContext(ctx).WithField("boot_time", time.Since(startTime)).Info("started instance")
+	logger.WithField("boot_time", time.Since(startTime)).Info("started instance")
 
 	state.Put("instance", instance)
 
@@ -65,20 +66,21 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
 	instance, ok := state.Get("instance").(backend.Instance)
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 	if !ok {
-		context.LoggerFromContext(ctx).Info("no instance to stop")
+		logger.Info("no instance to stop")
 		return
 	}
 
 	skipShutdown, ok := state.Get("skipShutdown").(bool)
 	if ok && skipShutdown {
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{"instance": instance}).Error("skipping shutdown, VM will be left running")
+		logger.WithField("instance", instance).Error("skipping shutdown, VM will be left running")
 		return
 	}
 
 	if err := instance.Stop(ctx); err != nil {
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
+		logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
 	} else {
-		context.LoggerFromContext(ctx).Info("stopped instance")
+		logger.Info("stopped instance")
 	}
 }

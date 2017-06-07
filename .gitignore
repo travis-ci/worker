@@ -27,7 +27,7 @@ gin-bin
 *.log
 
 *.coverprofile
-coverage.html
+*coverage.html
 
 .*env
 .build/

@@ -64,7 +64,7 @@ func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerNa
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 	q.buildJobChanMutex.Lock()
 	defer q.buildJobChanMutex.Unlock()
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
 	if q.buildJobChan != nil {
 		return q.buildJobChan, nil
 	}
@@ -89,7 +89,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 						logger.WithField("err", err).Warn("breaking after failing to get complete job")
 						return
 					}
-					logger.WithField("job", buildJob).Debug("sending job to output channel")
+					logger.Debug("sending job to output channel")
 					buildJobChan <- buildJob
 				}(id)
 			}
@@ -111,7 +111,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 }
 
 func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
 	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
 	numWaiting := 0
 	q.processorPool.Each(func(i int, p *Processor) {
@@ -259,6 +259,11 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 
 	return buildJob, nil
+}
+
+// Name returns the name of this queue type, wow!
+func (q *HTTPJobQueue) Name() string {
+	return "http"
 }
 
 // Cleanup does not do anything!

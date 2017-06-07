@@ -31,6 +31,7 @@ export GO15VENDOREXPERIMENT
 export DOCKER_DEST
 
 COVERPROFILES := \
+	root-coverage.coverprofile \
 	backend-coverage.coverprofile \
 	config-coverage.coverprofile \
 	image-coverage.coverprofile
@@ -40,8 +41,8 @@ CROSSBUILD_BINARIES := \
 
 %-coverage.coverprofile:
 	$(GO) test -v -covermode=count -coverprofile=$@ \
-		-x -ldflags "$(GOBUILD_LDFLAGS)" \
-		$(PACKAGE)/$(subst -,/,$(subst -coverage.coverprofile,,$@))
+		-tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" \
+		$(PACKAGE)/$(subst -,/,$(subst root,,$(subst -coverage.coverprofile,,$@)))
 
 .PHONY: %
 %:
@@ -55,7 +56,7 @@ test: deps lintall build fmtpolice test-no-cover coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test -v -race -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
+	$(GO) test -v -race -tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@
@@ -66,7 +67,7 @@ coverage.coverprofile: $(COVERPROFILES)
 
 .PHONY: build
 build: deps
-	$(GO) install -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
+	$(GO) install -tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
 crossbuild: deps $(CROSSBUILD_BINARIES)
