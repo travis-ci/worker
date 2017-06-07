@@ -19,7 +19,7 @@ main() {
     chmod +x /usr/local/bin/gimme
   fi
 
-  sudo -u vagrant HOME=/home/vagrant bash -c 'gimme 1.8.1'
+  sudo -u vagrant HOME=/home/vagrant bash -c 'gimme 1.8.3'
 
   if ! docker version; then
     curl -sSL https://get.docker.io | sudo bash
@@ -31,7 +31,7 @@ main() {
   cat >/home/vagrant/.bash_profile <<EOF
 export PATH="\$HOME/bin:\$HOME/go/bin:\$PATH"
 export GOPATH="\$HOME/go"
-eval "\$(gimme 1.8.1)"
+eval "\$(gimme 1.8.3)"
 set -o vi
 EOF
 
@@ -39,9 +39,10 @@ EOF
   chown -R vagrant:vagrant /home/vagrant/go
 
   sudo -u vagrant HOME=/home/vagrant bash <<EOBASH
+source \$HOME/.bash_profile
 go get github.com/FiloSottile/gvt
 go get -u github.com/alecthomas/gometalinter
-gometalinter --install
+gometalinter --install || echo look whatever OK
 EOBASH
 }
 
