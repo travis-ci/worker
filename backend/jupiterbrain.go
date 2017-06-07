@@ -212,12 +212,21 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 }
 
 func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	logger := context.LoggerFromContext(ctx).WithField("self", "backend/jupiterbrain_provider")
+	var (
+		imageName string
+		err       error
+	)
 
-	imageName, err := p.getImageName(ctx, startAttributes)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't get image name")
+	if startAttributes.ImageName != "" {
+		imageName = startAttributes.ImageName
+	} else {
+		imageName, err = p.getImageName(ctx, startAttributes)
+		if err != nil {
+			return nil, errors.Wrap(err, "couldn't get image name")
+		}
 	}
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/jupiterbrain_provider")
 
 	logger.WithFields(logrus.Fields{
 		"image_name": imageName,

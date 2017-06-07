@@ -240,8 +240,7 @@ func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { retu
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	var (
-		imageSelector image.Selector
-		err           error
+		err error
 	)
 
 	client, err := buildGoogleComputeService(cfg)
@@ -387,11 +386,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
 	}
 
-	if imageSelectorType == "env" || imageSelectorType == "api" {
-		imageSelector, err = buildGCEImageSelector(imageSelectorType, cfg)
-		if err != nil {
-			return nil, err
-		}
+	imageSelector, err := buildGCEImageSelector(imageSelectorType, cfg)
+	if err != nil {
+		return nil, err
 	}
 
 	var rateLimiter ratelimit.RateLimiter
@@ -810,22 +807,31 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 }
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	var (
+		imageName string
+		err       error
+	)
+
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
 
-	imageName, err := p.imageSelector.Select(&image.Params{
-		Infra:    "gce",
-		Language: startAttributes.Language,
-		OsxImage: startAttributes.OsxImage,
-		Dist:     startAttributes.Dist,
-		Group:    startAttributes.Group,
-		OS:       startAttributes.OS,
-		JobID:    jobID,
-		Repo:     repo,
-	})
+	if startAttributes.ImageName != "" {
+		imageName = startAttributes.ImageName
+	} else {
+		imageName, err = p.imageSelector.Select(&image.Params{
+			Infra:    "gce",
+			Language: startAttributes.Language,
+			OsxImage: startAttributes.OsxImage,
+			Dist:     startAttributes.Dist,
+			Group:    startAttributes.Group,
+			OS:       startAttributes.OS,
+			JobID:    jobID,
+			Repo:     repo,
+		})
 
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if imageName == "default" {

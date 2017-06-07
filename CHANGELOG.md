@@ -6,7 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - multi-source-job-queue: funnels arbitrary other job queues into a single source
 - "self" field in various log records for correlation
-- config: Initial sleep duration prior to beginning job execution
+- config: initial sleep duration prior to beginning job execution
+- backend/docker: optional API-based image selection
 
 ### Changed
 - amqp-log-writer, http-log-writer: check context done to prevent goroutine leakage
