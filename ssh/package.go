@@ -82,6 +82,8 @@ func (d *AuthDialer) Dial(address, username string, timeout time.Duration) (Conn
 		User:    username,
 		Auth:    d.authMethods,
 		Timeout: timeout,
+		// TODO: Verify server public key against something (optionally)?
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't connect to SSH server")
