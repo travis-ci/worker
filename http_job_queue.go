@@ -11,7 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
+	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -154,6 +156,7 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 		return nil, errors.Wrap(err, "failed to make job board jobs request")
 	}
 
+	defer resp.Body.Close()
 	fetchResponsePayload := &httpFetchJobsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&fetchResponsePayload)
 	if err != nil {
@@ -186,6 +189,8 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 }
 
 func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+
 	buildJob := &httpJob{
 		payload: &httpJobPayload{
 			Data: &JobPayload{},
@@ -218,24 +223,32 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	req.Header.Add("From", q.workerID)
 	req = req.WithContext(ctx)
 
-	resp, err := (&http.Client{}).Do(req)
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = 10 * time.Second
+	bo.MaxElapsedTime = 1 * time.Minute
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = (&http.Client{}).Do(req)
+		if resp != nil && resp.StatusCode != http.StatusOK {
+			logger.WithFields(logrus.Fields{
+				"expected_status": http.StatusOK,
+				"actual_status":   resp.StatusCode,
+			}).Debug("job fetch failed")
+
+			return errors.Errorf("expected %d but got %d", http.StatusOK, resp.StatusCode)
+		}
+		return
+	}, bo)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "error making job board job request")
 	}
 
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading body from job board job request")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		var errorResp jobBoardErrorResponse
-		err := json.Unmarshal(body, &errorResp)
-		if err != nil {
-			return nil, errors.Wrapf(err, "job board job fetch request errored with status %d and didn't send an error response", resp.StatusCode)
-		}
-
-		return nil, errors.Errorf("job board job fetch request errored with status %d: %s", resp.StatusCode, errorResp.Error)
 	}
 
 	err = json.Unmarshal(body, buildJob.payload)

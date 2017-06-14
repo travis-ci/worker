@@ -230,6 +230,10 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 		return
 	}, httpBackOff)
 
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
+
 	if err != nil {
 		return errors.Wrap(err, "failed to send log parts with retries")
 	}

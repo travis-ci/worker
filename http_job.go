@@ -180,6 +180,7 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 		return errors.Wrap(err, "failed to mark job complete with retries")
 	}
 
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err

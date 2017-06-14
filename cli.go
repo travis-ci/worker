@@ -363,17 +363,19 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 		req.Header.Set("Authorization", fmt.Sprintf("token %s", heartbeatAuthToken))
 	}
 
-	res, err := (&http.Client{}).Do(req)
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return err
 	}
 
-	if res.StatusCode > 299 {
-		return fmt.Errorf("unhappy status code %d", res.StatusCode)
+	defer resp.Body.Close()
+
+	if resp.StatusCode > 299 {
+		return fmt.Errorf("unhappy status code %d", resp.StatusCode)
 	}
 
 	body := map[string]string{}
-	err = json.NewDecoder(res.Body).Decode(&body)
+	err = json.NewDecoder(resp.Body).Decode(&body)
 	if err != nil {
 		return err
 	}
