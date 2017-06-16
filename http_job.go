@@ -14,6 +14,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
+	"github.com/cenk/backoff"
 	"github.com/jtacoma/uritemplates"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
@@ -120,7 +121,6 @@ func (j *httpJob) Started() error {
 }
 
 func (j *httpJob) currentState() string {
-
 	currentState := "queued"
 
 	if !j.received.IsZero() {
@@ -135,10 +135,12 @@ func (j *httpJob) currentState() string {
 }
 
 func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"state": state,
 		"self":  "http_job",
-	}).Info("finishing job")
+	})
+
+	logger.Info("finishing job")
 
 	u := *j.jobBoardURL
 	u.Path = fmt.Sprintf("/jobs/%d", j.Payload().Job.ID)
@@ -153,11 +155,32 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	req.Header.Add("Authorization", "Bearer "+j.payload.JWT)
 	req.Header.Add("From", j.workerID)
 
-	resp, err := (&http.Client{}).Do(req)
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = 10 * time.Second
+	bo.MaxElapsedTime = 1 * time.Minute
+
+	logger.WithField("url", u.String()).Debug("performing DELETE request")
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = (&http.Client{}).Do(req)
+		if resp != nil && resp.StatusCode != http.StatusNoContent {
+			logger.WithFields(logrus.Fields{
+				"expected_status": http.StatusNoContent,
+				"actual_status":   resp.StatusCode,
+			}).Debug("delete failed")
+
+			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
+		}
+
+		return
+	}, bo)
+
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to mark job complete with retries")
 	}
 
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err

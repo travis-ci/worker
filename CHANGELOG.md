@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- http_job: retry with backoff to job completion request
+- http_job_queue: retry with backoff to full job fetch request
 
 ### Changed
 
@@ -12,6 +14,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- http: ensure all response bodies are closed to prevent file descriptor leakage
 
 ### Security
 
