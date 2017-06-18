@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 

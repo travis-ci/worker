@@ -7,8 +7,8 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"

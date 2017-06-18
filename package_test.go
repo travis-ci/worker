@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	simplejson "github.com/bitly/go-simplejson"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 )
 
