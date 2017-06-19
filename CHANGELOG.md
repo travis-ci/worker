@@ -6,12 +6,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- http-job-queue: fetch full jobs in series for smoother HTTP traffic
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+- http-job-queue: check for context cancellation every loop
 
 ### Security
 
