@@ -6,12 +6,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- cli: assign singular job queue if only one built
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+- multi-source-job-queue:
+    - ensure each invocation of `Jobs` creates new `Job` channels
+    - break on context done to prevent goroutine leakage
 
 ### Security
 
