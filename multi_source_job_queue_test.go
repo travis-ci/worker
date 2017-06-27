@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -59,4 +60,20 @@ func TestMultiSourceJobQueue_Cleanup(t *testing.T) {
 
 	assert.True(t, jq0.cleanedUp)
 	assert.True(t, jq1.cleanedUp)
+}
+
+func TestMultiSourceJobQueue_Jobs_uniqueChannels(t *testing.T) {
+	jq0 := &fakeJobQueue{c: make(chan Job)}
+	jq1 := &fakeJobQueue{c: make(chan Job)}
+	msjq := NewMultiSourceJobQueue(jq0, jq1)
+
+	buildJobChan0, err := msjq.Jobs(gocontext.TODO())
+	assert.Nil(t, err)
+	assert.NotNil(t, buildJobChan0)
+
+	buildJobChan1, err := msjq.Jobs(gocontext.TODO())
+	assert.Nil(t, err)
+	assert.NotNil(t, buildJobChan1)
+
+	assert.NotEqual(t, fmt.Sprintf("%#v", buildJobChan0), fmt.Sprintf("%#v", buildJobChan1))
 }
