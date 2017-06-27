@@ -173,7 +173,13 @@ var (
 			Usage: "Skip build API TLS verification (useful for Enterprise and testing)",
 		}),
 		NewConfigDef("pprof-port", &cli.StringFlag{
-			Usage: "enable pprof http endpoint at port",
+			Usage: "enable pprof http endpoint (and internal http api) at port",
+		}),
+		NewConfigDef("http-api-port", &cli.StringFlag{
+			Usage: "enable http api (and pprof) at port",
+		}),
+		NewConfigDef("http-api-auth", &cli.StringFlag{
+			Usage: "username:password for http api basic auth",
 		}),
 		NewConfigDef("silence-metrics", &cli.BoolFlag{
 			Usage: "silence metrics logging in case no Librato creds have been provided",
