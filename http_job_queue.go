@@ -81,19 +81,20 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 			if err != nil {
 				logger.WithField("err", err).Warn("continuing after failing to get job ids")
 				time.Sleep(time.Second)
-				continue
-			}
-			for _, id := range jobIds {
-				go func(id uint64) {
+			} else {
+				for _, id := range jobIds {
 					logger.WithField("job_id", id).Debug("fetching complete job")
 					buildJob, err := q.fetchJob(ctx, id)
 					if err != nil {
-						logger.WithField("err", err).Warn("breaking after failing to get complete job")
-						return
+						logger.WithFields(logrus.Fields{
+							"err": err,
+							"id":  id,
+						}).Warn("failed to get complete job")
+					} else {
+						logger.Debug("sending job to output channel")
+						buildJobChan <- buildJob
 					}
-					logger.Debug("sending job to output channel")
-					buildJobChan <- buildJob
-				}(id)
+				}
 			}
 
 			select {
