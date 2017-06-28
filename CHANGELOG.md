@@ -17,6 +17,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [2.9.3] - 2017-06-27
+### Changed
+- cli: assign singular job queue if only one built
+
+### Fixed
+- multi-source-job-queue:
+    - ensure each invocation of `Jobs` creates new `Job` channels
+    - break on context done to prevent goroutine leakage
+
 ## [2.9.2] - 2017-06-16
 ### Added
 - http-job: retry with backoff to job completion request
@@ -491,7 +500,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.9.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.9.3...HEAD
+[2.9.3]: https://github.com/travis-ci/worker/compare/v2.9.2...v2.9.3
 [2.9.2]: https://github.com/travis-ci/worker/compare/v2.9.1...v2.9.2
 [2.9.1]: https://github.com/travis-ci/worker/compare/v2.9.0...v2.9.1
 [2.9.0]: https://github.com/travis-ci/worker/compare/v2.8.2...v2.9.0
