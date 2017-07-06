@@ -7,8 +7,8 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 )

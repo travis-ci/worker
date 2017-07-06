@@ -27,14 +27,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/Sirupsen/logrus",
-			"repository": "https://github.com/Sirupsen/logrus",
-			"vcs": "git",
-			"revision": "68cec9f21fbf3ea8d8f98c044bc6ce05f17b267a",
-			"branch": "master",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/bitly/go-simplejson",
 			"repository": "https://github.com/bitly/go-simplejson",
 			"vcs": "git",
@@ -517,6 +509,14 @@
 			"repository": "https://github.com/rcrowley/go-metrics",
 			"vcs": "git",
 			"revision": "1f30fe9094a513ce4c700b9a54458bbb0c96996c",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/sirupsen/logrus",
+			"repository": "https://github.com/sirupsen/logrus",
+			"vcs": "git",
+			"revision": "85b1699d505667d13f8ac4478c1debbf85d6c5de",
 			"branch": "master",
 			"notests": true
 		},
