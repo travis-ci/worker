@@ -482,7 +482,11 @@ func (i *CLI) setupJobQueueAndCanceller(pool *ProcessorPool) error {
 		return fmt.Errorf("no queues built")
 	}
 
-	i.JobQueue = NewMultiSourceJobQueue(subQueues...)
+	if len(subQueues) == 1 {
+		i.JobQueue = subQueues[0]
+	} else {
+		i.JobQueue = NewMultiSourceJobQueue(subQueues...)
+	}
 	return nil
 }
 

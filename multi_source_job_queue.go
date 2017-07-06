@@ -3,7 +3,6 @@ package worker
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	gocontext "context"
@@ -13,28 +12,21 @@ import (
 )
 
 type MultiSourceJobQueue struct {
-	queues             []JobQueue
-	buildJobChans      map[string]<-chan Job
-	buildJobChansMutex *sync.Mutex
+	queues []JobQueue
 }
 
 func NewMultiSourceJobQueue(queues ...JobQueue) *MultiSourceJobQueue {
-	return &MultiSourceJobQueue{
-		queues:             queues,
-		buildJobChansMutex: &sync.Mutex{},
-	}
+	return &MultiSourceJobQueue{queues: queues}
 }
 
 // Jobs returns a Job channel that selects over each source queue Job channel
 func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
-	msjq.buildJobChansMutex.Lock()
-	defer msjq.buildJobChansMutex.Unlock()
 	logger := context.LoggerFromContext(ctx).WithField("self", "multi_source_job_queue")
 
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
-	msjq.buildJobChans = map[string]<-chan Job{}
+	buildJobChans := map[string]<-chan Job{}
 	for i, queue := range msjq.queues {
 		jc, err := queue.Jobs(ctx)
 		if err != nil {
@@ -44,13 +36,15 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 			}).Error("failed to get job chan from queue")
 			return nil, err
 		}
-		msjq.buildJobChans[fmt.Sprintf("%s.%d", queue.Name(), i)] = jc
+		buildJobChans[fmt.Sprintf("%s.%d", queue.Name(), i)] = jc
 	}
 
 	go func() {
 		for {
-			for queueName, bjc := range msjq.buildJobChans {
+			for queueName, bjc := range buildJobChans {
 				select {
+				case <-ctx.Done():
+					return
 				case job := <-bjc:
 					logger.WithField("source", queueName).Info("sending job to multi source output")
 					buildJobChan <- job
