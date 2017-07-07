@@ -12,9 +12,9 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"

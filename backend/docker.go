@@ -14,11 +14,11 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
