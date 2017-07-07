@@ -42,18 +42,12 @@ script:
 - make test
 - make crossbuild
 - make smoke
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
+    make docker-build smoke-docker docker-push;
+  fi
 - if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
     make package smoke-package;
   fi
-
-jobs:
-  include:
-  - stage: 'Testing time'
-  - stage: ':ship: to Docker Hub'
-    install: skip
-    script: if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-        make docker-build smoke-docker docker-push;
-      fi
 
 notifications:
   slack:

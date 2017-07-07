@@ -9,7 +9,7 @@ main() {
 
   : "${GO:=go}"
   : "${OUT_TMP:=$(mktemp worker.XXXXX)}"
-  : "${PACKAGE:=-github.com/travis-ci/worker}"
+  : "${PACKAGE:=github.com/travis-ci/worker}"
 
   trap 'rm -f '"${OUT_TMP}" EXIT TERM QUIT
 
