@@ -1,6 +1,6 @@
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
-ALL_PACKAGES := $(PACKAGE) $(shell utils/list-packages) $(PACKAGE)/cmd/...
+ALL_PACKAGES := $(PACKAGE) $(shell script/list-packages) $(PACKAGE)/cmd/...
 
 VERSION_VAR := $(PACKAGE).VersionString
 VERSION_VALUE ?= $(shell git describe --always --dirty --tags 2>/dev/null)
@@ -46,7 +46,7 @@ CROSSBUILD_BINARIES := \
 
 .PHONY: %
 %:
-	./utils/$@
+	./script/$@
 
 .PHONY: all
 all: clean test
@@ -62,7 +62,7 @@ coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@
 
 coverage.coverprofile: $(COVERPROFILES)
-	./utils/fold-coverprofiles $^ > $@
+	./script/fold-coverprofiles $^ > $@
 	$(GO) tool cover -func=$@
 
 .PHONY: build

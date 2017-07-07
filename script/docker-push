@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-
 set -o errexit
 
 main() {
   set +o xtrace
 
-  if [[ "${DOCKER_CREDS}" = 'quay' ]]; then
+  if [[ "${DOCKER_CREDS}" == 'quay' ]]; then
     DOCKER_LOGIN_EMAIL=.
     DOCKER_LOGIN_USERNAME="${QUAY_DOCKER_LOGIN_USERNAME}"
     DOCKER_LOGIN_PASSWORD="${QUAY_DOCKER_LOGIN_PASSWORD}"
@@ -49,16 +48,20 @@ main() {
   local attempt=0
   local sleep_interval=10
   local push_start
+  local duration
 
   while true; do
     __log "msg=\"docker push\" dest=${DOCKER_DEST} attempt=$((attempt + 1))"
     push_start=$(date +%s)
     if docker push "${DOCKER_DEST}"; then
+      local now_ts
+      now_ts="$(date +%s)"
+      duration="$((now_ts - push_start))"
       __log 'msg="docker push complete"' \
         "dest=${DOCKER_DEST} " \
-        "duration=$(($(date +%s) - push_start))s"
+        "duration=${duration}s"
 
-      if [[ ${DOCKER_LOGOUT_POST_PUSH} = 1 ]]; then
+      if [[ ${DOCKER_LOGOUT_POST_PUSH} == 1 ]]; then
         __log 'msg="docker logout"'
         # shellcheck disable=SC2086
         docker logout ${DOCKER_LOGIN_SERVER}

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -o errexit
+
+main() {
+  if [[ ! -n "${1}" ]]; then
+    git ls-files '*.go' | while read -r f; do
+      __gofmt_check "${f}"
+    done
+  else
+    find "${1}" -type f -iname '*.go' | while read -r f; do
+      __gofmt_check "${f}"
+    done
+  fi
+
+  echo
+  echo ★★★★★ ALL HAPPY ★★★★★
+}
+
+__gofmt_check() {
+  local f="${1}"
+  gofmt "${f}" | if ! diff -u "${f}" -; then
+    echo "fmtpolice:${f} ✗"
+    exit 1
+  else
+    echo "fmtpolice:${f} ✓"
+  fi
+}
+
+main "$@"
