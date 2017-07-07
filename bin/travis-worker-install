@@ -281,23 +281,22 @@ __configure_travis_worker() {
 }
 
 __configure_grub() {
-  GRUB_CMDLINE_LINUX='cgroup_enable=memory swapaccount=1 apparmor=0'
+  local grub_cmdline_linux='cgroup_enable=memory swapaccount=1 apparmor=0'
 
   if [[ -d /etc/default/grub.d ]]; then
-    cat >"/etc/default/grub.d/99-travis-worker-settings.cfg" <<EOF
-GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX"
-EOF
+    echo "GRUB_CMDLINE_LINUX='${grub_cmdline_linux}'" \
+      >"/etc/default/grub.d/99-travis-worker-settings.cfg"
     update-grub
     return
   fi
 
-  GRUB_CFG="/etc/default/grub"
-  touch $GRUB_CFG
+  local grub_cfg='/etc/default/grub'
+  touch "${grub_cfg}"
 
-  if ! grep -q cgroup_enabled "${GRUB_CFG}"; then
+  if ! grep -q cgroup_enabled "${grub_cfg}"; then
     sed -i \
-      "s/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"$GRUB_CMDLINE_LINUX\"/" \
-      $GRUB_CFG
+      "s/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"${grub_cmdline_linux}\"/" \
+      "${grub_cfg}"
   fi
 
   update-grub
