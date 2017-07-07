@@ -1,8 +1,13 @@
-: ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
+#!/usr/bin/env bash
+set -o errexit
+
+: "${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}"
 export CHECKOUT_ROOT
+# shellcheck source=/dev/null
 source "${CHECKOUT_ROOT}/package/functions.bash"
 
-export DATE="$(date -u +%Y%m%dT%H%M%SZ)"
+DATE="$(date -u +%Y%m%dT%H%M%SZ)"
+export DATE
 export PC_USER='travisci'
 export PC_REPO='worker'
 

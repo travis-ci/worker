@@ -79,8 +79,8 @@ __copy_overlay_files() {
 }
 
 __run_fpm_deb() {
-  local templates_d="$CHECKOUT_ROOT/package/templates.d"
-  __run_fpm --deb-upstart "$templates_d/upstart/travis-worker"
+  __run_fpm \
+    --deb-upstart "$CHECKOUT_ROOT/package/templates.d/upstart/travis-worker"
 }
 
 __run_fpm_rpm() {
