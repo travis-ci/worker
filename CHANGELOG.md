@@ -4,6 +4,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- cli: optional local-only HTTP API listening on same port as pprof
 
 ### Changed
 - http-job-queue: fetch full jobs in series for smoother HTTP traffic
