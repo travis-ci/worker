@@ -12,9 +12,9 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
@@ -290,7 +290,7 @@ func (p *cbProvider) Setup(ctx gocontext.Context) error {
 }
 
 func (p *cbProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/cloudbrain_provider")
 
 	state := &multistep.BasicStateBag{}
 
@@ -355,6 +355,7 @@ func (p *cbProvider) stepInsertInstance(c *cbStartContext) multistep.StepAction 
 	}
 
 	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+		"self":    "backend/cloudbrain_provider",
 		"request": instRequest,
 	}).Debug("creating instance")
 
@@ -371,11 +372,9 @@ func (p *cbProvider) stepInsertInstance(c *cbStartContext) multistep.StepAction 
 }
 
 func (p *cbProvider) stepWaitForInstanceIP(c *cbStartContext) multistep.StepAction {
-	logger := context.LoggerFromContext(c.ctx)
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/cloudbrain_provider")
 
-	logger.WithFields(logrus.Fields{
-		"duration": p.bootPrePollSleep,
-	}).Debug("sleeping before first checking instance insert operation")
+	logger.WithField("duration", p.bootPrePollSleep).Debug("sleeping before first checking instance insert operation")
 
 	time.Sleep(p.bootPrePollSleep)
 
@@ -535,7 +534,10 @@ func (i *cbInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	case err := <-uploadedChan:
 		return err
 	case <-ctx.Done():
-		context.LoggerFromContext(ctx).WithField("err", lastErr).Info("stopping upload retries, error from last attempt")
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  lastErr,
+			"self": "backend/cloudbrain_instance",
+		}).Info("stopping upload retries, error from last attempt")
 		return ctx.Err()
 	}
 }
@@ -571,7 +573,7 @@ func (i *cbInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRes
 }
 
 func (i *cbInstance) Stop(ctx gocontext.Context) error {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/cloudbrain_instance")
 	state := &multistep.BasicStateBag{}
 
 	c := &cbInstanceStopContext{
@@ -612,7 +614,7 @@ func (i *cbInstance) stepDeleteInstance(c *cbInstanceStopContext) multistep.Step
 }
 
 func (i *cbInstance) stepWaitForInstanceDeleted(c *cbInstanceStopContext) multistep.StepAction {
-	logger := context.LoggerFromContext(c.ctx)
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/cloudbrain_instance")
 
 	logger.Debug("skipping instance deletion polling")
 	c.errChan <- nil

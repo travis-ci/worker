@@ -3,6 +3,7 @@ package worker
 import (
 	"crypto/rand"
 	"crypto/sha1"
+	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
@@ -19,24 +20,27 @@ import (
 	"syscall"
 	"time"
 
-	"gopkg.in/urfave/cli.v1"
-
 	// include for conditional pprof HTTP server
 	_ "net/http/pprof"
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	travismetrics "github.com/travis-ci/worker/metrics"
+	cli "gopkg.in/urfave/cli.v1"
+)
+
+var (
+	rootContext = gocontext.TODO()
 )
 
 // CLI is the top level of execution for the whole shebang
@@ -76,27 +80,43 @@ func NewCLI(c *cli.Context) *CLI {
 // Setup runs one-time preparatory actions and returns a boolean success value
 // that is used to determine if it is safe to invoke the Run func
 func (i *CLI) Setup() (bool, error) {
-	if i.c.String("pprof-port") != "" {
-		// Start net/http/pprof server
-		go func() {
-			http.ListenAndServe(fmt.Sprintf("localhost:%s", i.c.String("pprof-port")), nil)
-		}()
-	}
-
 	if i.c.Bool("debug") {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "cli")
 
 	i.ctx = ctx
+	rootContext = ctx
 	i.cancel = cancel
 	i.logger = logger
 
 	logrus.SetFormatter(&logrus.TextFormatter{DisableColors: true})
 
 	i.Config = config.FromCLIContext(i.c)
+
+	if i.c.String("pprof-port") != "" && i.c.String("http-api-port") != "" {
+		return false, fmt.Errorf("only one http port is allowed. "+
+			"pprof-port=%v http-api-port=%v",
+			i.c.String("pprof-port"), i.c.String("http-api-port"))
+	}
+	if i.c.String("pprof-port") != "" || i.c.String("http-api-port") != "" {
+		if i.c.String("http-api-auth") != "" {
+			i.setupHTTPAPI()
+		} else {
+			i.logger.Info("skipping HTTP API setup without http-api-auth set")
+		}
+		go func() {
+			httpPort := i.c.String("http-api-port")
+			if httpPort == "" {
+				httpPort = i.c.String("pprof-port")
+			}
+			httpAddr := fmt.Sprintf("localhost:%s", httpPort)
+			i.logger.Info("listening at ", httpAddr)
+			http.ListenAndServe(httpAddr, nil)
+		}()
+	}
 
 	err := i.setupWorkerID()
 	if err != nil {
@@ -115,25 +135,13 @@ func (i *CLI) Setup() (bool, error) {
 		return false, nil
 	}
 
-	logger.WithFields(logrus.Fields{
-		"cfg": fmt.Sprintf("%#v", i.Config),
-	}).Debug("read config")
+	logger.WithField("cfg", fmt.Sprintf("%#v", i.Config)).Debug("read config")
 
 	i.setupSentry()
 	i.setupMetrics()
 
-	if i.Config.QueueType != "http" {
-		err = i.setupJobQueueAndCanceller()
-		if err != nil {
-			logger.WithField("err", err).Error("couldn't create job queue and canceller")
-			return false, err
-		}
-	}
-
 	generator := NewBuildScriptGenerator(i.Config)
-	logger.WithFields(logrus.Fields{
-		"build_script_generator": fmt.Sprintf("%#v", generator),
-	}).Debug("built")
+	logger.WithField("build_script_generator", fmt.Sprintf("%#v", generator)).Debug("built")
 
 	i.BuildScriptGenerator = generator
 
@@ -149,37 +157,33 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
-	logger.WithFields(logrus.Fields{
-		"provider": fmt.Sprintf("%#v", provider),
-	}).Debug("built")
+	logger.WithField("provider", fmt.Sprintf("%#v", provider)).Debug("built")
 
 	i.BackendProvider = provider
 
 	ppc := &ProcessorPoolConfig{
-		Hostname:            i.Config.Hostname,
-		Context:             ctx,
+		Hostname: i.Config.Hostname,
+		Context:  ctx,
+
 		HardTimeout:         i.Config.HardTimeout,
+		InitialSleep:        i.Config.InitialSleep,
 		LogTimeout:          i.Config.LogTimeout,
+		MaxLogLength:        i.Config.MaxLogLength,
 		ScriptUploadTimeout: i.Config.ScriptUploadTimeout,
 		StartupTimeout:      i.Config.StartupTimeout,
-		MaxLogLength:        i.Config.MaxLogLength,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)
 
 	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
-	logger.WithFields(logrus.Fields{
-		"pool": pool,
-	}).Debug("built")
+	logger.WithField("pool", pool).Debug("built")
 
 	i.ProcessorPool = pool
 
-	if i.Config.QueueType == "http" {
-		err := i.setupJobQueueForHTTP(pool)
-		if err != nil {
-			logger.WithField("err", err).Error("couldn't setup job queue for http")
-			return false, err
-		}
+	err = i.setupJobQueueAndCanceller(pool)
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't create job queue and canceller")
+		return false, err
 	}
 
 	return true, nil
@@ -375,17 +379,19 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 		req.Header.Set("Authorization", fmt.Sprintf("token %s", heartbeatAuthToken))
 	}
 
-	res, err := (&http.Client{}).Do(req)
+	resp, err := (&http.Client{}).Do(req)
 	if err != nil {
 		return err
 	}
 
-	if res.StatusCode > 299 {
-		return fmt.Errorf("unhappy status code %d", res.StatusCode)
+	defer resp.Body.Close()
+
+	if resp.StatusCode > 299 {
+		return fmt.Errorf("unhappy status code %d", resp.StatusCode)
 	}
 
 	body := map[string]string{}
-	err = json.NewDecoder(res.Body).Decode(&body)
+	err = json.NewDecoder(resp.Body).Decode(&body)
 	if err != nil {
 		return err
 	}
@@ -395,6 +401,104 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 		i.ProcessorPool.GracefulShutdown(false)
 	}
 	return nil
+}
+
+func (i *CLI) setupHTTPAPI() {
+	i.logger.Info("setting up HTTP API")
+	http.HandleFunc("/worker", i.httpAPI)
+	http.HandleFunc("/worker/", i.httpAPI)
+}
+
+func (i *CLI) httpAPI(w http.ResponseWriter, req *http.Request) {
+	if req.Method == "GET" && req.URL.Path == "/worker" {
+		w.Header().Set("Content-Type", "text/plain;charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, strings.TrimSpace(`
+Available methods:
+
+- POST /worker/graceful-shutdown
+- POST /worker/graceful-shutdown-pause
+- POST /worker/info
+- POST /worker/pool-decr
+- POST /worker/pool-incr
+- POST /worker/shutdown
+		`)+"\n")
+		return
+	}
+
+	if req.Method != "POST" {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	username, password, ok := req.BasicAuth()
+	if !ok {
+		w.Header().Set("WWW-Authenticate", "Basic realm=\"travis-ci/worker\"")
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	authBytes := []byte(fmt.Sprintf("%s:%s", username, password))
+	if subtle.ConstantTimeCompare(authBytes, []byte(i.c.String("http-api-auth"))) != 1 {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain;charset=utf-8")
+
+	action := strings.ToLower(strings.Replace(req.URL.Path, "/worker/", "", 1))
+	i.logger.Info(fmt.Sprintf("web %s received", action))
+	switch action {
+	case "graceful-shutdown":
+		i.ProcessorPool.GracefulShutdown(false)
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "starting graceful shutdown\n")
+	case "shutdown":
+		i.cancel()
+		fmt.Fprintf(w, "shutting down immediately\n")
+	case "pool-incr":
+		prev := i.ProcessorPool.Size()
+		i.ProcessorPool.Incr()
+		fmt.Fprintf(w, "adding processor to pool (%v + 1)\n", prev)
+	case "pool-decr":
+		prev := i.ProcessorPool.Size()
+		i.ProcessorPool.Decr()
+		fmt.Fprintf(w, "removing processor from pool (%v - 1)\n", prev)
+	case "graceful-shutdown-pause":
+		i.ProcessorPool.GracefulShutdown(true)
+		fmt.Fprintf(w, "toggling graceful shutdown and pause\n")
+	case "info":
+		fmt.Fprintf(w, "version: %s\n"+
+			"revision: %s\n"+
+			"generated: %s\n"+
+			"boot_time: %s\n"+
+			"uptime: %v\n"+
+			"pool_size: %v\n"+
+			"total_processed: %v\n"+
+			"processors:\n",
+			VersionString,
+			RevisionString,
+			GeneratedString,
+			i.bootTime.String(),
+			time.Since(i.bootTime),
+			i.ProcessorPool.Size(),
+			i.ProcessorPool.TotalProcessed())
+		i.ProcessorPool.Each(func(n int, proc *Processor) {
+			fmt.Fprintf(w, "- n: %v\n"+
+				"  id: %v\n"+
+				"  processed: %v\n"+
+				"  status: %v\n"+
+				"  last_job_id: %v\n",
+				n,
+				proc.ID,
+				proc.ProcessedCount,
+				proc.CurrentStatus,
+				proc.LastJobID)
+		})
+	default:
+		w.Header().Set("Travis-Worker-Unknown-Action", action)
+		w.WriteHeader(http.StatusNotFound)
+	}
 }
 
 func (i *CLI) signalHandler() {
@@ -458,91 +562,89 @@ func (i *CLI) logProcessorInfo(msg string) {
 	})
 }
 
-func (i *CLI) setupJobQueueAndCanceller() error {
-	switch i.Config.QueueType {
-	case "amqp":
-		var amqpConn *amqp.Connection
-		var err error
+func (i *CLI) setupJobQueueAndCanceller(pool *ProcessorPool) error {
+	subQueues := []JobQueue{}
+	for _, queueType := range strings.Split(i.Config.QueueType, ",") {
+		queueType = strings.TrimSpace(queueType)
 
-		if i.Config.AmqpTlsCert != "" || i.Config.AmqpTlsCertPath != "" {
-			cfg := new(tls.Config)
-			cfg.RootCAs = x509.NewCertPool()
-			if i.Config.AmqpTlsCert != "" {
-				cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.AmqpTlsCert))
+		switch queueType {
+		case "amqp":
+			jobQueue, canceller, err := i.buildAMQPJobQueueAndCanceller()
+			if err != nil {
+				return err
 			}
-			if i.Config.AmqpTlsCertPath != "" {
-				cert, err := ioutil.ReadFile(i.Config.AmqpTlsCertPath)
-				if err != nil {
-					return err
-				}
-				cfg.RootCAs.AppendCertsFromPEM(cert)
+			go canceller.Run()
+			subQueues = append(subQueues, jobQueue)
+		case "file":
+			jobQueue, err := i.buildFileJobQueue()
+			if err != nil {
+				return err
 			}
-			amqpConn, err = amqp.DialTLS(i.Config.AmqpURI, cfg)
-		} else if i.Config.AmqpInsecure {
-			amqpConn, err = amqp.DialTLS(
-				i.Config.AmqpURI,
-				&tls.Config{InsecureSkipVerify: true},
-			)
-		} else {
-			amqpConn, err = amqp.Dial(i.Config.AmqpURI)
+			subQueues = append(subQueues, jobQueue)
+		case "http":
+			jobQueue, err := i.buildHTTPJobQueue(pool)
+			if err != nil {
+				return err
+			}
+			subQueues = append(subQueues, jobQueue)
+		default:
+			return fmt.Errorf("unknown queue type %q", queueType)
 		}
-		if err != nil {
-			i.logger.WithField("err", err).Error("couldn't connect to AMQP")
-			return err
-		}
-
-		go i.amqpErrorWatcher(amqpConn)
-
-		i.logger.Debug("connected to AMQP")
-
-		canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
-		i.logger.WithFields(logrus.Fields{
-			"canceller": fmt.Sprintf("%#v", canceller),
-		}).Debug("built")
-
-		go canceller.Run()
-
-		jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName)
-		if err != nil {
-			return err
-		}
-
-		jobQueue.DefaultLanguage = i.Config.DefaultLanguage
-		jobQueue.DefaultDist = i.Config.DefaultDist
-		jobQueue.DefaultGroup = i.Config.DefaultGroup
-		jobQueue.DefaultOS = i.Config.DefaultOS
-
-		i.JobQueue = jobQueue
-		return nil
-	case "file":
-		jobQueue, err := NewFileJobQueue(i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
-		if err != nil {
-			return err
-		}
-
-		jobQueue.DefaultLanguage = i.Config.DefaultLanguage
-		jobQueue.DefaultDist = i.Config.DefaultDist
-		jobQueue.DefaultGroup = i.Config.DefaultGroup
-		jobQueue.DefaultOS = i.Config.DefaultOS
-
-		i.JobQueue = jobQueue
-		return nil
 	}
 
-	return fmt.Errorf("unknown queue type %q", i.Config.QueueType)
+	if len(subQueues) == 0 {
+		return fmt.Errorf("no queues built")
+	}
+
+	if len(subQueues) == 1 {
+		i.JobQueue = subQueues[0]
+	} else {
+		i.JobQueue = NewMultiSourceJobQueue(subQueues...)
+	}
+	return nil
 }
 
-func (i *CLI) setupJobQueueForHTTP(pool *ProcessorPool) error {
-	jobBoardURL, err := url.Parse(i.Config.JobBoardURL)
+func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, error) {
+	var amqpConn *amqp.Connection
+	var err error
+
+	if i.Config.AmqpTlsCert != "" || i.Config.AmqpTlsCertPath != "" {
+		cfg := new(tls.Config)
+		cfg.RootCAs = x509.NewCertPool()
+		if i.Config.AmqpTlsCert != "" {
+			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.AmqpTlsCert))
+		}
+		if i.Config.AmqpTlsCertPath != "" {
+			cert, err := ioutil.ReadFile(i.Config.AmqpTlsCertPath)
+			if err != nil {
+				return nil, nil, err
+			}
+			cfg.RootCAs.AppendCertsFromPEM(cert)
+		}
+		amqpConn, err = amqp.DialTLS(i.Config.AmqpURI, cfg)
+	} else if i.Config.AmqpInsecure {
+		amqpConn, err = amqp.DialTLS(
+			i.Config.AmqpURI,
+			&tls.Config{InsecureSkipVerify: true},
+		)
+	} else {
+		amqpConn, err = amqp.Dial(i.Config.AmqpURI)
+	}
 	if err != nil {
-		return errors.Wrap(err, "error parsing job board URL")
+		i.logger.WithField("err", err).Error("couldn't connect to AMQP")
+		return nil, nil, err
 	}
 
-	jobQueue, err := NewHTTPJobQueue(
-		pool, jobBoardURL, i.Config.TravisSite,
-		i.Config.ProviderName, i.Config.QueueName, i.id)
+	go i.amqpErrorWatcher(amqpConn)
+
+	i.logger.Debug("connected to AMQP")
+
+	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
+	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
+
+	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName)
 	if err != nil {
-		return errors.Wrap(err, "error creating HTTP job queue")
+		return nil, nil, err
 	}
 
 	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
@@ -550,8 +652,42 @@ func (i *CLI) setupJobQueueForHTTP(pool *ProcessorPool) error {
 	jobQueue.DefaultGroup = i.Config.DefaultGroup
 	jobQueue.DefaultOS = i.Config.DefaultOS
 
-	i.JobQueue = jobQueue
-	return nil
+	return jobQueue, canceller, nil
+}
+
+func (i *CLI) buildHTTPJobQueue(pool *ProcessorPool) (*HTTPJobQueue, error) {
+	jobBoardURL, err := url.Parse(i.Config.JobBoardURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "error parsing job board URL")
+	}
+
+	jobQueue, err := NewHTTPJobQueue(
+		pool, jobBoardURL, i.Config.TravisSite,
+		i.Config.ProviderName, i.Config.QueueName, i.id)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating HTTP job queue")
+	}
+
+	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
+	jobQueue.DefaultDist = i.Config.DefaultDist
+	jobQueue.DefaultGroup = i.Config.DefaultGroup
+	jobQueue.DefaultOS = i.Config.DefaultOS
+
+	return jobQueue, nil
+}
+
+func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
+	jobQueue, err := NewFileJobQueue(i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
+	if err != nil {
+		return nil, err
+	}
+
+	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
+	jobQueue.DefaultDist = i.Config.DefaultDist
+	jobQueue.DefaultGroup = i.Config.DefaultGroup
+	jobQueue.DefaultOS = i.Config.DefaultOS
+
+	return jobQueue, nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {

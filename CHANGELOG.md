@@ -4,11 +4,72 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- cli: optional local-only HTTP API listening on same port as pprof
+
 ### Changed
+- http-job-queue: fetch full jobs in series for smoother HTTP traffic
+
 ### Deprecated
+
 ### Removed
+
 ### Fixed
+- http-job-queue: check for context cancellation every loop
+
 ### Security
+
+## [2.9.3] - 2017-06-27
+### Changed
+- cli: assign singular job queue if only one built
+
+### Fixed
+- multi-source-job-queue:
+    - ensure each invocation of `Jobs` creates new `Job` channels
+    - break on context done to prevent goroutine leakage
+
+## [2.9.2] - 2017-06-16
+### Added
+- http-job: retry with backoff to job completion request
+- http-job-queue: retry with backoff to full job fetch request
+
+### Fixed
+- http: ensure all response bodies are closed to prevent file descriptor leakage
+
+## [2.9.1] - 2017-06-09
+### Fixed
+- ssh: set host key callback on ssh client config
+
+## [2.9.0] - 2017-06-07
+### Added
+- multi-source-job-queue: funnels arbitrary other job queues into a single source
+- "self" field in various log records for correlation
+- config: initial sleep duration prior to beginning job execution
+- backend/docker: optional API-based image selection
+
+### Changed
+- amqp-log-writer, http-log-writer: check context done to prevent goroutine leakage
+- http-job-queue:
+    - reuse cached build job channel if present
+    - check context done to prevent goroutine leakage
+    - attach context to all HTTP requests
+    - more debug logging
+- step-write-worker-info: report the job type (amqp/http/file) in instance line
+- processor: check for cancellation in between various steps
+- build: support and build using Go 1.8.3
+
+### Fixed
+- http-log-writer: flush buffer regularly in the background
+
+## [2.8.2] - 2017-05-17
+### Changed
+- vagrant: general refresh for development purposes
+
+### Fixed
+- amqp-job: ensure `finished_at` timestamp is included with state event when available
+
+## [2.8.1] - 2017-05-11
+### Fixed
+- backend/docker: ensure parsed tmpfs mount mapping does not include empty keys
 
 ## [2.8.0] - 2017-04-12
 ### Added
@@ -49,10 +110,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
   `LogWriter`
 
 ### Changed
-- build_script_generator: accepts `Job` instead of `*simplejson.Json`
+- build-script-generator: accepts `Job` instead of `*simplejson.Json`
 
 ### Fixed
-- log_writer: pass timeout on creation and start timer on first write
+- log-writer: pass timeout on creation and start timer on first write
 
 ## [2.6.1] - 2017-01-23
 ### Fixed
@@ -64,14 +125,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Added
 - cli: log processor pool total on shutdown
-- amqp_job: meter for job finish state (#184)
-- amqp_job: track queue time via queued_at field from payload
-- amqp_job_queue: log job id immediately after json decode
+- amqp-job: meter for job finish state (#184)
+- amqp-job: track queue time via `queued_at` field from payload
+- amqp-job-queue: log job id immediately after json decode
 - capture every requeue and send the error to sentry
 
 ### Changed
-- image/api_selector: selection of candidates by multiple groups
-- amqp_canceller: change verbosity of canceller missing job id to debug
+- image/api-selector: selection of candidates by multiple groups
+- amqp-canceller: change verbosity of canceller missing job id to debug
 - docker: SIGINT `STOPSIGNAL` for graceful shutdown
 
 ### Fixed
@@ -80,9 +141,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - backend/jupiterbrain: parse SSH key on backend init (#206)
 - backend/jupiterbrain: add sleep between creating and wait-for-ip
 - backend/docker: run bash with `-l` (login shell) in docker native mode
-- image/api_selector: check job-board response status code on image selection
-- image/api_selector: check tagsets for trailing commas before querying job-board
-- amqp_job_queue: handle context cancellation when delivering build job
+- image/api-selector: check job-board response status code on image selection
+- image/api-selector: check tagsets for trailing commas before querying job-board
+- amqp-job-queue: handle context cancellation when delivering build job
 - ssh: request a 80x40 PTY
 
 ## [2.5.0] - 2016-10-03
@@ -212,11 +273,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 	log correlation
 - sentry: Only send fatal and panic levels to Sentry, with an option for
 	sending errors as well (--sentry-hook-errors)
-- image/api\_selector: Send os:osx instead of the language when querying for
-	an image matching an osx\_image flag
+- image/api-selector: Send os:osx instead of the language when querying for
+	an image matching an `osx_image` flag
 
 ### Fixed
-- amqp\_job: Send correct received\_at and started\_at timestamps to hub in
+- amqp-job: Send correct `received_at` and `started_at` timestamps to hub in
 	the case of the job finishing before the received or started event is sent
 
 ## [1.3.0] - 2015-11-30
@@ -227,7 +288,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - utils/package-\*, bin/travis-worker-install: Rework and integration into
   base CI suite.
 - Switch to using `gvt` for dependency management.
-- amqp\_job: Send all known timestamps during state updates.
+- amqp-job: Send all known timestamps during state updates.
 - backend: Set defaults for all `StartAttributes` fields, which are also
   exposed via CLI.
 
@@ -236,7 +297,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Fixed
 - backend/docker: Use correct `HostConfig` when creating container
-- image/api\_selector: Set `is_default=true` when queries consist of a single
+- image/api-selector: Set `is_default=true` when queries consist of a single
   search dimension.
 
 ## [1.2.0] - 2015-11-10
@@ -440,7 +501,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.8.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.9.3...HEAD
+[2.9.3]: https://github.com/travis-ci/worker/compare/v2.9.2...v2.9.3
+[2.9.2]: https://github.com/travis-ci/worker/compare/v2.9.1...v2.9.2
+[2.9.1]: https://github.com/travis-ci/worker/compare/v2.9.0...v2.9.1
+[2.9.0]: https://github.com/travis-ci/worker/compare/v2.8.2...v2.9.0
+[2.8.2]: https://github.com/travis-ci/worker/compare/v2.8.1...v2.8.2
+[2.8.1]: https://github.com/travis-ci/worker/compare/v2.8.0...v2.8.1
 [2.8.0]: https://github.com/travis-ci/worker/compare/v2.7.0...v2.8.0
 [2.7.0]: https://github.com/travis-ci/worker/compare/v2.6.2...v2.7.0
 [2.6.2]: https://github.com/travis-ci/worker/compare/v2.6.1...v2.6.2

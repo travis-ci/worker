@@ -7,8 +7,8 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 )
@@ -22,8 +22,8 @@ type ProcessorPool struct {
 	CancellationBroadcaster *CancellationBroadcaster
 	Hostname                string
 
-	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
-	MaxLogLength                                                 int
+	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                               int
 
 	SkipShutdownOnLogTimeout bool
 
@@ -39,8 +39,8 @@ type ProcessorPoolConfig struct {
 	Hostname string
 	Context  gocontext.Context
 
-	HardTimeout, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
-	MaxLogLength                                                 int
+	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
+	MaxLogLength                                                               int
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -53,6 +53,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Context:  ppc.Context,
 
 		HardTimeout:         ppc.HardTimeout,
+		InitialSleep:        ppc.InitialSleep,
 		LogTimeout:          ppc.LogTimeout,
 		ScriptUploadTimeout: ppc.ScriptUploadTimeout,
 		StartupTimeout:      ppc.StartupTimeout,
@@ -110,6 +111,7 @@ func (p *ProcessorPool) Run(poolSize int, queue JobQueue) error {
 
 	if len(p.poolErrors) > 0 {
 		context.LoggerFromContext(p.Context).WithFields(logrus.Fields{
+			"self":        "processor_pool",
 			"pool_errors": p.poolErrors,
 		}).Panic("failed to populate pool")
 	}
@@ -125,16 +127,16 @@ func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 	p.processorsLock.Lock()
 	defer p.processorsLock.Unlock()
 
-	log := context.LoggerFromContext(p.Context)
+	logger := context.LoggerFromContext(p.Context).WithField("self", "processor_pool")
 
 	if togglePause {
 		p.pauseCount++
 
 		if p.pauseCount == 1 {
-			log.Info("incrementing wait group for pause")
+			logger.Info("incrementing wait group for pause")
 			p.processorsWG.Add(1)
 		} else if p.pauseCount == 2 {
-			log.Info("finishing wait group to unpause")
+			logger.Info("finishing wait group to unpause")
 			p.processorsWG.Done()
 		} else if p.pauseCount > 2 {
 			return
@@ -178,14 +180,18 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 		queue, p.Provider, p.Generator, p.CancellationBroadcaster,
 		ProcessorConfig{
 			HardTimeout:         p.HardTimeout,
+			InitialSleep:        p.InitialSleep,
 			LogTimeout:          p.LogTimeout,
+			MaxLogLength:        p.MaxLogLength,
 			ScriptUploadTimeout: p.ScriptUploadTimeout,
 			StartupTimeout:      p.StartupTimeout,
-			MaxLogLength:        p.MaxLogLength,
 		})
 
 	if err != nil {
-		context.LoggerFromContext(p.Context).WithField("err", err).Error("couldn't create processor")
+		context.LoggerFromContext(p.Context).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "processor_pool",
+		}).Error("couldn't create processor")
 		return err
 	}
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/url"
 	"runtime"
 	"strconv"
 	"strings"
@@ -13,15 +14,20 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/dustin/go-humanize"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ssh"
+)
+
+const (
+	defaultDockerImageSelectorType = "tag"
 )
 
 var (
@@ -30,18 +36,20 @@ var (
 	defaultExecCmd                             = "bash /home/travis/build.sh"
 	defaultTmpfsMap                            = map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k"}
 	dockerHelp                                 = map[string]string{
-		"ENDPOINT / HOST":  "[REQUIRED] tcp or unix address for connecting to Docker",
-		"CERT_PATH":        "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
-		"CMD":              "command (CMD) to run when creating containers (default \"/sbin/init\")",
-		"EXEC_CMD":         fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
-		"TMPFS_MAP":        fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
-		"MEMORY":           "memory to allocate to each container (0 disables allocation, default \"4G\")",
-		"SHM":              "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
-		"CPUS":             "cpu count to allocate to each container (0 disables allocation, default 2)",
-		"CPU_SET_SIZE":     "size of available cpu set (default detected locally via runtime.NumCPU)",
-		"NATIVE":           "upload and run build script via docker API instead of over ssh (default false)",
-		"PRIVILEGED":       "run containers in privileged mode (default false)",
-		"SSH_DIAL_TIMEOUT": fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
+		"ENDPOINT / HOST":     "[REQUIRED] tcp or unix address for connecting to Docker",
+		"CERT_PATH":           "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
+		"CMD":                 "command (CMD) to run when creating containers (default \"/sbin/init\")",
+		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
+		"TMPFS_MAP":           fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
+		"MEMORY":              "memory to allocate to each container (0 disables allocation, default \"4G\")",
+		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
+		"CPUS":                "cpu count to allocate to each container (0 disables allocation, default 2)",
+		"CPU_SET_SIZE":        "size of available cpu set (default detected locally via runtime.NumCPU)",
+		"NATIVE":              "upload and run build script via docker API instead of over ssh (default false)",
+		"PRIVILEGED":          "run containers in privileged mode (default false)",
+		"SSH_DIAL_TIMEOUT":    fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
+		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\" or \"api\", default %q)", defaultDockerImageSelectorType),
+		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
 	}
 )
 
@@ -72,6 +80,7 @@ type dockerProvider struct {
 	runNative     bool
 	execCmd       []string
 	tmpFs         map[string]string
+	imageSelector image.Selector
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -85,6 +94,10 @@ type dockerInstance struct {
 
 	imageName string
 	runNative bool
+}
+
+type dockerTagImageSelector struct {
+	client *docker.Client
 }
 
 func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
@@ -179,6 +192,20 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, errors.Wrap(err, "couldn't create SSH dialer")
 	}
 
+	imageSelectorType := defaultDockerImageSelectorType
+	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
+		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
+	}
+
+	if imageSelectorType != "tag" && imageSelectorType != "api" {
+		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
+	}
+
+	imageSelector, err := buildDockerImageSelector(imageSelectorType, client, cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't build docker image selector")
+	}
+
 	return &dockerProvider{
 		client:         client,
 		sshDialer:      sshDialer,
@@ -190,6 +217,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runShm:        shm,
 		runCPUs:       int(cpus),
 		runNative:     runNative,
+		imageSelector: imageSelector,
 
 		execCmd: execCmd,
 		tmpFs:   tmpFs,
@@ -221,17 +249,76 @@ func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 	return docker.NewClient(endpoint)
 }
 
+func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *config.ProviderConfig) (image.Selector, error) {
+	switch selectorType {
+	case "tag":
+		return &dockerTagImageSelector{client: client}, nil
+	case "api":
+		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse image selector URL")
+		}
+		return image.NewAPISelector(baseURL), nil
+	default:
+		return nil, fmt.Errorf("invalid image selector type %q", selectorType)
+	}
+}
+
+func dockerImageIDNameFromSelection(selection string) (string, string) {
+	parts := strings.SplitN(strings.TrimSpace(selection), ";", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return parts[0], parts[0]
+}
+
+func (p *dockerProvider) dockerImageIDFromName(imageName string) string {
+	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
+	if err != nil {
+		return imageName
+	}
+
+	imageID, _, err := findDockerImageByTag([]string{imageName}, images)
+	if err != nil {
+		return imageName
+	}
+
+	return imageID
+}
+
 func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	logger := context.LoggerFromContext(ctx)
+	var (
+		imageID   string
+		imageName string
+	)
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
 
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil && cpuSets != "" {
 		return nil, err
 	}
 
-	imageID, imageName, err := p.imageForLanguage(startAttributes.Language)
-	if err != nil {
-		return nil, err
+	if startAttributes.ImageName != "" {
+		imageName = startAttributes.ImageName
+	} else {
+		imageIDName, err := p.imageSelector.Select(&image.Params{
+			Language: startAttributes.Language,
+			Infra:    "docker",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if strings.Contains(imageIDName, ";") {
+			imageID, imageName = dockerImageIDNameFromSelection(imageIDName)
+		} else {
+			imageName = imageIDName
+		}
+	}
+
+	if imageID == "" {
+		imageID = p.dockerImageIDFromName(imageName)
 	}
 
 	dockerConfig := &docker.Config{
@@ -324,30 +411,6 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 }
 
 func (p *dockerProvider) Setup(ctx gocontext.Context) error { return nil }
-
-func (p *dockerProvider) imageForLanguage(language string) (string, string, error) {
-	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
-	if err != nil {
-		return "", "", err
-	}
-
-	for _, searchTag := range []string{
-		"travis:" + language,
-		language,
-		"travis:default",
-		"default",
-	} {
-		for _, image := range images {
-			for _, tag := range image.RepoTags {
-				if tag == searchTag {
-					return image.ID, tag, nil
-				}
-			}
-		}
-	}
-
-	return "", "", fmt.Errorf("no image found with language %s", language)
-}
 
 func (p *dockerProvider) checkoutCPUSets() (string, error) {
 	p.cpuSetsMutex.Lock()
@@ -465,7 +528,7 @@ func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*Ru
 }
 
 func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_instance")
 	createExecOpts := docker.CreateExecOptions{
 		AttachStdin:  false,
 		AttachStdout: true,
@@ -561,4 +624,37 @@ func (i *dockerInstance) StartupDuration() time.Duration {
 		return zeroDuration
 	}
 	return i.startBooting.Sub(i.container.Created)
+}
+
+func (s *dockerTagImageSelector) Select(params *image.Params) (string, error) {
+	images, err := s.client.ListImages(docker.ListImagesOptions{All: true})
+	if err != nil {
+		return "", errors.Wrap(err, "failed to list docker images")
+	}
+
+	_, imageName, err := findDockerImageByTag([]string{
+		"travis:" + params.Language,
+		params.Language,
+		"travis:default",
+		"default",
+	}, images)
+
+	return imageName, err
+}
+
+func findDockerImageByTag(searchTags []string, images []docker.APIImages) (string, string, error) {
+	for _, searchTag := range searchTags {
+		for _, image := range images {
+			if searchTag == image.ID {
+				return image.ID, searchTag, nil
+			}
+			for _, tag := range image.RepoTags {
+				if tag == searchTag {
+					return image.ID, searchTag, nil
+				}
+			}
+		}
+	}
+
+	return "", "", fmt.Errorf("failed to find matching docker image tag")
 }

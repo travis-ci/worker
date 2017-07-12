@@ -146,6 +146,7 @@ func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, job Job) ([]by
 	if err != nil {
 		return nil, err
 	}
+
 	defer resp.Body.Close()
 	metrics.TimeSince("worker.job.script.api", startRequest)
 

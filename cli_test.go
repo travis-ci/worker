@@ -9,7 +9,7 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/context"
 )
@@ -27,7 +27,7 @@ func TestCLI_heartbeatHandler(t *testing.T) {
 	i.heartbeatErrSleep = time.Duration(0)
 
 	ctx, cancel := gocontext.WithCancel(gocontext.Background())
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "cli_test")
 	i.ctx = ctx
 	i.cancel = cancel
 	i.logger = logger

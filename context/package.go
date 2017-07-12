@@ -9,11 +9,12 @@ package context
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/getsentry/raven-go"
+	"github.com/sirupsen/logrus"
 )
 
 type contextKey int
@@ -119,12 +120,18 @@ func LoggerFromContext(ctx context.Context) *logrus.Entry {
 		entry = entry.WithField("component", component)
 	}
 
-	if jobID, ok := JobIDFromContext(ctx); ok {
-		entry = entry.WithField("job", jobID)
+	jobID, hasJobID := JobIDFromContext(ctx)
+	if hasJobID {
+		entry = entry.WithField("job_id", jobID)
 	}
 
-	if repository, ok := RepositoryFromContext(ctx); ok {
+	repository, hasRepository := RepositoryFromContext(ctx)
+	if hasRepository {
 		entry = entry.WithField("repository", repository)
+	}
+
+	if hasJobID && hasRepository {
+		entry = entry.WithField("job_path", fmt.Sprintf("%s/jobs/%d", repository, jobID))
 	}
 
 	return entry

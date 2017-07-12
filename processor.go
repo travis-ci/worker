@@ -19,10 +19,11 @@ type Processor struct {
 	hostname string
 
 	hardTimeout         time.Duration
+	initialSleep        time.Duration
 	logTimeout          time.Duration
+	maxLogLength        int
 	scriptUploadTimeout time.Duration
 	startupTimeout      time.Duration
-	maxLogLength        int
 
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
@@ -50,10 +51,11 @@ type Processor struct {
 
 type ProcessorConfig struct {
 	HardTimeout         time.Duration
+	InitialSleep        time.Duration
 	LogTimeout          time.Duration
+	MaxLogLength        int
 	ScriptUploadTimeout time.Duration
 	StartupTimeout      time.Duration
-	MaxLogLength        int
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
@@ -79,6 +81,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		ID:       processorUUID,
 		hostname: hostname,
 
+		initialSleep:        config.InitialSleep,
 		hardTimeout:         config.HardTimeout,
 		logTimeout:          config.LogTimeout,
 		scriptUploadTimeout: config.ScriptUploadTimeout,
@@ -102,17 +105,18 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 // terminated, either by calling the GracefulShutdown or Terminate methods, or
 // if the build jobs channel is closed.
 func (p *Processor) Run() {
-	context.LoggerFromContext(p.ctx).Info("starting processor")
-	defer context.LoggerFromContext(p.ctx).Info("processor done")
+	logger := context.LoggerFromContext(p.ctx).WithField("self", "processor")
+	logger.Info("starting processor")
+	defer logger.Info("processor done")
 	defer func() { p.CurrentStatus = "done" }()
 
 	for {
 		select {
 		case <-p.ctx.Done():
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			p.terminate()
 			return
 		default:
@@ -120,10 +124,10 @@ func (p *Processor) Run() {
 
 		select {
 		case <-p.ctx.Done():
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			context.LoggerFromContext(p.ctx).Info("processor is done, terminating")
+			logger.Info("processor is done, terminating")
 			p.terminate()
 			return
 		case buildJob, ok := <-p.buildJobsChan:
@@ -156,13 +160,14 @@ func (p *Processor) Run() {
 // processing, but not pick up any new jobs. This method will return
 // immediately, the processor is done when Run() returns.
 func (p *Processor) GracefulShutdown() {
+	logger := context.LoggerFromContext(p.ctx).WithField("self", "processor")
 	defer func() {
 		err := recover()
 		if err != nil {
-			context.LoggerFromContext(p.ctx).WithField("err", err).Error("recovered from panic")
+			logger.WithField("err", err).Error("recovered from panic")
 		}
 	}()
-	context.LoggerFromContext(p.ctx).Info("processor initiating graceful shutdown")
+	logger.Info("processor initiating graceful shutdown")
 	tryClose(p.graceful)
 }
 
@@ -178,6 +183,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "processor")
+
 	logTimeout := p.logTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
 		logTimeout = time.Duration(buildJob.Payload().Timeouts.LogSilence) * time.Second
@@ -191,19 +198,25 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			generator: p.generator,
 		},
 		&stepSendReceived{},
+		&stepSleep{duration: p.initialSleep},
+		&stepCheckCancellation{},
 		&stepOpenLogWriter{
 			maxLogLength:      p.maxLogLength,
 			defaultLogTimeout: p.logTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepStartInstance{
 			provider:     p.provider,
 			startTimeout: p.startupTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepUploadScript{
 			uploadTimeout: p.scriptUploadTimeout,
 		},
+		&stepCheckCancellation{},
 		&stepUpdateState{},
 		&stepWriteWorkerInfo{},
+		&stepCheckCancellation{},
 		&stepRunScript{
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,
@@ -213,9 +226,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	runner := &multistep.BasicRunner{Steps: steps}
 
-	context.LoggerFromContext(ctx).Info("starting job")
+	logger.Info("starting job")
 	runner.Run(state)
-	context.LoggerFromContext(ctx).Info("finished job")
+	logger.Info("finished job")
 	p.ProcessedCount++
 }
 

@@ -23,6 +23,8 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	instance := state.Get("instance").(backend.Instance)
 	script := state.Get("script").([]byte)
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_upload_script")
+
 	ctx, cancel := gocontext.WithTimeout(ctx, s.uploadTimeout)
 	defer cancel()
 
@@ -34,18 +36,18 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		metrics.Mark(errMetric)
 
-		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't upload script, attemping requeue")
+		logger.WithField("err", err).Error("couldn't upload script, attemping requeue")
 		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue(ctx)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't requeue job")
+			logger.WithField("err", err).Error("couldn't requeue job")
 		}
 
 		return multistep.ActionHalt
 	}
 
-	context.LoggerFromContext(ctx).Info("uploaded script")
+	logger.Info("uploaded script")
 
 	return multistep.ActionContinue
 }

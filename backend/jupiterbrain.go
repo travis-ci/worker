@@ -14,9 +14,9 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/image"
@@ -212,13 +212,23 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 }
 
 func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	// Get the image name
-	imageName, err := p.getImageName(ctx, startAttributes)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't get image name")
+	var (
+		imageName string
+		err       error
+	)
+
+	if startAttributes.ImageName != "" {
+		imageName = startAttributes.ImageName
+	} else {
+		imageName, err = p.getImageName(ctx, startAttributes)
+		if err != nil {
+			return nil, errors.Wrap(err, "couldn't get image name")
+		}
 	}
 
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/jupiterbrain_provider")
+
+	logger.WithFields(logrus.Fields{
 		"image_name": imageName,
 		"osx_image":  startAttributes.OsxImage,
 		"language":   startAttributes.Language,
@@ -273,7 +283,7 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 	metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
 	normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
 	metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
-	context.LoggerFromContext(ctx).WithField("instance_uuid", payload.ID).Info("booted instance")
+	logger.WithField("instance_uuid", payload.ID).Info("booted instance")
 
 	if payload.BaseImage == "" {
 		payload.BaseImage = imageName

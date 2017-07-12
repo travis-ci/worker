@@ -11,8 +11,8 @@ import (
 
 	gocontext "context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/bitly/go-simplejson"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 )
@@ -91,7 +91,7 @@ func (f *FileJobQueue) pollInDirForJobs(ctx gocontext.Context) {
 }
 
 func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
-	logger := context.LoggerFromContext(ctx)
+	logger := context.LoggerFromContext(ctx).WithField("self", "file_job_queue")
 	entries, err := ioutil.ReadDir(f.createdDir)
 	if err != nil {
 		logger.WithField("err", err).Error("input directory read error")
@@ -117,25 +117,25 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 
 		fb, err := ioutil.ReadFile(buildJob.createdFile)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("input file read error")
+			logger.WithField("err", err).Error("input file read error")
 			continue
 		}
 
 		err = json.Unmarshal(fb, buildJob.payload)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("payload JSON parse error, skipping")
+			logger.WithField("err", err).Error("payload JSON parse error, skipping")
 			continue
 		}
 
 		err = json.Unmarshal(fb, &startAttrs)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("start attributes JSON parse error, skipping")
+			logger.WithField("err", err).Error("start attributes JSON parse error, skipping")
 			continue
 		}
 
 		buildJob.rawPayload, err = simplejson.NewJson(fb)
 		if err != nil {
-			context.LoggerFromContext(ctx).WithField("err", err).Error("raw payload JSON parse error, skipping")
+			logger.WithField("err", err).Error("raw payload JSON parse error, skipping")
 			continue
 		}
 
@@ -150,6 +150,11 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 
 		f.buildJobChan <- buildJob
 	}
+}
+
+// Name returns the name of this queue type, wow!
+func (q *FileJobQueue) Name() string {
+	return "file"
 }
 
 // Cleanup is a no-op

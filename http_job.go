@@ -13,8 +13,10 @@ import (
 	gocontext "context"
 
 	"github.com/bitly/go-simplejson"
+	"github.com/cenk/backoff"
 	"github.com/jtacoma/uritemplates"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
@@ -26,6 +28,8 @@ type httpJob struct {
 	startAttributes *backend.StartAttributes
 	received        time.Time
 	started         time.Time
+	finished        time.Time
+	stateCount      uint
 
 	jobBoardURL *url.URL
 	site        string
@@ -48,10 +52,17 @@ type httpJobPayload struct {
 }
 
 type httpJobStateUpdate struct {
-	CurrentState string    `json:"cur"`
-	NewState     string    `json:"new"`
-	ReceivedAt   time.Time `json:"received,omitempty"`
-	StartedAt    time.Time `json:"started,omitempty"`
+	CurrentState string                  `json:"cur"`
+	NewState     string                  `json:"new"`
+	Queued       *time.Time              `json:"queued,omitempty"`
+	Received     time.Time               `json:"received,omitempty"`
+	Started      time.Time               `json:"started,omitempty"`
+	Finished     time.Time               `json:"finished,omitempty"`
+	Meta         *httpJobStateUpdateMeta `json:"meta,omitempty"`
+}
+
+type httpJobStateUpdateMeta struct {
+	StateUpdateCount uint `json:"state_update_count,omitempty"`
 }
 
 func (j *httpJob) GoString() string {
@@ -86,16 +97,14 @@ func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *httpJob) Requeue(ctx gocontext.Context) error {
-	context.LoggerFromContext(ctx).Info("requeueing job")
+	context.LoggerFromContext(ctx).WithField("self", "http_job").Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
-
-	currentState := j.currentState()
 
 	j.received = time.Time{}
 	j.started = time.Time{}
 
-	return j.sendStateUpdate(currentState, "created")
+	return j.sendStateUpdate(j.currentState(), "created")
 }
 
 func (j *httpJob) Received() error {
@@ -112,7 +121,6 @@ func (j *httpJob) Started() error {
 }
 
 func (j *httpJob) currentState() string {
-
 	currentState := "queued"
 
 	if !j.received.IsZero() {
@@ -127,7 +135,12 @@ func (j *httpJob) currentState() string {
 }
 
 func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithField("state", state).Info("finishing job")
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"state": state,
+		"self":  "http_job",
+	})
+
+	logger.Info("finishing job")
 
 	u := *j.jobBoardURL
 	u.Path = fmt.Sprintf("/jobs/%d", j.Payload().Job.ID)
@@ -142,11 +155,32 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	req.Header.Add("Authorization", "Bearer "+j.payload.JWT)
 	req.Header.Add("From", j.workerID)
 
-	resp, err := (&http.Client{}).Do(req)
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = 10 * time.Second
+	bo.MaxElapsedTime = 1 * time.Minute
+
+	logger.WithField("url", u.String()).Debug("performing DELETE request")
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = (&http.Client{}).Do(req)
+		if resp != nil && resp.StatusCode != http.StatusNoContent {
+			logger.WithFields(logrus.Fields{
+				"expected_status": http.StatusNoContent,
+				"actual_status":   resp.StatusCode,
+			}).Debug("delete failed")
+
+			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
+		}
+
+		return
+	}, bo)
+
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to mark job complete with retries")
 	}
 
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -162,15 +196,13 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 		return errors.Errorf("job board job delete request errored with status %d: %s", resp.StatusCode, errorResp.Error)
 	}
 
-	finishedAt := time.Now()
-	receivedAt := j.received
-	if receivedAt.IsZero() {
-		receivedAt = finishedAt
+	j.finished = time.Now()
+	if j.received.IsZero() {
+		j.received = j.finished
 	}
 
-	startedAt := j.started
-	if startedAt.IsZero() {
-		startedAt = finishedAt
+	if j.started.IsZero() {
+		j.started = j.finished
 	}
 
 	return j.sendStateUpdate(j.currentState(), string(state))
@@ -198,12 +230,18 @@ func (j *httpJob) Generate(ctx gocontext.Context, job Job) ([]byte, error) {
 	return script, nil
 }
 
-func (j *httpJob) sendStateUpdate(currentState, newState string) error {
+func (j *httpJob) sendStateUpdate(curState, newState string) error {
+	j.stateCount++
 	payload := &httpJobStateUpdate{
-		CurrentState: currentState,
+		CurrentState: curState,
 		NewState:     newState,
-		ReceivedAt:   j.received,
-		StartedAt:    j.started,
+		Queued:       j.Payload().Job.QueuedAt,
+		Received:     j.received,
+		Started:      j.started,
+		Finished:     j.finished,
+		Meta: &httpJobStateUpdateMeta{
+			StateUpdateCount: j.stateCount,
+		},
 	}
 
 	encodedPayload, err := json.Marshal(payload)
@@ -240,4 +278,8 @@ func (j *httpJob) sendStateUpdate(currentState, newState string) error {
 	}
 
 	return nil
+}
+
+func (j *httpJob) Name() string {
+	return "http"
 }

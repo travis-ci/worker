@@ -13,6 +13,7 @@ type stepWriteWorkerInfo struct {
 
 func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
+	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
 
 	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
@@ -20,7 +21,7 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 			"\033[33;1mWorker information\033[0m",
 			fmt.Sprintf("hostname: %s", hostname),
 			fmt.Sprintf("version: %s %s", VersionString, RevisionURLString),
-			fmt.Sprintf("instance: %s", instance.ID()),
+			fmt.Sprintf("instance: %s (via %s)", instance.ID(), buildJob.Name()),
 			fmt.Sprintf("startup: %v", instance.StartupDuration()),
 		}, "\n")))
 	}

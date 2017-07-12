@@ -5,11 +5,12 @@ import "time"
 // StartAttributes contains some parts of the config which can be used to
 // determine the type of instance to boot up (for example, what image to use)
 type StartAttributes struct {
-	Language string `json:"language"`
-	OsxImage string `json:"osx_image"`
-	Dist     string `json:"dist"`
-	Group    string `json:"group"`
-	OS       string `json:"os"`
+	Language  string `json:"language"`
+	OsxImage  string `json:"osx_image"`
+	Dist      string `json:"dist"`
+	Group     string `json:"group"`
+	OS        string `json:"os"`
+	ImageName string `json:"image_name"`
 
 	// The VMType isn't stored in the config directly, but in the top level of
 	// the job payload, see the worker.JobPayload struct.
