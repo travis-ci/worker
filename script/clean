@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -o errexit
+
+main() {
+  shopt -s nullglob
+
+  cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
+
+  rm -rvf \
+    "${GOPATH%%:*}/bin/travis-worker" \
+    ./*coverage.coverprofile \
+    ./build \
+    ./tmp/deb \
+    ./tmp/output \
+    .docker.env \
+    CURRENT_SHA1 \
+    GIT_DESCRIPTION \
+    VERSION \
+    VERSION_SHA1 \
+    VERSION_TAG \
+    coverage.html
+
+  find "${GOPATH%%:*}/pkg" -wholename '*travis-ci/worker*.a' \
+    | grep -v vendor/ \
+    | xargs rm -vf
+}
+
+main "$@"
