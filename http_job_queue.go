@@ -135,6 +135,7 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 
 	query := u.Query()
 	query.Add("count", strconv.Itoa(numWaiting))
+	query.Add("capacity", strconv.Itoa(q.processorPool.Size()))
 	query.Add("queue", q.queue)
 
 	u.Path = "/jobs"
