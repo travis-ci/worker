@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
-
 set -o errexit
 
 main() {
   export DEBIAN_FRONTEND=noninteractive
 
-  if [[ $# = 0 ]] ; then
+  if [[ $# == 0 ]]; then
     echo 'No arguments provided, installing with'
     echo 'default configuration values.'
   fi
 
-  : ${INSTALL_MODE:=stable}
-  : ${AWS:=false}
+  : "${INSTALL_MODE:=stable}"
+  : "${AWS:=false}"
 
   while [ $# -gt 0 ]; do
     case "$1" in
-      --aws=*|--aws)
+      --aws=* | --aws)
         AWS="${1#*=}"
-        : ${AWS:=true}
+        : "${AWS:=true}"
         export AWS
         ;;
       --docker[-_]apt[-_]file=*)
@@ -52,9 +51,9 @@ main() {
       --packagecloud[-_]source=*)
         export PACKAGECLOUD_SOURCE="${1#*=}"
         ;;
-      --skip[-_]docker[-_]populate=*|--skip[-_]docker[-_]populate)
+      --skip[-_]docker[-_]populate=* | --skip[-_]docker[-_]populate)
         SKIP_DOCKER_POPULATE="${1#*=}"
-        : ${SKIP_DOCKER_POPULATE:=true}
+        : "${SKIP_DOCKER_POPULATE:=true}"
         export SKIP_DOCKER_POPULATE
         ;;
       --trace)
@@ -82,7 +81,7 @@ main() {
       --travis[-_]worker[-_]version=*)
         export TRAVIS_WORKER_VERSION="${1#*=}"
         ;;
-      -h|--help|help)
+      -h | --help | help)
         __help
         exit 0
         ;;
@@ -95,13 +94,13 @@ main() {
     shift
   done
 
-  if [[ $AWS != false ]] ; then
+  if [[ $AWS != false ]]; then
     AWS=true
   fi
 
   export AWS
 
-  if [[ ! $INSTALL_MODE =~ stable|edge ]] ; then
+  if [[ ! $INSTALL_MODE =~ stable|edge ]]; then
     echo "ERROR: Invalid \$INSTALL_MODE \"$INSTALL_MODE\"" >&2
     echo "ERROR: Valid options are 'edge' or 'stable'" >&2
     __help
@@ -112,7 +111,7 @@ main() {
   __assert_root
   __install_docker
 
-  if [[ ! -n $SKIP_DOCKER_POPULATE ]] ; then
+  if [[ ! -n $SKIP_DOCKER_POPULATE ]]; then
     __pull_docker_images
   fi
 
@@ -162,49 +161,49 @@ EOF
 }
 
 __assert_trusty() {
-  if [[ $(lsb_release -sc) != trusty ]] ; then
+  if [[ $(lsb_release -sc) != trusty ]]; then
     echo 'This should only be run on Ubuntu 14.04'
     exit 1
   fi
 }
 
 __assert_root() {
-  if [[ $(whoami) != root ]] ; then
+  if [[ $(whoami) != root ]]; then
     echo 'This should only be run as root'
     exit 1
   fi
 }
 
 __install_docker() {
-  : ${DOCKER_APT_FILE:=/etc/apt/sources.list.d/docker.list}
-  : ${DOCKER_CONFIG_FILE:=/etc/default/docker}
+  : "${DOCKER_APT_FILE:=/etc/apt/sources.list.d/docker.list}"
+  : "${DOCKER_CONFIG_FILE:=/etc/default/docker}"
 
-  if [[ ! -f $DOCKER_APT_FILE ]] ; then
+  if [[ ! -f $DOCKER_APT_FILE ]]; then
     curl -sSL 'https://download.docker.com/linux/ubuntu/gpg' | apt-key add -
-    echo 'deb https://download.docker.com/linux/ubuntu trusty stable edge' > $DOCKER_APT_FILE
+    echo 'deb https://download.docker.com/linux/ubuntu trusty stable edge' >$DOCKER_APT_FILE
   fi
 
   apt-get update
 
-  if ! docker version &>/dev/null ; then
+  if ! docker version &>/dev/null; then
     apt-get install -y \
-      linux-image-extra-`uname -r` \
+      "linux-image-extra-$(uname -r)" \
       docker-ce
   fi
 
-  if [[ $AWS == true ]] ; then
+  if [[ $AWS == true ]]; then
     local docker_mount_point='--graph=/mnt/docker'
   fi
 
-  if [[ ! $(grep icc $DOCKER_CONFIG_FILE) ]] ; then
+  if ! grep -q icc "${DOCKER_CONFIG_FILE}"; then
     local docker_opts='-H tcp://0.0.0.0:4243 -H unix://var/run/docker.sock'
     docker_opts="$docker_opts --storage-driver=aufs --icc=false"
     docker_opts="$docker_opts $docker_mount_point"
-    echo "DOCKER_OPTS=\"$docker_opts\"" >> $DOCKER_CONFIG_FILE
-    if ! service docker stop ; then
+    echo "DOCKER_OPTS=\"$docker_opts\"" >>$DOCKER_CONFIG_FILE
+    if ! service docker stop; then
       stop docker || echo "Failed to stop docker (exit $?)"
     fi
-    if ! service docker start ; then
+    if ! service docker start; then
       stop docker || echo "Failed to start docker (exit $?)"
     fi
     sleep 2
@@ -212,32 +211,32 @@ __install_docker() {
 }
 
 __pull_docker_images() {
-  : ${DOCKER_CMD:=docker}
-  : ${DOCKER_IMAGE_LANGUAGES:=android erlang go haskell jvm node-js perl php python ruby}
-  : ${DOCKER_IMAGE_LANGUAGE_MAPPINGS:=clojure:jvm scala:jvm groovy:jvm java:jvm elixir:erlang node_js:node-js}
+  : "${DOCKER_CMD:=docker}"
+  : "${DOCKER_IMAGE_LANGUAGES:=android erlang go haskell jvm node-js perl php python ruby}"
+  : "${DOCKER_IMAGE_LANGUAGE_MAPPINGS:=clojure:jvm scala:jvm groovy:jvm java:jvm elixir:erlang node_js:node-js}"
 
-  for lang in $DOCKER_IMAGE_LANGUAGES ; do
-    $DOCKER_CMD pull quay.io/travisci/travis-$lang:latest
-    $DOCKER_CMD tag -f quay.io/travisci/travis-$lang:latest travis:$lang
+  for lang in ${DOCKER_IMAGE_LANGUAGES}; do
+    "${DOCKER_CMD}" pull "quay.io/travisci/travis-${lang}:latest"
+    "${DOCKER_CMD}" tag -f "quay.io/travisci/travis-${lang}:latest" "travis:${lang}"
   done
 
-  $DOCKER_CMD tag -f travis:ruby travis:default
+  "${DOCKER_CMD}" tag -f travis:ruby travis:default
 
-  for lang_map in $DOCKER_IMAGE_LANGUAGE_MAPPINGS ; do
-    $DOCKER_CMD tag -f \
-      quay.io/travisci/travis-${lang_map%%:*}:latest \
-      travis:${lang_map##*:}
+  for lang_map in $DOCKER_IMAGE_LANGUAGE_MAPPINGS; do
+    "${DOCKER_CMD}" tag -f \
+      "quay.io/travisci/travis-${lang_map%%:*}:latest" \
+      "travis:${lang_map##*:}"
   done
 }
 
 __install_travis_worker() {
-  : ${PACKAGECLOUD_SOURCE:=travisci/worker}
+  : "${PACKAGECLOUD_SOURCE:=travisci/worker}"
 
-  if [[ ! -f /etc/apt/sources.list.d/travisci_worker.list ]] ; then
-    curl -s https://packagecloud.io/install/repositories/${PACKAGECLOUD_SOURCE}/script.deb.sh | bash
+  if [[ ! -f /etc/apt/sources.list.d/travisci_worker.list ]]; then
+    curl -s "https://packagecloud.io/install/repositories/${PACKAGECLOUD_SOURCE}/script.deb.sh" | bash
 
-    if [[ $TRAVIS_WORKER_VERSION ]] ; then
-      apt-get install travis-worker=$TRAVIS_WORKER_VERSION
+    if [[ $TRAVIS_WORKER_VERSION ]]; then
+      apt-get install "travis-worker=${TRAVIS_WORKER_VERSION}"
     else
       apt-get install travis-worker
     fi
@@ -245,61 +244,59 @@ __install_travis_worker() {
 }
 
 __configure_travis_worker() {
-  : ${TRAVIS_ENTERPRISE_CONFIG:=/etc/default/travis-enterprise}
-  : ${TRAVIS_WORKER_CONFIG:=/etc/default/travis-worker}
+  : "${TRAVIS_ENTERPRISE_CONFIG:=/etc/default/travis-enterprise}"
+  : "${TRAVIS_WORKER_CONFIG:=/etc/default/travis-worker}"
 
-  if [[ $TRAVIS_QUEUE_NAME ]] ; then
+  if [[ $TRAVIS_QUEUE_NAME ]]; then
     sed -i \
       "s/export QUEUE_NAME='builds.linux'/export QUEUE_NAME=\'$TRAVIS_QUEUE_NAME\'/" \
       $TRAVIS_WORKER_CONFIG
   fi
 
-  if [[ ! $TRAVIS_ENTERPRISE ]] ; then
+  if [[ ! $TRAVIS_ENTERPRISE ]]; then
     return
   fi
 
   sed -i \
     "/\# export TRAVIS_WORKER_DOCKER_PRIVILEGED/s/^\# //"
-    $TRAVIS_ENTERPRISE_CONFIG
+  $TRAVIS_ENTERPRISE_CONFIG
 
-  if [[ $TRAVIS_ENTERPRISE_HOST ]] ; then
+  if [[ $TRAVIS_ENTERPRISE_HOST ]]; then
     sed -i \
       "s/\# export TRAVIS_ENTERPRISE_HOST=\"enterprise.yourhostname.corp\"/export TRAVIS_ENTERPRISE_HOST=\"$TRAVIS_ENTERPRISE_HOST\"/" \
       $TRAVIS_ENTERPRISE_CONFIG
   fi
 
-  if [[ $TRAVIS_ENTERPRISE_SECURITY_TOKEN ]] ; then
+  if [[ $TRAVIS_ENTERPRISE_SECURITY_TOKEN ]]; then
     sed -i \
       "s/\# export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"abcd1234\"/export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"$TRAVIS_ENTERPRISE_SECURITY_TOKEN\"/" \
       $TRAVIS_ENTERPRISE_CONFIG
   fi
 
-  if [[ $TRAVIS_ENTERPRISE_BUILD_ENDPOINT ]] ; then
+  if [[ $TRAVIS_ENTERPRISE_BUILD_ENDPOINT ]]; then
     sed -i \
       "s/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"__build__\"/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"$TRAVIS_ENTERPRISE_BUILD_ENDPOINT\"/" \
       $TRAVIS_ENTERPRISE_CONFIG
   fi
 }
 
-
 __configure_grub() {
-  GRUB_CMDLINE_LINUX='cgroup_enable=memory swapaccount=1 apparmor=0'
+  local grub_cmdline_linux='cgroup_enable=memory swapaccount=1 apparmor=0'
 
-  if [[ -d /etc/default/grub.d ]] ; then
-    cat > "/etc/default/grub.d/99-travis-worker-settings.cfg" <<EOF
-GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX"
-EOF
+  if [[ -d /etc/default/grub.d ]]; then
+    echo "GRUB_CMDLINE_LINUX='${grub_cmdline_linux}'" \
+      >"/etc/default/grub.d/99-travis-worker-settings.cfg"
     update-grub
     return
   fi
 
-  GRUB_CFG="/etc/default/grub"
-  touch $GRUB_CFG
+  local grub_cfg='/etc/default/grub'
+  touch "${grub_cfg}"
 
-  if [[ ! $(grep cgroup_enabled $GRUB_CFG) ]] ; then
+  if ! grep -q cgroup_enabled "${grub_cfg}"; then
     sed -i \
-      "s/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"$GRUB_CMDLINE_LINUX\"/" \
-      $GRUB_CFG
+      "s/GRUB_CMDLINE_LINUX=\"\"/GRUB_CMDLINE_LINUX=\"${grub_cmdline_linux}\"/" \
+      "${grub_cfg}"
   fi
 
   update-grub

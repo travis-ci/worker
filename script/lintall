@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -o errexit
+
+main() {
+  pushd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
+
+  : "${CYCLOMAX:=20}"
+  : "${DEADLINE:=1m}"
+  : "${PACKAGE:=github.com/travis-ci/worker}"
+
+  : "${ENABLED_LINTER_FLAGS:=-E goimports -E gofmt -E goconst -E deadcode -E golint -E vet}"
+
+  GOMETALINTER_ARGS="--disable-all ${ENABLED_LINTER_FLAGS}"
+  GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --deadline=${DEADLINE}"
+  GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --vendor"
+  GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --tests"
+
+  if [[ "${DEBUG}" ]]; then
+    GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --debug"
+  else
+    GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --errors"
+  fi
+
+  local gmlargs_array=(${GOMETALINTER_ARGS})
+
+  set -o xtrace
+  gometalinter "${gmlargs_array[@]}" ./...
+  git grep -l '^#!/usr/bin/env bash' | xargs shfmt -i 2 -w
+  git grep -l '^#!/usr/bin/env bash' | xargs shellcheck
+}
+
+main "$@"

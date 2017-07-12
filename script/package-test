@@ -1,33 +1,36 @@
 #!/usr/bin/env bash
+set -o errexit
 
 main() {
-  : ${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}
-  source ${CHECKOUT_ROOT}/utils/package-functions.bash
-  source ${CHECKOUT_ROOT}/utils/package-config.bash
+  : "${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}"
+  # shellcheck source=/dev/null
+  source "${CHECKOUT_ROOT}/package/functions.bash"
+  # shellcheck source=/dev/null
+  source "${CHECKOUT_ROOT}/package/config.bash"
 
   __define_shell_flags
   __define_platform "$1"
   __announce 'Installing package'
-  __package_install_${PLATFORM_FAMILY} 2>&1 | __indent
+  "__package_install_${PLATFORM_FAMILY}" 2>&1 | __indent
   __announce 'Verifying package installation'
   __package_verify_common 2>&1 | __indent
-  __package_verify_${PLATFORM_FAMILY} 2>&1 | __indent
+  "__package_verify_${PLATFORM_FAMILY}" 2>&1 | __indent
   __announce 'Package verified'
   __package_verify_report 2>&1 | __indent
 }
 
 __package_install_centos() {
-  rpm -i tmp/output/rpm/centos/${PLATFORM_RELEASE}/*.rpm
+  rpm -i "tmp/output/rpm/centos/${PLATFORM_RELEASE}/"*.rpm
 }
 
 __package_install_ubuntu() {
-  dpkg -i tmp/output/deb/ubuntu/${PLATFORM_RELEASE}/*.deb
+  dpkg -i "tmp/output/deb/ubuntu/${PLATFORM_RELEASE}/"*.deb
 }
 
 __package_verify_ubuntu() {
-  if apt-cache show travis-worker &>/dev/null ; then
+  if apt-cache show travis-worker &>/dev/null; then
     __log 'Package installed successfully'
-    dpkg -c /code/tmp/output/deb/ubuntu/${PLATFORM_RELEASE}/*.deb
+    dpkg -c "/code/tmp/output/deb/ubuntu/${PLATFORM_RELEASE}/"*.deb
     apt-cache show travis-worker
   else
     __error 'Package did not install'
@@ -38,9 +41,9 @@ __package_verify_ubuntu() {
 }
 
 __package_verify_centos() {
-  if yum info travis-worker &>/dev/null ; then
+  if yum info travis-worker &>/dev/null; then
     __log 'Package installed successfully'
-    rpm -qlp /code/tmp/output/rpm/centos/${PLATFORM_RELEASE}/*.rpm
+    rpm -qlp "/code/tmp/output/rpm/centos/${PLATFORM_RELEASE}/"*.rpm
     yum info travis-worker
   else
     __error 'Package did not install'
@@ -52,14 +55,14 @@ __package_verify_centos() {
 
 __package_verify_common() {
   __log 'Testing travis user'
-  if getent passwd travis &>/dev/null ; then
+  if getent passwd travis &>/dev/null; then
     __log 'User created successfully'
     return
   fi
 
   __error 'User not found'
 }
-  
+
 __package_verify_report() {
   touch "${CHECKOUT_ROOT}/${PLATFORM/:/-}-${PLATFORM_PACKAGE_TYPE}-success"
 }
