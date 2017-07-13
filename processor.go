@@ -18,12 +18,13 @@ type Processor struct {
 	ID       uuid.UUID
 	hostname string
 
-	hardTimeout         time.Duration
-	initialSleep        time.Duration
-	logTimeout          time.Duration
-	maxLogLength        int
-	scriptUploadTimeout time.Duration
-	startupTimeout      time.Duration
+	hardTimeout             time.Duration
+	initialSleep            time.Duration
+	logTimeout              time.Duration
+	maxLogLength            int
+	scriptUploadTimeout     time.Duration
+	startupTimeout          time.Duration
+	payloadFilterExecutable string
 
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
@@ -50,12 +51,13 @@ type Processor struct {
 }
 
 type ProcessorConfig struct {
-	HardTimeout         time.Duration
-	InitialSleep        time.Duration
-	LogTimeout          time.Duration
-	MaxLogLength        int
-	ScriptUploadTimeout time.Duration
-	StartupTimeout      time.Duration
+	HardTimeout             time.Duration
+	InitialSleep            time.Duration
+	LogTimeout              time.Duration
+	MaxLogLength            int
+	ScriptUploadTimeout     time.Duration
+	StartupTimeout          time.Duration
+	PayloadFilterExecutable string
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
@@ -81,12 +83,13 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		ID:       processorUUID,
 		hostname: hostname,
 
-		initialSleep:        config.InitialSleep,
-		hardTimeout:         config.HardTimeout,
-		logTimeout:          config.LogTimeout,
-		scriptUploadTimeout: config.ScriptUploadTimeout,
-		startupTimeout:      config.StartupTimeout,
-		maxLogLength:        config.MaxLogLength,
+		initialSleep:            config.InitialSleep,
+		hardTimeout:             config.HardTimeout,
+		logTimeout:              config.LogTimeout,
+		scriptUploadTimeout:     config.ScriptUploadTimeout,
+		startupTimeout:          config.StartupTimeout,
+		maxLogLength:            config.MaxLogLength,
+		payloadFilterExecutable: config.PayloadFilterExecutable,
 
 		ctx:                     ctx,
 		buildJobsChan:           buildJobsChan,
@@ -193,6 +196,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{
 			cancellationBroadcaster: p.cancellationBroadcaster,
+		},
+		&stepTransformBuildJSON{
+			payloadFilterExecutable: p.payloadFilterExecutable,
 		},
 		&stepGenerateScript{
 			generator: p.generator,

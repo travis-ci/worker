@@ -166,6 +166,9 @@ var (
 		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
 
 		// non-config and special case flags
+		NewConfigDef("PayloadFilterExecutable", &cli.StringFlag{
+			Usage: "External executable which will be called to filter the json to be sent to the build script generator",
+		}),
 		NewConfigDef("SkipShutdownOnLogTimeout", &cli.BoolFlag{
 			Usage: "Special-case mode to aid with debugging timed out jobs",
 		}),
@@ -343,6 +346,8 @@ type Config struct {
 	BuildCacheS3Bucket          string `config:"build-cache-s3-bucket"`
 	BuildCacheS3AccessKeyID     string `config:"build-cache-s3-access-key-id"`
 	BuildCacheS3SecretAccessKey string `config:"build-cache-s3-secret-access-key"`
+
+	PayloadFilterExecutable string `config:"payload-filter-executable"`
 
 	ProviderConfig *ProviderConfig
 }

@@ -25,6 +25,8 @@ type ProcessorPool struct {
 	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
 	MaxLogLength                                                               int
 
+	PayloadFilterExecutable string
+
 	SkipShutdownOnLogTimeout bool
 
 	queue          JobQueue
@@ -41,6 +43,8 @@ type ProcessorPoolConfig struct {
 
 	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
 	MaxLogLength                                                               int
+
+	PayloadFilterExecutable string
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -62,6 +66,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Provider:                provider,
 		Generator:               generator,
 		CancellationBroadcaster: cancellationBroadcaster,
+		PayloadFilterExecutable: ppc.PayloadFilterExecutable,
 	}
 }
 
@@ -179,12 +184,13 @@ func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 	proc, err := NewProcessor(ctx, p.Hostname,
 		queue, p.Provider, p.Generator, p.CancellationBroadcaster,
 		ProcessorConfig{
-			HardTimeout:         p.HardTimeout,
-			InitialSleep:        p.InitialSleep,
-			LogTimeout:          p.LogTimeout,
-			MaxLogLength:        p.MaxLogLength,
-			ScriptUploadTimeout: p.ScriptUploadTimeout,
-			StartupTimeout:      p.StartupTimeout,
+			HardTimeout:             p.HardTimeout,
+			InitialSleep:            p.InitialSleep,
+			LogTimeout:              p.LogTimeout,
+			MaxLogLength:            p.MaxLogLength,
+			ScriptUploadTimeout:     p.ScriptUploadTimeout,
+			StartupTimeout:          p.StartupTimeout,
+			PayloadFilterExecutable: p.PayloadFilterExecutable,
 		})
 
 	if err != nil {
