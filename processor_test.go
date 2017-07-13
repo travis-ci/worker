@@ -39,12 +39,12 @@ func TestProcessor(t *testing.T) {
 	cancellationBroadcaster := NewCancellationBroadcaster()
 
 	processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, cancellationBroadcaster, ProcessorConfig{
-		HardTimeout:         2 * time.Second,
-		LogTimeout:          time.Second,
-		ScriptUploadTimeout: 3 * time.Second,
-		StartupTimeout:      4 * time.Second,
-		MaxLogLength:        4500000,
-		PayloadFilterScript: "filter.py",
+		HardTimeout:             2 * time.Second,
+		LogTimeout:              time.Second,
+		ScriptUploadTimeout:     3 * time.Second,
+		StartupTimeout:          4 * time.Second,
+		MaxLogLength:            4500000,
+		PayloadFilterExecutable: "filter.py",
 	})
 	if err != nil {
 		t.Error(err)

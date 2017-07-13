@@ -37,7 +37,7 @@ func setupStepTransformBuildJSON(cfg *config.ProviderConfig) (*stepTransformBuil
 func TestStepTransformBuildJSON_Run(t *testing.T) {
 
 	cfg := config.ProviderConfigFromMap(map[string]string{
-		"FILTER_JOB_JSON_SCRIPT": "",
+		"PAYLOAD_FILTER_EXECUTABLE": "",
 	})
 
 	s, state := setupStepTransformBuildJSON(cfg)
@@ -45,10 +45,10 @@ func TestStepTransformBuildJSON_Run(t *testing.T) {
 	assert.Equal(t, multistep.ActionContinue, action)
 }
 
-func TestStepTransformBuildJSON_RunWithScriptConfigured(t *testing.T) {
+func TestStepTransformBuildJSON_RunWithExecutableConfigured(t *testing.T) {
 
 	cfg := config.ProviderConfigFromMap(map[string]string{
-		"FILTER_JOB_JSON_SCRIPT": "/usr/local/bin/filter.py",
+		"PAYLOAD_FILTER_EXECUTABLE": "/usr/local/bin/filter.py",
 	})
 
 	s, state := setupStepTransformBuildJSON(cfg)

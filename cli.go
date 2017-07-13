@@ -165,13 +165,13 @@ func (i *CLI) Setup() (bool, error) {
 		Hostname: i.Config.Hostname,
 		Context:  ctx,
 
-		HardTimeout:         i.Config.HardTimeout,
-		InitialSleep:        i.Config.InitialSleep,
-		LogTimeout:          i.Config.LogTimeout,
-		MaxLogLength:        i.Config.MaxLogLength,
-		ScriptUploadTimeout: i.Config.ScriptUploadTimeout,
-		StartupTimeout:      i.Config.StartupTimeout,
-		PayloadFilterScript: i.Config.FilterJobJsonScript,
+		HardTimeout:             i.Config.HardTimeout,
+		InitialSleep:            i.Config.InitialSleep,
+		LogTimeout:              i.Config.LogTimeout,
+		MaxLogLength:            i.Config.MaxLogLength,
+		ScriptUploadTimeout:     i.Config.ScriptUploadTimeout,
+		StartupTimeout:          i.Config.StartupTimeout,
+		PayloadFilterExecutable: i.Config.PayloadFilterExecutable,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)

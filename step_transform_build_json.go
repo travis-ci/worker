@@ -12,7 +12,7 @@ import (
 )
 
 type stepTransformBuildJSON struct {
-	payloadFilterScript string
+	payloadFilterExecutable string
 }
 
 type EnvVar struct {
@@ -25,16 +25,16 @@ func (s *stepTransformBuildJSON) Run(state multistep.StateBag) multistep.StepAct
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	if s.payloadFilterScript == "" {
-		context.LoggerFromContext(ctx).Info("skipping json transformation, no filter script defined")
+	if s.payloadFilterExecutable == "" {
+		context.LoggerFromContext(ctx).Info("skipping json transformation, no filter executable defined")
 		return multistep.ActionContinue
 	}
 
-	context.LoggerFromContext(ctx).Info(fmt.Sprintf("calling filter script: %s", s.payloadFilterScript))
+	context.LoggerFromContext(ctx).Info(fmt.Sprintf("calling filter executable: %s", s.payloadFilterExecutable))
 
 	payload := buildJob.RawPayload()
 
-	cmd := exec.Command(s.payloadFilterScript)
+	cmd := exec.Command(s.payloadFilterExecutable)
 	rawJson, err := payload.MarshalJSON()
 	if err != nil {
 		context.LoggerFromContext(ctx).Info(fmt.Sprintf("failed to marshal json: %v", err))
@@ -48,7 +48,7 @@ func (s *stepTransformBuildJSON) Run(state multistep.StateBag) multistep.StepAct
 
 	err = cmd.Run()
 	if err != nil {
-		context.LoggerFromContext(ctx).Info(fmt.Sprintf("failed to execute filter script: %v", err))
+		context.LoggerFromContext(ctx).Info(fmt.Sprintf("failed to run filter executable: %v", err))
 		return multistep.ActionContinue
 	}
 
