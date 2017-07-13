@@ -4,20 +4,27 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
-- cli: optional local-only HTTP API listening on same port as pprof
-- http-job-queue: include capacity in each request
 
 ### Changed
-- http-job-queue: fetch full jobs in series for smoother HTTP traffic
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
-- http-job-queue: check for context cancellation every loop
 
 ### Security
+
+## [2.10.0] - 2017-07-12
+### Added
+- cli: optional local-only HTTP API listening on same port as pprof
+- http-job-queue: include capacity in each request
+
+### Changed
+- http-job-queue: fetch full jobs in series for smoother HTTP traffic
+
+### Fixed
+- http-job-queue: check for context cancellation every loop
 
 ## [2.9.3] - 2017-06-27
 ### Changed
@@ -502,7 +509,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.9.3...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.10.0...HEAD
+[2.10.0]: https://github.com/travis-ci/worker/compare/v2.9.3...v2.10.0
 [2.9.3]: https://github.com/travis-ci/worker/compare/v2.9.2...v2.9.3
 [2.9.2]: https://github.com/travis-ci/worker/compare/v2.9.1...v2.9.2
 [2.9.1]: https://github.com/travis-ci/worker/compare/v2.9.0...v2.9.1
