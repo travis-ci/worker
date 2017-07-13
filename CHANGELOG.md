@@ -4,6 +4,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- step-transform-build-json: support for arbitrary modifications to JSON payload
 
 ### Changed
 
