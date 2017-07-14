@@ -200,13 +200,9 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 		return errors.Wrap(err, "couldn't marshal JSON")
 	}
 
-	req, err := http.NewRequest("POST", publishURL.String(), bytes.NewReader(payloadBody))
-	if err != nil {
-		return errors.Wrap(err, "couldn't create request")
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("token sig:%s", lps.generatePayloadSignature(payload)))
-	req = req.WithContext(ctx)
+	query := publishURL.Query()
+	query.Set("source", "worker")
+	publishURL.RawQuery = query.Encode()
 
 	httpBackOff := backoff.NewExponentialBackOff()
 	// TODO: make this configurable?
@@ -214,10 +210,19 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 	httpBackOff.MaxElapsedTime = 3 * time.Minute
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_log_part_sink")
-	logger.WithField("req", req).Debug("attempting to publish log parts")
 
 	var resp *http.Response
 	err = backoff.Retry(func() (err error) {
+		var req *http.Request
+		req, err = http.NewRequest("POST", publishURL.String(), bytes.NewReader(payloadBody))
+		if err != nil {
+			return
+		}
+
+		req.Header.Set("Authorization", fmt.Sprintf("token sig:%s", lps.generatePayloadSignature(payload)))
+		req = req.WithContext(ctx)
+
+		logger.WithField("req", req).Debug("attempting to publish log parts")
 		resp, err = lps.httpClient.Do(req)
 		if resp != nil && resp.StatusCode != http.StatusNoContent {
 			logger.WithFields(logrus.Fields{
