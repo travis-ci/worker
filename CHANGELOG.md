@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- http-log-part-sink: rebuild request with body each retry
 
 ### Security
 
