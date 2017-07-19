@@ -66,7 +66,7 @@ __define_with_file_cache() {
 }
 
 __define_version() {
-  __define_with_file_cache VERSION_TAG "git tag | tail -1"
+  __define_with_file_cache VERSION_TAG "git tag -l --sort=v:refname | tail -1"
   __define_with_file_cache VERSION "echo \${VERSION_TAG##v}"
   __define_with_file_cache VERSION_SHA1 \
     "git rev-parse --short --no-abbrev-ref \"\${VERSION_TAG}\""
