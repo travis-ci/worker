@@ -220,6 +220,7 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 		}
 
 		req.Header.Set("Authorization", fmt.Sprintf("token sig:%s", lps.generatePayloadSignature(payload)))
+		req.Header.Set("Content-Type", "application/json")
 		req = req.WithContext(ctx)
 
 		logger.WithField("req", req).Debug("attempting to publish log parts")
