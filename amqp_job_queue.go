@@ -2,13 +2,16 @@ package worker
 
 import (
 	"encoding/json"
+	"time"
 
 	gocontext "context"
 
 	"github.com/bitly/go-simplejson"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/metrics"
 )
 
 // AMQPJobQueue is a JobQueue that uses AMQP
@@ -132,8 +135,14 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.delivery = delivery
 				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
 
+				jobSendBegin := time.Now()
 				select {
 				case buildJobChan <- buildJob:
+					metrics.TimeSince("travis.worker.job_queue.amqp.blocking_time", jobSendBegin)
+					logger.WithFields(logrus.Fields{
+						"source": "amqp",
+						"dur":    time.Since(jobSendBegin),
+					}).Info("sent job to output channel")
 				case <-ctx.Done():
 					delivery.Nack(false, true)
 					return

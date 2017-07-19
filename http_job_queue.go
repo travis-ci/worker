@@ -17,6 +17,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/metrics"
 
 	gocontext "context"
 )
@@ -91,8 +92,13 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 							"id":  id,
 						}).Warn("failed to get complete job")
 					} else {
-						logger.Debug("sending job to output channel")
+						jobSendBegin := time.Now()
 						buildJobChan <- buildJob
+						metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
+						logger.WithFields(logrus.Fields{
+							"source": "http",
+							"dur":    time.Since(jobSendBegin),
+						}).Info("sent job to output channel")
 					}
 				}
 			}
