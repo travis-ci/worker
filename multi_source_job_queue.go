@@ -9,6 +9,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/metrics"
 )
 
 type MultiSourceJobQueue struct {
@@ -42,12 +43,17 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 	go func() {
 		for {
 			for queueName, bjc := range buildJobChans {
+				jobSendBegin := time.Now()
 				select {
+				case job := <-bjc:
+					buildJobChan <- job
+					metrics.TimeSince("travis.worker.job_queue.multi.blocking_time", jobSendBegin)
+					logger.WithFields(logrus.Fields{
+						"source": queueName,
+						"dur":    time.Since(jobSendBegin),
+					}).Info("sent job to multi source output channel")
 				case <-ctx.Done():
 					return
-				case job := <-bjc:
-					logger.WithField("source", queueName).Info("sending job to multi source output")
-					buildJobChan <- job
 				default:
 					time.Sleep(time.Millisecond)
 				}
