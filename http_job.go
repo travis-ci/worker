@@ -267,6 +267,7 @@ func (j *httpJob) sendStateUpdate(curState, newState string) error {
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", j.payload.JWT))
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
