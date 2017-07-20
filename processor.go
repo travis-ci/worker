@@ -8,6 +8,7 @@ import (
 
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 )
@@ -150,9 +151,21 @@ func (p *Processor) Run() {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
 			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
-			p.LastJobID = buildJob.Payload().Job.ID
+			jobID := buildJob.Payload().Job.ID
+			p.LastJobID = jobID
+
+			logger.WithFields(logrus.Fields{
+				"job_id": jobID,
+				"status": "processing",
+			}).Debug("updating processor status")
 			p.CurrentStatus = "processing"
+
 			p.process(ctx, buildJob)
+
+			logger.WithFields(logrus.Fields{
+				"job_id": jobID,
+				"status": "waiting",
+			}).Debug("updating processor status")
 			p.CurrentStatus = "waiting"
 			cancel()
 		}
@@ -186,7 +199,10 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
 
-	logger := context.LoggerFromContext(ctx).WithField("self", "processor")
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"job_id": buildJob.Payload().Job.ID,
+		"self":   "processor",
+	})
 
 	logTimeout := p.logTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
