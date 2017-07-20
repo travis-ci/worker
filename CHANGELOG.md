@@ -4,7 +4,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
-- step-transform-build-json: support for arbitrary modifications to JSON payload
 
 ### Changed
 
@@ -13,9 +12,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
-- http-log-part-sink: rebuild request with body each retry
 
 ### Security
+
+## [2.11.0] - 2017-07-20
+### Added
+- step-transform-build-json: support for arbitrary modifications to JSON payload
+- build-script-generator: include `source` param in all requests
+
+### Changed
+- logging/metrics: improved job lifecycle tracing and queue blocking timing
+
+### Fixed
+- http-log-part-sink:
+    - rebuild request body with each retry
+    - ensure request content type is `application/json`
+- http-job: ensure request content type is `application/json`
+- packaging: correctly sort tags for definition of `VERSION_TAG`
 
 ## [2.10.0] - 2017-07-12
 ### Added
@@ -511,7 +524,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.10.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v2.11.0...HEAD
+[2.11.0]: https://github.com/travis-ci/worker/compare/v2.10.0...v2.11.0
 [2.10.0]: https://github.com/travis-ci/worker/compare/v2.9.3...v2.10.0
 [2.9.3]: https://github.com/travis-ci/worker/compare/v2.9.2...v2.9.3
 [2.9.2]: https://github.com/travis-ci/worker/compare/v2.9.1...v2.9.2
