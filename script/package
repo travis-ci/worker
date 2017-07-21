@@ -4,9 +4,9 @@ set -o errexit
 main() {
   : "${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}"
   # shellcheck source=/dev/null
-  source "${CHECKOUT_ROOT}/package/functions.bash"
+  source "${CHECKOUT_ROOT}/packaging/functions.bash"
   # shellcheck source=/dev/null
-  source "${CHECKOUT_ROOT}/package/config.bash"
+  source "${CHECKOUT_ROOT}/packaging/config.bash"
 
   if ! command -v docker &>/dev/null; then
     __error 'Docker not found. Please install docker.'
@@ -127,7 +127,7 @@ __build_all_platforms() {
       -v "${CHECKOUT_ROOT}/:/code" \
       -w /code \
       "${build_docker_image}" \
-      /code/package/build "${platform}" "${PLATFORM_PACKAGE_TYPE}"
+      /code/script/package-build "${platform}" "${PLATFORM_PACKAGE_TYPE}"
 
     docker run "${docker_run_args_array[@]}" \
       -d --privileged \
@@ -162,7 +162,7 @@ __build_all_platforms() {
 __package_cloud_push() {
   local pc_upload_file
   pc_upload_file="$(
-    echo "${CHECKOUT_ROOT}/tmp/output/${PLATFORM_PACKAGE_TYPE}/${PLATFORM_FAMILY}/${PLATFORM_RELEASE}/*.${PLATFORM_PACKAGE_TYPE}" \
+    echo "${CHECKOUT_ROOT}/tmp/output/${PLATFORM_PACKAGE_TYPE}/${PLATFORM_FAMILY}/${PLATFORM_RELEASE}/"*".${PLATFORM_PACKAGE_TYPE}" \
       | head -1
   )"
   local pc_push_dest="${PC_USER}/${PC_REPO}/${PACKAGECLOUD_OS}/${PLATFORM_RELEASE}"

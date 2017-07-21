@@ -4,7 +4,7 @@ set -o errexit
 : "${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}"
 export CHECKOUT_ROOT
 # shellcheck source=/dev/null
-source "${CHECKOUT_ROOT}/package/functions.bash"
+source "${CHECKOUT_ROOT}/packaging/functions.bash"
 
 DATE="$(date -u +%Y%m%dT%H%M%SZ)"
 export DATE
