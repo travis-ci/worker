@@ -4,9 +4,9 @@ set -o errexit
 main() {
   : "${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}"
   # shellcheck source=/dev/null
-  source "${CHECKOUT_ROOT}/package/functions.bash"
+  source "${CHECKOUT_ROOT}/packaging/functions.bash"
   # shellcheck source=/dev/null
-  source "${CHECKOUT_ROOT}/package/config.bash"
+  source "${CHECKOUT_ROOT}/packaging/config.bash"
 
   __define_platform "$1"
 
@@ -68,19 +68,19 @@ __copy_binary() {
 
 __copy_overlay_files() {
   rsync -av \
-    "$CHECKOUT_ROOT/package/overlay.d/common/" \
+    "$CHECKOUT_ROOT/packaging/overlay.d/common/" \
     "tmp/$PACKAGE_TYPE/"
 
-  if [[ -d "$CHECKOUT_ROOT/package/overlay.d/$PACKAGE_TYPE/" ]]; then
+  if [[ -d "$CHECKOUT_ROOT/packaging/overlay.d/$PACKAGE_TYPE/" ]]; then
     rsync -av \
-      "$CHECKOUT_ROOT/package/overlay.d/$PACKAGE_TYPE/" \
+      "$CHECKOUT_ROOT/packaging/overlay.d/$PACKAGE_TYPE/" \
       "tmp/$PACKAGE_TYPE/"
   fi
 }
 
 __run_fpm_deb() {
   __run_fpm \
-    --deb-upstart "$CHECKOUT_ROOT/package/templates.d/upstart/travis-worker"
+    --deb-upstart "$CHECKOUT_ROOT/packaging/templates.d/upstart/travis-worker"
 }
 
 __run_fpm_rpm() {
@@ -88,7 +88,7 @@ __run_fpm_rpm() {
 }
 
 __run_fpm() {
-  local templates_d="$CHECKOUT_ROOT/package/templates.d"
+  local templates_d="$CHECKOUT_ROOT/packaging/templates.d"
 
   fpm \
     -s dir \
