@@ -15,7 +15,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
-## [2.11.0] - 2017-07-20
+## [2.11.0] - 2017-07-21
 ### Added
 - step-transform-build-json: support for arbitrary modifications to JSON payload
 - build-script-generator: include `source` param in all requests
