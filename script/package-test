@@ -4,9 +4,9 @@ set -o errexit
 main() {
   : "${CHECKOUT_ROOT:=${TRAVIS_BUILD_DIR:-/code}}"
   # shellcheck source=/dev/null
-  source "${CHECKOUT_ROOT}/package/functions.bash"
+  source "${CHECKOUT_ROOT}/packaging/functions.bash"
   # shellcheck source=/dev/null
-  source "${CHECKOUT_ROOT}/package/config.bash"
+  source "${CHECKOUT_ROOT}/packaging/config.bash"
 
   __define_shell_flags
   __define_platform "$1"

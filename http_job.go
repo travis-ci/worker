@@ -170,6 +170,9 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 				"actual_status":   resp.StatusCode,
 			}).Debug("delete failed")
 
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
 			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
 		}
 
@@ -273,6 +276,8 @@ func (j *httpJob) sendStateUpdate(curState, newState string) error {
 	if err != nil {
 		return errors.Wrap(err, "error making state update request")
 	}
+
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return errors.Errorf("expected %d, but got %d", http.StatusOK, resp.StatusCode)
