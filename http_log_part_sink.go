@@ -231,6 +231,10 @@ func (lps *httpLogPartSink) publishLogParts(ctx gocontext.Context, payload []*ht
 				"actual_status":   resp.StatusCode,
 			}).Debug("publish failed")
 
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
+
 			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
 		}
 		return

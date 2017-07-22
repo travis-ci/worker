@@ -244,6 +244,10 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 				"actual_status":   resp.StatusCode,
 			}).Debug("job fetch failed")
 
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
+
 			return errors.Errorf("expected %d but got %d", http.StatusOK, resp.StatusCode)
 		}
 		return
