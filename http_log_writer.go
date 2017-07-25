@@ -1,9 +1,7 @@
 package worker
 
 import (
-	"bytes"
 	"fmt"
-	"sync"
 	"time"
 
 	gocontext "context"
@@ -16,7 +14,7 @@ type httpLogPart struct {
 	Content string
 	Final   bool
 	JobID   uint64
-	Number  int
+	Number  uint64
 	Token   string
 }
 
@@ -27,9 +25,7 @@ type httpLogWriter struct {
 
 	closeChan chan struct{}
 
-	bufferMutex   sync.Mutex
-	buffer        *bytes.Buffer
-	logPartNumber int
+	logPartNumber uint64
 
 	bytesWritten int
 	maxLength    int
@@ -46,13 +42,10 @@ func newHTTPLogWriter(ctx gocontext.Context, url string, authToken string, jobID
 		jobID:     jobID,
 		authToken: authToken,
 		closeChan: make(chan struct{}),
-		buffer:    new(bytes.Buffer),
 		timer:     time.NewTimer(time.Hour),
 		timeout:   timeout,
 		lps:       getHTTPLogPartSinkByURL(url),
 	}
-
-	go writer.flushRegularly(ctx)
 
 	return writer, nil
 }
@@ -67,7 +60,7 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 	logger.WithFields(logrus.Fields{
 		"length": len(p),
 		"bytes":  string(p),
-	}).Debug("writing bytes")
+	}).Debug("begin writing bytes")
 
 	w.timer.Reset(w.timeout)
 
@@ -80,9 +73,22 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 		return 0, ErrWrotePastMaxLogLength
 	}
 
-	w.bufferMutex.Lock()
-	defer w.bufferMutex.Unlock()
-	return w.buffer.Write(p)
+	err := w.lps.Add(w.ctx, &httpLogPart{
+		Content: string(p),
+		JobID:   w.jobID,
+		Number:  w.logPartNumber,
+		Token:   w.authToken,
+	})
+	if err != nil {
+		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "http_log_writer",
+		}).Error("could not add log part to sink")
+		return 0, err
+	}
+
+	w.logPartNumber++
+	return len(p), err
 }
 
 func (w *httpLogWriter) Close() error {
@@ -93,7 +99,6 @@ func (w *httpLogWriter) Close() error {
 	w.timer.Stop()
 
 	close(w.closeChan)
-	w.flush()
 
 	err := w.lps.Add(w.ctx, &httpLogPart{
 		Final:  true,
@@ -131,33 +136,38 @@ func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {
 
 	close(w.closeChan)
 
-	w.bufferMutex.Lock()
-	n, err := w.buffer.Write(p)
-	w.bufferMutex.Unlock()
-	if err != nil {
-		return n, err
-	}
-
-	w.flush()
-
-	part := &httpLogPart{
-		Final:  true,
-		JobID:  w.jobID,
-		Number: w.logPartNumber,
-		Token:  w.authToken,
-	}
-
-	err = w.lps.Add(w.ctx, part)
+	err := w.lps.Add(w.ctx, &httpLogPart{
+		Content: string(p),
+		JobID:   w.jobID,
+		Number:  w.logPartNumber,
+		Token:   w.authToken,
+	})
 
 	if err != nil {
 		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
 			"err":  err,
 			"self": "http_log_writer",
 		}).Error("could not add log part to sink")
-		return n, err
+		return 0, err
 	}
 	w.logPartNumber++
-	return n, nil
+
+	err = w.lps.Add(w.ctx, &httpLogPart{
+		Final:  true,
+		JobID:  w.jobID,
+		Number: w.logPartNumber,
+		Token:  w.authToken,
+	})
+
+	if err != nil {
+		context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "http_log_writer",
+		}).Error("could not add log part to sink")
+		return 0, err
+	}
+	w.logPartNumber++
+	return len(p), nil
 }
 
 func (w *httpLogWriter) closed() bool {
@@ -166,56 +176,5 @@ func (w *httpLogWriter) closed() bool {
 		return true
 	default:
 		return false
-	}
-}
-
-func (w *httpLogWriter) flushRegularly(ctx gocontext.Context) {
-	ticker := time.NewTicker(LogWriterTick)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-w.closeChan:
-			return
-		case <-ticker.C:
-			w.flush()
-		case <-ctx.Done():
-			return
-		}
-	}
-}
-
-func (w *httpLogWriter) flush() {
-	if w.buffer.Len() <= 0 {
-		return
-	}
-
-	buf := make([]byte, LogChunkSize)
-
-	for w.buffer.Len() > 0 {
-		w.bufferMutex.Lock()
-		n, err := w.buffer.Read(buf)
-		w.bufferMutex.Unlock()
-		if err != nil {
-			// According to documentation, err should only be non-nil if
-			// there's no data in the buffer. We've checked for this, so
-			// this means that err should never be nil. Something is very
-			// wrong if this happens, so let's abort!
-			panic("non-empty buffer shouldn't return an error on Read")
-		}
-
-		err = w.lps.Add(w.ctx, &httpLogPart{
-			Content: string(buf[0:n]),
-			JobID:   w.jobID,
-			Number:  w.logPartNumber,
-			Token:   w.authToken,
-		})
-		if err != nil {
-			context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
-				"err":  err,
-				"self": "http_log_writer",
-			}).Error("could not add log part to sink")
-			return
-		}
-		w.logPartNumber++
 	}
 }

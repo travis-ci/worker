@@ -39,7 +39,6 @@ func TestHTTPLogWriter_Write(t *testing.T) {
 	assert.NotNil(t, hlw)
 	n, err := hlw.Write([]byte("it's a hot one out there"))
 	assert.Nil(t, err)
-	assert.True(t, hlw.buffer.Len() > 0)
 	assert.True(t, n > 0)
 }
 

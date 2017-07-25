@@ -41,7 +41,7 @@ type httpLogPartEncodedPayload struct {
 	Encoding string `json:"encoding"`
 	Final    bool   `json:"final"`
 	JobID    uint64 `json:"job_id"`
-	Number   int    `json:"number"`
+	Number   uint64 `json:"number"`
 	Token    string `json:"tok"`
 	Type     string `json:"@type"`
 }
