@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - backend/openstack: initial support for OpenStack
 
 ### Changed
+- http-log-writer: removed buffer in favor of adding directly via log sink
 
 ### Deprecated
 
