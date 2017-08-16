@@ -53,12 +53,12 @@ func NewDialerWithPassword(password string) (*AuthDialer, error) {
 	}, nil
 }
 
-func NewDialerWithKeyWithoutPassPhrase(pemBytes []byte) (*SSHDialer, error) {
+func NewDialerWithKeyWithoutPassPhrase(pemBytes []byte) (*AuthDialer, error) {
 	signer, err := ssh.ParsePrivateKey(pemBytes)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create signer from SSH key")
 	}
-	return &SSHDialer{
+	return &AuthDialer{
 		authMethods: []ssh.AuthMethod{ssh.PublicKeys(signer)},
 	}, nil
 }
