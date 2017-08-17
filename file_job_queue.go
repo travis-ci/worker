@@ -75,22 +75,22 @@ func NewFileJobQueue(baseDir, queue string, pollingInterval time.Duration) (*Fil
 }
 
 // Jobs returns a channel of jobs from the created directory
-func (f *FileJobQueue) Jobs(ctx gocontext.Context) (<-chan Job, error) {
+func (f *FileJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (<-chan Job, error) {
 	if f.buildJobChan == nil {
 		f.buildJobChan = make(chan Job)
-		go f.pollInDirForJobs(ctx)
+		go f.pollInDirForJobs(ctx, ready)
 	}
 	return f.buildJobChan, nil
 }
 
-func (f *FileJobQueue) pollInDirForJobs(ctx gocontext.Context) {
+func (f *FileJobQueue) pollInDirForJobs(ctx gocontext.Context, ready <-chan struct{}) {
 	for {
-		f.pollInDirTick(ctx)
+		f.pollInDirTick(ctx, ready)
 		time.Sleep(f.pollingInterval)
 	}
 }
 
-func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
+func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context, ready <-chan struct{}) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "file_job_queue")
 	entries, err := ioutil.ReadDir(f.createdDir)
 	if err != nil {
@@ -148,6 +148,7 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 		buildJob.logFile = filepath.Join(f.logDir, strings.Replace(entry.Name(), ".json", ".log", -1))
 		buildJob.bytes = fb
 
+		<-ready
 		f.buildJobChan <- buildJob
 	}
 }

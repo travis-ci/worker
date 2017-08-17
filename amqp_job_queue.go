@@ -51,7 +51,7 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 // Jobs creates a new consumer on the queue, and returns three channels. The
 // first channel gets sent every BuildJob that we receive from AMQP. The
 // stopChan is a channel that can be closed in order to stop the consumer.
-func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+func (q *AMQPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outChan <-chan Job, err error) {
 	channel, err := q.conn.Channel()
 	if err != nil {
 		return
@@ -84,7 +84,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 			select {
 			case <-ctx.Done():
 				return
-			case delivery, ok := <-deliveries:
+			case <-ready:
+				delivery, ok := <-deliveries
 				if !ok {
 					logger.Info("job queue channel closed")
 					return

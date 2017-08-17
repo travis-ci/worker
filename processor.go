@@ -35,6 +35,7 @@ type Processor struct {
 
 	graceful  chan struct{}
 	terminate gocontext.CancelFunc
+	ready     chan struct{}
 
 	// ProcessedCount contains the number of jobs that has been processed
 	// by this Processor. This value should not be modified outside of the
@@ -72,8 +73,9 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	processorUUID := uuid.Parse(uuidString)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
+	ready := make(chan struct{})
 
-	buildJobsChan, err := queue.Jobs(ctx)
+	buildJobsChan, err := queue.Jobs(ctx, (<-chan struct{})(ready))
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't create jobs channel")
 		cancel()
@@ -100,6 +102,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
+		ready:     ready,
 
 		CurrentStatus: "new",
 	}, nil
@@ -134,7 +137,8 @@ func (p *Processor) Run() {
 			logger.Info("processor is done, terminating")
 			p.terminate()
 			return
-		case buildJob, ok := <-p.buildJobsChan:
+		case p.ready <- struct{}{}:
+			buildJob, ok := <-p.buildJobsChan
 			if !ok {
 				p.terminate()
 				return
@@ -168,6 +172,8 @@ func (p *Processor) Run() {
 			}).Debug("updating processor status")
 			p.CurrentStatus = "waiting"
 			cancel()
+		case <-time.After(100 * time.Millisecond):
+			logger.Debug("timeout waiting for job, shutdown, or context done")
 		}
 	}
 }

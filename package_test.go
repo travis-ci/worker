@@ -23,8 +23,22 @@ type fakeJobQueue struct {
 	cleanedUp bool
 }
 
-func (jq *fakeJobQueue) Jobs(ctx context.Context) (<-chan Job, error) {
-	return jq.c, nil
+func (jq *fakeJobQueue) Jobs(ctx context.Context, ready <-chan struct{}) (<-chan Job, error) {
+	jobInterceptChan := make(chan Job)
+
+	go func() {
+		for {
+			select {
+			case <-ready:
+				job := <-jq.c
+				jobInterceptChan <- job
+			default:
+				time.Sleep(time.Millisecond)
+			}
+		}
+	}()
+
+	return (<-chan Job)(jobInterceptChan), nil
 }
 
 func (jq *fakeJobQueue) Name() string { return "fake" }

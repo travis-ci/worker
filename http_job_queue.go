@@ -64,7 +64,7 @@ func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerNa
 }
 
 // Jobs consumes new jobs from job-board
-func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outChan <-chan Job, err error) {
 	q.buildJobChanMutex.Lock()
 	defer q.buildJobChanMutex.Unlock()
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
@@ -84,29 +84,31 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				time.Sleep(time.Second)
 			} else {
 				for _, id := range jobIds {
-					logger.WithField("job_id", id).Debug("fetching complete job")
-					buildJob, err := q.fetchJob(ctx, id)
-					if err != nil {
-						logger.WithFields(logrus.Fields{
-							"err": err,
-							"id":  id,
-						}).Warn("failed to get complete job")
-					} else {
-						jobSendBegin := time.Now()
-						buildJobChan <- buildJob
-						metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
-						logger.WithFields(logrus.Fields{
-							"source": "http",
-							"dur":    time.Since(jobSendBegin),
-						}).Info("sent job to output channel")
+					select {
+					case <-ready:
+						logger.WithField("job_id", id).Debug("fetching complete job")
+						buildJob, err := q.fetchJob(ctx, id)
+						if err != nil {
+							logger.WithFields(logrus.Fields{
+								"err": err,
+								"id":  id,
+							}).Warn("failed to get complete job")
+						} else {
+							jobSendBegin := time.Now()
+							buildJobChan <- buildJob
+							metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
+							logger.WithFields(logrus.Fields{
+								"source": "http",
+								"dur":    time.Since(jobSendBegin),
+							}).Info("sent job to output channel")
+						}
+					case <-time.After(100 * time.Millisecond):
+						logger.Debug("timeout waiting for ready chan")
 					}
 				}
 			}
 
 			select {
-			case <-time.After(time.Second):
-				logger.Debug("jobs loop again after 1s sleep")
-				continue
 			case <-ctx.Done():
 				logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 				q.buildJobChan = nil

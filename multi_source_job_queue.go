@@ -21,15 +21,18 @@ func NewMultiSourceJobQueue(queues ...JobQueue) *MultiSourceJobQueue {
 }
 
 // Jobs returns a Job channel that selects over each source queue Job channel
-func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
+func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outChan <-chan Job, err error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "multi_source_job_queue")
 
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
 	buildJobChans := map[string]<-chan Job{}
+	readyChans := map[string]chan struct{}{}
+
 	for i, queue := range msjq.queues {
-		jc, err := queue.Jobs(ctx)
+		qReady := make(chan struct{})
+		jc, err := queue.Jobs(ctx, (<-chan struct{})(qReady))
 		if err != nil {
 			logger.WithFields(logrus.Fields{
 				"err":  err,
@@ -37,16 +40,32 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 			}).Error("failed to get job chan from queue")
 			return nil, err
 		}
-		buildJobChans[fmt.Sprintf("%s.%d", queue.Name(), i)] = jc
+		qName := fmt.Sprintf("%s.%d", queue.Name(), i)
+		buildJobChans[qName] = jc
+		readyChans[qName] = qReady
 	}
 
 	go func() {
 		for {
 			for queueName, bjc := range buildJobChans {
+				logger = logger.WithField("queue_name", queueName)
 				jobSendBegin := time.Now()
 				select {
-				case job := <-bjc:
+				case v := <-ready:
+					logger.Debugf("%#v <-ready", msjq)
+
+					logger.Debugf("about to %#v <- {}", readyChans[queueName])
+					readyChans[queueName] <- v
+					logger.Debugf("%#v <- {}", readyChans[queueName])
+
+					logger.Debugf("about to job := <-%#v", bjc)
+					job := <-bjc
+					logger.Debugf("job := %#v", job)
+
+					logger.Debugf("about to %#v [\"buildJobChan\"] <- %#v", buildJobChan, job)
 					buildJobChan <- job
+					logger.Debugf("%#v [\"buildJobChan\"] <- %#v", buildJobChan, job)
+
 					metrics.TimeSince("travis.worker.job_queue.multi.blocking_time", jobSendBegin)
 					logger.WithFields(logrus.Fields{
 						"source": queueName,
@@ -54,7 +73,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 					}).Info("sent job to multi source output channel")
 				case <-ctx.Done():
 					return
-				default:
+				case <-time.After(100 * time.Millisecond):
 					time.Sleep(time.Millisecond)
 				}
 			}

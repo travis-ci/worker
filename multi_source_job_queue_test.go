@@ -8,38 +8,75 @@ import (
 	gocontext "context"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/travis-ci/worker/context"
 )
 
 func TestNewMultiSourceJobQueue(t *testing.T) {
+	ctx := gocontext.TODO()
+	logger := context.LoggerFromContext(ctx)
 	jq0 := &fakeJobQueue{c: make(chan Job)}
 	jq1 := &fakeJobQueue{c: make(chan Job)}
 	msjq := NewMultiSourceJobQueue(jq0, jq1)
 
 	assert.NotNil(t, msjq)
 
-	buildJobChan, err := msjq.Jobs(gocontext.TODO())
+	ready := make(chan struct{})
+	buildJobChan, err := msjq.Jobs(ctx, (<-chan struct{})(ready))
 	assert.Nil(t, err)
 	assert.NotNil(t, buildJobChan)
 
 	done := make(chan struct{})
 
 	go func() {
-		<-buildJobChan
-		<-buildJobChan
-		done <- struct{}{}
+		for {
+			logger.Debugf("about to ready <- {}")
+			ready <- struct{}{}
+			logger.Debugf("ready <- {}")
+		}
 	}()
 
 	go func() {
-		jq0.c <- &fakeJob{}
-		jq1.c <- &fakeJob{}
+		logger.Debugf("about to <-%#v [\"buildJobChan\"]", buildJobChan)
+		<-buildJobChan
+		logger.Debugf("<-%#v [\"buildJobChan\"]", buildJobChan)
+		logger.Debugf("about to <-%#v [\"buildJobChan\"]", buildJobChan)
+		<-buildJobChan
+		logger.Debugf("<-%#v [\"buildJobChan\"]", buildJobChan)
+		logger.Debugf("about to %#v [\"done\"] <- {}", done)
+		done <- struct{}{}
+		logger.Debugf("%#v [\"done\"] <- {}", done)
 	}()
 
-	for {
+	go func() {
+		logger.Debugf("about to %#v [\"jq0.c\"] <- &fakeJob{}", jq0.c)
+		jq0.c <- &fakeJob{}
+		logger.Debugf("%#v [\"jq0.c\"] <- &fakeJob{}", jq0.c)
+
+		logger.Debugf("about to %#v [\"done\"] <- {}", done)
+		done <- struct{}{}
+		logger.Debugf("%#v [\"done\"] <- {}", done)
+	}()
+
+	go func() {
+		logger.Debugf("about to %#v [\"jq1.c\"] <- &fakeJob{}", jq1.c)
+		jq1.c <- &fakeJob{}
+		logger.Debugf("%#v [\"jq1.c\"] <- &fakeJob{}", jq1.c)
+
+		logger.Debugf("about to %#v [\"done\"] <- {}", done)
+		done <- struct{}{}
+		logger.Debugf("%#v [\"done\"] <- {}", done)
+	}()
+
+	doneCount := 0
+	for doneCount < 3 {
+		logger.Debugf("entering for loop")
+		timeout := 5 * time.Second
 		select {
-		case <-time.After(3 * time.Second):
-			assert.FailNow(t, "jobs were not received within 3s")
+		case <-time.After(timeout):
+			assert.FailNow(t, fmt.Sprintf("jobs were not received within %v", timeout))
 		case <-done:
-			return
+			logger.Debugf("<-%#v [\"done\"]", done)
+			doneCount++
 		}
 	}
 }
@@ -66,12 +103,13 @@ func TestMultiSourceJobQueue_Jobs_uniqueChannels(t *testing.T) {
 	jq0 := &fakeJobQueue{c: make(chan Job)}
 	jq1 := &fakeJobQueue{c: make(chan Job)}
 	msjq := NewMultiSourceJobQueue(jq0, jq1)
+	ready := make(chan struct{})
 
-	buildJobChan0, err := msjq.Jobs(gocontext.TODO())
+	buildJobChan0, err := msjq.Jobs(gocontext.TODO(), (<-chan struct{})(ready))
 	assert.Nil(t, err)
 	assert.NotNil(t, buildJobChan0)
 
-	buildJobChan1, err := msjq.Jobs(gocontext.TODO())
+	buildJobChan1, err := msjq.Jobs(gocontext.TODO(), (<-chan struct{})(ready))
 	assert.Nil(t, err)
 	assert.NotNil(t, buildJobChan1)
 
