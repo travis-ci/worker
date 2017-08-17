@@ -32,6 +32,7 @@ type HTTPJobQueue struct {
 	workerID          string
 	buildJobChan      chan Job
 	buildJobChanMutex *sync.Mutex
+	pollInterval      time.Duration
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -60,6 +61,8 @@ func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerNa
 		queue:             queue,
 		workerID:          workerID,
 		buildJobChanMutex: &sync.Mutex{},
+		// TODO: make pollInterval configurable
+		pollInterval: time.Second,
 	}, nil
 }
 
@@ -79,6 +82,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 		for {
 			logger.Debug("fetching job ids")
 			jobIds, err := q.fetchJobs(ctx)
+			readyTimeout := false
 			if err != nil {
 				logger.WithField("err", err).Warn("continuing after failing to get job ids")
 				time.Sleep(time.Second)
@@ -103,8 +107,9 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 								"dur":    time.Since(jobSendBegin),
 							}).Info("sent job to output channel")
 						}
-					case <-time.After(100 * time.Millisecond):
+					case <-time.After(q.pollInterval):
 						logger.Debug("timeout waiting for ready chan")
+						readyTimeout = true
 					}
 				}
 			}
@@ -115,6 +120,9 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 				q.buildJobChan = nil
 				return
 			default:
+				if readyTimeout {
+					time.Sleep(q.pollInterval)
+				}
 			}
 		}
 	}()
