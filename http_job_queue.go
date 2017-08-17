@@ -82,10 +82,10 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 		for {
 			logger.Debug("fetching job ids")
 			jobIds, err := q.fetchJobs(ctx)
-			readyTimeout := false
+			needsSleep := true
 			if err != nil {
 				logger.WithField("err", err).Warn("continuing after failing to get job ids")
-				time.Sleep(time.Second)
+				time.Sleep(q.pollInterval)
 			} else {
 				for _, id := range jobIds {
 					select {
@@ -109,7 +109,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 						}
 					case <-time.After(q.pollInterval):
 						logger.Debug("timeout waiting for ready chan")
-						readyTimeout = true
+						needsSleep = false
 					}
 				}
 			}
@@ -120,7 +120,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 				q.buildJobChan = nil
 				return
 			default:
-				if readyTimeout {
+				if needsSleep {
 					time.Sleep(q.pollInterval)
 				}
 			}
