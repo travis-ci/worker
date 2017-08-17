@@ -144,6 +144,11 @@ func (p *Processor) Run() {
 				return
 			}
 
+			if buildJob == nil {
+				logger.Info("received nil job, continuing")
+				continue
+			}
+
 			hardTimeout := p.hardTimeout
 			if buildJob.Payload().Timeouts.HardLimit != 0 {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second

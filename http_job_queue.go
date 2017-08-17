@@ -92,7 +92,8 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 							logger.WithFields(logrus.Fields{
 								"err": err,
 								"id":  id,
-							}).Warn("failed to get complete job")
+							}).Warn("failed to get complete job, sending nil job")
+							buildJobChan <- nil
 						} else {
 							jobSendBegin := time.Now()
 							buildJobChan <- buildJob
@@ -113,6 +114,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 				logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 				q.buildJobChan = nil
 				return
+			default:
 			}
 		}
 	}()

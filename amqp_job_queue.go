@@ -85,68 +85,74 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 			case <-ctx.Done():
 				return
 			case <-ready:
-				delivery, ok := <-deliveries
-				if !ok {
-					logger.Info("job queue channel closed")
-					return
-				}
-
-				buildJob := &amqpJob{
-					payload:         &JobPayload{},
-					startAttributes: &backend.StartAttributes{},
-				}
-				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
-
-				err := json.Unmarshal(delivery.Body, buildJob.payload)
-				if err != nil {
-					logger.WithField("err", err).Error("payload JSON parse error, attempting to nack delivery")
-					err := delivery.Ack(false)
-					if err != nil {
-						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
-					}
-					continue
-				}
-
-				logger.WithField("job_id", buildJob.payload.Job.ID).Info("received amqp delivery")
-
-				err = json.Unmarshal(delivery.Body, &startAttrs)
-				if err != nil {
-					logger.WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
-					err := delivery.Ack(false)
-					if err != nil {
-						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
-					}
-					continue
-				}
-
-				buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
-				if err != nil {
-					logger.WithField("err", err).Error("raw payload JSON parse error, attempting to nack delivery")
-					err := delivery.Ack(false)
-					if err != nil {
-						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
-					}
-					continue
-				}
-
-				buildJob.startAttributes = startAttrs.Config
-				buildJob.startAttributes.VMType = buildJob.payload.VMType
-				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
-				buildJob.conn = q.conn
-				buildJob.delivery = delivery
-				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
-
-				jobSendBegin := time.Now()
 				select {
-				case buildJobChan <- buildJob:
-					metrics.TimeSince("travis.worker.job_queue.amqp.blocking_time", jobSendBegin)
-					logger.WithFields(logrus.Fields{
-						"source": "amqp",
-						"dur":    time.Since(jobSendBegin),
-					}).Info("sent job to output channel")
-				case <-ctx.Done():
-					delivery.Nack(false, true)
-					return
+				case <-time.After(100 * time.Millisecond):
+					logger.Info("timeout waiting for delivery, sending nil job")
+					buildJobChan <- nil
+					continue
+				case delivery, ok := <-deliveries:
+					if !ok {
+						logger.Info("job queue channel closed")
+						return
+					}
+
+					buildJob := &amqpJob{
+						payload:         &JobPayload{},
+						startAttributes: &backend.StartAttributes{},
+					}
+					startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
+
+					err := json.Unmarshal(delivery.Body, buildJob.payload)
+					if err != nil {
+						logger.WithField("err", err).Error("payload JSON parse error, attempting to nack delivery")
+						err := delivery.Ack(false)
+						if err != nil {
+							logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+						}
+						continue
+					}
+
+					logger.WithField("job_id", buildJob.payload.Job.ID).Info("received amqp delivery")
+
+					err = json.Unmarshal(delivery.Body, &startAttrs)
+					if err != nil {
+						logger.WithField("err", err).Error("start attributes JSON parse error, attempting to nack delivery")
+						err := delivery.Ack(false)
+						if err != nil {
+							logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+						}
+						continue
+					}
+
+					buildJob.rawPayload, err = simplejson.NewJson(delivery.Body)
+					if err != nil {
+						logger.WithField("err", err).Error("raw payload JSON parse error, attempting to nack delivery")
+						err := delivery.Ack(false)
+						if err != nil {
+							logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't nack delivery")
+						}
+						continue
+					}
+
+					buildJob.startAttributes = startAttrs.Config
+					buildJob.startAttributes.VMType = buildJob.payload.VMType
+					buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
+					buildJob.conn = q.conn
+					buildJob.delivery = delivery
+					buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
+
+					jobSendBegin := time.Now()
+					select {
+					case buildJobChan <- buildJob:
+						metrics.TimeSince("travis.worker.job_queue.amqp.blocking_time", jobSendBegin)
+						logger.WithFields(logrus.Fields{
+							"source": "amqp",
+							"dur":    time.Since(jobSendBegin),
+						}).Info("sent job to output channel")
+					case <-ctx.Done():
+						delivery.Nack(false, true)
+						return
+					}
 				}
 			}
 		}
