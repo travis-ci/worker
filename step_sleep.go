@@ -16,5 +16,4 @@ func (s *stepSleep) Run(state multistep.StateBag) multistep.StepAction {
 	return multistep.ActionContinue
 }
 
-func (s *stepSleep) Cleanup(state multistep.StateBag) {
-}
+func (s *stepSleep) Cleanup(state multistep.StateBag) {}

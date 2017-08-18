@@ -1,9 +1,10 @@
 package worker
 
 import (
-	"context"
 	"os"
 	"time"
+
+	gocontext "context"
 
 	simplejson "github.com/bitly/go-simplejson"
 	"github.com/sirupsen/logrus"
@@ -23,22 +24,8 @@ type fakeJobQueue struct {
 	cleanedUp bool
 }
 
-func (jq *fakeJobQueue) Jobs(ctx context.Context, ready <-chan struct{}) (<-chan Job, error) {
-	jobInterceptChan := make(chan Job)
-
-	go func() {
-		for {
-			select {
-			case <-ready:
-				job := <-jq.c
-				jobInterceptChan <- job
-			default:
-				time.Sleep(time.Millisecond)
-			}
-		}
-	}()
-
-	return (<-chan Job)(jobInterceptChan), nil
+func (jq *fakeJobQueue) Jobs(ctx gocontext.Context) (<-chan Job, error) {
+	return (<-chan Job)(jq.c), nil
 }
 
 func (jq *fakeJobQueue) Name() string { return "fake" }
@@ -68,32 +55,32 @@ func (fj *fakeJob) StartAttributes() *backend.StartAttributes {
 	return fj.startAttributes
 }
 
-func (fj *fakeJob) Received() error {
+func (fj *fakeJob) Received(_ gocontext.Context) error {
 	fj.events = append(fj.events, "received")
 	return nil
 }
 
-func (fj *fakeJob) Started() error {
+func (fj *fakeJob) Started(_ gocontext.Context) error {
 	fj.events = append(fj.events, "started")
 	return nil
 }
 
-func (fj *fakeJob) Error(ctx context.Context, msg string) error {
+func (fj *fakeJob) Error(ctx gocontext.Context, msg string) error {
 	fj.events = append(fj.events, "errored")
 	return nil
 }
 
-func (fj *fakeJob) Requeue(ctx context.Context) error {
+func (fj *fakeJob) Requeue(ctx gocontext.Context) error {
 	fj.events = append(fj.events, "requeued")
 	return nil
 }
 
-func (fj *fakeJob) Finish(ctx context.Context, state FinishState) error {
+func (fj *fakeJob) Finish(ctx gocontext.Context, state FinishState) error {
 	fj.events = append(fj.events, string(state))
 	return nil
 }
 
-func (fj *fakeJob) LogWriter(ctx context.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
+func (fj *fakeJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
 	return &fakeLogWriter{}, nil
 }
 

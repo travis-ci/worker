@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -43,15 +42,13 @@ type ProcessorEacherSizer interface {
 
 // HTTPJobQueue is a JobQueue that uses http
 type HTTPJobQueue struct {
-	processors        ProcessorEacherSizer
-	jobBoardURL       *url.URL
-	site              string
-	providerName      string
-	queue             string
-	workerID          string
-	buildJobChan      chan Job
-	buildJobChanMutex *sync.Mutex
-	pollInterval      time.Duration
+	processors   ProcessorEacherSizer
+	jobBoardURL  *url.URL
+	site         string
+	providerName string
+	queue        string
+	workerID     string
+	pollInterval time.Duration
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -73,32 +70,25 @@ type jobBoardErrorResponse struct {
 // NewHTTPJobQueue creates a new job-board job queue
 func NewHTTPJobQueue(processors ProcessorEacherSizer, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
-		processors:        processors,
-		jobBoardURL:       jobBoardURL,
-		site:              site,
-		providerName:      providerName,
-		queue:             queue,
-		workerID:          workerID,
-		buildJobChanMutex: &sync.Mutex{},
+		processors:   processors,
+		jobBoardURL:  jobBoardURL,
+		site:         site,
+		providerName: providerName,
+		queue:        queue,
+		workerID:     workerID,
 		// TODO: make pollInterval configurable
 		pollInterval: time.Second,
 	}, nil
 }
 
 // Jobs consumes new jobs from job-board
-func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outChan <-chan Job, err error) {
-	q.buildJobChanMutex.Lock()
-	defer q.buildJobChanMutex.Unlock()
-	if q.buildJobChan != nil {
-		return q.buildJobChan, nil
-	}
-
+func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
 
 	go func() {
 		for {
-			switch q.pollForJobs(ctx, ready, buildJobChan) {
+			switch q.pollForJob(ctx, buildJobChan) {
 			case httpPollStateSleep:
 				time.Sleep(q.pollInterval)
 			case httpPollStateContinue:
@@ -109,46 +99,38 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 		}
 	}()
 
-	q.buildJobChan = buildJobChan
 	return outChan, nil
 }
 
-func (q *HTTPJobQueue) pollForJobs(ctx gocontext.Context, ready <-chan struct{}, buildJobChan chan Job) httpPollState {
+func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) httpPollState {
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
-	select {
-	case <-ready:
-		logger.Debug("fetching job id")
-		jobID, err := q.fetchJobID(ctx)
-		if err != nil {
-			logger.WithField("err", err).Info("continuing after failing to get job id")
-			return httpPollStateSleep
-		}
-		logger.WithField("job_id", jobID).Debug("fetching complete job")
-		buildJob, err := q.fetchJob(ctx, jobID)
-		if err != nil {
-			logger.WithFields(logrus.Fields{
-				"err": err,
-				"id":  jobID,
-			}).Warn("failed to get complete job, sending nil job")
-			buildJobChan <- nil
-			return httpPollStateSleep
-		}
-		jobSendBegin := time.Now()
-		buildJobChan <- buildJob
-		metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
-		logger.WithFields(logrus.Fields{
-			"source": "http",
-			"dur":    time.Since(jobSendBegin),
-		}).Info("sent job to output channel")
-	case <-time.After(q.pollInterval):
-		logger.Debug("timeout waiting for ready chan")
-		return httpPollStateContinue
+	logger.Debug("fetching job id")
+	jobID, err := q.fetchJobID(ctx, 1, []uint64{})
+	if err != nil {
+		logger.WithField("err", err).Info("continuing after failing to get job id")
+		return httpPollStateSleep
 	}
+	logger.WithField("job_id", jobID).Debug("fetching complete job")
+	buildJob, err := q.fetchJob(ctx, jobID)
+	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"err": err,
+			"id":  jobID,
+		}).Warn("failed to get complete job, sending nil job")
+		buildJobChan <- nil
+		return httpPollStateSleep
+	}
+	jobSendBegin := time.Now()
+	buildJobChan <- buildJob
+	metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
+	logger.WithFields(logrus.Fields{
+		"source": "http",
+		"dur":    time.Since(jobSendBegin),
+	}).Info("sent job to output channel")
 
 	select {
 	case <-ctx.Done():
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
-		q.buildJobChan = nil
 		return httpPollStateBreak
 	default:
 	}
@@ -156,14 +138,16 @@ func (q *HTTPJobQueue) pollForJobs(ctx gocontext.Context, ready <-chan struct{},
 	return httpPollStateSleep
 }
 
-func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
+func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running []uint64) (uint64, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+	processorName, ok := context.ProcessorFromContext(ctx)
+	if !ok {
+		processorName = "unknown-processor"
+	}
 	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
-	q.processors.Each(func(i int, p *Processor) {
-		if p.CurrentStatus == "processing" {
-			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.FormatUint(p.LastJobID, 10))
-		}
-	})
+	for _, jobID := range running {
+		fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.Itoa(int(jobID)))
+	}
 
 	jobIDsJSON, err := json.Marshal(fetchRequestPayload)
 	if err != nil {
@@ -173,8 +157,8 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
 	u := *q.jobBoardURL
 
 	query := u.Query()
-	query.Add("count", "1")
-	query.Add("capacity", strconv.Itoa(q.processors.Size()))
+	query.Add("count", strconv.Itoa(int(desired)))
+	query.Add("capacity", "1")
 	query.Add("queue", q.queue)
 
 	u.Path = "/jobs"
@@ -189,7 +173,7 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
-	req.Header.Add("From", q.workerID)
+	req.Header.Add("From", fmt.Sprintf("%s+%s", processorName, q.workerID))
 	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
@@ -235,6 +219,10 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
 
 func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+	processorName, ok := context.ProcessorFromContext(ctx)
+	if !ok {
+		processorName = "unknown-processor"
+	}
 
 	buildJob := &httpJob{
 		payload: &httpJobPayload{
@@ -242,9 +230,11 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 		},
 		startAttributes: &backend.StartAttributes{},
 
+		refreshClaim: q.generateJobRefreshClaimFunc(10*time.Second, id),
+
 		jobBoardURL: q.jobBoardURL,
 		site:        q.site,
-		workerID:    q.workerID,
+		workerID:    fmt.Sprintf("%s+%s", processorName, q.workerID),
 	}
 	startAttrs := &httpJobPayloadStartAttrs{
 		Data: &jobPayloadStartAttrs{
@@ -265,7 +255,7 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	// is expected to be the case with the future cloudbrain provider.
 	req.Header.Add("Travis-Infrastructure", q.providerName)
 	req.Header.Add("Travis-Site", q.site)
-	req.Header.Add("From", q.workerID)
+	req.Header.Add("From", fmt.Sprintf("%s+%s", processorName, q.workerID))
 	req = req.WithContext(ctx)
 
 	bo := backoff.NewExponentialBackOff()
@@ -321,6 +311,25 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 
 	return buildJob, nil
+}
+
+func (q *HTTPJobQueue) generateJobRefreshClaimFunc(pollInterval time.Duration, id uint64) func(gocontext.Context) {
+	return func(ctx gocontext.Context) {
+		for {
+			_, err := q.fetchJobID(ctx, 0, []uint64{id})
+			if err != nil && err != httpJobQueueNoJobsErr {
+				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+					"err":    err,
+					"job_id": id,
+				}).Warn("failed to refresh claim")
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(pollInterval):
+			}
+		}
+	}
 }
 
 // Name returns the name of this queue type, wow!

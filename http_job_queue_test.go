@@ -95,21 +95,10 @@ func TestHTTPJobQueue_Jobs(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, hjq)
 
-	ready := make(chan struct{})
 	ctx := gocontext.TODO()
-	buildJobChan, err := hjq.Jobs(ctx, (<-chan struct{})(ready))
+	buildJobChan, err := hjq.Jobs(ctx)
 	assert.Nil(t, err)
 	assert.NotNil(t, buildJobChan)
-
-	buildJobChan2, err := hjq.Jobs(ctx, (<-chan struct{})(ready))
-	assert.Nil(t, err)
-	assert.Equal(t, buildJobChan, buildJobChan2)
-
-	select {
-	case ready <- struct{}{}:
-	case <-time.After(time.Second):
-		t.Fatalf("failed to send ready")
-	}
 
 	select {
 	case job := <-buildJobChan:

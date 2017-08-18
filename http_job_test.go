@@ -145,7 +145,7 @@ func TestHTTPJob_Received(t *testing.T) {
 	job.payload.JobPartsURL = ts.URL
 	job.jobBoardURL, _ = url.Parse(ts.URL)
 
-	err := job.Received()
+	err := job.Received(gocontext.TODO())
 	if err != nil {
 		t.Error(err)
 	}
@@ -161,7 +161,7 @@ func TestHTTPJob_Started(t *testing.T) {
 	job.payload.JobPartsURL = ts.URL
 	job.jobBoardURL, _ = url.Parse(ts.URL)
 
-	err := job.Started()
+	err := job.Started(gocontext.TODO())
 	if err != nil {
 		t.Error(err)
 	}

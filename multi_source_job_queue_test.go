@@ -20,20 +20,11 @@ func TestNewMultiSourceJobQueue(t *testing.T) {
 
 	assert.NotNil(t, msjq)
 
-	ready := make(chan struct{})
-	buildJobChan, err := msjq.Jobs(ctx, (<-chan struct{})(ready))
+	buildJobChan, err := msjq.Jobs(ctx)
 	assert.Nil(t, err)
 	assert.NotNil(t, buildJobChan)
 
 	done := make(chan struct{})
-
-	go func() {
-		for {
-			logger.Debugf("about to ready <- {}")
-			ready <- struct{}{}
-			logger.Debugf("ready <- {}")
-		}
-	}()
 
 	go func() {
 		logger.Debugf("about to <-%#v [\"buildJobChan\"]", buildJobChan)
@@ -103,13 +94,12 @@ func TestMultiSourceJobQueue_Jobs_uniqueChannels(t *testing.T) {
 	jq0 := &fakeJobQueue{c: make(chan Job)}
 	jq1 := &fakeJobQueue{c: make(chan Job)}
 	msjq := NewMultiSourceJobQueue(jq0, jq1)
-	ready := make(chan struct{})
 
-	buildJobChan0, err := msjq.Jobs(gocontext.TODO(), (<-chan struct{})(ready))
+	buildJobChan0, err := msjq.Jobs(gocontext.TODO())
 	assert.Nil(t, err)
 	assert.NotNil(t, buildJobChan0)
 
-	buildJobChan1, err := msjq.Jobs(gocontext.TODO(), (<-chan struct{})(ready))
+	buildJobChan1, err := msjq.Jobs(gocontext.TODO())
 	assert.Nil(t, err)
 	assert.NotNil(t, buildJobChan1)
 
