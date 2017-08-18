@@ -25,14 +25,6 @@ var (
 	httpJobQueueNoJobsErr = fmt.Errorf("no jobs available")
 )
 
-type httpPollState uint
-
-const (
-	httpPollStateSleep httpPollState = iota
-	httpPollStateContinue
-	httpPollStateBreak
-)
-
 // ProcessorEacherSizer is the minimal interface required by the HTTPJobQueue
 // for interacting with the ProcessorPool
 type ProcessorEacherSizer interface {
@@ -93,21 +85,17 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	go func() {
 		for {
 			logger.Debug("polling for job tick")
-			switch q.pollForJob(ctx, buildJobChan) {
-			case httpPollStateSleep:
-				time.Sleep(q.pollInterval)
-			case httpPollStateContinue:
-				continue
-			case httpPollStateBreak:
+			if !q.pollForJob(ctx, buildJobChan) {
 				return
 			}
+			time.Sleep(q.pollInterval)
 		}
 	}()
 
 	return outChan, nil
 }
 
-func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) httpPollState {
+func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) bool {
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"self": "http_job_queue",
 		"inst": fmt.Sprintf("%p", q),
@@ -117,7 +105,7 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 	jobID, err := q.fetchJobID(ctx, 1, []uint64{})
 	if err != nil {
 		logger.WithField("err", err).Debug("continuing after failing to get job id")
-		return httpPollStateSleep
+		return true
 	}
 	logger.WithField("job_id", jobID).Debug("fetching complete job")
 	buildJob, err := q.fetchJob(ctx, jobID)
@@ -126,7 +114,7 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 			"err": err,
 			"id":  jobID,
 		}).Warn("failed to get complete job")
-		return httpPollStateSleep
+		return true
 	}
 
 	logger.WithField("job_id", jobID).Debug("sending job to output channel")
@@ -138,10 +126,10 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 			"source": "http",
 			"dur":    time.Since(jobSendBegin),
 		}).Info("sent job to output channel")
-		return httpPollStateContinue
+		return true
 	case <-ctx.Done():
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
-		return httpPollStateBreak
+		return false
 	}
 }
 
