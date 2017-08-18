@@ -169,6 +169,7 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 		_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
 		if err != nil {
 			done <- err
+			return
 		}
 
 		done <- amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
