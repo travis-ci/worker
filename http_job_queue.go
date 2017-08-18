@@ -85,7 +85,10 @@ func NewHTTPJobQueue(processors ProcessorEacherSizer, jobBoardURL *url.URL, site
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
-	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "http_job_queue",
+		"inst": fmt.Sprintf("%p", q),
+	})
 
 	go func() {
 		for {
@@ -105,7 +108,11 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 }
 
 func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) httpPollState {
-	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "http_job_queue",
+		"inst": fmt.Sprintf("%p", q),
+	})
+
 	logger.Debug("fetching job id")
 	jobID, err := q.fetchJobID(ctx, 1, []uint64{})
 	if err != nil {
@@ -139,7 +146,11 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 }
 
 func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running []uint64) (uint64, error) {
-	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "http_job_queue",
+		"inst": fmt.Sprintf("%p", q),
+	})
+
 	processorName, ok := context.ProcessorFromContext(ctx)
 	if !ok {
 		processorName = "unknown-processor"
@@ -218,7 +229,11 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running
 }
 
 func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
-	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "http_job_queue",
+		"inst": fmt.Sprintf("%p", q),
+	})
+
 	processorName, ok := context.ProcessorFromContext(ctx)
 	if !ok {
 		processorName = "unknown-processor"

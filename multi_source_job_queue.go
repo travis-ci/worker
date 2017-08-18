@@ -22,7 +22,10 @@ func NewMultiSourceJobQueue(queues ...JobQueue) *MultiSourceJobQueue {
 
 // Jobs returns a Job channel that selects over each source queue Job channel
 func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
-	logger := context.LoggerFromContext(ctx).WithField("self", "multi_source_job_queue")
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "multi_source_job_queue",
+		"inst": fmt.Sprintf("%p", msjq),
+	})
 
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan

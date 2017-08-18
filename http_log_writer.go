@@ -55,7 +55,10 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
 
-	logger := context.LoggerFromContext(w.ctx).WithField("self", "http_log_writer")
+	logger := context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+		"self": "http_log_writer",
+		"inst": fmt.Sprintf("%p", w),
+	})
 
 	logger.WithFields(logrus.Fields{
 		"length": len(p),

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	gocontext "context"
@@ -74,7 +75,10 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 		defer channel.Close()
 		defer close(buildJobChan)
 
-		logger := context.LoggerFromContext(ctx).WithField("self", "amqp_job_queue")
+		logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"self": "amqp_job_queue",
+			"inst": fmt.Sprintf("%p", q),
+		})
 
 		for {
 			if ctx.Err() != nil {
