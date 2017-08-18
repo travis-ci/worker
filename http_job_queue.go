@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -148,9 +149,15 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running
 		fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.Itoa(int(jobID)))
 	}
 
+	if len(fetchRequestPayload.Jobs) > 0 {
+		logger.WithFields(logrus.Fields{
+			"running": strings.Join(fetchRequestPayload.Jobs, ","),
+		}).Debug("sending record of running job(s) to job-board")
+	}
+
 	jobIDsJSON, err := json.Marshal(fetchRequestPayload)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to marshal job board jobs request payload")
+		return 0, errors.Wrap(err, "failed to marshal job-board jobs request payload")
 	}
 
 	u := *q.jobBoardURL
@@ -167,7 +174,7 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running
 
 	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jobIDsJSON))
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to create job board jobs request")
+		return 0, errors.Wrap(err, "failed to create job-board jobs request")
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -177,14 +184,14 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to make job board jobs request")
+		return 0, errors.Wrap(err, "failed to make job-board jobs request")
 	}
 
 	defer resp.Body.Close()
 	fetchResponsePayload := &httpFetchJobsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&fetchResponsePayload)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to decode job board jobs response")
+		return 0, errors.Wrap(err, "failed to decode job-board jobs response")
 	}
 
 	logger.WithField("jobs", fetchResponsePayload.Jobs).Debug("fetched raw jobs")
@@ -250,7 +257,7 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't make job board job request")
+		return nil, errors.Wrap(err, "couldn't make job-board job request")
 	}
 
 	// TODO: ensure infrastructure is not synonymous with providerName since
@@ -284,23 +291,23 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	}, bo)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "error making job board job request")
+		return nil, errors.Wrap(err, "error making job-board job request")
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, "error reading body from job board job request")
+		return nil, errors.Wrap(err, "error reading body from job-board job request")
 	}
 
 	err = json.Unmarshal(body, buildJob.payload)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal job board payload")
+		return nil, errors.Wrap(err, "failed to unmarshal job-board payload")
 	}
 
 	err = json.Unmarshal(body, &startAttrs)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal start attributes from job board")
+		return nil, errors.Wrap(err, "failed to unmarshal start attributes from job-board")
 	}
 
 	rawPayload, err := simplejson.NewJson(body)
