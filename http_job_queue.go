@@ -107,7 +107,7 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 	logger.Debug("fetching job id")
 	jobID, err := q.fetchJobID(ctx, 1, []uint64{})
 	if err != nil {
-		logger.WithField("err", err).Info("continuing after failing to get job id")
+		logger.WithField("err", err).Debug("continuing after failing to get job id")
 		return httpPollStateSleep
 	}
 	logger.WithField("job_id", jobID).Debug("fetching complete job")
@@ -116,23 +116,21 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 		logger.WithFields(logrus.Fields{
 			"err": err,
 			"id":  jobID,
-		}).Warn("failed to get complete job, sending nil job")
-		buildJobChan <- nil
+		}).Warn("failed to get complete job")
 		return httpPollStateSleep
 	}
-	jobSendBegin := time.Now()
-	buildJobChan <- buildJob
-	metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
-	logger.WithFields(logrus.Fields{
-		"source": "http",
-		"dur":    time.Since(jobSendBegin),
-	}).Info("sent job to output channel")
 
+	jobSendBegin := time.Now()
 	select {
+	case buildJobChan <- buildJob:
+		metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
+		logger.WithFields(logrus.Fields{
+			"source": "http",
+			"dur":    time.Since(jobSendBegin),
+		}).Info("sent job to output channel")
 	case <-ctx.Done():
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 		return httpPollStateBreak
-	default:
 	}
 
 	return httpPollStateSleep
