@@ -22,9 +22,28 @@ import (
 	gocontext "context"
 )
 
+var (
+	httpJobQueueNoJobsErr = fmt.Errorf("no jobs available")
+)
+
+type httpPollState uint
+
+const (
+	httpPollStateSleep httpPollState = iota
+	httpPollStateContinue
+	httpPollStateBreak
+)
+
+// ProcessorEacherSizer is the minimal interface required by the HTTPJobQueue
+// for interacting with the ProcessorPool
+type ProcessorEacherSizer interface {
+	Each(func(int, *Processor))
+	Size() int
+}
+
 // HTTPJobQueue is a JobQueue that uses http
 type HTTPJobQueue struct {
-	processorPool     *ProcessorPool
+	processors        ProcessorEacherSizer
 	jobBoardURL       *url.URL
 	site              string
 	providerName      string
@@ -52,9 +71,9 @@ type jobBoardErrorResponse struct {
 }
 
 // NewHTTPJobQueue creates a new job-board job queue
-func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
+func NewHTTPJobQueue(processors ProcessorEacherSizer, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
 	return &HTTPJobQueue{
-		processorPool:     pool,
+		processors:        processors,
 		jobBoardURL:       jobBoardURL,
 		site:              site,
 		providerName:      providerName,
@@ -70,7 +89,6 @@ func NewHTTPJobQueue(pool *ProcessorPool, jobBoardURL *url.URL, site, providerNa
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outChan <-chan Job, err error) {
 	q.buildJobChanMutex.Lock()
 	defer q.buildJobChanMutex.Unlock()
-	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
 	if q.buildJobChan != nil {
 		return q.buildJobChan, nil
 	}
@@ -80,49 +98,13 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 
 	go func() {
 		for {
-			logger.Debug("fetching job ids")
-			jobIds, err := q.fetchJobs(ctx)
-			needsSleep := true
-			if err != nil {
-				logger.WithField("err", err).Warn("continuing after failing to get job ids")
+			switch q.pollForJobs(ctx, ready, buildJobChan) {
+			case httpPollStateSleep:
 				time.Sleep(q.pollInterval)
-			} else {
-				for _, id := range jobIds {
-					select {
-					case <-ready:
-						logger.WithField("job_id", id).Debug("fetching complete job")
-						buildJob, err := q.fetchJob(ctx, id)
-						if err != nil {
-							logger.WithFields(logrus.Fields{
-								"err": err,
-								"id":  id,
-							}).Warn("failed to get complete job, sending nil job")
-							buildJobChan <- nil
-						} else {
-							jobSendBegin := time.Now()
-							buildJobChan <- buildJob
-							metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
-							logger.WithFields(logrus.Fields{
-								"source": "http",
-								"dur":    time.Since(jobSendBegin),
-							}).Info("sent job to output channel")
-						}
-					case <-time.After(q.pollInterval):
-						logger.Debug("timeout waiting for ready chan")
-						needsSleep = false
-					}
-				}
-			}
-
-			select {
-			case <-ctx.Done():
-				logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
-				q.buildJobChan = nil
+			case httpPollStateContinue:
+				continue
+			case httpPollStateBreak:
 				return
-			default:
-				if needsSleep {
-					time.Sleep(q.pollInterval)
-				}
 			}
 		}
 	}()
@@ -131,29 +113,68 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context, ready <-chan struct{}) (outCh
 	return outChan, nil
 }
 
-func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
+func (q *HTTPJobQueue) pollForJobs(ctx gocontext.Context, ready <-chan struct{}, buildJobChan chan Job) httpPollState {
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
+	select {
+	case <-ready:
+		logger.Debug("fetching job id")
+		jobID, err := q.fetchJobID(ctx)
+		if err != nil {
+			logger.WithField("err", err).Info("continuing after failing to get job id")
+			return httpPollStateSleep
+		}
+		logger.WithField("job_id", jobID).Debug("fetching complete job")
+		buildJob, err := q.fetchJob(ctx, jobID)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err": err,
+				"id":  jobID,
+			}).Warn("failed to get complete job, sending nil job")
+			buildJobChan <- nil
+			return httpPollStateSleep
+		}
+		jobSendBegin := time.Now()
+		buildJobChan <- buildJob
+		metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
+		logger.WithFields(logrus.Fields{
+			"source": "http",
+			"dur":    time.Since(jobSendBegin),
+		}).Info("sent job to output channel")
+	case <-time.After(q.pollInterval):
+		logger.Debug("timeout waiting for ready chan")
+		return httpPollStateContinue
+	}
+
+	select {
+	case <-ctx.Done():
+		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
+		q.buildJobChan = nil
+		return httpPollStateBreak
+	default:
+	}
+
+	return httpPollStateSleep
+}
+
+func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
 	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
-	numWaiting := 0
-	q.processorPool.Each(func(i int, p *Processor) {
-		switch p.CurrentStatus {
-		case "processing":
+	q.processors.Each(func(i int, p *Processor) {
+		if p.CurrentStatus == "processing" {
 			fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.FormatUint(p.LastJobID, 10))
-		case "waiting", "new":
-			numWaiting++
 		}
 	})
 
-	jobIdsJSON, err := json.Marshal(fetchRequestPayload)
+	jobIDsJSON, err := json.Marshal(fetchRequestPayload)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal job board jobs request payload")
+		return 0, errors.Wrap(err, "failed to marshal job board jobs request payload")
 	}
 
 	u := *q.jobBoardURL
 
 	query := u.Query()
-	query.Add("count", strconv.Itoa(numWaiting))
-	query.Add("capacity", strconv.Itoa(q.processorPool.Size()))
+	query.Add("count", "1")
+	query.Add("capacity", strconv.Itoa(q.processors.Size()))
 	query.Add("queue", q.queue)
 
 	u.Path = "/jobs"
@@ -161,9 +182,9 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jobIdsJSON))
+	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(jobIDsJSON))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create job board jobs request")
+		return 0, errors.Wrap(err, "failed to create job board jobs request")
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -173,18 +194,18 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to make job board jobs request")
+		return 0, errors.Wrap(err, "failed to make job board jobs request")
 	}
 
 	defer resp.Body.Close()
 	fetchResponsePayload := &httpFetchJobsResponse{}
 	err = json.NewDecoder(resp.Body).Decode(&fetchResponsePayload)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to decode job board jobs response")
+		return 0, errors.Wrap(err, "failed to decode job board jobs response")
 	}
 
 	logger.WithField("jobs", fetchResponsePayload.Jobs).Debug("fetched raw jobs")
-	var jobIds []uint64
+	var jobIDs []uint64
 	for _, strID := range fetchResponsePayload.Jobs {
 		alreadyRunning := false
 		for _, prevStrID := range fetchRequestPayload.Jobs {
@@ -199,13 +220,17 @@ func (q *HTTPJobQueue) fetchJobs(ctx gocontext.Context) ([]uint64, error) {
 
 		id, err := strconv.ParseUint(strID, 10, 64)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse job ID")
+			return 0, errors.Wrap(err, "failed to parse job ID")
 		}
-		jobIds = append(jobIds, id)
+		jobIDs = append(jobIDs, id)
 	}
 
-	logger.WithField("jobs", jobIds).Debug("returning filtered job IDs")
-	return jobIds, nil
+	if len(jobIDs) == 0 {
+		return 0, httpJobQueueNoJobsErr
+	}
+
+	logger.WithField("job_id", jobIDs[0]).Debug("returning first filtered job ID")
+	return jobIDs[0], nil
 }
 
 func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
