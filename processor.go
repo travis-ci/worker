@@ -141,28 +141,38 @@ func (p *Processor) Run() {
 			}
 
 			if buildJob == nil {
-				logger.Info("received nil job, continuing")
+				logger.Debug("received nil job, continuing")
 				continue
 			}
+
+			jobID := buildJob.Payload().Job.ID
 
 			hardTimeout := p.hardTimeout
 			if buildJob.Payload().Timeouts.HardLimit != 0 {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
 			}
+			logger.WithFields(logrus.Fields{
+				"hard_timeout": hardTimeout,
+				"job_id":       jobID,
+			}).Debug("setting hard timeout")
 			buildJob.StartAttributes().HardTimeout = hardTimeout
 
 			ctx := context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID)
 			if buildJob.Payload().UUID != "" {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
+
+			logger.WithFields(logrus.Fields{
+				"hard_timeout": hardTimeout,
+				"job_id":       jobID,
+			}).Debug("getting wrapped context with timeout")
 			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
-			jobID := buildJob.Payload().Job.ID
-			p.LastJobID = jobID
 
 			logger.WithFields(logrus.Fields{
 				"job_id": jobID,
 				"status": "processing",
-			}).Debug("updating processor status")
+			}).Debug("updating processor status and last id")
+			p.LastJobID = jobID
 			p.CurrentStatus = "processing"
 
 			p.process(ctx, buildJob)
@@ -173,7 +183,7 @@ func (p *Processor) Run() {
 			}).Debug("updating processor status")
 			p.CurrentStatus = "waiting"
 			cancel()
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(time.Second):
 			logger.Debug("timeout waiting for job, shutdown, or context done")
 		}
 	}

@@ -45,7 +45,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 	go func() {
 		for {
 			for queueName, bjc := range buildJobChans {
-				var job Job
+				var job Job = nil
 				jobSendBegin := time.Now()
 				logger = logger.WithField("queue_name", queueName)
 
@@ -54,8 +54,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 				case job = <-bjc:
 				case <-ctx.Done():
 					return
-				case <-time.After(100 * time.Millisecond):
-					time.Sleep(time.Millisecond)
+				case <-time.After(time.Second):
 					logger.Debug("continuing after timeout waiting for job")
 					continue
 				}

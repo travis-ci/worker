@@ -85,9 +85,11 @@ func NewHTTPJobQueue(processors ProcessorEacherSizer, jobBoardURL *url.URL, site
 func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
 	buildJobChan := make(chan Job)
 	outChan = buildJobChan
+	logger := context.LoggerFromContext(ctx).WithField("self", "http_job_queue")
 
 	go func() {
 		for {
+			logger.Debug("polling for job tick")
 			switch q.pollForJob(ctx, buildJobChan) {
 			case httpPollStateSleep:
 				time.Sleep(q.pollInterval)
@@ -120,6 +122,7 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 		return httpPollStateSleep
 	}
 
+	logger.WithField("job_id", jobID).Debug("sending job to output channel")
 	jobSendBegin := time.Now()
 	select {
 	case buildJobChan <- buildJob:
@@ -128,12 +131,11 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 			"source": "http",
 			"dur":    time.Since(jobSendBegin),
 		}).Info("sent job to output channel")
+		return httpPollStateContinue
 	case <-ctx.Done():
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 		return httpPollStateBreak
 	}
-
-	return httpPollStateSleep
 }
 
 func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running []uint64) (uint64, error) {
