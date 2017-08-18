@@ -183,7 +183,7 @@ func (p *Processor) Run() {
 			}).Debug("updating processor status")
 			p.CurrentStatus = "waiting"
 			cancel()
-		case <-time.After(time.Second):
+		case <-time.After(10 * time.Second):
 			logger.Debug("timeout waiting for job, shutdown, or context done")
 		}
 	}

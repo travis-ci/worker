@@ -188,7 +188,7 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	case err = <-done:
 		return err
 	case <-time.After(timeout):
-		return fmt.Errorf("%v timeout waiting for state update", timeout)
+		return fmt.Errorf("timeout waiting for state update (%v)", timeout)
 	}
 }
 

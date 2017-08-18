@@ -52,13 +52,12 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 				jobSendBegin := time.Now()
 				logger = logger.WithField("queue_name", queueName)
 
-				logger.Debugf("about to receive job")
+				logger.Debug("about to receive job")
 				select {
 				case job = <-bjc:
 				case <-ctx.Done():
 					return
 				case <-time.After(time.Second):
-					logger.Debug("continuing after timeout waiting for job")
 					continue
 				}
 
