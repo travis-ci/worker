@@ -56,7 +56,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 					return
 				case <-time.After(100 * time.Millisecond):
 					time.Sleep(time.Millisecond)
-					logger.Debugf("continuing after timeout waiting for job")
+					logger.Debug("continuing after timeout waiting for job")
 					continue
 				}
 

@@ -85,7 +85,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 			case <-ctx.Done():
 				return
 			case <-time.After(100 * time.Millisecond):
-				logger.Info("timeout waiting for delivery")
+				logger.Debug("timeout waiting for delivery")
 				continue
 			case delivery, ok := <-deliveries:
 				if !ok {
