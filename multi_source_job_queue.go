@@ -61,14 +61,17 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 					continue
 				}
 
-				logger.Debugf("job := %#v", job)
+				jobID := uint64(0)
+				if job.Payload() != nil {
+					jobID = job.Payload().Job.ID
+				}
 
-				logger.Debugf("about to %#v [\"buildJobChan\"] <- %#v", buildJobChan, job)
+				logger.WithField("job_id", jobID).Debug("about to send job to multi source output channel")
 				buildJobChan <- job
-				logger.Debugf("%#v [\"buildJobChan\"] <- %#v", buildJobChan, job)
 
 				metrics.TimeSince("travis.worker.job_queue.multi.blocking_time", jobSendBegin)
 				logger.WithFields(logrus.Fields{
+					"job_id": jobID,
 					"source": queueName,
 					"dur":    time.Since(jobSendBegin),
 				}).Info("sent job to multi source output channel")
