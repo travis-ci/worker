@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -15,43 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type fakeHTTPProcessors struct {
-	processors []*Processor
-}
-
-func (fhp *fakeHTTPProcessors) Each(f func(i int, p *Processor)) {
-	procIDs := []string{}
-	procsByID := map[string]*Processor{}
-
-	for _, proc := range fhp.processors {
-		id := proc.ID.String()
-		procIDs = append(procIDs, id)
-		procsByID[id] = proc
-	}
-
-	sort.Strings(procIDs)
-
-	for i, procID := range procIDs {
-		f(i, procsByID[procID])
-	}
-}
-
-func (fhp *fakeHTTPProcessors) Size() int {
-	return len(fhp.processors)
-}
-
 func TestHTTPJobQueue(t *testing.T) {
-	hjq, err := NewHTTPJobQueue(nil, nil, "test", "fake", "fake", "test-worker-9001")
+	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, hjq)
 }
 
 func TestHTTPJobQueue_Jobs(t *testing.T) {
-	processors := &fakeHTTPProcessors{processors: []*Processor{
-		&Processor{CurrentStatus: "new"},
-		&Processor{CurrentStatus: "waiting", LastJobID: uint64(99998)},
-		&Processor{CurrentStatus: "processing", LastJobID: uint64(99999)},
-	}}
 	mux := http.NewServeMux()
 	mux.HandleFunc(`/jobs`, func(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, `{"jobs":["100001"]}`)
@@ -91,7 +60,7 @@ func TestHTTPJobQueue_Jobs(t *testing.T) {
 	defer jobBoardServer.Close()
 
 	jobBoardURL, _ := url.Parse(jobBoardServer.URL)
-	hjq, err := NewHTTPJobQueue(processors, jobBoardURL, "test", "fake", "fake", "test-worker-9001")
+	hjq, err := NewHTTPJobQueue(jobBoardURL, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, hjq)
 
@@ -109,13 +78,13 @@ func TestHTTPJobQueue_Jobs(t *testing.T) {
 }
 
 func TestHTTPJobQueue_Name(t *testing.T) {
-	hjq, err := NewHTTPJobQueue(nil, nil, "test", "fake", "fake", "test-worker-9001")
+	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "http", hjq.Name())
 }
 
 func TestHTTPJobQueue_Cleanup(t *testing.T) {
-	hjq, err := NewHTTPJobQueue(nil, nil, "test", "fake", "fake", "test-worker-9001")
+	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.Nil(t, hjq.Cleanup())
 }

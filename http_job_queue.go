@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/bitly/go-simplejson"
@@ -24,24 +23,17 @@ import (
 
 var (
 	httpJobQueueNoJobsErr = fmt.Errorf("no jobs available")
+	mismatchedJobIDErr    = fmt.Errorf("returned job ID does not match expected")
 )
-
-// ProcessorEacherSizer is the minimal interface required by the HTTPJobQueue
-// for interacting with the ProcessorPool
-type ProcessorEacherSizer interface {
-	Each(func(int, *Processor))
-	Size() int
-}
 
 // HTTPJobQueue is a JobQueue that uses http
 type HTTPJobQueue struct {
-	processors   ProcessorEacherSizer
 	jobBoardURL  *url.URL
 	site         string
 	providerName string
 	queue        string
-	workerID     string
 	pollInterval time.Duration
+	cb           *CancellationBroadcaster
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -61,16 +53,16 @@ type jobBoardErrorResponse struct {
 }
 
 // NewHTTPJobQueue creates a new job-board job queue
-func NewHTTPJobQueue(processors ProcessorEacherSizer, jobBoardURL *url.URL, site, providerName, queue, workerID string) (*HTTPJobQueue, error) {
+func NewHTTPJobQueue(jobBoardURL *url.URL, site, providerName, queue string,
+	cb *CancellationBroadcaster) (*HTTPJobQueue, error) {
+
 	return &HTTPJobQueue{
-		processors:   processors,
 		jobBoardURL:  jobBoardURL,
 		site:         site,
 		providerName: providerName,
 		queue:        queue,
-		workerID:     workerID,
-		// TODO: make pollInterval configurable
 		pollInterval: time.Second,
+		cb:           cb,
 	}, nil
 }
 
@@ -103,7 +95,7 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 	})
 
 	logger.Debug("fetching job id")
-	jobID, err := q.fetchJobID(ctx, 1, []uint64{})
+	jobID, err := q.fetchJobID(ctx)
 	if err != nil {
 		logger.WithField("err", err).Debug("continuing after failing to get job id")
 		return true
@@ -134,28 +126,34 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 	}
 }
 
-func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running []uint64) (uint64, error) {
+func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
+	return q.postJobs(ctx, []string{})
+}
+
+func (q *HTTPJobQueue) refreshJobClaim(ctx gocontext.Context, jobID uint64) error {
+	fetchedID, err := q.postJobs(ctx, []string{strconv.Itoa(int(jobID))})
+	if err != nil {
+		return err
+	}
+
+	if fetchedID != jobID {
+		return mismatchedJobIDErr
+	}
+
+	return nil
+}
+
+func (q *HTTPJobQueue) postJobs(ctx gocontext.Context, jobIDs []string) (uint64, error) {
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"self": "http_job_queue",
 		"inst": fmt.Sprintf("%p", q),
 	})
 
-	processorName, ok := context.ProcessorFromContext(ctx)
+	processorID, ok := context.ProcessorFromContext(ctx)
 	if !ok {
-		processorName = "unknown-processor"
+		processorID = "unknown-processor"
 	}
-	fetchRequestPayload := &httpFetchJobsRequest{Jobs: []string{}}
-	for _, jobID := range running {
-		fetchRequestPayload.Jobs = append(fetchRequestPayload.Jobs, strconv.Itoa(int(jobID)))
-	}
-
-	if len(fetchRequestPayload.Jobs) > 0 {
-		logger.WithFields(logrus.Fields{
-			"running": strings.Join(fetchRequestPayload.Jobs, ","),
-		}).Debug("sending record of running job(s) to job-board")
-	}
-
-	jobIDsJSON, err := json.Marshal(fetchRequestPayload)
+	jobIDsJSON, err := json.Marshal(&httpFetchJobsRequest{Jobs: jobIDs})
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to marshal job-board jobs request payload")
 	}
@@ -163,8 +161,6 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running
 	u := *q.jobBoardURL
 
 	query := u.Query()
-	query.Add("count", strconv.Itoa(int(desired)))
-	query.Add("capacity", "1")
 	query.Add("queue", q.queue)
 
 	u.Path = "/jobs"
@@ -179,7 +175,7 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
-	req.Header.Add("From", fmt.Sprintf("%s+%s", processorName, q.workerID))
+	req.Header.Add("From", processorID)
 	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
@@ -194,44 +190,28 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context, desired uint64, running
 		return 0, errors.Wrap(err, "failed to decode job-board jobs response")
 	}
 
-	logger.WithField("jobs", fetchResponsePayload.Jobs).Debug("fetched raw jobs")
-	var jobIDs []uint64
-	for _, strID := range fetchResponsePayload.Jobs {
-		alreadyRunning := false
-		for _, prevStrID := range fetchRequestPayload.Jobs {
-			if strID == prevStrID {
-				alreadyRunning = true
-			}
-		}
-		if alreadyRunning {
-			logger.WithField("job_id", strID).Debug("skipping running job")
-			continue
-		}
-
-		id, err := strconv.ParseUint(strID, 10, 64)
-		if err != nil {
-			return 0, errors.Wrap(err, "failed to parse job ID")
-		}
-		jobIDs = append(jobIDs, id)
-	}
-
-	if len(jobIDs) == 0 {
+	logger.WithField("jobs", fetchResponsePayload.Jobs).Debug("fetched")
+	if len(fetchResponsePayload.Jobs) == 0 {
 		return 0, httpJobQueueNoJobsErr
 	}
 
-	logger.WithField("job_id", jobIDs[0]).Debug("returning first filtered job ID")
-	return jobIDs[0], nil
+	jobID, err := strconv.ParseUint(fetchResponsePayload.Jobs[0], 10, 64)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to parse job ID")
+	}
+
+	return jobID, nil
 }
 
-func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
+func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, error) {
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"self": "http_job_queue",
 		"inst": fmt.Sprintf("%p", q),
 	})
 
-	processorName, ok := context.ProcessorFromContext(ctx)
+	processorID, ok := context.ProcessorFromContext(ctx)
 	if !ok {
-		processorName = "unknown-processor"
+		processorID = "unknown-processor"
 	}
 
 	buildJob := &httpJob{
@@ -240,11 +220,11 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 		},
 		startAttributes: &backend.StartAttributes{},
 
-		refreshClaim: q.generateJobRefreshClaimFunc(10*time.Second, id),
+		refreshClaim: q.generateJobRefreshClaimFunc(jobID),
 
 		jobBoardURL: q.jobBoardURL,
 		site:        q.site,
-		workerID:    fmt.Sprintf("%s+%s", processorName, q.workerID),
+		processorID: processorID,
 	}
 	startAttrs := &httpJobPayloadStartAttrs{
 		Data: &jobPayloadStartAttrs{
@@ -253,7 +233,7 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	}
 
 	u := *q.jobBoardURL
-	u.Path = fmt.Sprintf("/jobs/%d", id)
+	u.Path = fmt.Sprintf("/jobs/%d", jobID)
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	if err != nil {
@@ -265,7 +245,7 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	// is expected to be the case with the future cloudbrain provider.
 	req.Header.Add("Travis-Infrastructure", q.providerName)
 	req.Header.Add("Travis-Site", q.site)
-	req.Header.Add("From", fmt.Sprintf("%s+%s", processorName, q.workerID))
+	req.Header.Add("From", processorID)
 	req = req.WithContext(ctx)
 
 	bo := backoff.NewExponentialBackOff()
@@ -323,20 +303,29 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, id uint64) (Job, error) {
 	return buildJob, nil
 }
 
-func (q *HTTPJobQueue) generateJobRefreshClaimFunc(pollInterval time.Duration, id uint64) func(gocontext.Context) {
+func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) func(gocontext.Context) {
 	return func(ctx gocontext.Context) {
 		for {
-			_, err := q.fetchJobID(ctx, 0, []uint64{id})
-			if err != nil && err != httpJobQueueNoJobsErr {
+			err := q.refreshJobClaim(ctx, jobID)
+			if err == httpJobQueueNoJobsErr {
 				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 					"err":    err,
-					"job_id": id,
-				}).Warn("failed to refresh claim")
+					"job_id": jobID,
+				}).Error("failed to refresh claim; cancelling")
+				q.cb.Broadcast(jobID)
+				return
+			}
+
+			if err != nil {
+				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+					"err":    err,
+					"job_id": jobID,
+				}).Error("failed to refresh claim; continuing")
 			}
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(pollInterval):
+			case <-time.After(q.pollInterval):
 			}
 		}
 	}

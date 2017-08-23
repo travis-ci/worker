@@ -1,13 +1,11 @@
 package worker
 
 import (
-	"fmt"
 	"time"
 
 	gocontext "context"
 
 	"github.com/mitchellh/multistep"
-	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -16,7 +14,7 @@ import (
 // A Processor gets jobs off the job queue and coordinates running it with other
 // components.
 type Processor struct {
-	ID       uuid.UUID
+	ID       string
 	hostname string
 
 	hardTimeout             time.Duration
@@ -68,8 +66,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
-	uuidString, _ := context.ProcessorFromContext(ctx)
-	processorUUID := uuid.Parse(uuidString)
+	processorID, _ := context.ProcessorFromContext(ctx)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
 
@@ -81,7 +78,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	}
 
 	return &Processor{
-		ID:       processorUUID,
+		ID:       processorID,
 		hostname: hostname,
 
 		initialSleep:            config.InitialSleep,
@@ -212,7 +209,7 @@ func (p *Processor) Terminate() {
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
-	state.Put("hostname", p.fullHostname())
+	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
 
@@ -269,8 +266,4 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	runner.Run(state)
 	logger.Info("finished job")
 	p.ProcessedCount++
-}
-
-func (p *Processor) fullHostname() string {
-	return fmt.Sprintf("%s:%s", p.hostname, p.ID)
 }

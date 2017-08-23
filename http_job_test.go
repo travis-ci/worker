@@ -63,8 +63,8 @@ func newTestHTTPJob(t *testing.T) *httpJob {
 		rawPayload:      rawPayload,
 		startAttributes: startAttributes,
 
-		site:     "test",
-		workerID: "whee",
+		site:        "test",
+		processorID: "whee",
 	}
 }
 

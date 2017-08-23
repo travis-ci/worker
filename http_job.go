@@ -35,7 +35,7 @@ type httpJob struct {
 
 	jobBoardURL *url.URL
 	site        string
-	workerID    string
+	processorID string
 }
 
 type jobScriptPayload struct {
@@ -112,6 +112,7 @@ func (j *httpJob) Requeue(ctx gocontext.Context) error {
 func (j *httpJob) Received(ctx gocontext.Context) error {
 	j.received = time.Now()
 	if j.refreshClaim != nil {
+		context.LoggerFromContext(ctx).WithField("self", "http_job").Debug("starting claim refresh goroutine")
 		go j.refreshClaim(ctx)
 	}
 	return j.sendStateUpdate(ctx, "queued", "received")
@@ -158,7 +159,7 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 
 	req.Header.Add("Travis-Site", j.site)
 	req.Header.Add("Authorization", "Bearer "+j.payload.JWT)
-	req.Header.Add("From", j.workerID)
+	req.Header.Add("From", j.processorID)
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxInterval = 10 * time.Second
