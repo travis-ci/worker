@@ -81,8 +81,10 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 			logger.Debug("polling for job tick")
 			keepPolling, readyChan := q.pollForJob(ctx, buildJobChan)
 			if readyChan != nil {
+				readyWaitBegin := time.Now()
 				logger.Debug("blocking on ready channel recv")
 				<-readyChan
+				metrics.TimeSince("travis.worker.job_queue.http.ready_wait_time", readyWaitBegin)
 			}
 			if !keepPolling {
 				return
