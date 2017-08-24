@@ -22,8 +22,12 @@ func TestHTTPJobQueue(t *testing.T) {
 
 func TestHTTPJobQueue_Jobs(t *testing.T) {
 	mux := http.NewServeMux()
-	mux.HandleFunc(`/jobs`, func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, `{"jobs":["100001"]}`)
+	mux.HandleFunc(`/jobs/pop`, func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"job_id":"100001"}`)
+	})
+	mux.HandleFunc(`/jobs/100001/claim`, func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(http.StatusOK)
 	})
 	mux.HandleFunc(`/jobs/100001`, func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
