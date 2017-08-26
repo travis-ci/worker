@@ -96,6 +96,12 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	return outChan, nil
 }
 
+// pollForJob is responsible for first fetching a job ID, if available, and then
+// fetching the complete job representation and sending it into the
+// `buildJobChan` that is passed in from the `Jobs` method.  The *httpJob that
+// is constructed and sent into the `buildJobChan` is assigned a `refreshClaim`
+// func that has a reference to a "ready" `chan struct{}` used to indicate when
+// the polling loop may resume.
 func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) (bool, <-chan struct{}) {
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"self": "http_job_queue",
@@ -198,12 +204,18 @@ func (q *HTTPJobQueue) refreshJobClaim(ctx gocontext.Context, jobID uint64) erro
 		"inst":   fmt.Sprintf("%p", q),
 	})
 
+	jwt, ok := context.JWTFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("failed to find jwt in context for job_id=%v", jobID)
+	}
+
 	processorID, ok := context.ProcessorFromContext(ctx)
 	if !ok {
 		processorID = "unknown-processor"
 	}
 
 	u := *q.jobBoardURL
+	u.User = nil
 
 	query := u.Query()
 	query.Add("queue", q.queue)
@@ -221,6 +233,7 @@ func (q *HTTPJobQueue) refreshJobClaim(ctx gocontext.Context, jobID uint64) erro
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Travis-Site", q.site)
 	req.Header.Add("From", processorID)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwt))
 	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
@@ -344,10 +357,7 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 	readyChan := make(chan struct{})
 
 	return func(ctx gocontext.Context) {
-		defer func() {
-			readyChan <- struct{}{}
-			close(readyChan)
-		}()
+		defer func() { close(readyChan) }()
 
 		for {
 			err := q.refreshJobClaim(ctx, jobID)

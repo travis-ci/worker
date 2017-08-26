@@ -137,11 +137,6 @@ func (p *Processor) Run() {
 				return
 			}
 
-			if buildJob == nil {
-				logger.Debug("received nil job, continuing")
-				continue
-			}
-
 			jobID := buildJob.Payload().Job.ID
 
 			hardTimeout := p.hardTimeout

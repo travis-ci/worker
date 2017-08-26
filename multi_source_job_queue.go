@@ -55,26 +55,25 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 				logger.Debug("about to receive job")
 				select {
 				case job = <-bjc:
+					jobID := uint64(0)
+					if job.Payload() != nil {
+						jobID = job.Payload().Job.ID
+					}
+
+					logger.WithField("job_id", jobID).Debug("about to send job to multi source output channel")
+					buildJobChan <- job
+
+					metrics.TimeSince("travis.worker.job_queue.multi.blocking_time", jobSendBegin)
+					logger.WithFields(logrus.Fields{
+						"job_id": jobID,
+						"source": queueName,
+						"dur":    time.Since(jobSendBegin),
+					}).Info("sent job to multi source output channel")
 				case <-ctx.Done():
 					return
 				case <-time.After(time.Second):
 					continue
 				}
-
-				jobID := uint64(0)
-				if job.Payload() != nil {
-					jobID = job.Payload().Job.ID
-				}
-
-				logger.WithField("job_id", jobID).Debug("about to send job to multi source output channel")
-				buildJobChan <- job
-
-				metrics.TimeSince("travis.worker.job_queue.multi.blocking_time", jobSendBegin)
-				logger.WithFields(logrus.Fields{
-					"job_id": jobID,
-					"source": queueName,
-					"dur":    time.Since(jobSendBegin),
-				}).Info("sent job to multi source output channel")
 			}
 		}
 	}()

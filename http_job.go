@@ -113,7 +113,7 @@ func (j *httpJob) Received(ctx gocontext.Context) error {
 	j.received = time.Now()
 	if j.refreshClaim != nil {
 		context.LoggerFromContext(ctx).WithField("self", "http_job").Debug("starting claim refresh goroutine")
-		go j.refreshClaim(ctx)
+		go j.refreshClaim(context.FromJWT(ctx, j.payload.JWT))
 	}
 	return j.sendStateUpdate(ctx, "queued", "received")
 }
