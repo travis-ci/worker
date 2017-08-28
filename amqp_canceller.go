@@ -2,9 +2,11 @@ package worker
 
 import (
 	"encoding/json"
+	"fmt"
 
 	gocontext "context"
 
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/context"
 )
@@ -41,7 +43,10 @@ func NewAMQPCanceller(ctx gocontext.Context, conn *amqp.Connection, cancellation
 // start dispatching any incoming commands.
 func (d *AMQPCanceller) Run() {
 	amqpChan, err := d.conn.Channel()
-	logger := context.LoggerFromContext(d.ctx).WithField("self", "amqp_canceller")
+	logger := context.LoggerFromContext(d.ctx).WithFields(logrus.Fields{
+		"self": "amqp_canceller",
+		"inst": fmt.Sprintf("%p", d),
+	})
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't open channel")
 		return
@@ -93,7 +98,10 @@ func (d *AMQPCanceller) Run() {
 
 func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
 	command := &cancelCommand{}
-	logger := context.LoggerFromContext(d.ctx).WithField("self", "amqp_canceller")
+	logger := context.LoggerFromContext(d.ctx).WithFields(logrus.Fields{
+		"self": "amqp_canceller",
+		"inst": fmt.Sprintf("%p", d),
+	})
 	err := json.Unmarshal(delivery.Body, command)
 	if err != nil {
 		logger.WithField("err", err).Error("unable to parse JSON")

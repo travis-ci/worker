@@ -31,9 +31,11 @@ type httpJob struct {
 	finished        time.Time
 	stateCount      uint
 
+	refreshClaim func(gocontext.Context)
+
 	jobBoardURL *url.URL
 	site        string
-	workerID    string
+	processorID string
 }
 
 type jobScriptPayload struct {
@@ -104,20 +106,24 @@ func (j *httpJob) Requeue(ctx gocontext.Context) error {
 	j.received = time.Time{}
 	j.started = time.Time{}
 
-	return j.sendStateUpdate(j.currentState(), "created")
+	return j.sendStateUpdate(ctx, j.currentState(), "created")
 }
 
-func (j *httpJob) Received() error {
+func (j *httpJob) Received(ctx gocontext.Context) error {
 	j.received = time.Now()
-	return j.sendStateUpdate("queued", "received")
+	if j.refreshClaim != nil {
+		context.LoggerFromContext(ctx).WithField("self", "http_job").Debug("starting claim refresh goroutine")
+		go j.refreshClaim(context.FromJWT(ctx, j.payload.JWT))
+	}
+	return j.sendStateUpdate(ctx, "queued", "received")
 }
 
-func (j *httpJob) Started() error {
+func (j *httpJob) Started(ctx gocontext.Context) error {
 	j.started = time.Now()
 
 	metrics.TimeSince("travis.worker.job.start_time", j.received)
 
-	return j.sendStateUpdate("received", "started")
+	return j.sendStateUpdate(ctx, "received", "started")
 }
 
 func (j *httpJob) currentState() string {
@@ -153,7 +159,7 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 
 	req.Header.Add("Travis-Site", j.site)
 	req.Header.Add("Authorization", "Bearer "+j.payload.JWT)
-	req.Header.Add("From", j.workerID)
+	req.Header.Add("From", j.processorID)
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxInterval = 10 * time.Second
@@ -208,7 +214,7 @@ func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
 		j.started = j.finished
 	}
 
-	return j.sendStateUpdate(j.currentState(), string(state))
+	return j.sendStateUpdate(ctx, j.currentState(), string(state))
 }
 
 func (j *httpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
@@ -233,7 +239,7 @@ func (j *httpJob) Generate(ctx gocontext.Context, job Job) ([]byte, error) {
 	return script, nil
 }
 
-func (j *httpJob) sendStateUpdate(curState, newState string) error {
+func (j *httpJob) sendStateUpdate(ctx gocontext.Context, curState, newState string) error {
 	j.stateCount++
 	payload := &httpJobStateUpdate{
 		CurrentState: curState,
@@ -268,6 +274,7 @@ func (j *httpJob) sendStateUpdate(curState, newState string) error {
 	if err != nil {
 		return errors.Wrap(err, "couldn't create request")
 	}
+	req = req.WithContext(ctx)
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", j.payload.JWT))
 	req.Header.Set("Content-Type", "application/json")

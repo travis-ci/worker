@@ -14,7 +14,7 @@ func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	err := buildJob.Received()
+	err := buildJob.Received(ctx)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 			"err":  err,
@@ -25,5 +25,4 @@ func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 	return multistep.ActionContinue
 }
 
-func (s *stepSendReceived) Cleanup(state multistep.StateBag) {
-}
+func (s *stepSendReceived) Cleanup(state multistep.StateBag) {}

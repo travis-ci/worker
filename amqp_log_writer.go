@@ -90,7 +90,10 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 		return 0, fmt.Errorf("attempted write to closed log")
 	}
 
-	logger := context.LoggerFromContext(w.ctx).WithField("self", "amqp_log_writer")
+	logger := context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+		"self": "amqp_log_writer",
+		"inst": fmt.Sprintf("%p", w),
+	})
 
 	logger.WithFields(logrus.Fields{
 		"length": len(p),
@@ -205,7 +208,10 @@ func (w *amqpLogWriter) flush() {
 	}
 
 	buf := make([]byte, LogChunkSize)
-	logger := context.LoggerFromContext(w.ctx).WithField("self", "amqp_log_writer")
+	logger := context.LoggerFromContext(w.ctx).WithFields(logrus.Fields{
+		"self": "amqp_log_writer",
+		"inst": fmt.Sprintf("%p", w),
+	})
 
 	for w.buffer.Len() > 0 {
 		w.bufferMutex.Lock()

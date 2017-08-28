@@ -25,6 +25,7 @@ const (
 	componentKey
 	jobIDKey
 	repositoryKey
+	jwtKey
 )
 
 // FromUUID generates a new context with the given context as its parent and
@@ -53,6 +54,13 @@ func FromComponent(ctx context.Context, component string) context.Context {
 // using JobIDFromContext.
 func FromJobID(ctx context.Context, jobID uint64) context.Context {
 	return context.WithValue(ctx, jobIDKey, jobID)
+}
+
+// FromJWT generates a new context with the given context as its parent and
+// stores the given JWT with the context. The JWT can be retrieved again using
+// JWTFromContext.
+func FromJWT(ctx context.Context, jwt string) context.Context {
+	return context.WithValue(ctx, jwtKey, jwt)
 }
 
 // FromRepository generates a new context with the given context as its parent
@@ -92,6 +100,14 @@ func ComponentFromContext(ctx context.Context) (string, bool) {
 func JobIDFromContext(ctx context.Context) (uint64, bool) {
 	jobID, ok := ctx.Value(jobIDKey).(uint64)
 	return jobID, ok
+}
+
+// JWTFromContext returns the jwt stored in the context with FromJWT. If no jwt
+// was stored in the context, the second argument is false. Otherwise it is
+// true.
+func JWTFromContext(ctx context.Context) (string, bool) {
+	jwt, ok := ctx.Value(jwtKey).(string)
+	return jwt, ok
 }
 
 // RepositoryFromContext returns the repository name stored in the context with
