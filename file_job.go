@@ -40,11 +40,11 @@ func (j *fileJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
 }
 
-func (j *fileJob) Received() error {
+func (j *fileJob) Received(_ gocontext.Context) error {
 	return os.Rename(j.createdFile, j.receivedFile)
 }
 
-func (j *fileJob) Started() error {
+func (j *fileJob) Started(_ gocontext.Context) error {
 	return os.Rename(j.receivedFile, j.startedFile)
 }
 

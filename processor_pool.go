@@ -1,6 +1,8 @@
 package worker
 
 import (
+	"fmt"
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -78,9 +80,8 @@ func (p *ProcessorPool) Each(f func(int, *Processor)) {
 	procsByID := map[string]*Processor{}
 
 	for _, proc := range p.processors {
-		id := proc.ID.String()
-		procIDs = append(procIDs, id)
-		procsByID[id] = proc
+		procIDs = append(procIDs, proc.ID)
+		procsByID[proc.ID] = proc
 	}
 
 	sort.Strings(procIDs)
@@ -179,7 +180,8 @@ func (p *ProcessorPool) Decr() {
 
 func (p *ProcessorPool) runProcessor(queue JobQueue) error {
 	processorUUID := uuid.NewRandom()
-	ctx := context.FromProcessor(p.Context, processorUUID.String())
+	processorID := fmt.Sprintf("%s@%d.%s", processorUUID.String(), os.Getpid(), p.Hostname)
+	ctx := context.FromProcessor(p.Context, processorID)
 
 	proc, err := NewProcessor(ctx, p.Hostname,
 		queue, p.Provider, p.Generator, p.CancellationBroadcaster,

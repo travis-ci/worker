@@ -1,12 +1,9 @@
 package worker
 
 import (
-	"crypto/rand"
-	"crypto/sha1"
 	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -118,11 +115,6 @@ func (i *CLI) Setup() (bool, error) {
 		}()
 	}
 
-	err := i.setupWorkerID()
-	if err != nil {
-		return false, err
-	}
-
 	if i.c.Bool("echo-config") {
 		config.WriteEnvConfig(i.Config, os.Stdout)
 		return false, nil
@@ -181,7 +173,7 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.ProcessorPool = pool
 
-	err = i.setupJobQueueAndCanceller(pool)
+	err = i.setupJobQueueAndCanceller()
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create job queue and canceller")
 		return false, err
@@ -218,19 +210,6 @@ func (i *CLI) Run() {
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
-}
-
-func (i *CLI) setupWorkerID() error {
-	randomBytes := make([]byte, 32)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return errors.Wrap(err, "error reading random bytes")
-	}
-
-	hash := sha1.Sum(randomBytes)
-	i.id = fmt.Sprintf("worker+%s@%d.%s",
-		hex.EncodeToString(hash[:]), os.Getpid(), i.Config.Hostname)
-	return nil
 }
 
 func (i *CLI) setupHeartbeat() {
@@ -563,7 +542,7 @@ func (i *CLI) logProcessorInfo(msg string) {
 	})
 }
 
-func (i *CLI) setupJobQueueAndCanceller(pool *ProcessorPool) error {
+func (i *CLI) setupJobQueueAndCanceller() error {
 	subQueues := []JobQueue{}
 	for _, queueType := range strings.Split(i.Config.QueueType, ",") {
 		queueType = strings.TrimSpace(queueType)
@@ -583,7 +562,7 @@ func (i *CLI) setupJobQueueAndCanceller(pool *ProcessorPool) error {
 			}
 			subQueues = append(subQueues, jobQueue)
 		case "http":
-			jobQueue, err := i.buildHTTPJobQueue(pool)
+			jobQueue, err := i.buildHTTPJobQueue()
 			if err != nil {
 				return err
 			}
@@ -656,15 +635,16 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	return jobQueue, canceller, nil
 }
 
-func (i *CLI) buildHTTPJobQueue(pool *ProcessorPool) (*HTTPJobQueue, error) {
+func (i *CLI) buildHTTPJobQueue() (*HTTPJobQueue, error) {
 	jobBoardURL, err := url.Parse(i.Config.JobBoardURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "error parsing job board URL")
 	}
 
 	jobQueue, err := NewHTTPJobQueue(
-		pool, jobBoardURL, i.Config.TravisSite,
-		i.Config.ProviderName, i.Config.QueueName, i.id)
+		jobBoardURL, i.Config.TravisSite,
+		i.Config.ProviderName, i.Config.QueueName,
+		i.CancellationBroadcaster)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating HTTP job queue")
 	}

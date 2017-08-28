@@ -152,7 +152,7 @@ func TestAMQPJob_Requeue(t *testing.T) {
 func TestAMQPJob_Received(t *testing.T) {
 	job := newTestAMQPJob(t)
 
-	err := job.Received()
+	err := job.Received(gocontext.TODO())
 	if err != nil {
 		t.Error(err)
 	}
@@ -161,7 +161,7 @@ func TestAMQPJob_Received(t *testing.T) {
 func TestAMQPJob_Started(t *testing.T) {
 	job := newTestAMQPJob(t)
 
-	err := job.Started()
+	err := job.Started(gocontext.TODO())
 	if err != nil {
 		t.Error(err)
 	}

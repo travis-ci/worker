@@ -15,7 +15,7 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	err := buildJob.Started()
+	err := buildJob.Started(ctx)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 			"err":  err,

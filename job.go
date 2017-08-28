@@ -85,8 +85,8 @@ type Job interface {
 	RawPayload() *simplejson.Json
 	StartAttributes() *backend.StartAttributes
 
-	Received() error
-	Started() error
+	Received(gocontext.Context) error
+	Started(gocontext.Context) error
 	Error(gocontext.Context, string) error
 	Requeue(gocontext.Context) error
 	Finish(gocontext.Context, FinishState) error

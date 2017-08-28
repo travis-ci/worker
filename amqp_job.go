@@ -63,7 +63,7 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 
 	metrics.Mark("worker.job.requeue")
 
-	err := j.sendStateUpdate("job:test:reset", "reset")
+	err := j.sendStateUpdate(ctx, "job:test:reset", "reset")
 	if err != nil {
 		return err
 	}
@@ -71,22 +71,22 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 	return j.delivery.Ack(false)
 }
 
-func (j *amqpJob) Received() error {
+func (j *amqpJob) Received(ctx gocontext.Context) error {
 	j.received = time.Now()
 
 	if j.payload.Job.QueuedAt != nil {
 		metrics.TimeSince("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
 	}
 
-	return j.sendStateUpdate("job:test:receive", "received")
+	return j.sendStateUpdate(ctx, "job:test:receive", "received")
 }
 
-func (j *amqpJob) Started() error {
+func (j *amqpJob) Started(ctx gocontext.Context) error {
 	j.started = time.Now()
 
 	metrics.TimeSince("travis.worker.job.start_time", j.received)
 
-	return j.sendStateUpdate("job:test:start", "started")
+	return j.sendStateUpdate(ctx, "job:test:start", "started")
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
@@ -107,7 +107,7 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 	metrics.Mark("travis.worker.job.finish")
 
-	err := j.sendStateUpdate("job:test:finish", string(state))
+	err := j.sendStateUpdate(ctx, "job:test:finish", string(state))
 	if err != nil {
 		return err
 	}
@@ -149,7 +149,7 @@ func (j *amqpJob) createStateUpdateBody(state string) map[string]interface{} {
 	return body
 }
 
-func (j *amqpJob) sendStateUpdate(event, state string) error {
+func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
 		return err
@@ -164,18 +164,32 @@ func (j *amqpJob) sendStateUpdate(event, state string) error {
 		return err
 	}
 
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
+	done := make(chan error)
+	go func() {
+		_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+		if err != nil {
+			done <- err
+			return
+		}
 
-	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now().UTC(),
-		Type:         event,
-		Body:         bodyBytes,
-	})
+		done <- amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent,
+			Timestamp:    time.Now().UTC(),
+			Type:         event,
+			Body:         bodyBytes,
+		})
+	}()
+
+	timeout := 10 * time.Second
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err = <-done:
+		return err
+	case <-time.After(timeout):
+		return fmt.Errorf("timeout waiting for state update (%v)", timeout)
+	}
 }
 
 func (j *amqpJob) Name() string {

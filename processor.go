@@ -1,13 +1,11 @@
 package worker
 
 import (
-	"fmt"
 	"time"
 
 	gocontext "context"
 
 	"github.com/mitchellh/multistep"
-	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -16,7 +14,7 @@ import (
 // A Processor gets jobs off the job queue and coordinates running it with other
 // components.
 type Processor struct {
-	ID       uuid.UUID
+	ID       string
 	hostname string
 
 	hardTimeout             time.Duration
@@ -68,8 +66,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
-	uuidString, _ := context.ProcessorFromContext(ctx)
-	processorUUID := uuid.Parse(uuidString)
+	processorID, _ := context.ProcessorFromContext(ctx)
 
 	ctx, cancel := gocontext.WithCancel(ctx)
 
@@ -81,7 +78,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	}
 
 	return &Processor{
-		ID:       processorUUID,
+		ID:       processorID,
 		hostname: hostname,
 
 		initialSleep:            config.InitialSleep,
@@ -140,24 +137,34 @@ func (p *Processor) Run() {
 				return
 			}
 
+			jobID := buildJob.Payload().Job.ID
+
 			hardTimeout := p.hardTimeout
 			if buildJob.Payload().Timeouts.HardLimit != 0 {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
 			}
+			logger.WithFields(logrus.Fields{
+				"hard_timeout": hardTimeout,
+				"job_id":       jobID,
+			}).Debug("setting hard timeout")
 			buildJob.StartAttributes().HardTimeout = hardTimeout
 
 			ctx := context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID)
 			if buildJob.Payload().UUID != "" {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
+
+			logger.WithFields(logrus.Fields{
+				"hard_timeout": hardTimeout,
+				"job_id":       jobID,
+			}).Debug("getting wrapped context with timeout")
 			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
-			jobID := buildJob.Payload().Job.ID
-			p.LastJobID = jobID
 
 			logger.WithFields(logrus.Fields{
 				"job_id": jobID,
 				"status": "processing",
-			}).Debug("updating processor status")
+			}).Debug("updating processor status and last id")
+			p.LastJobID = jobID
 			p.CurrentStatus = "processing"
 
 			p.process(ctx, buildJob)
@@ -168,6 +175,8 @@ func (p *Processor) Run() {
 			}).Debug("updating processor status")
 			p.CurrentStatus = "waiting"
 			cancel()
+		case <-time.After(10 * time.Second):
+			logger.Debug("timeout waiting for job, shutdown, or context done")
 		}
 	}
 }
@@ -195,7 +204,7 @@ func (p *Processor) Terminate() {
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
-	state.Put("hostname", p.fullHostname())
+	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
 	state.Put("ctx", ctx)
 
@@ -252,8 +261,4 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	runner.Run(state)
 	logger.Info("finished job")
 	p.ProcessedCount++
-}
-
-func (p *Processor) fullHostname() string {
-	return fmt.Sprintf("%s:%s", p.hostname, p.ID)
 }
