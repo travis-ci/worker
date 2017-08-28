@@ -46,6 +46,7 @@ const (
 	defaultOSSSHUser           = "travis"
 	defaultOSKeyPairName       = ""
 	defaultOSSSHKeyPath        = ""
+	defaultAllowReauth         = "true"
 )
 
 var (
@@ -74,6 +75,7 @@ var (
 		"BOOT_POLL_DIAL_SLEEP": fmt.Sprintf("sleep interval between connection dials (default %v)", defaultOSBootPollDialSleep),
 		"SSH_POLL_TIMEOUT":     fmt.Sprintf("Timeout after which VM is marked not sshable (default %v)", defaultOSSSHDialTimeout),
 		"SSH_DIAL_TIMEOUT":     fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultOSSSHDialTimeout),
+		"ALLOW_REAUTH":         fmt.Sprintf("Defines if re-authentication need to be executed when a connection is requested (default %v)", defaultAllowReauth),
 	}
 )
 
@@ -194,6 +196,14 @@ func newOSProvider(cfg *config.ProviderConfig) (Provider, error) {
 		secGroup = cfg.Get("SECURITY_GROUP")
 	}
 	cfg.Set("SECURITY_GROUP", secGroup)
+
+	allowReauth := defaultAllowReauth
+	if cfg.IsSet("ALLOW_REAUTH") {
+		allowReauth, err = cfg.Get("ALLOW_REAUTH")
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	instName := defaultOSInstancePrefix + time.Now().Format("20060102150405")
 	if cfg.IsSet("INSTANCE_NAME") {
@@ -343,6 +353,7 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 			Username:         cfg.Get("OS_USERNAME"),
 			Password:         cfg.Get("OS_PASSWORD"),
 			TenantName:       cfg.Get("TENANT_NAME"),
+			AllowReauth:      cfg.Get("ALLOW_REAUTH"),
 		}
 	} else if keystoneAPIVersion == "v3" {
 		opts = gophercloud.AuthOptions{
@@ -351,6 +362,7 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 			Password:         cfg.Get("OS_PASSWORD"),
 			TenantName:       cfg.Get("TENANT_NAME"),
 			DomainName:       cfg.Get("OS_DOMAIN"),
+			AllowReauth:      cfg.Get("ALLOW_REAUTH"),
 		}
 	}
 
