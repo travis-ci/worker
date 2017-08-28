@@ -318,7 +318,7 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 		return nil, fmt.Errorf("missing ENDPOINT")
 	}
 	endpointSplit := strings.Split(cfg.Get("ENDPOINT"), "/")
-	keystoneApiVersion := endpointSplit[len(endpointSplit)-1]
+	keystoneAPIVersion := endpointSplit[len(endpointSplit)-1]
 
 	if !cfg.IsSet("TENANT_NAME") {
 		return nil, fmt.Errorf("missing TENANT_NAME")
@@ -337,14 +337,14 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 		region = cfg.Get("OS_REGION")
 	}
 
-	if keystoneApiVersion == "v2.0" {
+	if keystoneAPIVersion == "v2.0" {
 		opts = gophercloud.AuthOptions{
 			IdentityEndpoint: cfg.Get("ENDPOINT"),
 			Username:         cfg.Get("OS_USERNAME"),
 			Password:         cfg.Get("OS_PASSWORD"),
 			TenantName:       cfg.Get("TENANT_NAME"),
 		}
-	} else if keystoneApiVersion == "v3" {
+	} else if keystoneAPIVersion == "v3" {
 		opts = gophercloud.AuthOptions{
 			IdentityEndpoint: cfg.Get("ENDPOINT"),
 			Username:         cfg.Get("OS_USERNAME"),
