@@ -53,6 +53,16 @@ func NewDialerWithPassword(password string) (*AuthDialer, error) {
 	}, nil
 }
 
+func NewDialerWithKeyWithoutPassPhrase(pemBytes []byte) (*AuthDialer, error) {
+	signer, err := ssh.ParsePrivateKey(pemBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create signer from SSH key")
+	}
+	return &AuthDialer{
+		authMethods: []ssh.AuthMethod{ssh.PublicKeys(signer)},
+	}, nil
+}
+
 func NewDialer(keyPath, keyPassphrase string) (*AuthDialer, error) {
 	file, err := ioutil.ReadFile(keyPath)
 	if err != nil {
@@ -62,6 +72,10 @@ func NewDialer(keyPath, keyPassphrase string) (*AuthDialer, error) {
 	block, _ := pem.Decode(file)
 	if block == nil {
 		return nil, errors.Errorf("ssh key does not contain a valid PEM block")
+	}
+
+	if keyPassphrase == "" {
+		return NewDialerWithKeyWithoutPassPhrase(file)
 	}
 
 	der, err := x509.DecryptPEMBlock(block, []byte(keyPassphrase))
