@@ -4,10 +4,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
-- backend/openstack: initial support for OpenStack
 
 ### Changed
-- http-log-writer: removed buffer in favor of adding directly via log sink
 
 ### Deprecated
 
@@ -16,6 +14,27 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [3.0.0] - 2017-08-29
+### Added
+- backend/openstack: initial support for OpenStack
+- log entry fields for improved correlation in various places
+- context: convenience funcs for set/get JWT string
+
+### Changed
+- http-log-writer: removed buffer in favor of adding directly via log sink
+- job: require context in Received and Started
+- http-job-queue:
+    - drop processor pool from constructor signature
+    - add cancellation broadcaster to constructor signature
+    - remove caching of build job channel across calls to Jobs
+    - use pop + claim processor-level job-board API
+
+### Fixed
+- amqp-job:
+    - check context when sending state updates
+    - timeout after 10s when sending state updates
+- amqp-job-queue: timeout after 1s when waiting for deliveries
 
 ## [2.11.0] - 2017-07-21
 ### Added
@@ -526,7 +545,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v2.11.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/travis-ci/worker/compare/v2.11.0...v3.0.0
 [2.11.0]: https://github.com/travis-ci/worker/compare/v2.10.0...v2.11.0
 [2.10.0]: https://github.com/travis-ci/worker/compare/v2.9.3...v2.10.0
 [2.9.3]: https://github.com/travis-ci/worker/compare/v2.9.2...v2.9.3
