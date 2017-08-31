@@ -15,8 +15,6 @@ RUN make build
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /root/
+COPY --from=builder /go/bin/travis-worker /usr/local/bin/travis-worker
 
-COPY --from=builder /go/bin/travis-worker .
-
-CMD ["/root/travis-worker"]
+CMD ["/usr/local/bin/travis-worker"]
