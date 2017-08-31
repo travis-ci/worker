@@ -5,7 +5,7 @@ RUN go get -u github.com/FiloSottile/gvt
 
 COPY . /go/src/github.com/travis-ci/worker
 WORKDIR /go/src/github.com/travis-ci/worker
-RUN go get ./...
+RUN make deps
 RUN make build
 
 #################################
