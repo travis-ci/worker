@@ -343,6 +343,7 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 			Username:         cfg.Get("OS_USERNAME"),
 			Password:         cfg.Get("OS_PASSWORD"),
 			TenantName:       cfg.Get("TENANT_NAME"),
+			AllowReauth:      true, // TODO: limit the number of attempts using RoundTripper interface
 		}
 	} else if keystoneAPIVersion == "v3" {
 		opts = gophercloud.AuthOptions{
@@ -351,6 +352,7 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 			Password:         cfg.Get("OS_PASSWORD"),
 			TenantName:       cfg.Get("TENANT_NAME"),
 			DomainName:       cfg.Get("OS_DOMAIN"),
+			AllowReauth:      true, // TODO: limit the number of attempts using RoundTripper interface
 		}
 	}
 
