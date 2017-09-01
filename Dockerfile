@@ -6,6 +6,7 @@ RUN go get -u github.com/FiloSottile/gvt
 COPY . /go/src/github.com/travis-ci/worker
 WORKDIR /go/src/github.com/travis-ci/worker
 RUN make deps
+ENV CGO_ENABLED 0
 RUN make build
 
 #################################
@@ -16,5 +17,8 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 
 COPY --from=builder /go/bin/travis-worker /usr/local/bin/travis-worker
+
+VOLUME ["/var/tmp"]
+STOPSIGNAL SIGINT
 
 CMD ["/usr/local/bin/travis-worker"]
