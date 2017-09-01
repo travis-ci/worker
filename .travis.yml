@@ -52,8 +52,8 @@ script:
 after_success:
   - echo $TRAVIS_PULL_REQUEST
   - echo $TRAVIS_BRANCH
-  - sed -i s/@@BRANCH/$TRAVIS_BRANCH/ bin/send-docker-hub-trigger.sh
-  - bin/send-docker-hub-trigger.sh
+  - sed -i s/@@BRANCH/$TRAVIS_BRANCH/ script/send-docker-hub-trigger
+  - script/send-docker-hub-trigger
 
 notifications:
   slack:

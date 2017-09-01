@@ -17,8 +17,10 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 
 COPY --from=builder /go/bin/travis-worker /usr/local/bin/travis-worker
+COPY --from=builder /go/src/github.com/travis-ci/worker/.docker-entrypoint.sh /docker-entrypoint.sh
 
 VOLUME ["/var/tmp"]
 STOPSIGNAL SIGINT
 
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["/usr/local/bin/travis-worker"]
