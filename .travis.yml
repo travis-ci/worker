@@ -28,9 +28,6 @@ addons:
     - travis-ci/worker/$TRAVIS_BRANCH
 
 before_install:
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-  - sudo apt-get update
   - sudo apt-get -y install docker-ce
 
 install:
@@ -50,9 +47,8 @@ script:
 - make smoke
 
 after_success:
-  - echo $TRAVIS_PULL_REQUEST
-  - echo $TRAVIS_BRANCH
-  - sed -i s/@@BRANCH/$TRAVIS_BRANCH/ script/send-docker-hub-trigger
+  - echo "TRAVIS_PULL_REQUEST: $TRAVIS_PULL_REQUEST"
+  - echo "TRAVIS_BRANCH: $TRAVIS_BRANCH"
   - script/send-docker-hub-trigger
 
 notifications:
