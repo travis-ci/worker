@@ -4,8 +4,8 @@ set -o errexit
 __indent() {
   c="${1:+"2,999"} s/^/       /"
   case $(uname) in
-    Darwin) sed -l "$c" ;;
-    *) sed -u "$c" ;;
+  Darwin) sed -l "$c" ;;
+  *) sed -u "$c" ;;
   esac
 }
 

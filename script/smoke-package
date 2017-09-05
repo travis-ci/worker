@@ -55,8 +55,8 @@ main() {
   "${sudo_exe[@]}" dd if=/dev/null of=/var/log/upstart/docker.log
 
   echo '---> Wiping and updating apt sources'
-  find /etc/apt/sources.list.d -name '*travisci_worker*' -print0 \
-    | xargs -0 "${sudo_exe[@]}" rm -vf
+  find /etc/apt/sources.list.d -name '*travisci_worker*' -print0 |
+    xargs -0 "${sudo_exe[@]}" rm -vf
   "${sudo_exe[@]}" apt-get update
 
   echo '---> Installing travis-worker stable'
@@ -75,8 +75,8 @@ main() {
   if ! docker run hello-world; then
     "${sudo_exe[@]}" tail -n 1000 /var/log/upstart/docker.log
   fi
-  "${sudo_exe[@]}" apt-get purge -y travis-worker \
-    || echo "Suppressing exit $? from purge of travis-worker stable"
+  "${sudo_exe[@]}" apt-get purge -y travis-worker ||
+    echo "Suppressing exit $? from purge of travis-worker stable"
 }
 
 main "$@"

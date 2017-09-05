@@ -8,10 +8,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/fsouza/go-dockerclient"
+	dockerapi "github.com/docker/docker/api"
+	dockertypes "github.com/docker/docker/api/types"
+	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
 )
@@ -52,8 +55,8 @@ func dockerTestTeardown() {
 }
 
 type containerCreateRequest struct {
-	Image      string            `json:"Image"`
-	HostConfig docker.HostConfig `json:"HostConfig"`
+	Image      string                     `json:"Image"`
+	HostConfig dockercontainer.HostConfig `json:"HostConfig"`
 }
 
 func TestDockerProvider_Start(t *testing.T) {
@@ -68,12 +71,12 @@ func TestDockerProvider_Start(t *testing.T) {
 		{"Created":1423149832,"Id":"08a0d98600afe9d0ca4ca509b1829868cea39dcc75dea1f8dde0dc6325389b45","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-go:latest","travis:go"],"Size":729301088,"VirtualSize":4808391658},
 		{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-jvm:latest","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
 	]`
-	dockerTestMux.HandleFunc("/images/json", func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/images/json", dockerapi.DefaultVersion), func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, imagesList)
 	})
 
 	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerID)
-	dockerTestMux.HandleFunc("/containers/create", func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/create", dockerapi.DefaultVersion), func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		var req containerCreateRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
@@ -85,24 +88,24 @@ func TestDockerProvider_Start(t *testing.T) {
 		}
 	})
 
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerID), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/start", dockerapi.DefaultVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
 
-	containerStatus := docker.Container{
+	containerStatus := &dockertypes.ContainerJSONBase{
 		ID: containerID,
-		State: docker.State{
+		State: &dockertypes.ContainerState{
 			Running: true,
 		},
 	}
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerID), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerapi.DefaultVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
 		containerStatusBytes, _ := json.Marshal(containerStatus)
 		w.Write(containerStatusBytes)
 	})
 
 	dockerTestMux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"ApiVersion":"1.24"}`)
+		fmt.Fprintf(w, "{\"ApiVersion\":\"%s\"}", dockerapi.DefaultVersion)
 	})
 
 	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -138,12 +141,12 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 		{"Created":1423149832,"Id":"08a0d98600afe9d0ca4ca509b1829868cea39dcc75dea1f8dde0dc6325389b45","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-go:latest","travis:go"],"Size":729301088,"VirtualSize":4808391658},
 		{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-jvm:latest","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
 	]`
-	dockerTestMux.HandleFunc("/images/json", func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/images/json", dockerapi.DefaultVersion), func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, imagesList)
 	})
 
 	containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerID)
-	dockerTestMux.HandleFunc("/containers/create", func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/create", dockerapi.DefaultVersion), func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		var req containerCreateRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
@@ -158,24 +161,24 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 		}
 	})
 
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/start", containerID), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/start", dockerapi.DefaultVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
 
-	containerStatus := docker.Container{
+	containerStatus := &dockertypes.ContainerJSONBase{
 		ID: containerID,
-		State: docker.State{
+		State: &dockertypes.ContainerState{
 			Running: true,
 		},
 	}
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/json", containerID), func(w http.ResponseWriter, r *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerapi.DefaultVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
 		containerStatusBytes, _ := json.Marshal(containerStatus)
 		w.Write(containerStatusBytes)
 	})
 
 	dockerTestMux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `{"ApiVersion":"1.24"}`)
+		fmt.Fprintf(w, "{\"ApiVersion\":\"%s\"}", dockerapi.DefaultVersion)
 	})
 
 	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -323,10 +326,12 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 	assert.NotNil(t, provider)
 
 	instance := &dockerInstance{
-		client:       provider.client,
-		provider:     provider,
-		runNative:    provider.runNative,
-		container:    &docker.Container{ID: "beabebabafabafaba0000"},
+		client:    provider.client,
+		provider:  provider,
+		runNative: provider.runNative,
+		container: &dockertypes.ContainerJSON{
+			ContainerJSONBase: &dockertypes.ContainerJSONBase{ID: "beabebabafabafaba0000"},
+		},
 		imageName:    "fafafaf",
 		startBooting: time.Now(),
 	}
@@ -334,7 +339,7 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 	script := []byte("#!/bin/bash\necho hai\n")
 	scriptUploaded := false
 
-	dockerTestMux.HandleFunc(fmt.Sprintf("/containers/%s/archive", instance.container.ID),
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/archive", dockerapi.DefaultVersion, instance.container.ID),
 		func(w http.ResponseWriter, req *http.Request) {
 			assert.Nil(t, err)
 			assert.Equal(t, "PUT", req.Method)
@@ -354,6 +359,9 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 
 			scriptUploaded = true
 		})
+	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		t.Logf("got: %s %s", req.Method, req.URL.Path)
+	})
 
 	err = instance.UploadScript(context.TODO(), script)
 	assert.Nil(t, err)
@@ -361,19 +369,24 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 }
 
 func TestDockerInstance_RunScript_WithNative(t *testing.T) {
+	fmt.Fprintf(os.Stderr, "starting\n")
 	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
 		"NATIVE": "true",
 	}))
 
+	fmt.Fprintf(os.Stderr, "asserting nil error\n")
 	assert.Nil(t, err)
+	fmt.Fprintf(os.Stderr, "asserting non-nil provider\n")
 	assert.NotNil(t, provider)
 
 	containerID := "beabebabafabafaba0000"
 	instance := &dockerInstance{
-		client:       provider.client,
-		provider:     provider,
-		runNative:    provider.runNative,
-		container:    &docker.Container{ID: containerID},
+		client:    provider.client,
+		provider:  provider,
+		runNative: provider.runNative,
+		container: &dockertypes.ContainerJSON{
+			ContainerJSONBase: &dockertypes.ContainerJSONBase{ID: containerID},
+		},
 		imageName:    "fafafaf",
 		startBooting: time.Now(),
 	}
@@ -381,21 +394,25 @@ func TestDockerInstance_RunScript_WithNative(t *testing.T) {
 	scriptRun := false
 	writer := &bytes.Buffer{}
 
-	dockerTestMux.HandleFunc("/containers/"+containerID+"/exec", func(w http.ResponseWriter, req *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/exec", dockerapi.DefaultVersion, containerID), func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
+		fmt.Fprintf(os.Stderr, "POST /v%s/containers/%s/exec\n", dockerapi.DefaultVersion, containerID)
+
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprintf(w, `{"ID":"ffbada"}`)
 	})
 
-	dockerTestMux.HandleFunc("/exec/ffbada/start", func(w http.ResponseWriter, req *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/exec/ffbada/start", dockerapi.DefaultVersion), func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(os.Stderr, "POST /v%s/exec/ffbada/start\n", dockerapi.DefaultVersion)
 		w.WriteHeader(http.StatusOK)
 	})
 
-	dockerTestMux.HandleFunc("/exec/ffbada/json", func(w http.ResponseWriter, req *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/exec/ffbada/json", dockerapi.DefaultVersion), func(w http.ResponseWriter, req *http.Request) {
+		fmt.Fprintf(os.Stderr, "POST /v%s/exec/ffbada/json\n", dockerapi.DefaultVersion)
 		scriptRun = true
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"ExitCode":0,"Running":false}`)
@@ -405,8 +422,13 @@ func TestDockerInstance_RunScript_WithNative(t *testing.T) {
 		t.Logf("got: %s %s", req.Method, req.URL.Path)
 	})
 
-	res, err := instance.RunScript(context.TODO(), writer)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	fmt.Fprintf(os.Stderr, "running script\n")
+	res, err := instance.RunScript(ctx, writer)
+	fmt.Fprintf(os.Stderr, "asserting non-nil result\n")
 	assert.NotNil(t, res)
+	fmt.Fprintf(os.Stderr, "asserting nil error\n")
 	assert.Nil(t, err)
 	assert.True(t, scriptRun)
 	assert.True(t, res.Completed)
@@ -423,9 +445,14 @@ func TestDockerInstance_Stop(t *testing.T) {
 		client:    provider.client,
 		provider:  provider,
 		runNative: provider.runNative,
-		container: &docker.Container{ID: containerID,
-			Config: &docker.Config{
-				CPUSet: "0,1",
+		container: &dockertypes.ContainerJSON{
+			ContainerJSONBase: &dockertypes.ContainerJSONBase{
+				ID: containerID,
+				HostConfig: &dockercontainer.HostConfig{
+					Resources: dockercontainer.Resources{
+						CpusetCpus: "0,1",
+					},
+				},
 			},
 		},
 		imageName:    "fafafaf",
@@ -434,7 +461,7 @@ func TestDockerInstance_Stop(t *testing.T) {
 
 	wasDeleted := false
 
-	dockerTestMux.HandleFunc("/containers/"+containerID+"/stop", func(w http.ResponseWriter, req *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/stop", dockerapi.DefaultVersion, containerID), func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != "POST" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -443,7 +470,7 @@ func TestDockerInstance_Stop(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	dockerTestMux.HandleFunc("/containers/"+containerID, func(w http.ResponseWriter, req *http.Request) {
+	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s", dockerapi.DefaultVersion, containerID), func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != "DELETE" {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -475,9 +502,11 @@ func TestDockerInstance_StartupDuration(t *testing.T) {
 		client:    provider.client,
 		provider:  provider,
 		runNative: provider.runNative,
-		container: &docker.Container{
-			ID:      containerID,
-			Created: now.Add(-3 * time.Second),
+		container: &dockertypes.ContainerJSON{
+			ContainerJSONBase: &dockertypes.ContainerJSONBase{
+				ID:      containerID,
+				Created: now.Add(-3 * time.Second).Format(time.RFC3339Nano),
+			},
 		},
 		imageName:    "fafafaf",
 		startBooting: now,
@@ -499,10 +528,12 @@ func TestDockerInstance_ID(t *testing.T) {
 	containerID := "beabebabafabafaba0000"
 
 	instance := &dockerInstance{
-		client:       provider.client,
-		provider:     provider,
-		runNative:    provider.runNative,
-		container:    &docker.Container{ID: containerID},
+		client:    provider.client,
+		provider:  provider,
+		runNative: provider.runNative,
+		container: &dockertypes.ContainerJSON{
+			ContainerJSONBase: &dockertypes.ContainerJSONBase{ID: containerID},
+		},
 		imageName:    "fafafaf",
 		startBooting: now,
 	}
