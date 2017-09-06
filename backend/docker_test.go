@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"strings"
 	"testing"
 	"time"
 
 	dockerapi "github.com/docker/docker/api"
+	"github.com/docker/docker/api/server/httputils"
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +39,7 @@ func dockerTestSetup(t *testing.T, cfg *config.ProviderConfig) (*dockerProvider,
 	defaultDockerNumCPUer = &fakeDockerNumCPUer{}
 	dockerTestMux = http.NewServeMux()
 	dockerTestServer = httptest.NewServer(dockerTestMux)
-	cfg.Set("ENDPOINT", dockerTestServer.URL)
+	cfg.Set("ENDPOINT", strings.Replace(dockerTestServer.URL, "http", "tcp", 1))
 	provider, err := newDockerProvider(cfg)
 	if err == nil {
 		dockerTestProvider = provider.(*dockerProvider)
@@ -369,14 +370,11 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 }
 
 func TestDockerInstance_RunScript_WithNative(t *testing.T) {
-	fmt.Fprintf(os.Stderr, "starting\n")
 	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
 		"NATIVE": "true",
 	}))
 
-	fmt.Fprintf(os.Stderr, "asserting nil error\n")
 	assert.Nil(t, err)
-	fmt.Fprintf(os.Stderr, "asserting non-nil provider\n")
 	assert.NotNil(t, provider)
 
 	containerID := "beabebabafabafaba0000"
@@ -400,19 +398,36 @@ func TestDockerInstance_RunScript_WithNative(t *testing.T) {
 			return
 		}
 
-		fmt.Fprintf(os.Stderr, "POST /v%s/containers/%s/exec\n", dockerapi.DefaultVersion, containerID)
-
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprintf(w, `{"ID":"ffbada"}`)
 	})
 
 	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/exec/ffbada/start", dockerapi.DefaultVersion), func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(os.Stderr, "POST /v%s/exec/ffbada/start\n", dockerapi.DefaultVersion)
-		w.WriteHeader(http.StatusOK)
+		inStream, outStream, err := httputils.HijackConnection(w)
+		if err != nil {
+			t.Logf("failed to hijack connection: %v", err)
+			return
+		}
+
+		defer httputils.CloseStreams(inStream, outStream)
+
+		if _, ok := req.Header["Upgrade"]; ok {
+			fmt.Fprintf(outStream, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n")
+		} else {
+			fmt.Fprintf(outStream, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n")
+		}
+
+		err = w.Header().WriteSubset(outStream, nil)
+		if err != nil {
+			t.Logf("failed to copy headers: %v", err)
+			return
+		}
+
+		fmt.Fprintf(outStream, "\r\n")
+		fmt.Fprintf(outStream, "hello bye\n")
 	})
 
 	dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/exec/ffbada/json", dockerapi.DefaultVersion), func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(os.Stderr, "POST /v%s/exec/ffbada/json\n", dockerapi.DefaultVersion)
 		scriptRun = true
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"ExitCode":0,"Running":false}`)
@@ -420,15 +435,13 @@ func TestDockerInstance_RunScript_WithNative(t *testing.T) {
 
 	dockerTestMux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		t.Logf("got: %s %s", req.Method, req.URL.Path)
+		w.WriteHeader(http.StatusNotImplemented)
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	fmt.Fprintf(os.Stderr, "running script\n")
 	res, err := instance.RunScript(ctx, writer)
-	fmt.Fprintf(os.Stderr, "asserting non-nil result\n")
 	assert.NotNil(t, res)
-	fmt.Fprintf(os.Stderr, "asserting nil error\n")
 	assert.Nil(t, err)
 	assert.True(t, scriptRun)
 	assert.True(t, res.Completed)

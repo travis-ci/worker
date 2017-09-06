@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -543,7 +542,6 @@ func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*Ru
 }
 
 func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	fmt.Fprintf(os.Stderr, "begin runScriptExec\n")
 	execConfig := dockertypes.ExecConfig{
 		AttachStdin:  false,
 		AttachStdout: true,
@@ -552,7 +550,6 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		Cmd:          i.provider.execCmd,
 		User:         "travis",
 	}
-	fmt.Fprintf(os.Stderr, "running ContainerExecCreate\n")
 	exec, err := i.client.ContainerExecCreate(ctx, i.container.ID, execConfig)
 	if err != nil {
 		return &RunResult{Completed: false}, err
@@ -563,16 +560,12 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		Tty:    true,
 	}
 
-	fmt.Fprintf(os.Stderr, "running ContainerExecStart\n")
 	err = i.client.ContainerExecStart(ctx, exec.ID, execStartOpts)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
 
-	fmt.Fprintf(os.Stderr, "client=%#+v\n", i.client)
-	fmt.Fprintf(os.Stderr, "running ContainerExecAttach\n")
 	hijackedResponse, err := i.client.ContainerExecAttach(ctx, exec.ID, execConfig)
-	fmt.Fprintf(os.Stderr, "err=%#v\n", err)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
@@ -599,7 +592,6 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 	}()
 
 	<-firstByte
-	fmt.Fprintf(os.Stderr, "past first byte\n")
 	for {
 		inspect, err := i.client.ContainerExecInspect(ctx, exec.ID)
 		if err != nil {
