@@ -55,6 +55,10 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 				logger.Debug("about to receive job")
 				select {
 				case job = <-bjc:
+					if job == nil {
+						logger.Debug("skipping nil job")
+						continue
+					}
 					jobID := uint64(0)
 					if job.Payload() != nil {
 						jobID = job.Payload().Job.ID
