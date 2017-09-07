@@ -546,21 +546,12 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		AttachStdin:  false,
 		AttachStdout: true,
 		AttachStderr: true,
+		Detach:       false,
 		Tty:          true,
 		Cmd:          i.provider.execCmd,
 		User:         "travis",
 	}
 	exec, err := i.client.ContainerExecCreate(ctx, i.container.ID, execConfig)
-	if err != nil {
-		return &RunResult{Completed: false}, err
-	}
-
-	execStartOpts := dockertypes.ExecStartCheck{
-		Detach: false,
-		Tty:    true,
-	}
-
-	err = i.client.ContainerExecStart(ctx, exec.ID, execStartOpts)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
