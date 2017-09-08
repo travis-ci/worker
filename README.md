@@ -48,17 +48,85 @@ built-in help system:
 travis-worker --help
 ```
 
-### Configuring the requested provider
+
+## Development: Running Travis Worker locally
+
+This section is for anyone wishing to contribute code to Worker. The code
+itself _should_ have godoc-compatible docs (which can be viewed on godoc.org:
+<https://godoc.org/github.com/travis-ci/worker>), this is mainly a higher-level
+overview of the code.
+
+### Environment
+
+Ensure you've defined the necessary environment variables (see `.example.env`).
+
+### Pull Docker images
+
+```
+$ docker pull travisci/ci-amethyst:packer-1504724461
+$ docker tag travisci/ci-amethyst:packer-1504724461 travis:default
+```
+
+### Configuration
+
+For configuration, there are some things like the job-board (`TRAVIS_WORKER_JOB_BOARD_URL`)
+and travis-build (`TRAVIS_WORKER_BUILD_API_URI`) URLs that need to be set. These
+can be set to the staging values.
+
+```
+export TRAVIS_WORKER_JOB_BOARD_URL='https://travis-worker:API_KEY@job-board-staging.travis-ci.com'
+export TRAVIS_WORKER_BUILD_API_URI='https://x:API_KEY@build-staging.travis-ci.org/script'
+```
+
+`TRAVIS_WORKER_BUILD_API_URI` can be found in the env of the job board app, e.g.:
+`heroku config:get JOB_BOARD_BUILD_API_ORG_URL -a job-board-staging`.
+
+#### Configuring the requested provider/backend
 
 Each provider requires its own configuration, which must be provided via
-environment variables namespaced by `TRAVIS_WORKER_{PROVIDER}_`, e.g. for the
-docker provider:
+environment variables namespaced by `TRAVIS_WORKER_{PROVIDER}_`.
+
+##### Docker
+
+The backend should be configured to be Docker, e.g.:
 
 ``` bash
-export TRAVIS_WORKER_DOCKER_ENDPOINT="tcp://localhost:4243"
-export TRAVIS_WORKER_DOCKER_PRIVILEGED="false"
-export TRAVIS_WORKER_DOCKER_CERT_PATH="/etc/secret-docker-cert-stuff"
+export TRAVIS_WORKER_PROVIDER_NAME='docker'
+export TRAVIS_WORKER_DOCKER_ENDPOINT=unix:///var/run/docker.sock        # or "tcp://localhost:4243"
+export TRAVIS_WORKER_DOCKER_PRIVILEGED="false"                          # optional
+export TRAVIS_WORKER_DOCKER_CERT_PATH="/etc/secret-docker-cert-stuff"   # optional
 ```
+
+#### Queue configuration
+
+For the queue configuration, there is a file-based queue implementation so you
+don't have to mess around with RabbitMQ.
+
+You can generate a payload via the `generate-job-payload.rb` script on travis-scheduler:
+
+`$ heroku run -a travis-scheduler-staging script/generate-job-payload.rb <job id> > payload.json`
+
+Place the file in the `$TRAVIS_WORKER_QUEUE_NAME/10-created.d/` directory, where
+it will be picked up by the worker.
+
+See `example-payload.json` for an example payload.
+
+### Building and running
+
+Run `make build` after making any changes. `make` also executes the test suite.
+
+0. `make`
+0. `${GOPATH%%:*}/bin/travis-worker`
+
+or in Docker (FIXME):
+
+0. `docker build -t travis-worker .` # or `docker pull travisci/worker`
+0. `docker run --env-file ENV_FILE -ti travis-worker` # or `travisci/worker`
+
+### Testing
+
+Run `make test`. To run backend tests matching `Docker`, for example, run
+`go test -v ./backend -test.run Docker`.
 
 ### Verifying and exporting configuration
 
@@ -70,10 +138,6 @@ exit immediately after writing to stdout:
 travis-worker --echo-config
 ```
 
-## Running Travis Worker
-
-0. `make`
-0. `${GOPATH%%:*}/bin/travis-worker`
 
 ## Stopping Travis Worker
 
@@ -108,13 +172,6 @@ To update and existing vendored dependency, do the following in *this directory*
 To add a new dependency, do the following:
 
 - `gvt fetch name/of/package` e.g. `gvt fetch github.com/pkg/sftp`
-
-## Development
-
-This section is for anyone wishing to contribute code to Worker. The code
-itself _should_ have godoc-compatible docs (which can be viewed on godoc.org:
-<https://godoc.org/github.com/travis-ci/worker>), this is mainly a higher-level
-overview of the code.
 
 ## Release process
 
