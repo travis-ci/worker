@@ -16,6 +16,7 @@ env:
   - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
   - GO15VENDOREXPERIMENT='1'
   - REDIS_URL="redis://"
+  - SHFMT_URL="mvdan.cc/sh/cmd/shfmt"
 
 addons:
   artifacts:
@@ -26,6 +27,9 @@ addons:
     - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
     - travis-ci/worker/$(git describe --always --dirty --tags)
     - travis-ci/worker/$TRAVIS_BRANCH
+
+before_install:
+- go get -u "${SHFMT_URL}" ;
 
 install:
 - go get github.com/FiloSottile/gvt
