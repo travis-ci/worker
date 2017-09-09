@@ -294,16 +294,6 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
 
-	cpuSets, err := p.checkoutCPUSets()
-	if err != nil {
-		logger.WithField("err", err).Error("couldn't checkout CPUSets")
-		return nil, err
-	}
-
-	logger.WithFields(logrus.Fields{
-		"cpuSets": fmt.Sprintf("%#v", cpuSets),
-	}).Debug("starting container; allocating cpuSets")
-
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
@@ -339,7 +329,15 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Memory:     int64(p.runMemory),
 		ShmSize:    int64(p.runShm),
 		Tmpfs:      p.tmpFs,
+		CPUSet:     strconv.Itoa(p.runCPUs),
 	}
+
+	cpuSets, err := p.checkoutCPUSets()
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't checkout CPUSets")
+		return nil, err
+	}
+	logger.Infof("Checked out CPU sets: %#v", cpuSets)
 
 	if cpuSets != "" {
 		dockerConfig.CPUSet = cpuSets
@@ -351,10 +349,13 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		"host_config": fmt.Sprintf("%#v", dockerHostConfig),
 	}).Debug("creating container")
 
+	// FIXME: This doesn't seem to create the container with the Config and HostConfig
 	container, err := p.client.CreateContainer(docker.CreateContainerOptions{
 		Config:     dockerConfig,
 		HostConfig: dockerHostConfig,
 	})
+	container.Config = dockerConfig
+	container.HostConfig = dockerHostConfig
 
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create container")
@@ -385,6 +386,8 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	go func(id string) {
 		for {
 			container, err := p.client.InspectContainer(id)
+			container.Config = dockerConfig
+			container.HostConfig = dockerHostConfig
 			if err != nil {
 				errChan <- err
 				return
