@@ -162,8 +162,8 @@ __build_all_platforms() {
 __package_cloud_push() {
   local pc_upload_file
   pc_upload_file="$(
-    echo "${CHECKOUT_ROOT}/tmp/output/${PLATFORM_PACKAGE_TYPE}/${PLATFORM_FAMILY}/${PLATFORM_RELEASE}/"*".${PLATFORM_PACKAGE_TYPE}" \
-      | head -1
+    echo "${CHECKOUT_ROOT}/tmp/output/${PLATFORM_PACKAGE_TYPE}/${PLATFORM_FAMILY}/${PLATFORM_RELEASE}/"*".${PLATFORM_PACKAGE_TYPE}" |
+      head -1
   )"
   local pc_push_dest="${PC_USER}/${PC_REPO}/${PACKAGECLOUD_OS}/${PLATFORM_RELEASE}"
   __log "Uploading ${pc_upload_file} to ${pc_push_dest}"

@@ -20,9 +20,9 @@ main() {
     VERSION_TAG \
     coverage.html
 
-  find "${GOPATH%%:*}/pkg" -wholename '*travis-ci/worker*.a' \
-    | grep -v vendor/ \
-    | xargs rm -vf
+  find "${GOPATH%%:*}/pkg" -wholename '*travis-ci/worker*.a' |
+    grep -v vendor/ |
+    xargs rm -vf
 }
 
 main "$@"

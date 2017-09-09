@@ -14,82 +14,82 @@ main() {
 
   while [ $# -gt 0 ]; do
     case "$1" in
-      --aws=* | --aws)
-        AWS="${1#*=}"
-        : "${AWS:=true}"
-        export AWS
-        ;;
-      --docker[-_]apt[-_]file=*)
-        export DOCKER_APT_FILE="${1#*=}"
-        ;;
-      --docker[-_]cmd=*)
-        export DOCKER_CMD="${1#*=}"
-        ;;
-      --docker[-_]config[-_]file=*)
-        export DOCKER_CONFIG_FILE="${1#*=}"
-        ;;
-      --docker[-_]image[-_]language[-_]mappings=*)
-        export DOCKER_IMAGE_LANGUAGE_MAPPINGS="${1#*=}"
-        ;;
-      --docker[-_]image[-_]languages=*)
-        export DOCKER_IMAGE_LANGUAGES="${1#*=}"
-        ;;
-      --stable)
-        export INSTALL_MODE=stable
-        export PACKAGECLOUD_SOURCE='travisci/worker'
-        ;;
-      --edge)
-        export INSTALL_MODE=edge
-        export PACKAGECLOUD_SOURCE='travisci/worker-testing'
-        ;;
-      --enterprise)
-        export TRAVIS_ENTERPRISE=1
-        ;;
-      --docker[-_]install[-_]mode=*)
-        export INSTALL_MODE="${1#*=}"
-        ;;
-      --packagecloud[-_]source=*)
-        export PACKAGECLOUD_SOURCE="${1#*=}"
-        ;;
-      --skip[-_]docker[-_]populate=* | --skip[-_]docker[-_]populate)
-        SKIP_DOCKER_POPULATE="${1#*=}"
-        : "${SKIP_DOCKER_POPULATE:=true}"
-        export SKIP_DOCKER_POPULATE
-        ;;
-      --trace)
-        set -o xtrace
-        ;;
-      --travis[-_]enterprise[-_]build[-_]endpoint=*)
-        export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="${1#*=}"
-        export TRAVIS_ENTERPRISE=1
-        ;;
-      --travis[-_]enterprise[-_]config=*)
-        export TRAVIS_ENTERPRISE_CONFIG="${1#*=}"
-        export TRAVIS_ENTERPRISE=1
-        ;;
-      --travis[-_]enterprise[-_]host=*)
-        export TRAVIS_ENTERPRISE_HOST="${1#*=}"
-        export TRAVIS_ENTERPRISE=1
-        ;;
-      --travis[-_]enterprise[-_]security[-_]token=*)
-        export TRAVIS_ENTERPRISE_SECURITY_TOKEN="${1#*=}"
-        export TRAVIS_ENTERPRISE=1
-        ;;
-      --travis[-_]queue[-_]name=*)
-        export TRAVIS_QUEUE_NAME="${1#*=}"
-        ;;
-      --travis[-_]worker[-_]version=*)
-        export TRAVIS_WORKER_VERSION="${1#*=}"
-        ;;
-      -h | --help | help)
-        __help
-        exit 0
-        ;;
-      *)
-        echo "Error: Invalid argument '$1'" >&2
-        __help
-        exit 1
-        ;;
+    --aws=* | --aws)
+      AWS="${1#*=}"
+      : "${AWS:=true}"
+      export AWS
+      ;;
+    --docker[-_]apt[-_]file=*)
+      export DOCKER_APT_FILE="${1#*=}"
+      ;;
+    --docker[-_]cmd=*)
+      export DOCKER_CMD="${1#*=}"
+      ;;
+    --docker[-_]config[-_]file=*)
+      export DOCKER_CONFIG_FILE="${1#*=}"
+      ;;
+    --docker[-_]image[-_]language[-_]mappings=*)
+      export DOCKER_IMAGE_LANGUAGE_MAPPINGS="${1#*=}"
+      ;;
+    --docker[-_]image[-_]languages=*)
+      export DOCKER_IMAGE_LANGUAGES="${1#*=}"
+      ;;
+    --stable)
+      export INSTALL_MODE=stable
+      export PACKAGECLOUD_SOURCE='travisci/worker'
+      ;;
+    --edge)
+      export INSTALL_MODE=edge
+      export PACKAGECLOUD_SOURCE='travisci/worker-testing'
+      ;;
+    --enterprise)
+      export TRAVIS_ENTERPRISE=1
+      ;;
+    --docker[-_]install[-_]mode=*)
+      export INSTALL_MODE="${1#*=}"
+      ;;
+    --packagecloud[-_]source=*)
+      export PACKAGECLOUD_SOURCE="${1#*=}"
+      ;;
+    --skip[-_]docker[-_]populate=* | --skip[-_]docker[-_]populate)
+      SKIP_DOCKER_POPULATE="${1#*=}"
+      : "${SKIP_DOCKER_POPULATE:=true}"
+      export SKIP_DOCKER_POPULATE
+      ;;
+    --trace)
+      set -o xtrace
+      ;;
+    --travis[-_]enterprise[-_]build[-_]endpoint=*)
+      export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="${1#*=}"
+      export TRAVIS_ENTERPRISE=1
+      ;;
+    --travis[-_]enterprise[-_]config=*)
+      export TRAVIS_ENTERPRISE_CONFIG="${1#*=}"
+      export TRAVIS_ENTERPRISE=1
+      ;;
+    --travis[-_]enterprise[-_]host=*)
+      export TRAVIS_ENTERPRISE_HOST="${1#*=}"
+      export TRAVIS_ENTERPRISE=1
+      ;;
+    --travis[-_]enterprise[-_]security[-_]token=*)
+      export TRAVIS_ENTERPRISE_SECURITY_TOKEN="${1#*=}"
+      export TRAVIS_ENTERPRISE=1
+      ;;
+    --travis[-_]queue[-_]name=*)
+      export TRAVIS_QUEUE_NAME="${1#*=}"
+      ;;
+    --travis[-_]worker[-_]version=*)
+      export TRAVIS_WORKER_VERSION="${1#*=}"
+      ;;
+    -h | --help | help)
+      __help
+      exit 0
+      ;;
+    *)
+      echo "Error: Invalid argument '$1'" >&2
+      __help
+      exit 1
+      ;;
     esac
     shift
   done
@@ -180,7 +180,7 @@ __install_docker() {
 
   if [[ ! -f $DOCKER_APT_FILE ]]; then
     curl -sSL 'https://download.docker.com/linux/ubuntu/gpg' | apt-key add -
-    echo 'deb https://download.docker.com/linux/ubuntu trusty stable edge' >$DOCKER_APT_FILE
+    echo 'deb https://download.docker.com/linux/ubuntu trusty stable edge' >"$DOCKER_APT_FILE"
   fi
 
   apt-get update
@@ -199,7 +199,7 @@ __install_docker() {
     local docker_opts='-H tcp://0.0.0.0:4243 -H unix://var/run/docker.sock'
     docker_opts="$docker_opts --storage-driver=aufs --icc=false"
     docker_opts="$docker_opts $docker_mount_point"
-    echo "DOCKER_OPTS=\"$docker_opts\"" >>$DOCKER_CONFIG_FILE
+    echo "DOCKER_OPTS=\"$docker_opts\"" >>"$DOCKER_CONFIG_FILE"
     if ! service docker stop; then
       stop docker || echo "Failed to stop docker (exit $?)"
     fi
@@ -250,7 +250,7 @@ __configure_travis_worker() {
   if [[ $TRAVIS_QUEUE_NAME ]]; then
     sed -i \
       "s/export QUEUE_NAME='builds.linux'/export QUEUE_NAME=\'$TRAVIS_QUEUE_NAME\'/" \
-      $TRAVIS_WORKER_CONFIG
+      "$TRAVIS_WORKER_CONFIG"
   fi
 
   if [[ ! $TRAVIS_ENTERPRISE ]]; then
@@ -264,19 +264,19 @@ __configure_travis_worker() {
   if [[ $TRAVIS_ENTERPRISE_HOST ]]; then
     sed -i \
       "s/\# export TRAVIS_ENTERPRISE_HOST=\"enterprise.yourhostname.corp\"/export TRAVIS_ENTERPRISE_HOST=\"$TRAVIS_ENTERPRISE_HOST\"/" \
-      $TRAVIS_ENTERPRISE_CONFIG
+      "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 
   if [[ $TRAVIS_ENTERPRISE_SECURITY_TOKEN ]]; then
     sed -i \
       "s/\# export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"abcd1234\"/export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"$TRAVIS_ENTERPRISE_SECURITY_TOKEN\"/" \
-      $TRAVIS_ENTERPRISE_CONFIG
+      "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 
   if [[ $TRAVIS_ENTERPRISE_BUILD_ENDPOINT ]]; then
     sed -i \
       "s/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"__build__\"/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"$TRAVIS_ENTERPRISE_BUILD_ENDPOINT\"/" \
-      $TRAVIS_ENTERPRISE_CONFIG
+      "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 }
 

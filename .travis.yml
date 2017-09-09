@@ -31,8 +31,8 @@ install:
 - go get github.com/FiloSottile/gvt
 - go get -u github.com/alecthomas/gometalinter
 - gometalinter --install
-- git clone --branch v1.3.1 https://github.com/mvdan/sh.git "${GOPATH%%:*}/src/github.com/mvdan/sh"
-- go get github.com/mvdan/sh/...
+- curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
+- chmod +x ~/bin/shfmt
 - shfmt -version
 - gem install package_cloud --no-ri --no-rdoc
 
