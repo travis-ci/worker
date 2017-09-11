@@ -48,3 +48,4 @@ vendor/**
 .crossdeps
 build/
 .write-test
+.envrc

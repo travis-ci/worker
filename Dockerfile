@@ -1,12 +1,22 @@
-FROM alpine:3.4
+FROM golang:1.9 as builder
 MAINTAINER Travis CI GmbH <support+travis-worker-docker-image@travis-ci.org>
 
-ADD build/linux/amd64/travis-worker /usr/local/bin/travis-worker
-ADD .docker-entrypoint.sh /docker-entrypoint.sh
+RUN go get -u github.com/FiloSottile/gvt
 
-RUN apk add --no-cache ca-certificates curl bash
+COPY . /go/src/github.com/travis-ci/worker
+WORKDIR /go/src/github.com/travis-ci/worker
+RUN go get ./...
+RUN make build
 
-VOLUME ["/var/tmp"]
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["travis-worker"]
-STOPSIGNAL SIGINT
+#################################
+### linux/amd64/travis-worker ###
+#################################
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /go/bin/travis-worker .
+
+CMD ["/root/travis-worker"]

@@ -1,14 +1,15 @@
+#!/bin/bash
 # travis-worker pre-remove script
 
 __stop_travis_worker() {
-  if ! status travis-worker >/dev/null 2>&1 ; then
+  if ! status travis-worker >/dev/null 2>&1; then
     return
   fi
 
   stop travis-worker
   exit_code="$?"
 
-  if [ $exit_code -eq 0 ] ; then
+  if [ $exit_code -eq 0 ]; then
     return
   fi
 
@@ -20,7 +21,7 @@ __stop_travis_worker() {
   stop travis-worker
   exit_code="$?"
 
-  if [ $exit_code -eq 0 ] ; then
+  if [ $exit_code -eq 0 ]; then
     return
   fi
 
@@ -28,14 +29,14 @@ __stop_travis_worker() {
 }
 
 __remove_travis_user() {
-  if ! getent passwd travis >/dev/null 2>&1 ; then
+  if ! getent passwd travis >/dev/null 2>&1; then
     return
   fi
 
   userdel travis -r
   exit_code="$?"
 
-  if [ $exit_code -eq 0 ] ; then
+  if [ $exit_code -eq 0 ]; then
     return
   fi
 

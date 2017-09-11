@@ -1,7 +1,8 @@
+#!/bin/bash
 # travis-worker post-install script
 
 __add_travis_user() {
-  if getent passwd travis >/dev/null ; then
+  if getent passwd travis >/dev/null; then
     return
   fi
 

@@ -27,6 +27,12 @@ addons:
     - travis-ci/worker/$(git describe --always --dirty --tags)
     - travis-ci/worker/$TRAVIS_BRANCH
 
+before_install:
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+  - sudo apt-get update
+  - sudo apt-get -y install docker-ce
+
 install:
 - go get github.com/FiloSottile/gvt
 - go get -u github.com/alecthomas/gometalinter
@@ -42,12 +48,12 @@ script:
 - make test
 - make crossbuild
 - make smoke
-- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-    make docker-build smoke-docker docker-push;
-  fi
-- if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
-    make package smoke-package;
-  fi
+
+after_success:
+  - echo $TRAVIS_PULL_REQUEST
+  - echo $TRAVIS_BRANCH
+  - sed -i s/@@BRANCH/$TRAVIS_BRANCH/ bin/send-docker-hub-trigger.sh
+  - bin/send-docker-hub-trigger.sh
 
 notifications:
   slack:
