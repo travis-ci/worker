@@ -180,7 +180,7 @@ __install_docker() {
 
   if [[ ! -f $DOCKER_APT_FILE ]]; then
     curl -sSL 'https://download.docker.com/linux/ubuntu/gpg' | apt-key add -
-    echo 'deb https://download.docker.com/linux/ubuntu trusty stable edge' >$DOCKER_APT_FILE
+    echo 'deb https://download.docker.com/linux/ubuntu trusty stable edge' >"$DOCKER_APT_FILE"
   fi
 
   apt-get update
@@ -199,7 +199,7 @@ __install_docker() {
     local docker_opts='-H tcp://0.0.0.0:4243 -H unix://var/run/docker.sock'
     docker_opts="$docker_opts --storage-driver=aufs --icc=false"
     docker_opts="$docker_opts $docker_mount_point"
-    echo "DOCKER_OPTS=\"$docker_opts\"" >>$DOCKER_CONFIG_FILE
+    echo "DOCKER_OPTS=\"$docker_opts\"" >>"$DOCKER_CONFIG_FILE"
     if ! service docker stop; then
       stop docker || echo "Failed to stop docker (exit $?)"
     fi
@@ -250,7 +250,7 @@ __configure_travis_worker() {
   if [[ $TRAVIS_QUEUE_NAME ]]; then
     sed -i \
       "s/export QUEUE_NAME='builds.linux'/export QUEUE_NAME=\'$TRAVIS_QUEUE_NAME\'/" \
-      $TRAVIS_WORKER_CONFIG
+      "$TRAVIS_WORKER_CONFIG"
   fi
 
   if [[ ! $TRAVIS_ENTERPRISE ]]; then
@@ -264,19 +264,19 @@ __configure_travis_worker() {
   if [[ $TRAVIS_ENTERPRISE_HOST ]]; then
     sed -i \
       "s/\# export TRAVIS_ENTERPRISE_HOST=\"enterprise.yourhostname.corp\"/export TRAVIS_ENTERPRISE_HOST=\"$TRAVIS_ENTERPRISE_HOST\"/" \
-      $TRAVIS_ENTERPRISE_CONFIG
+      "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 
   if [[ $TRAVIS_ENTERPRISE_SECURITY_TOKEN ]]; then
     sed -i \
       "s/\# export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"abcd1234\"/export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"$TRAVIS_ENTERPRISE_SECURITY_TOKEN\"/" \
-      $TRAVIS_ENTERPRISE_CONFIG
+      "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 
   if [[ $TRAVIS_ENTERPRISE_BUILD_ENDPOINT ]]; then
     sed -i \
       "s/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"__build__\"/export TRAVIS_ENTERPRISE_BUILD_ENDPOINT=\"$TRAVIS_ENTERPRISE_BUILD_ENDPOINT\"/" \
-      $TRAVIS_ENTERPRISE_CONFIG
+      "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 }
 

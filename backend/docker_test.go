@@ -269,6 +269,7 @@ func TestNewDockerProvider_WithInvalidCPUSetSize(t *testing.T) {
 	defer dockerTestTeardown()
 
 	assert.NotNil(t, err)
+	assert.Equal(t, "strconv.ParseInt: parsing \"fafafaf\": invalid syntax", err.Error())
 	assert.Nil(t, provider)
 }
 

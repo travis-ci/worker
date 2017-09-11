@@ -13,16 +13,16 @@ main() {
   fi
 
   echo
-  echo ★★★★★ ALL HAPPY ★★★★★
+  echo "***** ALL HAPPY *****"
 }
 
 __gofmt_check() {
   local f="${1}"
   gofmt "${f}" | if ! diff -u "${f}" -; then
-    echo "fmtpolice:${f} ✗"
+    echo "fmtpolice:${f} NOK"
     exit 1
   else
-    echo "fmtpolice:${f} ✓"
+    echo "fmtpolice:${f} OK"
   fi
 }
 
