@@ -337,7 +337,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		logger.WithField("err", err).Error("couldn't checkout CPUSets")
 		return nil, err
 	}
-	logger.Infof("Checked out CPU sets: %#v", cpuSets)
+	logger.WithField("cpu_sets", cpuSets).Info("checked out")
 
 	if cpuSets != "" {
 		dockerConfig.CPUSet = cpuSets
