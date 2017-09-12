@@ -45,10 +45,16 @@ script:
 - make test
 - make crossbuild
 - make smoke
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
+    make docker-build smoke-docker docker-push;
+  fi
+- if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
+    make package smoke-package;
+  fi
 
 after_success:
-  - echo "TRAVIS_PULL_REQUEST: $TRAVIS_PULL_REQUEST"
-  - echo "TRAVIS_BRANCH: $TRAVIS_BRANCH"
+  - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
+  - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
   - script/send-docker-hub-trigger
 
 notifications:
