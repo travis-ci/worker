@@ -14,7 +14,7 @@ RUN make build
 #################################
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates curl bash
 
 COPY --from=builder /go/bin/travis-worker /usr/local/bin/travis-worker
 COPY --from=builder /go/src/github.com/travis-ci/worker/.docker-entrypoint.sh /docker-entrypoint.sh

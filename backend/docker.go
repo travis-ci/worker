@@ -316,11 +316,6 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
 
-	cpuSets, err := p.checkoutCPUSets()
-	if err != nil && cpuSets != "" {
-		return nil, err
-	}
-
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
@@ -329,6 +324,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 			Infra:    "docker",
 		})
 		if err != nil {
+			logger.WithField("err", err).Error("couldn't select image")
 			return nil, err
 		}
 
@@ -358,6 +354,13 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		},
 	}
 
+	cpuSets, err := p.checkoutCPUSets()
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't checkout CPUSets")
+		return nil, err
+	}
+	logger.WithField("cpu_sets", cpuSets).Info("checked out")
+
 	if cpuSets != "" {
 		dockerHostConfig.Resources.CpusetCpus = cpuSets
 	}
@@ -365,7 +368,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	logger.WithFields(logrus.Fields{
 		"config":      fmt.Sprintf("%#v", dockerConfig),
 		"host_config": fmt.Sprintf("%#v", dockerHostConfig),
-	}).Debug("starting container")
+	}).Debug("creating container")
 
 	container, err := p.client.ContainerCreate(ctx, dockerConfig, dockerHostConfig, nil, "")
 

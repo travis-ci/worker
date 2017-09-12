@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.0.2] - 2017-09-12
+
+### Fixed
+- backend/docker: properly allocate CPU sets
+
 ## [3.0.1] - 2017-09-07
 ### Fixed
 - backend/openstack: allow reauth
@@ -550,7 +555,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.0.2...HEAD
+[3.0.2]: https://github.com/travis-ci/worker/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/travis-ci/worker/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/travis-ci/worker/compare/v2.11.0...v3.0.0
 [2.11.0]: https://github.com/travis-ci/worker/compare/v2.10.0...v2.11.0
