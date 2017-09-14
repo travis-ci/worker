@@ -16,7 +16,6 @@ import (
 
 	gocontext "context"
 
-	dockerapi "github.com/docker/docker/api"
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	docker "github.com/docker/docker/client"
@@ -35,6 +34,11 @@ import (
 
 const (
 	defaultDockerImageSelectorType = "tag"
+
+	// DockerMinSupportedAPIVersion of 1.24 means the client library in use here
+	// can only support docker-engine 1.12 and above
+	// (https://docs.docker.com/release-notes/docker-engine/#1120-2016-07-28).
+	DockerMinSupportedAPIVersion = "1.24"
 )
 
 var (
@@ -268,7 +272,12 @@ func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 		}
 	}
 
-	return docker.NewClient(endpoint, dockerapi.DefaultVersion, httpClient, nil)
+	dockerAPIVersion := DockerMinSupportedAPIVersion
+	if cfg.IsSet("API_VERSION") {
+		dockerAPIVersion = cfg.Get("API_VERSION")
+	}
+
+	return docker.NewClient(endpoint, dockerAPIVersion, httpClient, nil)
 }
 
 func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *config.ProviderConfig) (image.Selector, error) {
