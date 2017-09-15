@@ -27,12 +27,13 @@ var (
 
 // HTTPJobQueue is a JobQueue that uses http
 type HTTPJobQueue struct {
-	jobBoardURL  *url.URL
-	site         string
-	providerName string
-	queue        string
-	pollInterval time.Duration
-	cb           *CancellationBroadcaster
+	jobBoardURL          *url.URL
+	site                 string
+	providerName         string
+	queue                string
+	pollInterval         time.Duration
+	refreshClaimInterval time.Duration
+	cb                   JobIDBroadcaster
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -53,15 +54,17 @@ type jobBoardErrorResponse struct {
 
 // NewHTTPJobQueue creates a new job-board job queue
 func NewHTTPJobQueue(jobBoardURL *url.URL, site, providerName, queue string,
-	cb *CancellationBroadcaster) (*HTTPJobQueue, error) {
+	pollInterval, refreshClaimInterval time.Duration,
+	cb JobIDBroadcaster) (*HTTPJobQueue, error) {
 
 	return &HTTPJobQueue{
-		jobBoardURL:  jobBoardURL,
-		site:         site,
-		providerName: providerName,
-		queue:        queue,
-		pollInterval: time.Second,
-		cb:           cb,
+		jobBoardURL:          jobBoardURL,
+		site:                 site,
+		providerName:         providerName,
+		queue:                queue,
+		pollInterval:         pollInterval,
+		refreshClaimInterval: refreshClaimInterval,
+		cb:                   cb,
 	}, nil
 }
 
@@ -365,7 +368,7 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 					"err":    err,
 					"job_id": jobID,
-				}).Error("failed to refresh claim; cancelling")
+				}).Error("cancelling")
 				q.cb.Broadcast(jobID)
 				return
 			}
@@ -379,7 +382,7 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(q.pollInterval):
+			case <-time.After(q.refreshClaimInterval):
 			}
 		}
 	}, (<-chan struct{})(readyChan)
