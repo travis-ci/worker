@@ -56,10 +56,10 @@ type httpJobPayload struct {
 type httpJobStateUpdate struct {
 	CurrentState string                  `json:"cur"`
 	NewState     string                  `json:"new"`
-	Queued       *time.Time              `json:"queued,omitempty"`
-	Received     time.Time               `json:"received,omitempty"`
-	Started      time.Time               `json:"started,omitempty"`
-	Finished     time.Time               `json:"finished,omitempty"`
+	Queued       *time.Time              `json:"queued_at,omitempty"`
+	Received     time.Time               `json:"received_at,omitempty"`
+	Started      time.Time               `json:"started_at,omitempty"`
+	Finished     time.Time               `json:"finished_at,omitempty"`
 	Meta         *httpJobStateUpdateMeta `json:"meta,omitempty"`
 }
 
