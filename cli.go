@@ -641,7 +641,7 @@ func (i *CLI) buildHTTPJobQueue() (*HTTPJobQueue, error) {
 		return nil, errors.Wrap(err, "error parsing job board URL")
 	}
 
-	jobQueue, err := NewHTTPJobQueue(
+	jobQueue, err := NewHTTPJobQueueWithIntervals(
 		jobBoardURL, i.Config.TravisSite,
 		i.Config.ProviderName, i.Config.QueueName,
 		i.Config.HTTPPollingInterval, i.Config.HTTPRefreshClaimInterval,

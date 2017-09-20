@@ -33,7 +33,7 @@ type HTTPJobQueue struct {
 	queue                string
 	pollInterval         time.Duration
 	refreshClaimInterval time.Duration
-	cb                   JobIDBroadcaster
+	cb                   *CancellationBroadcaster
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -52,10 +52,26 @@ type jobBoardErrorResponse struct {
 	UpstreamError string `json:"upstream_error,omitempty"`
 }
 
-// NewHTTPJobQueue creates a new job-board job queue
+// NewHTTPJobQueue creates a new http job queue
 func NewHTTPJobQueue(jobBoardURL *url.URL, site, providerName, queue string,
+	cb *CancellationBroadcaster) (*HTTPJobQueue, error) {
+
+	return &HTTPJobQueue{
+		jobBoardURL:          jobBoardURL,
+		site:                 site,
+		providerName:         providerName,
+		queue:                queue,
+		pollInterval:         3 * time.Second,
+		refreshClaimInterval: 5 * time.Second,
+		cb:                   cb,
+	}, nil
+}
+
+// NewHTTPJobQueueWithIntervals creates a new http job queue with the specified
+// poll and refresh claim intervals
+func NewHTTPJobQueueWithIntervals(jobBoardURL *url.URL, site, providerName, queue string,
 	pollInterval, refreshClaimInterval time.Duration,
-	cb JobIDBroadcaster) (*HTTPJobQueue, error) {
+	cb *CancellationBroadcaster) (*HTTPJobQueue, error) {
 
 	return &HTTPJobQueue{
 		jobBoardURL:          jobBoardURL,

@@ -2,16 +2,6 @@ package worker
 
 import "sync"
 
-type JobIDBroadcaster interface {
-	Broadcast(uint64)
-}
-
-type Canceller interface {
-	JobIDBroadcaster
-	Subscribe(uint64) <-chan struct{}
-	Unsubscribe(uint64, <-chan struct{})
-}
-
 // A CancellationBroadcaster allows you to subscribe to and unsubscribe from
 // cancellation messages for a given job ID.
 type CancellationBroadcaster struct {

@@ -17,7 +17,7 @@ var (
 	defaultAmqpURI                     = "amqp://"
 	defaultBaseDir                     = "."
 	defaultFilePollingInterval, _      = time.ParseDuration("5s")
-	defaultHTTPPollingInterval, _      = time.ParseDuration("1s")
+	defaultHTTPPollingInterval, _      = time.ParseDuration("3s")
 	defaultHTTPRefreshClaimInterval, _ = time.ParseDuration("5s")
 	defaultPoolSize                    = 1
 	defaultProviderName                = "docker"

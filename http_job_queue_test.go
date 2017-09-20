@@ -15,7 +15,7 @@ import (
 )
 
 func TestHTTPJobQueue(t *testing.T) {
-	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", time.Second, time.Second, nil)
+	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, hjq)
 }
@@ -64,7 +64,7 @@ func TestHTTPJobQueue_Jobs(t *testing.T) {
 	defer jobBoardServer.Close()
 
 	jobBoardURL, _ := url.Parse(jobBoardServer.URL)
-	hjq, err := NewHTTPJobQueue(jobBoardURL, "test", "fake", "fake", time.Second, time.Second, nil)
+	hjq, err := NewHTTPJobQueue(jobBoardURL, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, hjq)
 
@@ -82,13 +82,13 @@ func TestHTTPJobQueue_Jobs(t *testing.T) {
 }
 
 func TestHTTPJobQueue_Name(t *testing.T) {
-	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", time.Second, time.Second, nil)
+	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "http", hjq.Name())
 }
 
 func TestHTTPJobQueue_Cleanup(t *testing.T) {
-	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", time.Second, time.Second, nil)
+	hjq, err := NewHTTPJobQueue(nil, "test", "fake", "fake", nil)
 	assert.Nil(t, err)
 	assert.Nil(t, hjq.Cleanup())
 }
