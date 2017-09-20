@@ -154,7 +154,6 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	if err != nil {
 		return err
 	}
-	defer amqpChan.Close()
 
 	j.stateCount++
 	body := j.createStateUpdateBody(state)
@@ -166,6 +165,7 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 
 	done := make(chan error)
 	go func() {
+		defer amqpChan.Close()
 		_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
 		if err != nil {
 			done <- err
