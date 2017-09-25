@@ -154,6 +154,8 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 		}).Info("sent job to output channel")
 		return true, readyChan
 	case <-ctx.Done():
+		// FIXME: use processor context here?
+		_ = q.deleteJob(gocontext.TODO(), jobID)
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 		return false, nil
 	}
@@ -214,6 +216,84 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
 
 	logger.WithField("job_id", fetchedJobID).Debug("fetched")
 	return fetchedJobID, nil
+}
+
+func (q *HTTPJobQueue) deleteJob(ctx gocontext.Context, jobID uint64) error {
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "http_job_queue",
+	})
+
+	logger.Info("deleting job")
+
+	jwt, ok := context.JWTFromContext(ctx)
+	if !ok {
+		return fmt.Errorf("failed to find jwt in context for job_id=%v", jobID)
+	}
+
+	processorID, ok := context.ProcessorFromContext(ctx)
+	if !ok {
+		processorID = "unknown-processor"
+	}
+
+	u := *q.jobBoardURL
+	u.Path = fmt.Sprintf("/jobs/%d", jobID)
+	u.User = nil
+
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Travis-Site", q.site)
+	req.Header.Add("Authorization", "Bearer "+jwt)
+	req.Header.Add("From", processorID)
+
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = 10 * time.Second
+	bo.MaxElapsedTime = 1 * time.Minute
+
+	logger.WithField("url", u.String()).Debug("performing DELETE request")
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = http.DefaultClient.Do(req)
+		if resp != nil && resp.StatusCode != http.StatusNoContent {
+			logger.WithFields(logrus.Fields{
+				"expected_status": http.StatusNoContent,
+				"actual_status":   resp.StatusCode,
+			}).Debug("delete failed")
+
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
+			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
+		}
+
+		return
+	}, bo)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to delete job with retries")
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var errorResp jobBoardErrorResponse
+	err = json.Unmarshal(body, &errorResp)
+	if err != nil {
+		return errors.Wrapf(err, "job board job delete request errored with status %d and didn't send an error response", resp.StatusCode)
+	}
+
+	return errors.Errorf("job board job delete request errored with status %d: %s", resp.StatusCode, errorResp.Error)
 }
 
 func (q *HTTPJobQueue) refreshJobClaim(ctx gocontext.Context, jobID uint64) error {
@@ -290,10 +370,9 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 		startAttributes: &backend.StartAttributes{},
 
 		refreshClaim: refreshClaimFunc,
-
-		jobBoardURL: q.jobBoardURL,
-		site:        q.site,
-		processorID: processorID,
+		deleteSelf: func(ctx gocontext.Context) error {
+			return q.deleteJob(ctx, jobID)
+		},
 	}
 	startAttrs := &httpJobPayloadStartAttrs{
 		Data: &jobPayloadStartAttrs{
@@ -351,17 +430,32 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 
 	err = json.Unmarshal(body, buildJob.payload)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to unmarshal job-board payload")
+		logger.WithField("err", err).Error("payload JSON parse error, attempting to delete job")
+		err := q.deleteJob(ctx, jobID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "couldn't delete job")
+		}
+		return nil, nil, errors.Wrap(err, "payload JSON parse error")
 	}
 
 	err = json.Unmarshal(body, &startAttrs)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to unmarshal start attributes from job-board")
+		logger.WithField("err", err).Error("start attributes JSON parse error, attempting to delete job")
+		err := q.deleteJob(ctx, jobID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "couldn't delete job")
+		}
+		return nil, nil, errors.Wrap(err, "start attributes JSON parse error")
 	}
 
 	rawPayload, err := simplejson.NewJson(body)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to parse raw payload with simplejson")
+		logger.WithField("err", err).Error("raw payload JSON parse error, attempting to delete job")
+		err := q.deleteJob(ctx, jobID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "couldn't delete job")
+		}
+		return nil, nil, errors.Wrap(err, "raw payload JSON parse error")
 	}
 	buildJob.rawPayload = rawPayload.Get("data")
 
