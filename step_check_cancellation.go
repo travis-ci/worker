@@ -14,14 +14,14 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 
 	select {
 	case <-cancelChan:
+		procCtx := state.Get("procCtx").(gocontext.Context)
 		ctx := state.Get("ctx").(gocontext.Context)
+		buildJob := state.Get("buildJob").(Job)
 		if _, ok := state.GetOk("logWriter"); ok {
 			logWriter := state.Get("logWriter").(LogWriter)
-			buildJob := state.Get("buildJob").(Job)
-			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
+			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
 		} else {
-			buildJob := state.Get("buildJob").(Job)
-			err := buildJob.Finish(ctx, FinishStateCancelled)
+			err := buildJob.Finish(procCtx, FinishStateCancelled)
 			if err != nil {
 				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 			}
@@ -33,16 +33,15 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 	return multistep.ActionContinue
 }
 
-func (s *stepCheckCancellation) Cleanup(state multistep.StateBag) {
-}
+func (s *stepCheckCancellation) Cleanup(state multistep.StateBag) {}
 
-func (s *stepCheckCancellation) writeLogAndFinishWithState(ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
+func (s *stepCheckCancellation) writeLogAndFinishWithState(procCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
 	_, err := logWriter.WriteAndClose([]byte(logMessage))
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write final log message")
 	}
 
-	err = buildJob.Finish(ctx, state)
+	err = buildJob.Finish(procCtx, state)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
 	}
