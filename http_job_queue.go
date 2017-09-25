@@ -154,7 +154,7 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 		}).Info("sent job to output channel")
 		return true, readyChan
 	case <-ctx.Done():
-		// FIXME: use processor context here?
+		// best-effort delete with a meaningless context :ok_hand:
 		_ = q.deleteJob(gocontext.TODO(), jobID)
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 		return false, nil

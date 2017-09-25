@@ -134,8 +134,7 @@ func (j *httpJob) currentState() string {
 }
 
 func (j *httpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	// FIXME: use processor context here?
-	err := j.deleteSelf(gocontext.TODO())
+	err := j.deleteSelf(ctx)
 	if err != nil {
 		return err
 	}
