@@ -31,7 +31,9 @@ import (
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ratelimit"
+	"github.com/travis-ci/worker/remote"
 	"github.com/travis-ci/worker/ssh"
+	"github.com/travis-ci/worker/winrm"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
@@ -928,7 +930,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 	}
 }
 
-func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
+func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
 	if i.cachedIPAddr == "" {
 		err := i.refreshInstance(ctx)
 		if err != nil {
@@ -944,6 +946,24 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, erro
 	}
 
 	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser, i.provider.sshDialTimeout)
+}
+
+func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {
+	if i.cachedIPAddr == "" {
+		err := i.refreshInstance(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		ipAddr := i.getIP()
+		if ipAddr == "" {
+			return nil, errGCEMissingIPAddressError
+		}
+
+		i.cachedIPAddr = ipAddr
+	}
+
+	return winrm.New(i.cachedIPAddr, 5986, "travis", "b0n4n24!")
 }
 
 func (i *gceInstance) getIP() string {
