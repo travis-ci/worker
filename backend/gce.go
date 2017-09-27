@@ -221,6 +221,7 @@ type gceInstance struct {
 	imageName string
 
 	startupDuration time.Duration
+	os              string
 }
 
 type gceInstanceStopContext struct {
@@ -760,6 +761,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				imageName: c.image.Name,
 
 				startupDuration: time.Now().UTC().Sub(c.bootStart),
+				os:              c.startAttributes.OS,
 			}
 			return multistep.ActionContinue
 		}
@@ -1043,9 +1045,16 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 }
 
 func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
-	conn, err := i.sshConnection(ctx)
+	var conn remote.Remoter
+	var err error
+
+	if i.os == "windows" {
+		conn, err = i.winrmRemoter(ctx)
+	} else {
+		conn, err = i.sshConnection(ctx)
+	}
 	if err != nil {
-		return errors.Wrap(err, "couldn't connect to SSH server")
+		return errors.Wrap(err, "couldn't connect to remote server")
 	}
 	defer conn.Close()
 
@@ -1096,10 +1105,18 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 }
 
 func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	conn, err := i.sshConnection(ctx)
-	if err != nil {
-		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
+	var conn remote.Remoter
+	var err error
+
+	if i.os == "windows" {
+		conn, err = i.winrmRemoter(ctx)
+	} else {
+		conn, err = i.sshConnection(ctx)
 	}
+	if err != nil {
+		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to remote server")
+	}
+	defer conn.Close()
 	defer conn.Close()
 
 	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
