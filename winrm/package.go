@@ -2,6 +2,7 @@ package winrm
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"github.com/masterzen/winrm"
@@ -15,7 +16,7 @@ func New(host string, port int, username string, password string) (*Remoter, err
 	if err != nil {
 		return nil, err
 	}
-	winrmcpClient, err := winrmcp.New(host, &winrmcp.Config{
+	winrmcpClient, err := winrmcp.New(fmt.Sprintf("%s:%v", host, port), &winrmcp.Config{
 		Auth: winrmcp.Auth{
 			User:     username,
 			Password: password,
