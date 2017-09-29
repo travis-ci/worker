@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -108,6 +109,9 @@ cat > ~travis/.ssh/authorized_keys <<EOF
 EOF
 `))
 
+	gceWindowsStartupScript = template.Must(template.New("gce-startup").Parse(`
+  shutdown -s -t {{ .HardTimeoutSeconds }} & powershell -Command "& { $pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force & Set-LocalUser -Name travis -Password $pw }"`))
+
 	// FIXME: get rid of the need for this global goop
 	gceCustomHTTPTransport     http.RoundTripper
 	gceCustomHTTPTransportLock sync.Mutex
@@ -117,6 +121,8 @@ type gceStartupScriptData struct {
 	AutoImplode        bool
 	HardTimeoutMinutes int64
 	SSHPubKey          string
+	HardTimeoutSeconds int64
+	WindowsPassword    string
 }
 
 func init() {
@@ -206,6 +212,7 @@ type gceStartContext struct {
 	bootStart        time.Time
 	instance         *compute.Instance
 	instanceInsertOp *compute.Operation
+	windowsPassword  string
 }
 
 type gceInstance struct {
@@ -222,6 +229,7 @@ type gceInstance struct {
 
 	startupDuration time.Duration
 	os              string
+	windowsPassword string
 }
 
 type gceInstanceStopContext struct {
@@ -625,11 +633,16 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	state := &multistep.BasicStateBag{}
 
+	wp, err := makeWindowsPassword()
+	if err != nil {
+		return nil, err
+	}
 	c := &gceStartContext{
 		startAttributes: startAttributes,
 		ctx:             ctx,
 		instChan:        make(chan Instance),
 		errChan:         make(chan error),
+		windowsPassword: wp,
 	}
 
 	runner := &multistep.BasicRunner{
@@ -680,14 +693,32 @@ func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
 	return multistep.ActionContinue
 }
 
+func makeWindowsPassword() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s?!?!?_:-[", base64.StdEncoding.EncodeToString(b)), nil
+}
+
 func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
 	scriptBuf := bytes.Buffer{}
 	scriptData := gceStartupScriptData{
 		AutoImplode:        p.ic.AutoImplode,
 		HardTimeoutMinutes: int64(c.startAttributes.HardTimeout.Minutes()) + 10,
 		SSHPubKey:          p.ic.SSHPubKey,
+		HardTimeoutSeconds: int64(c.startAttributes.HardTimeout.Seconds()) + 600,
 	}
-	err := gceStartupScript.Execute(&scriptBuf, scriptData)
+
+	var err error
+	if c.startAttributes.OS == "windows" {
+		scriptData.WindowsPassword = c.windowsPassword
+		//TODO: handle this error
+		err = gceWindowsStartupScript.Execute(&scriptBuf, scriptData)
+	} else {
+		err = gceStartupScript.Execute(&scriptBuf, scriptData)
+	}
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
@@ -762,6 +793,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 				startupDuration: time.Now().UTC().Sub(c.bootStart),
 				os:              c.startAttributes.OS,
+				windowsPassword: c.windowsPassword,
 			}
 			return multistep.ActionContinue
 		}
@@ -965,7 +997,7 @@ func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error
 		i.cachedIPAddr = ipAddr
 	}
 
-	return winrm.New(i.cachedIPAddr, 5986, "travis", "b0n4n24!")
+	return winrm.New(i.cachedIPAddr, 5986, "travis", i.windowsPassword)
 }
 
 func (i *gceInstance) getIP() string {
