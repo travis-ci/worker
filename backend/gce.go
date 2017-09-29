@@ -109,8 +109,11 @@ cat > ~travis/.ssh/authorized_keys <<EOF
 EOF
 `))
 
-	gceWindowsStartupScript = template.Must(template.New("gce-startup").Parse(`
-  shutdown -s -t {{ .HardTimeoutSeconds }} & powershell -Command "& { $pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force & Set-LocalUser -Name travis -Password $pw }"`))
+	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
+shutdown -s -t {{ .HardTimeoutSeconds }}
+$pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
+Set-LocalUser -Name travis -Password $pw }
+`))
 
 	// FIXME: get rid of the need for this global goop
 	gceCustomHTTPTransport     http.RoundTripper
@@ -925,6 +928,11 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		}
 	}
 
+	startupKey := "startup-script"
+	if startAttributes.OS == "windows" {
+		startupKey = "windows-startup-script-ps1"
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -948,7 +956,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
-					Key:   "startup-script",
+					Key:   startupKey,
 					Value: googleapi.String(startupScript),
 				},
 			},
@@ -965,39 +973,39 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
-	if i.cachedIPAddr == "" {
-		err := i.refreshInstance(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		ipAddr := i.getIP()
-		if ipAddr == "" {
-			return nil, errGCEMissingIPAddressError
-		}
-
-		i.cachedIPAddr = ipAddr
+	ip, err := i.getCachedIP()
+	if err != nil {
+		return nil, err
 	}
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser, i.provider.sshDialTimeout)
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
 }
 
 func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {
-	if i.cachedIPAddr == "" {
-		err := i.refreshInstance(ctx)
-		if err != nil {
-			return nil, err
-		}
+	ip, err := i.getCachedIP()
+	if err != nil {
+		return nil, err
+	}
+	return winrm.New(ip, 5986, "travis", i.windowsPassword)
+}
 
-		ipAddr := i.getIP()
-		if ipAddr == "" {
-			return nil, errGCEMissingIPAddressError
-		}
-
-		i.cachedIPAddr = ipAddr
+func (i *gceInstance) getCachedIP() (string, error) {
+	if i.cachedIPAddr != "" {
+		return i.cachedIPAddr, nil
 	}
 
-	return winrm.New(i.cachedIPAddr, 5986, "travis", i.windowsPassword)
+	err := i.refreshInstance(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	ipAddr := i.getIP()
+	if ipAddr == "" {
+		return "", errGCEMissingIPAddressError
+	}
+
+	i.cachedIPAddr = ipAddr
+	return i.cachedIPAddr, nil
 }
 
 func (i *gceInstance) getIP() string {
@@ -1086,7 +1094,7 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 		conn, err = i.sshConnection(ctx)
 	}
 	if err != nil {
-		return errors.Wrap(err, "couldn't connect to remote server")
+		return errors.Wrap(err, "couldn't connect to remote server for script upload")
 	}
 	defer conn.Close()
 
@@ -1146,7 +1154,9 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 		conn, err = i.sshConnection(ctx)
 	}
 	if err != nil {
-		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to remote server")
+		return &RunResult{
+			Completed: false,
+		}, errors.Wrap(err, "couldn't connect to remote server for script run")
 	}
 	defer conn.Close()
 	defer conn.Close()
