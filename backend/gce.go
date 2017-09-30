@@ -973,7 +973,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
-	ip, err := i.getCachedIP()
+	ip, err := i.getCachedIP(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -982,14 +982,14 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, erro
 }
 
 func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {
-	ip, err := i.getCachedIP()
+	ip, err := i.getCachedIP(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return winrm.New(ip, 5986, "travis", i.windowsPassword)
 }
 
-func (i *gceInstance) getCachedIP() (string, error) {
+func (i *gceInstance) getCachedIP(ctx gocontext.Context) (string, error) {
 	if i.cachedIPAddr != "" {
 		return i.cachedIPAddr, nil
 	}
