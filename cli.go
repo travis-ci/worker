@@ -493,10 +493,10 @@ func (i *CLI) signalHandler() {
 		case sig := <-signalChan:
 			switch sig {
 			case syscall.SIGINT:
-				i.logger.Info("SIGINT received, starting graceful shutdown")
+				i.logger.Warn("SIGINT received, starting graceful shutdown")
 				i.ProcessorPool.GracefulShutdown(false)
 			case syscall.SIGTERM:
-				i.logger.Info("SIGTERM received, shutting down immediately")
+				i.logger.Warn("SIGTERM received, shutting down immediately")
 				i.cancel()
 			case syscall.SIGTTIN:
 				i.logger.Info("SIGTTIN received, adding processor to pool")
@@ -505,7 +505,7 @@ func (i *CLI) signalHandler() {
 				i.logger.Info("SIGTTOU received, removing processor from pool")
 				i.ProcessorPool.Decr()
 			case syscall.SIGWINCH:
-				i.logger.Info("SIGWINCH received, toggling graceful shutdown and pause")
+				i.logger.Warn("SIGWINCH received, toggling graceful shutdown and pause")
 				i.ProcessorPool.GracefulShutdown(true)
 			case syscall.SIGUSR1:
 				i.logProcessorInfo("received SIGUSR1")

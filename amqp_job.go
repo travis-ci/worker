@@ -150,6 +150,12 @@ func (j *amqpJob) createStateUpdateBody(state string) map[string]interface{} {
 }
 
 func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	amqpChan, err := j.conn.Channel()
 	if err != nil {
 		return err
@@ -164,32 +170,18 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 		return err
 	}
 
-	done := make(chan error)
-	go func() {
-		_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-		if err != nil {
-			done <- err
-			return
-		}
-
-		done <- amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
-			ContentType:  "application/json",
-			DeliveryMode: amqp.Persistent,
-			Timestamp:    time.Now().UTC(),
-			Type:         event,
-			Body:         bodyBytes,
-		})
-	}()
-
-	timeout := 10 * time.Second
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err = <-done:
+	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
 		return err
-	case <-time.After(timeout):
-		return fmt.Errorf("timeout waiting for state update (%v)", timeout)
 	}
+
+	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Timestamp:    time.Now().UTC(),
+		Type:         event,
+		Body:         bodyBytes,
+	})
 }
 
 func (j *amqpJob) Name() string {
