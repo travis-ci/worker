@@ -5,7 +5,9 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -14,8 +16,12 @@ import (
 
 	gocontext "context"
 
-	"github.com/dustin/go-humanize"
-	"github.com/fsouza/go-dockerclient"
+	dockertypes "github.com/docker/docker/api/types"
+	dockercontainer "github.com/docker/docker/api/types/container"
+	docker "github.com/docker/docker/client"
+	"github.com/docker/go-connections/tlsconfig"
+	humanize "github.com/dustin/go-humanize"
+
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -28,6 +34,11 @@ import (
 
 const (
 	defaultDockerImageSelectorType = "tag"
+
+	// DockerMinSupportedAPIVersion of 1.24 means the client library in use here
+	// can only support docker-engine 1.12 and above
+	// (https://docs.docker.com/release-notes/docker-engine/#1120-2016-07-28).
+	DockerMinSupportedAPIVersion = "1.24"
 )
 
 var (
@@ -68,7 +79,7 @@ func (nc *stdlibNumCPUer) NumCPU() int {
 }
 
 type dockerProvider struct {
-	client         *docker.Client
+	client         docker.CommonAPIClient
 	sshDialer      ssh.Dialer
 	sshDialTimeout time.Duration
 
@@ -87,9 +98,9 @@ type dockerProvider struct {
 }
 
 type dockerInstance struct {
-	client       *docker.Client
+	client       docker.CommonAPIClient
 	provider     *dockerProvider
-	container    *docker.Container
+	container    *dockertypes.ContainerJSON
 	startBooting time.Time
 
 	imageName string
@@ -238,15 +249,35 @@ func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 		endpoint = cfg.Get("HOST")
 	}
 
+	var httpClient *http.Client
 	if cfg.IsSet("CERT_PATH") {
-		path := cfg.Get("CERT_PATH")
-		ca := fmt.Sprintf("%s/ca.pem", path)
-		cert := fmt.Sprintf("%s/cert.pem", path)
-		key := fmt.Sprintf("%s/key.pem", path)
-		return docker.NewTLSClient(endpoint, cert, key, ca)
+		certPath := cfg.Get("CERT_PATH")
+		tlsOptions := tlsconfig.Options{
+			CAFile:             filepath.Join(certPath, "ca.pem"),
+			CertFile:           filepath.Join(certPath, "cert.pem"),
+			KeyFile:            filepath.Join(certPath, "key.pem"),
+			InsecureSkipVerify: cfg.Get("TLS_VERIFY") == "",
+		}
+
+		tlsc, err := tlsconfig.Client(tlsOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: tlsc,
+			},
+			CheckRedirect: docker.CheckRedirect,
+		}
 	}
 
-	return docker.NewClient(endpoint)
+	dockerAPIVersion := DockerMinSupportedAPIVersion
+	if cfg.IsSet("API_VERSION") {
+		dockerAPIVersion = cfg.Get("API_VERSION")
+	}
+
+	return docker.NewClient(endpoint, dockerAPIVersion, httpClient, nil)
 }
 
 func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *config.ProviderConfig) (image.Selector, error) {
@@ -272,8 +303,8 @@ func dockerImageIDNameFromSelection(selection string) (string, string) {
 	return parts[0], parts[0]
 }
 
-func (p *dockerProvider) dockerImageIDFromName(imageName string) string {
-	images, err := p.client.ListImages(docker.ListImagesOptions{All: true})
+func (p *dockerProvider) dockerImageIDFromName(ctx gocontext.Context, imageName string) string {
+	images, err := p.client.ImageList(ctx, dockertypes.ImageListOptions{All: true})
 	if err != nil {
 		return imageName
 	}
@@ -314,22 +345,22 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 
 	if imageID == "" {
-		imageID = p.dockerImageIDFromName(imageName)
+		imageID = p.dockerImageIDFromName(ctx, imageName)
 	}
 
-	dockerConfig := &docker.Config{
+	dockerConfig := &dockercontainer.Config{
 		Cmd:      p.runCmd,
 		Image:    imageID,
-		Memory:   int64(p.runMemory),
 		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewRandom()),
 	}
 
-	dockerHostConfig := &docker.HostConfig{
+	dockerHostConfig := &dockercontainer.HostConfig{
 		Privileged: p.runPrivileged,
-		Memory:     int64(p.runMemory),
-		ShmSize:    int64(p.runShm),
 		Tmpfs:      p.tmpFs,
-		CPUSet:     strconv.Itoa(p.runCPUs),
+		ShmSize:    int64(p.runShm),
+		Resources: dockercontainer.Resources{
+			Memory: int64(p.runMemory),
+		},
 	}
 
 	cpuSets, err := p.checkoutCPUSets()
@@ -340,8 +371,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	logger.WithField("cpu_sets", cpuSets).Info("checked out")
 
 	if cpuSets != "" {
-		dockerConfig.CPUSet = cpuSets
-		dockerHostConfig.CPUSet = cpuSets
+		dockerHostConfig.Resources.CpusetCpus = cpuSets
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -349,26 +379,16 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		"host_config": fmt.Sprintf("%#v", dockerHostConfig),
 	}).Debug("creating container")
 
-	// FIXME: This doesn't seem to create the container with the Config and HostConfig
-	container, err := p.client.CreateContainer(docker.CreateContainerOptions{
-		Config:     dockerConfig,
-		HostConfig: dockerHostConfig,
-	})
-	container.Config = dockerConfig
-	container.HostConfig = dockerHostConfig
+	container, err := p.client.ContainerCreate(ctx, dockerConfig, dockerHostConfig, nil, "")
 
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't create container")
-
-		if container != nil {
-			err := p.client.RemoveContainer(docker.RemoveContainerOptions{
-				ID:            container.ID,
+		err := p.client.ContainerRemove(ctx, container.ID,
+			dockertypes.ContainerRemoveOptions{
 				RemoveVolumes: true,
 				Force:         true,
 			})
-			if err != nil {
-				logger.WithField("err", err).Error("couldn't remove container after create failure")
-			}
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't remove container after create failure")
 		}
 
 		return nil, err
@@ -376,24 +396,22 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	startBooting := time.Now()
 
-	err = p.client.StartContainer(container.ID, dockerHostConfig)
+	err = p.client.ContainerStart(ctx, container.ID, dockertypes.ContainerStartOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	containerReady := make(chan *docker.Container)
+	containerReady := make(chan dockertypes.ContainerJSON)
 	errChan := make(chan error)
 	go func(id string) {
 		for {
-			container, err := p.client.InspectContainer(id)
-			container.Config = dockerConfig
-			container.HostConfig = dockerHostConfig
+			container, err := p.client.ContainerInspect(ctx, id)
 			if err != nil {
 				errChan <- err
 				return
 			}
 
-			if container.State.Running {
+			if container.State != nil && container.State.Running {
 				containerReady <- container
 				return
 			}
@@ -407,7 +425,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 			client:       p.client,
 			provider:     p,
 			runNative:    p.runNative,
-			container:    container,
+			container:    &container,
 			imageName:    imageName,
 			startBooting: startBooting,
 		}, nil
@@ -466,12 +484,13 @@ func (p *dockerProvider) checkinCPUSets(sets string) {
 	}
 }
 
-func (i *dockerInstance) sshConnection() (ssh.Connection, error) {
+func (i *dockerInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
 	var err error
-	i.container, err = i.client.InspectContainer(i.container.ID)
+	container, err := i.client.ContainerInspect(ctx, i.container.ID)
 	if err != nil {
 		return nil, err
 	}
+	i.container = &container
 
 	time.Sleep(2 * time.Second)
 
@@ -505,16 +524,12 @@ func (i *dockerInstance) uploadScriptNative(ctx gocontext.Context, script []byte
 		return err
 	}
 
-	uploadOpts := docker.UploadToContainerOptions{
-		InputStream: bytes.NewReader(tarBuf.Bytes()),
-		Path:        "/",
-	}
-
-	return i.client.UploadToContainer(i.container.ID, uploadOpts)
+	return i.client.CopyToContainer(ctx, i.container.ID, "/",
+		bytes.NewReader(tarBuf.Bytes()), dockertypes.CopyToContainerOptions{})
 }
 
 func (i *dockerInstance) uploadScriptSCP(ctx gocontext.Context, script []byte) error {
-	conn, err := i.sshConnection()
+	conn, err := i.sshConnection(ctx)
 	if err != nil {
 		return err
 	}
@@ -539,50 +554,49 @@ func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*Ru
 }
 
 func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_instance")
-	createExecOpts := docker.CreateExecOptions{
+	execConfig := dockertypes.ExecConfig{
 		AttachStdin:  false,
 		AttachStdout: true,
 		AttachStderr: true,
+		Detach:       false,
 		Tty:          true,
 		Cmd:          i.provider.execCmd,
 		User:         "travis",
-		Container:    i.container.ID,
 	}
-	exec, err := i.client.CreateExec(createExecOpts)
+	exec, err := i.client.ContainerExecCreate(ctx, i.container.ID, execConfig)
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
 
-	successChan := make(chan struct{})
-
-	startExecOpts := docker.StartExecOptions{
-		Detach:       false,
-		Success:      successChan,
-		Tty:          true,
-		OutputStream: output,
-		ErrorStream:  output,
-
-		// IMPORTANT!  If this is false, then
-		// github.com/docker/docker/pkg/stdcopy.StdCopy is used instead of io.Copy,
-		// which will result in busted behavior.
-		RawTerminal: true,
+	hijackedResponse, err := i.client.ContainerExecAttach(ctx, exec.ID, execConfig)
+	if err != nil {
+		return &RunResult{Completed: false}, err
 	}
 
+	defer hijackedResponse.Close()
+
+	tee := io.TeeReader(hijackedResponse.Reader, output)
+	firstByte := make(chan struct{})
 	go func() {
-		err := i.client.StartExec(exec.ID, startExecOpts)
-		if err != nil {
-			// not much to be done about it, though...
-			logger.WithField("err", err).Error("start exec error")
+		buf := make([]byte, 8192)
+		didFirstByte := false
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			n, _ := tee.Read(buf)
+			if n != 0 && !didFirstByte {
+				firstByte <- struct{}{}
+				didFirstByte = true
+			}
 		}
 	}()
 
-	<-successChan
-	logger.Debug("exec success; returning control to hijacked streams")
-	successChan <- struct{}{}
-
+	<-firstByte
 	for {
-		inspect, err := i.client.InspectExec(exec.ID)
+		inspect, err := i.client.ContainerExecInspect(ctx, exec.ID)
 		if err != nil {
 			return &RunResult{Completed: false}, err
 		}
@@ -591,12 +605,17 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 			return &RunResult{Completed: true, ExitCode: uint8(inspect.ExitCode)}, nil
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-time.After(500 * time.Millisecond):
+			continue
+		case <-ctx.Done():
+			return &RunResult{Completed: false}, ctx.Err()
+		}
 	}
 }
 
 func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	conn, err := i.sshConnection()
+	conn, err := i.sshConnection(ctx)
 	if err != nil {
 		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
 	}
@@ -608,16 +627,17 @@ func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (
 }
 
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {
-	defer i.provider.checkinCPUSets(i.container.Config.CPUSet)
+	defer i.provider.checkinCPUSets(i.container.HostConfig.Resources.CpusetCpus)
 
-	err := i.client.StopContainer(i.container.ID, 30)
+	timeout := 30 * time.Second
+	err := i.client.ContainerStop(ctx, i.container.ID, &timeout)
 	if err != nil {
 		return err
 	}
 
-	return i.client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:            i.container.ID,
+	return i.client.ContainerRemove(ctx, i.container.ID, dockertypes.ContainerRemoveOptions{
 		RemoveVolumes: true,
+		RemoveLinks:   true,
 		Force:         true,
 	})
 }
@@ -634,11 +654,15 @@ func (i *dockerInstance) StartupDuration() time.Duration {
 	if i.container == nil {
 		return zeroDuration
 	}
-	return i.startBooting.Sub(i.container.Created)
+	containerCreated, err := time.Parse(time.RFC3339Nano, i.container.Created)
+	if err != nil {
+		return zeroDuration
+	}
+	return i.startBooting.Sub(containerCreated)
 }
 
 func (s *dockerTagImageSelector) Select(params *image.Params) (string, error) {
-	images, err := s.client.ListImages(docker.ListImagesOptions{All: true})
+	images, err := s.client.ImageList(gocontext.TODO(), dockertypes.ImageListOptions{All: true})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list docker images")
 	}
@@ -653,7 +677,7 @@ func (s *dockerTagImageSelector) Select(params *image.Params) (string, error) {
 	return imageName, err
 }
 
-func findDockerImageByTag(searchTags []string, images []docker.APIImages) (string, string, error) {
+func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary) (string, string, error) {
 	for _, searchTag := range searchTags {
 		for _, image := range images {
 			if searchTag == image.ID {
