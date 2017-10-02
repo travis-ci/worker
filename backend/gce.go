@@ -112,7 +112,7 @@ EOF
 	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
 shutdown -s -t {{ .HardTimeoutSeconds }}
 $pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
-Set-LocalUser -Name travis -Password $pw }
+Set-LocalUser -Name travis -Password $pw
 `))
 
 	// FIXME: get rid of the need for this global goop
