@@ -295,7 +295,7 @@ func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *c
 	}
 }
 
-// dockerImageNameForID returns a human-readable name for the image with the requests ID.
+// dockerImageNameForID returns a human-readable name for the image with the requested ID.
 // Currently, we are using the tag that includes the stack-name (e.g "travisci/ci-garnet:packer-1505167479") and reverting back to the ID if nothing is found.
 func (p *dockerProvider) dockerImageNameForID(ctx gocontext.Context, imageID string) string {
 	images, err := p.client.ImageList(ctx, dockertypes.ImageListOptions{All: true})
