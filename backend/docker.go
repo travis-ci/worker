@@ -295,25 +295,22 @@ func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *c
 	}
 }
 
-func dockerImageIDNameFromSelection(selection string) (string, string) {
-	parts := strings.SplitN(strings.TrimSpace(selection), ";", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
-	}
-	return parts[0], parts[0]
-}
-
-func (p *dockerProvider) dockerImageIDFromName(ctx gocontext.Context, imageName string) string {
+// dockerImageNameForID returns a human-readable name for the image with the requests ID.
+// Currently, we are using the tag that includes the stack-name (e.g "travisci/ci-garnet:packer-1505167479") and reverting back to the ID if nothing is found.
+func (p *dockerProvider) dockerImageNameForID(ctx gocontext.Context, imageID string) string {
 	images, err := p.client.ImageList(ctx, dockertypes.ImageListOptions{All: true})
 	if err != nil {
-		return imageName
+		return imageID
 	}
-
-	imageID, _, err := findDockerImageByTag([]string{imageName}, images)
-	if err != nil {
-		return imageName
+	for _, image := range images {
+		if image.ID == imageID {
+			for _, tag := range image.RepoTags {
+				if strings.HasPrefix(tag, "travisci/ci-") {
+					return tag
+				}
+			}
+		}
 	}
-
 	return imageID
 }
 
@@ -328,7 +325,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
-		imageIDName, err := p.imageSelector.Select(&image.Params{
+		imageID, err := p.imageSelector.Select(&image.Params{
 			Language: startAttributes.Language,
 			Infra:    "docker",
 		})
@@ -336,16 +333,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 			logger.WithField("err", err).Error("couldn't select image")
 			return nil, err
 		}
-
-		if strings.Contains(imageIDName, ";") {
-			imageID, imageName = dockerImageIDNameFromSelection(imageIDName)
-		} else {
-			imageName = imageIDName
-		}
-	}
-
-	if imageID == "" {
-		imageID = p.dockerImageIDFromName(ctx, imageName)
+		imageName = p.dockerImageNameForID(ctx, imageID)
 	}
 
 	dockerConfig := &dockercontainer.Config{
@@ -667,17 +655,18 @@ func (s *dockerTagImageSelector) Select(params *image.Params) (string, error) {
 		return "", errors.Wrap(err, "failed to list docker images")
 	}
 
-	_, imageName, err := findDockerImageByTag([]string{
+	imageID, err := findDockerImageByTag([]string{
 		"travis:" + params.Language,
 		params.Language,
 		"travis:default",
 		"default",
 	}, images)
 
-	return imageName, err
+	return imageID, err
 }
 
-func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary) (string, string, error) {
+//findDockerImageByTag returns the ID of the image which matches the requested search tags
+func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary) (string, error) {
 	for _, searchTag := range searchTags {
 		for _, image := range images {
 			if searchTag == image.ID {
