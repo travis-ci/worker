@@ -681,15 +681,15 @@ func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary
 	for _, searchTag := range searchTags {
 		for _, image := range images {
 			if searchTag == image.ID {
-				return image.ID, searchTag, nil
+				return image.ID, nil
 			}
 			for _, tag := range image.RepoTags {
 				if tag == searchTag {
-					return image.ID, searchTag, nil
+					return image.ID, nil
 				}
 			}
 		}
 	}
 
-	return "", "", fmt.Errorf("failed to find matching docker image tag")
+	return "", fmt.Errorf("failed to find matching docker image tag")
 }
