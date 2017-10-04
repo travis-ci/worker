@@ -353,7 +353,11 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't checkout CPUSets")
+		logger.WithFields(logrus.Fields{
+			"err":            err,
+			"cpu_set_length": len(p.cpuSets),
+			"run_cpus":       p.runCPUs,
+		}).Error("couldn't checkout CPUSets")
 		return nil, err
 	}
 	logger.WithField("cpu_sets", cpuSets).Info("checked out")
