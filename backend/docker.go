@@ -711,5 +711,5 @@ func containerNameFromContext(ctx gocontext.Context) string {
 	}
 
 	repoName = strings.Replace(repoName, "/", "-", -1)
-	return fmt.Sprintf("travis-job-%s-%s", repoName, jobID)
+	return fmt.Sprintf("travis-job-%v-%v", repoName, jobID)
 }
