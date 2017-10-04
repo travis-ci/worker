@@ -131,7 +131,7 @@ func TestDockerProvider_Start(t *testing.T) {
 			}
 
 			if instance.ID() != "f2e475c:travisci/ci-amethyst:packer-1504724461" {
-				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
+				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travisci/ci-amethyst:packer-1504724461\"", instance.ID())
 			}
 		}()
 	}
@@ -205,7 +205,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 			}
 
 			if instance.ID() != "f2e475c:travisci/ci-amethyst:packer-1504724461" {
-				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
+				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travisci/ci-amethyst:packer-1504724461\"", instance.ID())
 			}
 		}()
 	}
