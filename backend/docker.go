@@ -325,7 +325,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
-		imageID, err := p.imageSelector.Select(&image.Params{
+		id, err := p.imageSelector.Select(&image.Params{
 			Language: startAttributes.Language,
 			Infra:    "docker",
 		})
@@ -333,6 +333,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 			logger.WithField("err", err).Error("couldn't select image")
 			return nil, err
 		}
+		imageID = id
 		imageName = p.dockerImageNameForID(ctx, imageID)
 	}
 
