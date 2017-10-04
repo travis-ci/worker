@@ -21,8 +21,8 @@ import (
 	docker "github.com/docker/docker/client"
 	"github.com/docker/go-connections/tlsconfig"
 	humanize "github.com/dustin/go-humanize"
-
 	"github.com/pborman/uuid"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
@@ -348,10 +348,12 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		imageID = p.dockerImageIDFromName(ctx, imageName)
 	}
 
+	containerName := containerNameFromContext(ctx)
+
 	dockerConfig := &dockercontainer.Config{
 		Cmd:      p.runCmd,
 		Image:    imageID,
-		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewRandom()),
+		Hostname: containerName,
 	}
 
 	dockerHostConfig := &dockercontainer.HostConfig{
@@ -379,13 +381,15 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		"host_config": fmt.Sprintf("%#v", dockerHostConfig),
 	}).Debug("creating container")
 
-	container, err := p.client.ContainerCreate(ctx, dockerConfig, dockerHostConfig, nil, "")
+	container, err := p.client.ContainerCreate(
+		ctx, dockerConfig, dockerHostConfig, nil, containerName)
 
 	if err != nil {
 		err := p.client.ContainerRemove(ctx, container.ID,
 			dockertypes.ContainerRemoveOptions{
-				RemoveVolumes: true,
 				Force:         true,
+				RemoveLinks:   false,
+				RemoveVolumes: true,
 			})
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't remove container after create failure")
@@ -692,4 +696,20 @@ func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary
 	}
 
 	return "", "", fmt.Errorf("failed to find matching docker image tag")
+}
+
+func containerNameFromContext(ctx gocontext.Context) string {
+	randName := fmt.Sprintf("travis-job-%s", uuid.NewRandom())
+	jobID, ok := context.JobIDFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	repoName, ok := context.RepositoryFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	repoName = strings.Replace(repoName, "/", "-", -1)
+	return fmt.Sprintf("travis-job-%s-%s", repoName, jobID)
 }
