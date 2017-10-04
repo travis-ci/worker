@@ -639,11 +639,12 @@ func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 		return err
 	}
 
-	return i.client.ContainerRemove(ctx, i.container.ID, dockertypes.ContainerRemoveOptions{
-		RemoveVolumes: true,
-		RemoveLinks:   true,
-		Force:         true,
-	})
+	return i.client.ContainerRemove(ctx, i.container.ID,
+		dockertypes.ContainerRemoveOptions{
+			Force:         true,
+			RemoveLinks:   false,
+			RemoveVolumes: true,
+		})
 }
 
 func (i *dockerInstance) ID() string {
