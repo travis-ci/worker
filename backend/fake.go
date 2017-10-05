@@ -11,6 +11,7 @@ import (
 func init() {
 	Register("fake", "Fake", map[string]string{
 		"LOG_OUTPUT": "faked log output to write",
+		"RUN_SLEEP":  "faked runtime sleep duration",
 	}, newFakeProvider)
 }
 
@@ -51,6 +52,14 @@ func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 }
 
 func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunResult, error) {
+	if i.p.cfg.IsSet("RUN_SLEEP") {
+		rs, err := time.ParseDuration(i.p.cfg.Get("RUN_SLEEP"))
+		if err != nil {
+			return &RunResult{Completed: false}, err
+		}
+		time.Sleep(rs)
+	}
+
 	_, err := writer.Write([]byte(i.p.cfg.Get("LOG_OUTPUT")))
 	if err != nil {
 		return &RunResult{Completed: false}, err
