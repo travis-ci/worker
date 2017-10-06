@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -21,8 +22,8 @@ import (
 	docker "github.com/docker/docker/client"
 	"github.com/docker/go-connections/tlsconfig"
 	humanize "github.com/dustin/go-humanize"
-
 	"github.com/pborman/uuid"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
@@ -62,6 +63,8 @@ var (
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\" or \"api\", default %q)", defaultDockerImageSelectorType),
 		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
 	}
+
+	containerNamePartDisallowed = regexp.MustCompile("[^a-zA-Z0-9_-]+")
 )
 
 func init() {
@@ -337,10 +340,12 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		imageName = p.dockerImageNameForID(ctx, imageID)
 	}
 
+	containerName := containerNameFromContext(ctx)
+
 	dockerConfig := &dockercontainer.Config{
 		Cmd:      p.runCmd,
 		Image:    imageID,
-		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewRandom()),
+		Hostname: strings.ToLower(fmt.Sprintf("%s.travisci.net", containerName)),
 	}
 
 	dockerHostConfig := &dockercontainer.HostConfig{
@@ -372,13 +377,15 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		"host_config": fmt.Sprintf("%#v", dockerHostConfig),
 	}).Debug("creating container")
 
-	container, err := p.client.ContainerCreate(ctx, dockerConfig, dockerHostConfig, nil, "")
+	container, err := p.client.ContainerCreate(
+		ctx, dockerConfig, dockerHostConfig, nil, containerName)
 
 	if err != nil {
 		err := p.client.ContainerRemove(ctx, container.ID,
 			dockertypes.ContainerRemoveOptions{
-				RemoveVolumes: true,
 				Force:         true,
+				RemoveLinks:   false,
+				RemoveVolumes: true,
 			})
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't remove container after create failure")
@@ -628,11 +635,12 @@ func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 		return err
 	}
 
-	return i.client.ContainerRemove(ctx, i.container.ID, dockertypes.ContainerRemoveOptions{
-		RemoveVolumes: true,
-		RemoveLinks:   true,
-		Force:         true,
-	})
+	return i.client.ContainerRemove(ctx, i.container.ID,
+		dockertypes.ContainerRemoveOptions{
+			Force:         true,
+			RemoveLinks:   false,
+			RemoveVolumes: true,
+		})
 }
 
 func (i *dockerInstance) ID() string {
@@ -686,4 +694,23 @@ func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary
 	}
 
 	return "", fmt.Errorf("failed to find matching docker image tag")
+}
+
+func containerNameFromContext(ctx gocontext.Context) string {
+	randName := fmt.Sprintf("travis-job.unk.unk.%s", uuid.NewRandom())
+	jobID, ok := context.JobIDFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	repoName, ok := context.RepositoryFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	repoParts := strings.Split(repoName, "/")
+	return fmt.Sprintf("travis-job.%v.%v.%v",
+		containerNamePartDisallowed.ReplaceAllString(repoParts[0], "-"),
+		containerNamePartDisallowed.ReplaceAllString(repoParts[1], "-"),
+		jobID)
 }
