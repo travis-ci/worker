@@ -121,6 +121,7 @@ main() {
   __install_travis_worker
   __configure_travis_worker
   __configure_grub
+  __configure_cron
 
   start travis-worker
 
@@ -300,6 +301,57 @@ __configure_grub() {
   fi
 
   update-grub
+}
+
+# shellcheck disable=SC2154
+# (variables assigned in heredoc are detected as unreferenced)
+__configure_cron() {
+  cat <<EOF >/etc/cron.hourly/kick-docker
+#!/bin/bash
+
+# Sometimes, the docker service will be running, but certain commands (docker ps) will hang indefinitely.
+docker ps  > /dev/null 2>&1 &
+sleep 3
+
+# If 'docker ps' is still running after 3 seconds, assume it should be restarted
+docker_ps_pid=$(jobs -l | grep -v Done | grep "docker ps" | awk '{printf $2}')
+
+if [ ! -z "${docker_ps_pid}" ]; then
+  echo "[NOK] $my_ip 'docker ps' is stalled; 'docker ps' PID is ${docker_ps_pid}"
+  restart docker
+  exit 1
+fi
+echo " [OK] 'docker ps'"
+EOF
+
+  cat <<EOF >/etc/cron.hourly/kick-travis-worker-services
+#!/bin/bash
+
+# Check the status of required services
+services="
+  travis-worker
+  docker
+"
+
+for service in $services; do
+  echo "Checking $service service status..."
+  status_cmd="status $service"
+  expected_result="running"
+
+  service_status=$(eval "$status_cmd")
+  service_ok=$(echo "${service_status}" | grep "$expected_result")
+
+  if [ -z "${service_ok}" ]; then
+    echo "[NOK] $my_ip $service. status is: ${service_status}"
+    echo "running 'restart ${service}' on ${my_ip}"
+    restart ${service}
+    exit 1
+  fi
+  echo " [OK] $service"
+done
+EOF
+  chmod +x /etc/cron.hourly/kick-docker
+  chmod +x /etc/cron.hourly/kick-travis-worker-services
 }
 
 main "$@"
