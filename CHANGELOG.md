@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.1.0] - 2017-10-06
+
+_TODO_
+
 ## [3.0.2] - 2017-09-12
 
 ### Fixed
@@ -555,7 +559,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.0.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/travis-ci/worker/compare/v3.0.2...v3.1.0
 [3.0.2]: https://github.com/travis-ci/worker/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/travis-ci/worker/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/travis-ci/worker/compare/v2.11.0...v3.0.0
