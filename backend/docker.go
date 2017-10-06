@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -62,6 +63,8 @@ var (
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\" or \"api\", default %q)", defaultDockerImageSelectorType),
 		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
 	}
+
+	containerNamePartDisallowed = regexp.MustCompile("[^a-zA-Z0-9_-]+")
 )
 
 func init() {
@@ -342,7 +345,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	dockerConfig := &dockercontainer.Config{
 		Cmd:      p.runCmd,
 		Image:    imageID,
-		Hostname: containerName,
+		Hostname: strings.ToLower(fmt.Sprintf("%s.travisci.net", containerName)),
 	}
 
 	dockerHostConfig := &dockercontainer.HostConfig{
@@ -694,7 +697,7 @@ func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary
 }
 
 func containerNameFromContext(ctx gocontext.Context) string {
-	randName := fmt.Sprintf("travis-job-%s", uuid.NewRandom())
+	randName := fmt.Sprintf("travis-job.unk.unk.%s", uuid.NewRandom())
 	jobID, ok := context.JobIDFromContext(ctx)
 	if !ok {
 		return randName
@@ -705,6 +708,9 @@ func containerNameFromContext(ctx gocontext.Context) string {
 		return randName
 	}
 
-	repoName = strings.Replace(repoName, "/", "-", -1)
-	return fmt.Sprintf("travis-job-%v-%v", repoName, jobID)
+	repoParts := strings.Split(repoName, "/")
+	return fmt.Sprintf("travis-job.%v.%v.%v",
+		containerNamePartDisallowed.ReplaceAllString(repoParts[0], "-"),
+		containerNamePartDisallowed.ReplaceAllString(repoParts[1], "-"),
+		jobID)
 }

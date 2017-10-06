@@ -3,9 +3,10 @@ package backend
 import (
 	"archive/tar"
 	"bytes"
-	"context"
+	gocontext "context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
+	"github.com/travis-ci/worker/context"
 )
 
 var (
@@ -121,7 +123,7 @@ func TestDockerProvider_Start(t *testing.T) {
 				w.WriteHeader(400)
 			})
 
-			instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{
+			instance, err := dockerTestProvider.Start(gocontext.TODO(), &StartAttributes{
 				Language: "jvm",
 				Group:    "",
 			})
@@ -199,7 +201,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 				w.WriteHeader(400)
 			})
 
-			instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{Language: "jvm", Group: ""})
+			instance, err := dockerTestProvider.Start(gocontext.TODO(), &StartAttributes{Language: "jvm", Group: ""})
 			if err != nil {
 				t.Errorf("provider.Start() returned error: %v", err)
 			}
@@ -381,7 +383,7 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 			t.Logf("got: %s %s", req.Method, req.URL.Path)
 		})
 
-		err = instance.UploadScript(context.TODO(), script)
+		err = instance.UploadScript(gocontext.TODO(), script)
 		assert.Nil(t, err)
 		assert.True(t, scriptUploaded)
 	}
@@ -458,7 +460,7 @@ func TestDockerInstance_RunScript_WithNative(t *testing.T) {
 			w.WriteHeader(http.StatusNotImplemented)
 		})
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := gocontext.WithTimeout(gocontext.Background(), 5*time.Second)
 		defer cancel()
 		res, err := instance.RunScript(ctx, writer)
 		assert.NotNil(t, res)
@@ -520,7 +522,7 @@ func TestDockerInstance_Stop(t *testing.T) {
 			t.Logf("got: %s %s", req.Method, req.URL.Path)
 		})
 
-		err = instance.Stop(context.TODO())
+		err = instance.Stop(gocontext.TODO())
 		assert.Nil(t, err)
 		assert.True(t, wasDeleted)
 	}
@@ -579,4 +581,28 @@ func TestDockerInstance_ID(t *testing.T) {
 
 	instance.container = nil
 	assert.Equal(t, "{unidentified}", instance.ID())
+}
+
+func TestDocker_containerNameFromContext(t *testing.T) {
+	jobID := rand.Uint64()
+
+	for _, tc := range []struct{ r, n string }{
+		{
+			r: "friendly/fribble",
+			n: fmt.Sprintf("travis-job.friendly.fribble.%v", jobID),
+		},
+		{
+			r: "very-SiLlY.nAmE.wat/por-cu-pine",
+			n: fmt.Sprintf("travis-job.very-SiLlY-nAmE-wat.por-cu-pine.%v", jobID),
+		},
+	} {
+		ctx := context.FromRepository(context.FromJobID(gocontext.TODO(), jobID), tc.r)
+		assert.Equal(t, tc.n, containerNameFromContext(ctx))
+	}
+
+	randName := containerNameFromContext(gocontext.TODO())
+	randParts := strings.Split(randName, ".")
+	assert.Len(t, randParts, 4)
+	assert.Equal(t, "unk", randParts[1])
+	assert.Equal(t, "unk", randParts[2])
 }
