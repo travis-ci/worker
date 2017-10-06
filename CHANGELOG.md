@@ -17,7 +17,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [3.1.0] - 2017-10-06
 
-_TODO_
+### Changed
+- backend/docker:
+    - switch to official client library
+    - display original image tag instead of language alias in log output
+    - set container name based on repo and job ID
+- cli: increase log level to "warn" for messages about receiving certain
+  signals.
+- processor: use the processor context when sending "Finish" state update
+
+### Fixed
+- backend/docker: do not remove links on container removal
 
 ## [3.0.2] - 2017-09-12
 
