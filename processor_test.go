@@ -116,10 +116,10 @@ func TestProcessor(t *testing.T) {
 		}
 
 		if tc.isCancelled {
-			go func() {
-				time.Sleep(tc.runSleep - 1)
-				cancellationBroadcaster.Broadcast(jobID)
-			}()
+			go func(sl time.Duration, i uint64) {
+				time.Sleep(sl)
+				cancellationBroadcaster.Broadcast(i)
+			}(tc.runSleep-1, jobID)
 		}
 
 		jobChan <- job
