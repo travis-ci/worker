@@ -343,9 +343,10 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	containerName := containerNameFromContext(ctx)
 
 	dockerConfig := &dockercontainer.Config{
-		Cmd:      p.runCmd,
-		Image:    imageID,
-		Hostname: strings.ToLower(fmt.Sprintf("%s.travisci.net", containerName)),
+		Cmd:        p.runCmd,
+		Image:      imageID,
+		Hostname:   strings.ToLower(containerName),
+		Domainname: "travisci.net",
 	}
 
 	dockerHostConfig := &dockercontainer.HostConfig{
@@ -708,9 +709,20 @@ func containerNameFromContext(ctx gocontext.Context) string {
 		return randName
 	}
 
-	repoParts := strings.Split(repoName, "/")
-	return fmt.Sprintf("travis-job.%v.%v.%v",
-		containerNamePartDisallowed.ReplaceAllString(repoParts[0], "-"),
-		containerNamePartDisallowed.ReplaceAllString(repoParts[1], "-"),
-		jobID)
+	nameParts := []string{"travis-job"}
+	for _, part := range strings.Split(repoName, "/") {
+		cleanedPart := containerNamePartDisallowed.ReplaceAllString(part, "-")
+		// NOTE: the part limit of 14 is meant to ensure a maximum hostname of
+		// 64 characters, given:
+		// travis-job.{part}.{part}.{job-id}.travisci.net
+		// ^---11----^^--15-^^--15-^^--11---^^---12-----^
+		// therefore:
+		// 11 + 15 + 15 + 11 + 12 = 64
+		if len(cleanedPart) > 14 {
+			cleanedPart = cleanedPart[0:14]
+		}
+		nameParts = append(nameParts, cleanedPart)
+	}
+
+	return strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), ".")
 }
