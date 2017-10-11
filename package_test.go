@@ -7,6 +7,7 @@ import (
 	gocontext "context"
 
 	simplejson "github.com/bitly/go-simplejson"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 )
@@ -41,6 +42,8 @@ type fakeJob struct {
 	startAttributes *backend.StartAttributes
 
 	events []string
+
+	hasBrokenLogWriter bool
 }
 
 func (fj *fakeJob) Payload() *JobPayload {
@@ -55,48 +58,84 @@ func (fj *fakeJob) StartAttributes() *backend.StartAttributes {
 	return fj.startAttributes
 }
 
-func (fj *fakeJob) Received(_ gocontext.Context) error {
+func (fj *fakeJob) Received(ctx gocontext.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	fj.events = append(fj.events, "received")
 	return nil
 }
 
-func (fj *fakeJob) Started(_ gocontext.Context) error {
+func (fj *fakeJob) Started(ctx gocontext.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	fj.events = append(fj.events, "started")
 	return nil
 }
 
 func (fj *fakeJob) Error(ctx gocontext.Context, msg string) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	fj.events = append(fj.events, "errored")
 	return nil
 }
 
 func (fj *fakeJob) Requeue(ctx gocontext.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	fj.events = append(fj.events, "requeued")
 	return nil
 }
 
 func (fj *fakeJob) Finish(ctx gocontext.Context, state FinishState) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
 	fj.events = append(fj.events, string(state))
 	return nil
 }
 
-func (fj *fakeJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
-	return &fakeLogWriter{}, nil
+func (fj *fakeJob) LogWriter(_ gocontext.Context, _ time.Duration) (LogWriter, error) {
+	return &fakeLogWriter{broken: fj.hasBrokenLogWriter}, nil
 }
 
 func (fj *fakeJob) Name() string { return "fake" }
 
-type fakeLogWriter struct{}
+type fakeLogWriter struct {
+	broken bool
+}
 
-func (flw *fakeLogWriter) Write(p []byte) (int, error) {
+func (flw *fakeLogWriter) Write(_ []byte) (int, error) {
+	if flw.broken {
+		return 0, errors.New("failed to write")
+	}
 	return 0, nil
 }
 
 func (flw *fakeLogWriter) Close() error {
+	if flw.broken {
+		return errors.New("failed to close")
+	}
 	return nil
 }
 
-func (flw *fakeLogWriter) WriteAndClose(p []byte) (int, error) {
+func (flw *fakeLogWriter) WriteAndClose(_ []byte) (int, error) {
+	if flw.broken {
+		return 0, errors.New("failed to write and close")
+	}
 	return 0, nil
 }
 
@@ -104,4 +143,4 @@ func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 	return make(chan time.Time)
 }
 
-func (flw *fakeLogWriter) SetMaxLogLength(l int) {}
+func (flw *fakeLogWriter) SetMaxLogLength(_ int) {}

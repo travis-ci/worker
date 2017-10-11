@@ -20,6 +20,7 @@ type stepStartInstance struct {
 
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
+	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 
@@ -40,7 +41,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			logWriter := state.Get("logWriter").(LogWriter)
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
 
-			err = buildJob.Finish(ctx, FinishStateErrored)
+			err = buildJob.Finish(procCtx, FinishStateErrored)
 			if err != nil {
 				logger.WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
 			}
