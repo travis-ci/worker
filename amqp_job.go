@@ -124,13 +124,18 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
 }
 
-func (j *amqpJob) createStateUpdateBody(state string) map[string]interface{} {
+func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
+
 	body := map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": state,
 		"meta": map[string]interface{}{
 			"state_update_count": j.stateCount,
 		},
+	}
+
+	if instanceID, ok := context.InstanceIDFromContext(ctx); ok {
+		body["meta"].(map[string]interface{})["instance_id"] = instanceID
 	}
 
 	if j.Payload().Job.QueuedAt != nil {
@@ -163,7 +168,7 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	defer amqpChan.Close()
 
 	j.stateCount++
-	body := j.createStateUpdateBody(state)
+	body := j.createStateUpdateBody(ctx, state)
 
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {

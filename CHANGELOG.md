@@ -39,6 +39,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
   colon-paired values in `TRAVIS_WORKER_DOCKER_BINDS`
 - http-job-queue: configurable new job polling interval
 - http-job: configurable job refresh claim interval
+- amqp-job: include instance name in state update sent to hub
 
 ### Changed
 - backend/gce: add site tag to job vms

@@ -13,7 +13,11 @@ type stepUpdateState struct{}
 
 func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
+	instance := state.Get("instance").(backend.Instance)
+	instanceID := instance.ID()
+
 	ctx := state.Get("ctx").(gocontext.Context)
+	ctx = context.FromInstanceID(ctx, instanceID)
 
 	err := buildJob.Started(ctx)
 	if err != nil {
