@@ -3,9 +3,10 @@ package backend
 import (
 	"archive/tar"
 	"bytes"
-	"context"
+	gocontext "context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
+	"github.com/travis-ci/worker/context"
 )
 
 var (
@@ -75,9 +77,9 @@ func TestDockerProvider_Start(t *testing.T) {
 			containerID := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
 
 			imagesList := `[
-			{"Created":1423149832,"Id":"fc24f3225c15b08f8d9f70c1f7148d7fcbf4b41c3acce4b7da25af9371b90501","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-ruby:latest","travis:ruby","travis:default"],"Size":729301088,"VirtualSize":4808391658},
-			{"Created":1423149832,"Id":"08a0d98600afe9d0ca4ca509b1829868cea39dcc75dea1f8dde0dc6325389b45","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-go:latest","travis:go"],"Size":729301088,"VirtualSize":4808391658},
-			{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-jvm:latest","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
+			{"Created":1423149832,"Id":"fc24f3225c15b08f8d9f70c1f7148d7fcbf4b41c3acce4b7da25af9371b90501","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-garnet:packer-1505167479","travis:ruby","travis:default"],"Size":729301088,"VirtualSize":4808391658},
+			{"Created":1423149832,"Id":"08a0d98600afe9d0ca4ca509b1829868cea39dcc75dea1f8dde0dc6325389b45","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-garnet:packer-1505167479","travis:go"],"Size":729301088,"VirtualSize":4808391658},
+			{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-amethyst:packer-1504724461","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
 		]`
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/images/json", dockerAPIVersion), func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintf(w, imagesList)
@@ -121,7 +123,7 @@ func TestDockerProvider_Start(t *testing.T) {
 				w.WriteHeader(400)
 			})
 
-			instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{
+			instance, err := dockerTestProvider.Start(gocontext.TODO(), &StartAttributes{
 				Language: "jvm",
 				Group:    "",
 			})
@@ -130,8 +132,8 @@ func TestDockerProvider_Start(t *testing.T) {
 				t.Errorf("provider.Start() returned error: %v", err)
 			}
 
-			if instance.ID() != "f2e475c:travis:jvm" {
-				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
+			if instance.ID() != "f2e475c:travisci/ci-amethyst:packer-1504724461" {
+				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travisci/ci-amethyst:packer-1504724461\"", instance.ID())
 			}
 		}()
 	}
@@ -150,9 +152,9 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 			containerID := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
 
 			imagesList := `[
-		{"Created":1423149832,"Id":"fc24f3225c15b08f8d9f70c1f7148d7fcbf4b41c3acce4b7da25af9371b90501","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-ruby:latest","travis:ruby","travis:default"],"Size":729301088,"VirtualSize":4808391658},
-		{"Created":1423149832,"Id":"08a0d98600afe9d0ca4ca509b1829868cea39dcc75dea1f8dde0dc6325389b45","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-go:latest","travis:go"],"Size":729301088,"VirtualSize":4808391658},
-		{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["quay.io/travisci/travis-jvm:latest","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
+		{"Created":1423149832,"Id":"fc24f3225c15b08f8d9f70c1f7148d7fcbf4b41c3acce4b7da25af9371b90501","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-garnet:packer-1505167479","travis:ruby","travis:default"],"Size":729301088,"VirtualSize":4808391658},
+			{"Created":1423149832,"Id":"08a0d98600afe9d0ca4ca509b1829868cea39dcc75dea1f8dde0dc6325389b45","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-garnet:packer-1505167479","travis:go"],"Size":729301088,"VirtualSize":4808391658},
+			{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-amethyst:packer-1504724461","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
 	]`
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/images/json", dockerAPIVersion), func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintf(w, imagesList)
@@ -199,13 +201,13 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 				w.WriteHeader(400)
 			})
 
-			instance, err := dockerTestProvider.Start(context.TODO(), &StartAttributes{Language: "jvm", Group: ""})
+			instance, err := dockerTestProvider.Start(gocontext.TODO(), &StartAttributes{Language: "jvm", Group: ""})
 			if err != nil {
 				t.Errorf("provider.Start() returned error: %v", err)
 			}
 
-			if instance.ID() != "f2e475c:travis:jvm" {
-				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travis:jvm\"", instance.ID())
+			if instance.ID() != "f2e475c:travisci/ci-amethyst:packer-1504724461" {
+				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travisci/ci-amethyst:packer-1504724461\"", instance.ID())
 			}
 		}()
 	}
@@ -381,7 +383,7 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 			t.Logf("got: %s %s", req.Method, req.URL.Path)
 		})
 
-		err = instance.UploadScript(context.TODO(), script)
+		err = instance.UploadScript(gocontext.TODO(), script)
 		assert.Nil(t, err)
 		assert.True(t, scriptUploaded)
 	}
@@ -458,7 +460,7 @@ func TestDockerInstance_RunScript_WithNative(t *testing.T) {
 			w.WriteHeader(http.StatusNotImplemented)
 		})
 
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := gocontext.WithTimeout(gocontext.Background(), 5*time.Second)
 		defer cancel()
 		res, err := instance.RunScript(ctx, writer)
 		assert.NotNil(t, res)
@@ -520,7 +522,7 @@ func TestDockerInstance_Stop(t *testing.T) {
 			t.Logf("got: %s %s", req.Method, req.URL.Path)
 		})
 
-		err = instance.Stop(context.TODO())
+		err = instance.Stop(gocontext.TODO())
 		assert.Nil(t, err)
 		assert.True(t, wasDeleted)
 	}
@@ -579,4 +581,28 @@ func TestDockerInstance_ID(t *testing.T) {
 
 	instance.container = nil
 	assert.Equal(t, "{unidentified}", instance.ID())
+}
+
+func TestDocker_containerNameFromContext(t *testing.T) {
+	jobID := rand.Uint64()
+
+	for _, tc := range []struct{ r, n string }{
+		{
+			r: "friendly/fribble",
+			n: fmt.Sprintf("travis-job.friendly.fribble.%v", jobID),
+		},
+		{
+			r: "very-SiLlY.nAmE.wat/por-cu-pine",
+			n: fmt.Sprintf("travis-job.very-SiLlY-nAm.por-cu-pine.%v", jobID),
+		},
+	} {
+		ctx := context.FromRepository(context.FromJobID(gocontext.TODO(), jobID), tc.r)
+		assert.Equal(t, tc.n, containerNameFromContext(ctx))
+	}
+
+	randName := containerNameFromContext(gocontext.TODO())
+	randParts := strings.Split(randName, ".")
+	assert.Len(t, randParts, 4)
+	assert.Equal(t, "unk", randParts[1])
+	assert.Equal(t, "unk", randParts[2])
 }

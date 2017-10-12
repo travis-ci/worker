@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -21,8 +22,8 @@ import (
 	docker "github.com/docker/docker/client"
 	"github.com/docker/go-connections/tlsconfig"
 	humanize "github.com/dustin/go-humanize"
-
 	"github.com/pborman/uuid"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
@@ -61,7 +62,10 @@ var (
 		"SSH_DIAL_TIMEOUT":    fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\" or \"api\", default %q)", defaultDockerImageSelectorType),
 		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
+		"BINDS":               "Bind mount a volume (example: \"/var/run/docker.sock:/var/run/docker.sock\", default \"\")",
 	}
+
+	containerNamePartDisallowed = regexp.MustCompile("[^a-zA-Z0-9_-]+")
 )
 
 func init() {
@@ -85,6 +89,7 @@ type dockerProvider struct {
 
 	runPrivileged bool
 	runCmd        []string
+	runBinds      []string
 	runMemory     uint64
 	runShm        uint64
 	runCPUs       int
@@ -164,6 +169,11 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
 	}
 
+	binds := []string{}
+	if cfg.IsSet("BINDS") {
+		binds = strings.Split(cfg.Get("BINDS"), " ")
+	}
+
 	tmpFs := str2map(cfg.Get("TMPFS_MAP"))
 	if len(tmpFs) == 0 {
 		tmpFs = defaultTmpfsMap
@@ -224,6 +234,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		runPrivileged: privileged,
 		runCmd:        cmd,
+		runBinds:      binds,
 		runMemory:     memory,
 		runShm:        shm,
 		runCPUs:       int(cpus),
@@ -295,25 +306,22 @@ func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *c
 	}
 }
 
-func dockerImageIDNameFromSelection(selection string) (string, string) {
-	parts := strings.SplitN(strings.TrimSpace(selection), ";", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
-	}
-	return parts[0], parts[0]
-}
-
-func (p *dockerProvider) dockerImageIDFromName(ctx gocontext.Context, imageName string) string {
+// dockerImageNameForID returns a human-readable name for the image with the requested ID.
+// Currently, we are using the tag that includes the stack-name (e.g "travisci/ci-garnet:packer-1505167479") and reverting back to the ID if nothing is found.
+func (p *dockerProvider) dockerImageNameForID(ctx gocontext.Context, imageID string) string {
 	images, err := p.client.ImageList(ctx, dockertypes.ImageListOptions{All: true})
 	if err != nil {
-		return imageName
+		return imageID
 	}
-
-	imageID, _, err := findDockerImageByTag([]string{imageName}, images)
-	if err != nil {
-		return imageName
+	for _, image := range images {
+		if image.ID == imageID {
+			for _, tag := range image.RepoTags {
+				if strings.HasPrefix(tag, "travisci/ci-") {
+					return tag
+				}
+			}
+		}
 	}
-
 	return imageID
 }
 
@@ -328,7 +336,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
-		imageIDName, err := p.imageSelector.Select(&image.Params{
+		selectedImageID, err := p.imageSelector.Select(&image.Params{
 			Language: startAttributes.Language,
 			Infra:    "docker",
 		})
@@ -336,25 +344,21 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 			logger.WithField("err", err).Error("couldn't select image")
 			return nil, err
 		}
-
-		if strings.Contains(imageIDName, ";") {
-			imageID, imageName = dockerImageIDNameFromSelection(imageIDName)
-		} else {
-			imageName = imageIDName
-		}
+		imageID = selectedImageID
+		imageName = p.dockerImageNameForID(ctx, imageID)
 	}
 
-	if imageID == "" {
-		imageID = p.dockerImageIDFromName(ctx, imageName)
-	}
+	containerName := containerNameFromContext(ctx)
 
 	dockerConfig := &dockercontainer.Config{
-		Cmd:      p.runCmd,
-		Image:    imageID,
-		Hostname: fmt.Sprintf("testing-docker-%s", uuid.NewRandom()),
+		Cmd:        p.runCmd,
+		Image:      imageID,
+		Hostname:   strings.ToLower(containerName),
+		Domainname: "travisci.net",
 	}
 
 	dockerHostConfig := &dockercontainer.HostConfig{
+		Binds:      p.runBinds,
 		Privileged: p.runPrivileged,
 		Tmpfs:      p.tmpFs,
 		ShmSize:    int64(p.runShm),
@@ -365,7 +369,11 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	cpuSets, err := p.checkoutCPUSets()
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't checkout CPUSets")
+		logger.WithFields(logrus.Fields{
+			"err":            err,
+			"cpu_set_length": len(p.cpuSets),
+			"run_cpus":       p.runCPUs,
+		}).Error("couldn't checkout CPUSets")
 		return nil, err
 	}
 	logger.WithField("cpu_sets", cpuSets).Info("checked out")
@@ -379,13 +387,15 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		"host_config": fmt.Sprintf("%#v", dockerHostConfig),
 	}).Debug("creating container")
 
-	container, err := p.client.ContainerCreate(ctx, dockerConfig, dockerHostConfig, nil, "")
+	container, err := p.client.ContainerCreate(
+		ctx, dockerConfig, dockerHostConfig, nil, containerName)
 
 	if err != nil {
 		err := p.client.ContainerRemove(ctx, container.ID,
 			dockertypes.ContainerRemoveOptions{
-				RemoveVolumes: true,
 				Force:         true,
+				RemoveLinks:   false,
+				RemoveVolumes: true,
 			})
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't remove container after create failure")
@@ -635,11 +645,12 @@ func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 		return err
 	}
 
-	return i.client.ContainerRemove(ctx, i.container.ID, dockertypes.ContainerRemoveOptions{
-		RemoveVolumes: true,
-		RemoveLinks:   true,
-		Force:         true,
-	})
+	return i.client.ContainerRemove(ctx, i.container.ID,
+		dockertypes.ContainerRemoveOptions{
+			Force:         true,
+			RemoveLinks:   false,
+			RemoveVolumes: true,
+		})
 }
 
 func (i *dockerInstance) ID() string {
@@ -667,29 +678,60 @@ func (s *dockerTagImageSelector) Select(params *image.Params) (string, error) {
 		return "", errors.Wrap(err, "failed to list docker images")
 	}
 
-	_, imageName, err := findDockerImageByTag([]string{
+	imageID, err := findDockerImageByTag([]string{
 		"travis:" + params.Language,
 		params.Language,
 		"travis:default",
 		"default",
 	}, images)
 
-	return imageName, err
+	return imageID, err
 }
 
-func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary) (string, string, error) {
+//findDockerImageByTag returns the ID of the image which matches the requested search tags
+func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary) (string, error) {
 	for _, searchTag := range searchTags {
 		for _, image := range images {
 			if searchTag == image.ID {
-				return image.ID, searchTag, nil
+				return image.ID, nil
 			}
 			for _, tag := range image.RepoTags {
 				if tag == searchTag {
-					return image.ID, searchTag, nil
+					return image.ID, nil
 				}
 			}
 		}
 	}
 
-	return "", "", fmt.Errorf("failed to find matching docker image tag")
+	return "", fmt.Errorf("failed to find matching docker image tag")
+}
+
+func containerNameFromContext(ctx gocontext.Context) string {
+	randName := fmt.Sprintf("travis-job.unk.unk.%s", uuid.NewRandom())
+	jobID, ok := context.JobIDFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	repoName, ok := context.RepositoryFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	nameParts := []string{"travis-job"}
+	for _, part := range strings.Split(repoName, "/") {
+		cleanedPart := containerNamePartDisallowed.ReplaceAllString(part, "-")
+		// NOTE: the part limit of 14 is meant to ensure a maximum hostname of
+		// 64 characters, given:
+		// travis-job.{part}.{part}.{job-id}.travisci.net
+		// ^---11----^^--15-^^--15-^^--11---^^---12-----^
+		// therefore:
+		// 11 + 15 + 15 + 11 + 12 = 64
+		if len(cleanedPart) > 14 {
+			cleanedPart = cleanedPart[0:14]
+		}
+		nameParts = append(nameParts, cleanedPart)
+	}
+
+	return strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), ".")
 }
