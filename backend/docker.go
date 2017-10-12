@@ -62,6 +62,7 @@ var (
 		"SSH_DIAL_TIMEOUT":    fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\" or \"api\", default %q)", defaultDockerImageSelectorType),
 		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
+		"BINDS":               "Bind mount a volume (example: \"/var/run/docker.sock:/var/run/docker.sock\", default \"\")",
 	}
 
 	containerNamePartDisallowed = regexp.MustCompile("[^a-zA-Z0-9_-]+")
@@ -88,6 +89,7 @@ type dockerProvider struct {
 
 	runPrivileged bool
 	runCmd        []string
+	runBinds      []string
 	runMemory     uint64
 	runShm        uint64
 	runCPUs       int
@@ -167,6 +169,11 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
 	}
 
+	binds := []string{}
+	if cfg.IsSet("BINDS") {
+		binds = strings.Split(cfg.Get("BINDS"), " ")
+	}
+
 	tmpFs := str2map(cfg.Get("TMPFS_MAP"))
 	if len(tmpFs) == 0 {
 		tmpFs = defaultTmpfsMap
@@ -227,6 +234,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		runPrivileged: privileged,
 		runCmd:        cmd,
+		runBinds:      binds,
 		runMemory:     memory,
 		runShm:        shm,
 		runCPUs:       int(cpus),
@@ -350,6 +358,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}
 
 	dockerHostConfig := &dockercontainer.HostConfig{
+		Binds:      p.runBinds,
 		Privileged: p.runPrivileged,
 		Tmpfs:      p.tmpFs,
 		ShmSize:    int64(p.runShm),
