@@ -11,7 +11,6 @@ import (
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -343,8 +342,8 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	site := "none"
-	if os.Getenv("TRAVIS_WORKER_TRAVIS_SITE") != "" {
-		site = os.Getenv("TRAVIS_WORKER_TRAVIS_SITE")
+	if cfg.IsSet("TRAVIS_SITE") {
+		site = cfg.Get("TRAVIS_SITE")
 	}
 
 	uploadRetries := defaultGCEUploadRetries
