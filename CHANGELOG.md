@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- backend/gce:
+    - add site tag to job vms
 
 ### Deprecated
 
