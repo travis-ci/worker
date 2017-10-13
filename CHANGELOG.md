@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
 ### Added
+- backend/docker: support for bind-mounted volumes via space-delimited,
+  colon-paired values in `TRAVIS_WORKER_DOCKER_BINDS`
 
 ### Changed
 - backend/gce:
@@ -162,9 +164,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [2.7.0] - 2017-02-08
 ### Added
 - backend: add "SSH dial timeout" to all backends, with a default of 5 seconds, configurable with `SSH_DIAL_TIMEOUT` backend setting
-- backend/docker: make the command to run the build script configurable with `BACKEND_DOCKER_EXEC_CMD` env var, default to `bash /home/travis/build.sh`
-- backend/gce: make it configurable whether to give a booted instance a "public" IP with `BACKEND_GCE_PUBLIC_IP`, defaults to `true`
-- backend/gce: make it configurable whether to connect to an instance's "public" IP with `BACKEND_GCE_PUBLIC_IP_CONNECT`, defaults to `true`
+- backend/docker: make the command to run the build script configurable with `TRAVIS_WORKER_DOCKER_EXEC_CMD` env var, default to `bash /home/travis/build.sh`
+- backend/gce: make it configurable whether to give a booted instance a "public" IP with `TRAVIS_WORKER_GCE_PUBLIC_IP`, defaults to `true`
+- backend/gce: make it configurable whether to connect to an instance's "public" IP with `TRAVIS_WORKER_GCE_PUBLIC_IP_CONNECT`, defaults to `true`
 - log when a job is finished, including its "finishing state" (passed, failed, errored, etc.)
 - log when a job is requeued
 
