@@ -154,8 +154,16 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 		}).Info("sent job to output channel")
 		return true, readyChan
 	case <-ctx.Done():
-		// best-effort delete with a meaningless context :ok_hand:
-		_ = q.deleteJob(gocontext.TODO(), jobID)
+		if j, ok := buildJob.(*httpJob); ok {
+			if processorID, ok := context.ProcessorFromContext(ctx); ok {
+				// best-effort delete
+				delCtx := context.FromProcessor(
+					context.FromJWT(gocontext.TODO(), j.payload.JWT),
+					processorID)
+				logger.WithField("job_id", jobID).Warn("context done; deleting job")
+				_ = q.deleteJob(delCtx, jobID)
+			}
+		}
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 		return false, nil
 	}
@@ -227,7 +235,7 @@ func (q *HTTPJobQueue) deleteJob(ctx gocontext.Context, jobID uint64) error {
 
 	jwt, ok := context.JWTFromContext(ctx)
 	if !ok {
-		return fmt.Errorf("failed to find jwt in context for job_id=%v", jobID)
+		return errors.New("failed to delete job; no jwt in context")
 	}
 
 	processorID, ok := context.ProcessorFromContext(ctx)
@@ -305,7 +313,7 @@ func (q *HTTPJobQueue) refreshJobClaim(ctx gocontext.Context, jobID uint64) erro
 
 	jwt, ok := context.JWTFromContext(ctx)
 	if !ok {
-		return fmt.Errorf("failed to find jwt in context for job_id=%v", jobID)
+		return errors.New("failed to refresh claim; no jwt in context")
 	}
 
 	processorID, ok := context.ProcessorFromContext(ctx)
@@ -372,6 +380,9 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 		refreshClaim: refreshClaimFunc,
 		deleteSelf: func(ctx gocontext.Context) error {
 			return q.deleteJob(ctx, jobID)
+		},
+		cancelSelf: func(ctx gocontext.Context) {
+			q.cb.Broadcast(jobID)
 		},
 	}
 	startAttrs := &httpJobPayloadStartAttrs{

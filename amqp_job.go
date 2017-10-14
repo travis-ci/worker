@@ -184,6 +184,6 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	})
 }
 
-func (j *amqpJob) Name() string {
-	return "amqp"
-}
+func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context { return ctx }
+
+func (j *amqpJob) Name() string { return "amqp" }

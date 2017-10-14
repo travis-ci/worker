@@ -486,7 +486,7 @@ func (i *CLI) signalHandler() {
 	signal.Notify(signalChan,
 		syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1,
 		syscall.SIGTTIN, syscall.SIGTTOU,
-		syscall.SIGWINCH)
+		syscall.SIGUSR2)
 
 	for {
 		select {
@@ -504,8 +504,8 @@ func (i *CLI) signalHandler() {
 			case syscall.SIGTTOU:
 				i.logger.Info("SIGTTOU received, removing processor from pool")
 				i.ProcessorPool.Decr()
-			case syscall.SIGWINCH:
-				i.logger.Warn("SIGWINCH received, toggling graceful shutdown and pause")
+			case syscall.SIGUSR2:
+				i.logger.Warn("SIGUSR2 received, toggling graceful shutdown and pause")
 				i.ProcessorPool.GracefulShutdown(true)
 			case syscall.SIGUSR1:
 				i.logProcessorInfo("received SIGUSR1")

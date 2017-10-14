@@ -29,6 +29,7 @@ type httpJob struct {
 
 	refreshClaim func(gocontext.Context)
 	deleteSelf   func(gocontext.Context) error
+	cancelSelf   func(gocontext.Context)
 }
 
 type jobScriptPayload struct {
@@ -221,12 +222,28 @@ func (j *httpJob) sendStateUpdate(ctx gocontext.Context, curState, newState stri
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		j.handleStateUpdateError(ctx, resp.StatusCode, newState)
 		return errors.Errorf("expected %d, but got %d", http.StatusOK, resp.StatusCode)
 	}
 
 	return nil
 }
 
-func (j *httpJob) Name() string {
-	return "http"
+func (j *httpJob) handleStateUpdateError(ctx gocontext.Context, status int, newState string) {
+	if status != http.StatusConflict {
+		return
+	}
+
+	if newState == "received" || newState == "started" {
+		// NOTE: receiving a conflict response when attempting to transition to
+		// 'received' or 'started' means that the job is potentially being run
+		// by multiple workers.  Assume the worst and cancel self.
+		j.cancelSelf(ctx)
+	}
 }
+
+func (j *httpJob) SetupContext(ctx gocontext.Context) gocontext.Context {
+	return context.FromJWT(ctx, j.payload.JWT)
+}
+
+func (j *httpJob) Name() string { return "http" }
