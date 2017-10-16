@@ -601,8 +601,8 @@ func TestDocker_containerNameFromContext(t *testing.T) {
 	}
 
 	randName := containerNameFromContext(gocontext.TODO())
-	randParts := strings.Split(randName, ".")
-	assert.Len(t, randParts, 4)
-	assert.Equal(t, "unk", randParts[1])
+	randParts := strings.Split(randName, "-")
+	assert.Len(t, randParts, 9)
 	assert.Equal(t, "unk", randParts[2])
+	assert.Equal(t, "unk", randParts[3])
 }
