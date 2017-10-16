@@ -47,20 +47,6 @@ type httpJobPayload struct {
 	ImageName   string           `json:"image_name"`
 }
 
-type httpJobStateUpdate struct {
-	CurrentState string                  `json:"cur"`
-	NewState     string                  `json:"new"`
-	Queued       *time.Time              `json:"queued_at,omitempty"`
-	Received     time.Time               `json:"received_at,omitempty"`
-	Started      time.Time               `json:"started_at,omitempty"`
-	Finished     time.Time               `json:"finished_at,omitempty"`
-	Meta         *httpJobStateUpdateMeta `json:"meta,omitempty"`
-}
-
-type httpJobStateUpdateMeta struct {
-	StateUpdateCount uint `json:"state_update_count,omitempty"`
-}
-
 func (j *httpJob) GoString() string {
 	return fmt.Sprintf("&httpJob{payload: %#v, startAttributes: %#v}",
 		j.payload, j.startAttributes)
@@ -174,19 +160,36 @@ func (j *httpJob) Generate(ctx gocontext.Context, job Job) ([]byte, error) {
 	return script, nil
 }
 
-func (j *httpJob) sendStateUpdate(ctx gocontext.Context, curState, newState string) error {
-	j.stateCount++
-	payload := &httpJobStateUpdate{
-		CurrentState: curState,
-		NewState:     newState,
-		Queued:       j.Payload().Job.QueuedAt,
-		Received:     j.received,
-		Started:      j.started,
-		Finished:     j.finished,
-		Meta: &httpJobStateUpdateMeta{
-			StateUpdateCount: j.stateCount,
+func (j *httpJob) createStateUpdateBody(curState, newState string) map[string]interface{} {
+	body := map[string]interface{}{
+		"id":    j.Payload().Job.ID,
+		"state": newState,
+		"cur":   curState,
+		"new":   newState,
+		"meta": map[string]interface{}{
+			"state_update_count": j.stateCount,
 		},
 	}
+
+	if j.Payload().Job.QueuedAt != nil {
+		body["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+	if !j.received.IsZero() {
+		body["received_at"] = j.received.UTC().Format(time.RFC3339)
+	}
+	if !j.started.IsZero() {
+		body["started_at"] = j.started.UTC().Format(time.RFC3339)
+	}
+	if !j.finished.IsZero() {
+		body["finished_at"] = j.finished.UTC().Format(time.RFC3339)
+	}
+
+	return body
+}
+
+func (j *httpJob) sendStateUpdate(ctx gocontext.Context, curState, newState string) error {
+	j.stateCount++
+	payload := j.createStateUpdateBody(curState, newState)
 
 	encodedPayload, err := json.Marshal(payload)
 	if err != nil {
