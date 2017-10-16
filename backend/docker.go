@@ -707,7 +707,7 @@ func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary
 }
 
 func containerNameFromContext(ctx gocontext.Context) string {
-	randName := fmt.Sprintf("travis-job.unk.unk.%s", uuid.NewRandom())
+	randName := fmt.Sprintf("travis-job-unk-unk-%s", uuid.NewRandom())
 	jobID, ok := context.JobIDFromContext(ctx)
 	if !ok {
 		return randName
@@ -733,5 +733,5 @@ func containerNameFromContext(ctx gocontext.Context) string {
 		nameParts = append(nameParts, cleanedPart)
 	}
 
-	return strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), ".")
+	return strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), "-")
 }

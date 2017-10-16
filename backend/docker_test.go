@@ -589,11 +589,11 @@ func TestDocker_containerNameFromContext(t *testing.T) {
 	for _, tc := range []struct{ r, n string }{
 		{
 			r: "friendly/fribble",
-			n: fmt.Sprintf("travis-job.friendly.fribble.%v", jobID),
+			n: fmt.Sprintf("travis-job-friendly-fribble-%v", jobID),
 		},
 		{
 			r: "very-SiLlY.nAmE.wat/por-cu-pine",
-			n: fmt.Sprintf("travis-job.very-SiLlY-nAm.por-cu-pine.%v", jobID),
+			n: fmt.Sprintf("travis-job-very-SiLlY-nAm-por-cu-pine-%v", jobID),
 		},
 	} {
 		ctx := context.FromRepository(context.FromJobID(gocontext.TODO(), jobID), tc.r)
