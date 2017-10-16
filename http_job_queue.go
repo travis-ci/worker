@@ -485,7 +485,8 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 
 		for {
 			err := q.refreshJobClaim(ctx, jobID)
-			if err == httpJobRefreshClaimErr {
+			if err == httpJobRefreshClaimErr && ctx.Err() == nil {
+				// NOTE: indicates an error while context is not yet done
 				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 					"err":    err,
 					"job_id": jobID,
@@ -494,7 +495,7 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 				return
 			}
 
-			if err != nil {
+			if err != nil && ctx.Err() == nil {
 				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 					"err":    err,
 					"job_id": jobID,
