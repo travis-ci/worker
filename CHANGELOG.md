@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- backend/docker: switch to container hostname with dashes instead of dots
 
 ### Security
 
