@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
   colon-paired values in `TRAVIS_WORKER_DOCKER_BINDS`
 
 ### Changed
+- backend/gce:
+    - add site tag to job vms
 
 ### Deprecated
 

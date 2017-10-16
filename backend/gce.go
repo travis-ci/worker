@@ -181,6 +181,7 @@ type gceInstanceConfig struct {
 	Preemptible        bool
 	PublicIP           bool
 	PublicIPConnect    bool
+	Site               string
 }
 
 type gceStartMultistepWrapper struct {
@@ -340,6 +341,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		skipStopPoll = ssp
 	}
 
+	site := "none"
+	if cfg.IsSet("TRAVIS_SITE") {
+		site = cfg.Get("TRAVIS_SITE")
+	}
+
 	uploadRetries := defaultGCEUploadRetries
 	if cfg.IsSet("UPLOAD_RETRIES") {
 		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
@@ -472,6 +478,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			StopPollSleep:    stopPollSleep,
 			StopPrePollSleep: stopPrePollSleep,
 			SkipStopPoll:     skipStopPoll,
+			Site:             site,
 		},
 
 		imageSelector:     imageSelector,
@@ -923,6 +930,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		Tags: &compute.Tags{
 			Items: []string{
 				"testing",
+				"site-" + p.ic.Site,
 			},
 		},
 	}

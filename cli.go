@@ -137,6 +137,10 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.BuildScriptGenerator = generator
 
+	if i.Config.TravisSite != "" {
+		i.Config.ProviderConfig.Set("TRAVIS_SITE", i.Config.TravisSite)
+	}
+
 	provider, err := backend.NewBackendProvider(i.Config.ProviderName, i.Config.ProviderConfig)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create backend provider")
