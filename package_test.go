@@ -112,6 +112,8 @@ func (fj *fakeJob) LogWriter(_ gocontext.Context, _ time.Duration) (LogWriter, e
 	return &fakeLogWriter{broken: fj.hasBrokenLogWriter}, nil
 }
 
+func (j *fakeJob) SetupContext(ctx gocontext.Context) gocontext.Context { return ctx }
+
 func (fj *fakeJob) Name() string { return "fake" }
 
 type fakeLogWriter struct {

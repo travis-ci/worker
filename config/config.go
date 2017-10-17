@@ -14,12 +14,14 @@ import (
 )
 
 var (
-	defaultAmqpURI                = "amqp://"
-	defaultBaseDir                = "."
-	defaultFilePollingInterval, _ = time.ParseDuration("5s")
-	defaultPoolSize               = 1
-	defaultProviderName           = "docker"
-	defaultQueueType              = "amqp"
+	defaultAmqpURI                     = "amqp://"
+	defaultBaseDir                     = "."
+	defaultFilePollingInterval, _      = time.ParseDuration("5s")
+	defaultHTTPPollingInterval, _      = time.ParseDuration("3s")
+	defaultHTTPRefreshClaimInterval, _ = time.ParseDuration("5s")
+	defaultPoolSize                    = 1
+	defaultProviderName                = "docker"
+	defaultQueueType                   = "amqp"
 
 	defaultHardTimeout, _         = time.ParseDuration("50m")
 	defaultInitialSleep, _        = time.ParseDuration("1s")
@@ -78,6 +80,14 @@ var (
 		}),
 		NewConfigDef("QueueName", &cli.StringFlag{
 			Usage: "The AMQP queue to subscribe to for jobs",
+		}),
+		NewConfigDef("HTTPPollingInterval", &cli.DurationFlag{
+			Value: defaultHTTPPollingInterval,
+			Usage: `Sleep interval between new job requests (only valid for "http" queue type)`,
+		}),
+		NewConfigDef("HTTPRefreshClaimInterval", &cli.DurationFlag{
+			Value: defaultHTTPRefreshClaimInterval,
+			Usage: `Sleep interval between job claim refresh requests (only valid for "http" queue type)`,
 		}),
 		NewConfigDef("LibratoEmail", &cli.StringFlag{
 			Usage: "Librato metrics account email",
@@ -317,7 +327,9 @@ type Config struct {
 	JobBoardURL     string `config:"job-board-url"`
 	TravisSite      string `config:"travis-site"`
 
-	FilePollingInterval time.Duration `config:"file-polling-interval"`
+	FilePollingInterval      time.Duration `config:"file-polling-interval"`
+	HTTPPollingInterval      time.Duration `config:"http-polling-interval"`
+	HTTPRefreshClaimInterval time.Duration `config:"http-refresh-claim-interval"`
 
 	HardTimeout         time.Duration `config:"hard-timeout"`
 	InitialSleep        time.Duration `config:"initial-sleep"`

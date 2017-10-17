@@ -93,4 +93,5 @@ type Job interface {
 
 	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
 	Name() string
+	SetupContext(gocontext.Context) gocontext.Context
 }

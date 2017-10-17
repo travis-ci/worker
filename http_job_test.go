@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -62,9 +61,7 @@ func newTestHTTPJob(t *testing.T) *httpJob {
 		},
 		rawPayload:      rawPayload,
 		startAttributes: startAttributes,
-
-		site:        "test",
-		processorID: "whee",
+		deleteSelf:      func(_ gocontext.Context) error { return nil },
 	}
 }
 
@@ -108,7 +105,6 @@ func TestHTTPJob_Error(t *testing.T) {
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
-	job.jobBoardURL, _ = url.Parse(ts.URL)
 
 	err := job.Error(gocontext.TODO(), "wat")
 	if err != nil {
@@ -125,7 +121,6 @@ func TestHTTPJob_Requeue(t *testing.T) {
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
-	job.jobBoardURL, _ = url.Parse(ts.URL)
 
 	ctx := gocontext.TODO()
 
@@ -143,7 +138,6 @@ func TestHTTPJob_Received(t *testing.T) {
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
-	job.jobBoardURL, _ = url.Parse(ts.URL)
 
 	err := job.Received(gocontext.TODO())
 	if err != nil {
@@ -159,7 +153,6 @@ func TestHTTPJob_Started(t *testing.T) {
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
-	job.jobBoardURL, _ = url.Parse(ts.URL)
 
 	err := job.Started(gocontext.TODO())
 	if err != nil {
@@ -179,7 +172,6 @@ func TestHTTPJob_Finish(t *testing.T) {
 	job := newTestHTTPJob(t)
 	job.payload.JobStateURL = ts.URL
 	job.payload.JobPartsURL = ts.URL
-	job.jobBoardURL, _ = url.Parse(ts.URL)
 
 	ctx := gocontext.TODO()
 

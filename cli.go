@@ -645,9 +645,10 @@ func (i *CLI) buildHTTPJobQueue() (*HTTPJobQueue, error) {
 		return nil, errors.Wrap(err, "error parsing job board URL")
 	}
 
-	jobQueue, err := NewHTTPJobQueue(
+	jobQueue, err := NewHTTPJobQueueWithIntervals(
 		jobBoardURL, i.Config.TravisSite,
 		i.Config.ProviderName, i.Config.QueueName,
+		i.Config.HTTPPollingInterval, i.Config.HTTPRefreshClaimInterval,
 		i.CancellationBroadcaster)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating HTTP job queue")
@@ -662,7 +663,8 @@ func (i *CLI) buildHTTPJobQueue() (*HTTPJobQueue, error) {
 }
 
 func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
-	jobQueue, err := NewFileJobQueue(i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
+	jobQueue, err := NewFileJobQueue(
+		i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
 	if err != nil {
 		return nil, err
 	}
