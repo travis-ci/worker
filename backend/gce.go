@@ -23,7 +23,6 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
@@ -702,7 +701,7 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 }
 
 func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepAction {
-	inst := p.buildInstance(c.startAttributes, c.image.SelfLink, c.script)
+	inst := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
 
 	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
 		"self":     "backend/gce_provider",
@@ -863,7 +862,7 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 	}
 }
 
-func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
+func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
 	var machineType *compute.MachineType
 	switch startAttributes.VMType {
 	case "premium":
@@ -915,7 +914,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			Preemptible: p.ic.Preemptible,
 		},
 		MachineType: machineType.SelfLink,
-		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
+		Name:        hostnameFromContext(ctx),
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
