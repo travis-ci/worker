@@ -22,6 +22,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 - backend/docker: switch to container hostname with dashes instead of dots
 - http-job: conditional inclusion of state-related timestamps in state updates
+- step-run-script: mark job errored on unknown execution error such as poweroff
 
 ### Security
 
