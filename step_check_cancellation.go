@@ -23,7 +23,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 		} else {
 			err := buildJob.Finish(procCtx, FinishStateCancelled)
 			if err != nil {
-				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", state).Error("couldn't update job state")
+				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", FinishStateCancelled).Error("couldn't update job state")
 			}
 		}
 		return multistep.ActionHalt

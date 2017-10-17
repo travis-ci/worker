@@ -206,8 +206,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
-	state.Put("procCtx", p.ctx)
-	state.Put("ctx", ctx)
+	state.Put("procCtx", buildJob.SetupContext(p.ctx))
+	state.Put("ctx", buildJob.SetupContext(ctx))
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,

@@ -27,12 +27,13 @@ var (
 
 // HTTPJobQueue is a JobQueue that uses http
 type HTTPJobQueue struct {
-	jobBoardURL  *url.URL
-	site         string
-	providerName string
-	queue        string
-	pollInterval time.Duration
-	cb           *CancellationBroadcaster
+	jobBoardURL          *url.URL
+	site                 string
+	providerName         string
+	queue                string
+	pollInterval         time.Duration
+	refreshClaimInterval time.Duration
+	cb                   *CancellationBroadcaster
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -51,17 +52,35 @@ type jobBoardErrorResponse struct {
 	UpstreamError string `json:"upstream_error,omitempty"`
 }
 
-// NewHTTPJobQueue creates a new job-board job queue
+// NewHTTPJobQueue creates a new http job queue
 func NewHTTPJobQueue(jobBoardURL *url.URL, site, providerName, queue string,
 	cb *CancellationBroadcaster) (*HTTPJobQueue, error) {
 
 	return &HTTPJobQueue{
-		jobBoardURL:  jobBoardURL,
-		site:         site,
-		providerName: providerName,
-		queue:        queue,
-		pollInterval: time.Second,
-		cb:           cb,
+		jobBoardURL:          jobBoardURL,
+		site:                 site,
+		providerName:         providerName,
+		queue:                queue,
+		pollInterval:         3 * time.Second,
+		refreshClaimInterval: 5 * time.Second,
+		cb:                   cb,
+	}, nil
+}
+
+// NewHTTPJobQueueWithIntervals creates a new http job queue with the specified
+// poll and refresh claim intervals
+func NewHTTPJobQueueWithIntervals(jobBoardURL *url.URL, site, providerName, queue string,
+	pollInterval, refreshClaimInterval time.Duration,
+	cb *CancellationBroadcaster) (*HTTPJobQueue, error) {
+
+	return &HTTPJobQueue{
+		jobBoardURL:          jobBoardURL,
+		site:                 site,
+		providerName:         providerName,
+		queue:                queue,
+		pollInterval:         pollInterval,
+		refreshClaimInterval: refreshClaimInterval,
+		cb:                   cb,
 	}, nil
 }
 
@@ -135,6 +154,16 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 		}).Info("sent job to output channel")
 		return true, readyChan
 	case <-ctx.Done():
+		if j, ok := buildJob.(*httpJob); ok {
+			if processorID, ok := context.ProcessorFromContext(ctx); ok {
+				// best-effort delete
+				delCtx := context.FromProcessor(
+					context.FromJWT(gocontext.TODO(), j.payload.JWT),
+					processorID)
+				logger.WithField("job_id", jobID).Warn("context done; deleting job")
+				_ = q.deleteJob(delCtx, jobID)
+			}
+		}
 		logger.WithField("err", ctx.Err()).Warn("returning from jobs loop due to context done")
 		return false, nil
 	}
@@ -197,6 +226,84 @@ func (q *HTTPJobQueue) fetchJobID(ctx gocontext.Context) (uint64, error) {
 	return fetchedJobID, nil
 }
 
+func (q *HTTPJobQueue) deleteJob(ctx gocontext.Context, jobID uint64) error {
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self": "http_job_queue",
+	})
+
+	logger.Info("deleting job")
+
+	jwt, ok := context.JWTFromContext(ctx)
+	if !ok {
+		return errors.New("failed to delete job; no jwt in context")
+	}
+
+	processorID, ok := context.ProcessorFromContext(ctx)
+	if !ok {
+		processorID = "unknown-processor"
+	}
+
+	u := *q.jobBoardURL
+	u.Path = fmt.Sprintf("/jobs/%d", jobID)
+	u.User = nil
+
+	req, err := http.NewRequest("DELETE", u.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Add("Travis-Site", q.site)
+	req.Header.Add("Authorization", "Bearer "+jwt)
+	req.Header.Add("From", processorID)
+
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = 10 * time.Second
+	bo.MaxElapsedTime = 1 * time.Minute
+
+	logger.WithField("url", u.String()).Debug("performing DELETE request")
+
+	var resp *http.Response
+	err = backoff.Retry(func() (err error) {
+		resp, err = http.DefaultClient.Do(req)
+		if resp != nil && resp.StatusCode != http.StatusNoContent {
+			logger.WithFields(logrus.Fields{
+				"expected_status": http.StatusNoContent,
+				"actual_status":   resp.StatusCode,
+			}).Debug("delete failed")
+
+			if resp.Body != nil {
+				resp.Body.Close()
+			}
+			return errors.Errorf("expected %d but got %d", http.StatusNoContent, resp.StatusCode)
+		}
+
+		return
+	}, bo)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to delete job with retries")
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNoContent {
+		return nil
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var errorResp jobBoardErrorResponse
+	err = json.Unmarshal(body, &errorResp)
+	if err != nil {
+		return errors.Wrapf(err, "job board job delete request errored with status %d and didn't send an error response", resp.StatusCode)
+	}
+
+	return errors.Errorf("job board job delete request errored with status %d: %s", resp.StatusCode, errorResp.Error)
+}
+
 func (q *HTTPJobQueue) refreshJobClaim(ctx gocontext.Context, jobID uint64) error {
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"self":   "http_job_queue",
@@ -206,7 +313,7 @@ func (q *HTTPJobQueue) refreshJobClaim(ctx gocontext.Context, jobID uint64) erro
 
 	jwt, ok := context.JWTFromContext(ctx)
 	if !ok {
-		return fmt.Errorf("failed to find jwt in context for job_id=%v", jobID)
+		return errors.New("failed to refresh claim; no jwt in context")
 	}
 
 	processorID, ok := context.ProcessorFromContext(ctx)
@@ -271,10 +378,12 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 		startAttributes: &backend.StartAttributes{},
 
 		refreshClaim: refreshClaimFunc,
-
-		jobBoardURL: q.jobBoardURL,
-		site:        q.site,
-		processorID: processorID,
+		deleteSelf: func(ctx gocontext.Context) error {
+			return q.deleteJob(ctx, jobID)
+		},
+		cancelSelf: func(ctx gocontext.Context) {
+			q.cb.Broadcast(jobID)
+		},
 	}
 	startAttrs := &httpJobPayloadStartAttrs{
 		Data: &jobPayloadStartAttrs{
@@ -332,17 +441,32 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 
 	err = json.Unmarshal(body, buildJob.payload)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to unmarshal job-board payload")
+		logger.WithField("err", err).Error("payload JSON parse error, attempting to delete job")
+		err := q.deleteJob(ctx, jobID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "couldn't delete job")
+		}
+		return nil, nil, errors.Wrap(err, "payload JSON parse error")
 	}
 
 	err = json.Unmarshal(body, &startAttrs)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to unmarshal start attributes from job-board")
+		logger.WithField("err", err).Error("start attributes JSON parse error, attempting to delete job")
+		err := q.deleteJob(ctx, jobID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "couldn't delete job")
+		}
+		return nil, nil, errors.Wrap(err, "start attributes JSON parse error")
 	}
 
 	rawPayload, err := simplejson.NewJson(body)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to parse raw payload with simplejson")
+		logger.WithField("err", err).Error("raw payload JSON parse error, attempting to delete job")
+		err := q.deleteJob(ctx, jobID)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "couldn't delete job")
+		}
+		return nil, nil, errors.Wrap(err, "raw payload JSON parse error")
 	}
 	buildJob.rawPayload = rawPayload.Get("data")
 
@@ -361,16 +485,17 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 
 		for {
 			err := q.refreshJobClaim(ctx, jobID)
-			if err == httpJobRefreshClaimErr {
+			if err == httpJobRefreshClaimErr && ctx.Err() == nil {
+				// NOTE: indicates an error while context is not yet done
 				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 					"err":    err,
 					"job_id": jobID,
-				}).Error("failed to refresh claim; cancelling")
+				}).Error("cancelling")
 				q.cb.Broadcast(jobID)
 				return
 			}
 
-			if err != nil {
+			if err != nil && ctx.Err() == nil {
 				context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 					"err":    err,
 					"job_id": jobID,
@@ -379,7 +504,7 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(q.pollInterval):
+			case <-time.After(q.refreshClaimInterval):
 			}
 		}
 	}, (<-chan struct{})(readyChan)

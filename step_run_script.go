@@ -73,6 +73,10 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 				}
 			} else {
 				logger.WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
+				err := buildJob.Finish(procCtx, FinishStateErrored)
+				if err != nil {
+					logger.WithField("err", err).Error("couldn't mark job errored")
+				}
 			}
 
 			return multistep.ActionHalt

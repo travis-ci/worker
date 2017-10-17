@@ -6,10 +6,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - backend/docker: support for bind-mounted volumes via space-delimited,
   colon-paired values in `TRAVIS_WORKER_DOCKER_BINDS`
+- http-job-queue: configurable new job polling interval
+- http-job: configurable job refresh claim interval
 
 ### Changed
-- backend/gce:
-    - add site tag to job vms
+- backend/gce: add site tag to job vms
+- http-job:
+    - account for transitional states when handling state update conflicts
+    - delete self under various error conditions indicative of a requeue
 
 ### Deprecated
 
@@ -17,6 +21,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Fixed
 - backend/docker: switch to container hostname with dashes instead of dots
+- http-job: conditional inclusion of state-related timestamps in state updates
+- step-run-script: mark job errored on unknown execution error such as poweroff
 
 ### Security
 
