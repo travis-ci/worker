@@ -22,7 +22,6 @@ import (
 	docker "github.com/docker/docker/client"
 	"github.com/docker/go-connections/tlsconfig"
 	humanize "github.com/dustin/go-humanize"
-	"github.com/pborman/uuid"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -348,7 +347,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		imageName = p.dockerImageNameForID(ctx, imageID)
 	}
 
-	containerName := containerNameFromContext(ctx)
+	containerName := hostnameFromContext(ctx)
 
 	dockerConfig := &dockercontainer.Config{
 		Cmd:        p.runCmd,
@@ -704,34 +703,4 @@ func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary
 	}
 
 	return "", fmt.Errorf("failed to find matching docker image tag")
-}
-
-func containerNameFromContext(ctx gocontext.Context) string {
-	randName := fmt.Sprintf("travis-job-unk-unk-%s", uuid.NewRandom())
-	jobID, ok := context.JobIDFromContext(ctx)
-	if !ok {
-		return randName
-	}
-
-	repoName, ok := context.RepositoryFromContext(ctx)
-	if !ok {
-		return randName
-	}
-
-	nameParts := []string{"travis-job"}
-	for _, part := range strings.Split(repoName, "/") {
-		cleanedPart := containerNamePartDisallowed.ReplaceAllString(part, "-")
-		// NOTE: the part limit of 14 is meant to ensure a maximum hostname of
-		// 64 characters, given:
-		// travis-job.{part}.{part}.{job-id}.travisci.net
-		// ^---11----^^--15-^^--15-^^--11---^^---12-----^
-		// therefore:
-		// 11 + 15 + 15 + 11 + 12 = 64
-		if len(cleanedPart) > 14 {
-			cleanedPart = cleanedPart[0:14]
-		}
-		nameParts = append(nameParts, cleanedPart)
-	}
-
-	return strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), "-")
 }

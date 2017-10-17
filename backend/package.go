@@ -29,11 +29,14 @@ New providers should call Register in init() to register the alias it should be 
 package backend
 
 import (
-	"context"
+	gocontext "context"
 	"fmt"
 	"io"
 	"strings"
 	"time"
+
+	"github.com/pborman/uuid"
+	"github.com/travis-ci/worker/context"
 )
 
 var (
@@ -55,12 +58,12 @@ var (
 type Provider interface {
 	// Setup performs whatever is necessary in order to be ready to start
 	// instances.
-	Setup(context.Context) error
+	Setup(gocontext.Context) error
 
 	// Start starts an instance. It shouldn't return until the instance is
 	// ready to call UploadScript on (this may, for example, mean that it
 	// waits for SSH connections to be possible).
-	Start(context.Context, *StartAttributes) (Instance, error)
+	Start(gocontext.Context, *StartAttributes) (Instance, error)
 }
 
 // An Instance is something that can run a build script.
@@ -68,12 +71,12 @@ type Instance interface {
 	// UploadScript uploads the given script to the instance. The script is
 	// a bash script with a shebang (#!/bin/bash) line. Note that this
 	// method should not be called multiple times.
-	UploadScript(context.Context, []byte) error
+	UploadScript(gocontext.Context, []byte) error
 
 	// RunScript runs the build script that was uploaded with the
 	// UploadScript method.
-	RunScript(context.Context, io.Writer) (*RunResult, error)
-	Stop(context.Context) error
+	RunScript(gocontext.Context, io.Writer) (*RunResult, error)
+	Stop(gocontext.Context) error
 
 	// ID is used when identifying the instance in logs and such
 	ID() string
@@ -118,4 +121,34 @@ func str2map(s string) map[string]string {
 	}
 
 	return ret
+}
+
+func hostnameFromContext(ctx gocontext.Context) string {
+	randName := fmt.Sprintf("travis-job-unk-unk-%s", uuid.NewRandom())
+	jobID, ok := context.JobIDFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	repoName, ok := context.RepositoryFromContext(ctx)
+	if !ok {
+		return randName
+	}
+
+	nameParts := []string{"travis-job"}
+	for _, part := range strings.Split(repoName, "/") {
+		cleanedPart := containerNamePartDisallowed.ReplaceAllString(part, "-")
+		// NOTE: the part limit of 14 is meant to ensure a maximum hostname of
+		// 64 characters, given:
+		// travis-job-{part}-{part}-{job-id}.travisci.net
+		// ^---11----^^--15-^^--15-^^--11---^^---12-----^
+		// therefore:
+		// 11 + 15 + 15 + 11 + 12 = 64
+		if len(cleanedPart) > 14 {
+			cleanedPart = cleanedPart[0:14]
+		}
+		nameParts = append(nameParts, cleanedPart)
+	}
+
+	return strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), "-")
 }
