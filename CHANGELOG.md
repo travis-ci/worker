@@ -26,6 +26,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 - backend/gce: add site tag to job vms
+- cli: switch graceful shutdown + pausing from `SIGWINCH` to `SIGUSR2`
 - http-job:
     - account for transitional states when handling state update conflicts
     - delete self under various error conditions indicative of a requeue
