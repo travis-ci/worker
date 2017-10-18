@@ -3,6 +3,21 @@
 The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [3.2.0] - 2017-10-18
+
 ### Added
 - backend/docker: support for bind-mounted volumes via space-delimited,
   colon-paired values in `TRAVIS_WORKER_DOCKER_BINDS`
@@ -11,20 +26,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 - backend/gce: add site tag to job vms
+- cli: switch graceful shutdown + pausing from `SIGWINCH` to `SIGUSR2`
 - http-job:
     - account for transitional states when handling state update conflicts
     - delete self under various error conditions indicative of a requeue
-
-### Deprecated
-
-### Removed
 
 ### Fixed
 - backend/docker: switch to container hostname with dashes instead of dots
 - http-job: conditional inclusion of state-related timestamps in state updates
 - step-run-script: mark job errored on unknown execution error such as poweroff
-
-### Security
 
 ## [3.1.0] - 2017-10-06
 
@@ -580,7 +590,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.1.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.2.0...HEAD
+[3.2.0]: https://github.com/travis-ci/worker/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/travis-ci/worker/compare/v3.0.2...v3.1.0
 [3.0.2]: https://github.com/travis-ci/worker/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/travis-ci/worker/compare/v3.0.0...v3.0.1
