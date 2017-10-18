@@ -28,7 +28,9 @@ addons:
     - travis-ci/worker/$TRAVIS_BRANCH
 
 before_install:
-  - sudo apt-get -y install docker-ce
+- sudo rm -vf /etc/apt/sources.list.d/*riak*
+- sudo apt-get update
+- sudo apt-get -y install docker-ce
 
 install:
 - go get github.com/FiloSottile/gvt
