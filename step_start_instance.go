@@ -57,9 +57,11 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	logger.WithField("boot_time", time.Since(startTime)).Info("started instance")
+	logger.WithField("boot_time", time.Since(startTime)).WithField("instance_id", instance.ID()).Info("started instance")
 
+	ctx = context.FromInstanceID(ctx, instance.ID())
 	state.Put("instance", instance)
+	state.Put("ctx", ctx)
 
 	return multistep.ActionContinue
 }

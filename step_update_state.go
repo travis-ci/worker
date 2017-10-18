@@ -17,13 +17,17 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	instanceID := instance.ID()
 
 	ctx := state.Get("ctx").(gocontext.Context)
-	ctx = context.FromInstanceID(ctx, instanceID)
+	if instanceID != "" {
+		ctx = context.FromInstanceID(ctx, instanceID)
+		state.Put("ctx", ctx)
+	}
 
 	err := buildJob.Started(ctx)
 	if err != nil {
 		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-			"err":  err,
-			"self": "step_update_state",
+			"err":         err,
+			"self":        "step_update_state",
+			"instance_id": instanceID,
 		}).Error("couldn't mark job as started")
 	}
 
