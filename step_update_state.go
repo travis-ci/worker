@@ -12,11 +12,11 @@ import (
 type stepUpdateState struct{}
 
 func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
+	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
-	instanceID := instance.ID()
 
-	ctx := state.Get("ctx").(gocontext.Context)
+	instanceID := instance.ID()
 	if instanceID != "" {
 		ctx = context.FromInstanceID(ctx, instanceID)
 		state.Put("ctx", ctx)
@@ -39,6 +39,13 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 
+	instance := state.Get("instance").(backend.Instance)
+	instanceID := instance.ID()
+	if instanceID != "" {
+		ctx = context.FromInstanceID(ctx, instanceID)
+		state.Put("ctx", ctx)
+	}
+
 	mresult, ok := state.GetOk("scriptResult")
 
 	if ok {
@@ -57,8 +64,9 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 
 		if err != nil {
 			context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-				"err":  err,
-				"self": "step_update_state",
+				"err":         err,
+				"self":        "step_update_state",
+				"instance_id": instanceID,
 			}).Error("couldn't mark job as finished")
 		}
 	}
