@@ -340,7 +340,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		skipStopPoll = ssp
 	}
 
-	site := "none"
+	site := ""
 	if cfg.IsSet("TRAVIS_SITE") {
 		site = cfg.Get("TRAVIS_SITE")
 	}
@@ -895,6 +895,11 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		}
 	}
 
+	tags := []string{"testing"}
+	if p.ic.Site != "" {
+		tags = append(tags, p.ic.Site)
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -927,10 +932,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			networkInterface,
 		},
 		Tags: &compute.Tags{
-			Items: []string{
-				"testing",
-				"site-" + p.ic.Site,
-			},
+			Items: tags,
 		},
 	}
 }
