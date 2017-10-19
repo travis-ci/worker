@@ -606,8 +606,9 @@ func TestDockerInstance_ID(t *testing.T) {
 		startBooting: now,
 	}
 
-	assert.Equal(t, "beabeba:fafafaf", instance.ID())
+	assert.Equal(t, "beabeba", instance.ID())
+	assert.Equal(t, "fafafaf", instance.ImageName())
 
 	instance.container = nil
-	assert.Equal(t, "{unidentified}", instance.ImageName())
+	assert.Equal(t, "{unidentified}", instance.ID())
 }
