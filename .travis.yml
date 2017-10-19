@@ -31,16 +31,15 @@ script: skip
 
 jobs:
   include:
-  - stage: Lint
+  - stage: Build and Test
     install:
     - go get -u github.com/alecthomas/gometalinter
     - gometalinter --install
     - curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
     - chmod +x ~/bin/shfmt
     - shfmt -version
-    script: make lintall
-  - stage: Build and Test
     script:
+    - make lintall
     - go get github.com/FiloSottile/gvt
     - travis_retry make deps
     - make test
