@@ -5,7 +5,6 @@ main() {
   : "${JOB_BOARD_CLONE_DIR:=$(mktemp -d /tmp/job-board-clone.XXXXXXX)}"
   : "${JOB_BOARD_CLONE_URL:=https://github.com/travis-ci/job-board.git}"
   : "${JOB_BOARD_CLONE_BRANCH:=master}"
-  : "${JOB_BOARD_DATABASE_URL:=postgres://localhost:5432/job_board_test}"
 
   trap __cleanup EXIT QUIT INT
 

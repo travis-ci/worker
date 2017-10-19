@@ -2,13 +2,14 @@
 set -o errexit
 
 main() {
-  export PGUSER=postgres
   export PGHOST=postgres
-  export PGPORT="${POSTGRES_PORT_5432_TCP_PORT}"
   export PGPASSWORD="${POSTGRES_ENV_POSTGRES_PASSWORD}"
+  export PGPORT="${POSTGRES_PORT_5432_TCP_PORT}"
+  export PGUSER=postgres
   export REDIS_PORT="${REDIS_PORT_6379_TCP_PORT}"
 
   export DATABASE_URL="postgres://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/job_board_test"
+  export INTEGRATION_SPECS=1
   export REDIS_URL="redis://redis:${REDIS_PORT}/0"
 
   apt-get update
@@ -24,7 +25,6 @@ main() {
   bundle install
   find . -type d -exec chmod a+rwx {} \;
   find . -type f -exec chmod a+rw {} \;
-  export INTEGRATION_SPECS=1
   exec bundle exec rspec ./spec/integration/worker_interaction_spec.rb
 }
 
