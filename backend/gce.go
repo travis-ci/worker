@@ -653,7 +653,6 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		}
 	}(c)
 
-	logger.Info("starting instance")
 	go runner.Run(state)
 
 	logger.Debug("selecting over instance, error, and done channels")
