@@ -17,16 +17,6 @@ env:
   - GO15VENDOREXPERIMENT='1'
   - REDIS_URL="redis://"
 
-addons:
-  artifacts:
-    paths:
-    - ./build/linux/amd64/travis-worker
-    - ./build/darwin/amd64/travis-worker
-    target_paths:
-    - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
-    - travis-ci/worker/$(git describe --always --dirty --tags)
-    - travis-ci/worker/$TRAVIS_BRANCH
-
 script: skip
 
 jobs:
@@ -45,6 +35,15 @@ jobs:
     - make test
     - make crossbuild
     - make smoke
+    addons:
+      artifacts:
+        paths:
+        - ./build/linux/amd64/travis-worker
+        - ./build/darwin/amd64/travis-worker
+        target_paths:
+        - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+        - travis-ci/worker/$(git describe --always --dirty --tags)
+        - travis-ci/worker/$TRAVIS_BRANCH
   - stage: Build and Push Docker Image
     script:
     - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
@@ -69,7 +68,6 @@ jobs:
     - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
     - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
     - make send-docker-hub-trigger
-
-notifications:
-  slack:
-    secure: IyWrJhruYYHEIvi4YsN3vV2rycctnRiIolzUMwgiDo275AK6O4h58+fu1EXFjMZmCqdOan98MsF709yW3S9zDaZo2s233dKWzQ95S8+n2RS+pGsxBZacCiEvOh0u1K3f19hpf8zj0ybtpcox+a6yrxK+F3er9WveO39yPZjzwCA=
+    notifications:
+      slack:
+        secure: IyWrJhruYYHEIvi4YsN3vV2rycctnRiIolzUMwgiDo275AK6O4h58+fu1EXFjMZmCqdOan98MsF709yW3S9zDaZo2s233dKWzQ95S8+n2RS+pGsxBZacCiEvOh0u1K3f19hpf8zj0ybtpcox+a6yrxK+F3er9WveO39yPZjzwCA=
