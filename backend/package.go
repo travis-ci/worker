@@ -81,6 +81,9 @@ type Instance interface {
 	// ID is used when identifying the instance in logs and such
 	ID() string
 
+	// ImageName is the name of the image used to boot the instance
+	ImageName() string
+
 	// StartupDuration is the duration between "created" and "ready"
 	StartupDuration() time.Duration
 }
