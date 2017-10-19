@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -o errexit
+
+main() {
+  export PGUSER=postgres
+  export PGHOST=postgres
+  export PGPORT="${POSTGRES_PORT_5432_TCP_PORT}"
+  export PGPASSWORD="${POSTGRES_ENV_POSTGRES_PASSWORD}"
+  export REDIS_PORT="${REDIS_PORT_6379_TCP_PORT}"
+
+  export DATABASE_URL="postgres://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/job_board_test"
+  export REDIS_URL="redis://redis:${REDIS_PORT}/0"
+
+  apt-get update
+  apt-get install -y perl postgresql-client
+  script/install-sqitch
+  eval "$(perl -I ~/perl5/lib/perl5/ '-Mlocal::lib')"
+  sqitch deploy
+  sqitch verify
+
+  install -D /worker/build/linux/amd64/travis-worker \
+             ./spec/support/bin/travis-worker
+
+  bundle install
+  find . -type d -exec chmod a+rwx {} \;
+  find . -type f -exec chmod a+rw {} \;
+  export INTEGRATION_SPECS=1
+  exec bundle exec rspec ./spec/integration/worker_interaction_spec.rb
+}
+
+main "$@"

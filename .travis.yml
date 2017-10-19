@@ -47,6 +47,7 @@ script:
 - make test
 - make crossbuild
 - make smoke
+- make http-job-test
 - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
     make docker-build smoke-docker docker-push;
   fi

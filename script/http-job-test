@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -o errexit
+
+main() {
+  : "${JOB_BOARD_CLONE_DIR:=$(mktemp -d /tmp/job-board-clone.XXXXXXX)}"
+  : "${JOB_BOARD_CLONE_URL:=https://github.com/travis-ci/job-board.git}"
+  : "${JOB_BOARD_CLONE_BRANCH:=master}"
+  : "${JOB_BOARD_DATABASE_URL:=postgres://localhost:5432/job_board_test}"
+
+  trap __cleanup EXIT QUIT INT
+
+  git clone --branch "${JOB_BOARD_CLONE_BRANCH}" \
+    "${JOB_BOARD_CLONE_URL}" "${JOB_BOARD_CLONE_DIR}"
+
+  docker run -d \
+    --name job-board-postgres \
+    -e POSTGRES_PASSWORD=yay \
+    postgres
+
+  docker exec \
+    --user postgres \
+    job-board-postgres bash -c 'while ! psql -l; do sleep 1; done'
+
+  docker exec \
+    --user postgres \
+    job-board-postgres createdb job_board_test
+
+  docker exec \
+    --user postgres \
+    job-board-postgres psql -l
+
+  docker run -d \
+    --name job-board-redis \
+    redis
+
+  docker run \
+    --rm \
+    --name travis-worker-http-job-test \
+    --link job-board-postgres:postgres \
+    --link job-board-redis:redis \
+    -v "${JOB_BOARD_CLONE_DIR}:/usr/src/app" \
+    -v "${TOP:=$(git rev-parse --show-toplevel)}:/worker" \
+    -w /usr/src/app \
+    "ruby:2.4" \
+    /worker/script/http-job-test-internal
+}
+
+__cleanup() {
+  if [[ "${JOB_BOARD_CLONE_DIR}" ]]; then
+    rm -rf "${JOB_BOARD_CLONE_DIR}"
+  fi
+  docker rm -f job-board-{postgres,redis}
+}
+
+main "$@"
