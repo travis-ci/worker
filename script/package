@@ -55,11 +55,10 @@ __build_all_platforms() {
     __define_platform "${platform}"
 
     test_container_name="test-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}"
-    build_docker_image="solarce/${PLATFORM_RELEASE}-ruby"
+    build_docker_image="travisci/${PLATFORM_FAMILY}-ruby:${PLATFORM_RELEASE}"
     test_docker_image="ubuntu-upstart:${PLATFORM_RELEASE}"
 
     if [[ $PLATFORM_FAMILY == centos ]]; then
-      build_docker_image="solarce/centos${PLATFORM_RELEASE}-ruby"
       test_docker_image="2k0ri/centos${PLATFORM_RELEASE}-systemd"
     fi
 
