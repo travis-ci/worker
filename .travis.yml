@@ -27,37 +27,49 @@ addons:
     - travis-ci/worker/$(git describe --always --dirty --tags)
     - travis-ci/worker/$TRAVIS_BRANCH
 
-before_install:
-- sudo rm -vf /etc/apt/sources.list.d/*riak*
-- sudo apt-get update
-- sudo apt-get -y install docker-ce
+script: skip
 
-install:
-- go get github.com/FiloSottile/gvt
-- go get -u github.com/alecthomas/gometalinter
-- gometalinter --install
-- curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
-- chmod +x ~/bin/shfmt
-- shfmt -version
-- gem install package_cloud --no-ri --no-rdoc
-
-script:
-- travis_retry make deps
-- make lintall
-- make test
-- make crossbuild
-- make smoke
-- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-    make docker-build smoke-docker docker-push;
-  fi
-- if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
-    make package smoke-package;
-  fi
-
-after_success:
-  - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
-  - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
-  - script/send-docker-hub-trigger
+jobs:
+  include:
+  - stage: Lint
+    install:
+    - go get -u github.com/alecthomas/gometalinter
+    - gometalinter --install
+    - curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
+    - chmod +x ~/bin/shfmt
+    - shfmt -version
+    script: make lintall
+  - stage: Build and Test
+    script:
+    - go get github.com/FiloSottile/gvt
+    - travis_retry make deps
+    - make test
+    - make crossbuild
+    - make smoke
+  - stage: Build and Push Docker Image
+    script:
+    - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
+        go get github.com/FiloSottile/gvt;
+        travis_retry make deps;
+        make crossbuild;
+        sudo apt-get update;
+        sudo apt-get -y install docker-ce;
+        make docker-build smoke-docker docker-push;
+      fi
+  - stage: Build and Test Packages
+    script:
+    - if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
+        go get github.com/FiloSottile/gvt;
+        travis_retry make deps;
+        make crossbuild;
+        gem install package_cloud --no-ri --no-rdoc;
+        make package smoke-package;
+      fi
+  - stage: Trigger Automated Build on Docker Hub
+    script:
+    - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
+    - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
+    - make send-docker-hub-trigger
 
 notifications:
   slack:
