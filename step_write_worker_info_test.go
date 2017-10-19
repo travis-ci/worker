@@ -66,7 +66,7 @@ func TestStepWriteWorkerInfo_Run(t *testing.T) {
 	assert.Contains(t, out, "\033[33;1mWorker information\033[0m\n")
 	assert.Contains(t, out, "\nhostname: frizzlefry.example.local\n")
 	assert.Contains(t, out, "\nversion: "+VersionString+" "+RevisionURLString+"\n")
-	assert.Contains(t, out, "\ninstance: fake (via fake)\n")
+	assert.Contains(t, out, "\ninstance: fake fake (via fake)\n")
 	assert.Contains(t, out, "\nstartup: 42.17s\n")
 	assert.Contains(t, out, "\ntravis_fold:end:worker_info\r\033[0K")
 }
