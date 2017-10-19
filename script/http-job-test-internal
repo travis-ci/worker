@@ -19,7 +19,7 @@ main() {
   sqitch verify
 
   install -D /worker/build/linux/amd64/travis-worker \
-             ./spec/support/bin/travis-worker
+    ./spec/support/bin/travis-worker
 
   bundle install
   find . -type d -exec chmod a+rwx {} \;
