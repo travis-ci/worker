@@ -658,12 +658,7 @@ func (i *dockerInstance) ID() string {
 	if i.container == nil {
 		return "{unidentified}"
 	}
-
-	return i.container.ID[0:7]
-}
-
-func (i *dockerInstance) ImageName() string {
-	return i.imageName
+	return fmt.Sprintf("%s:%s", i.container.ID[0:7], i.imageName)
 }
 
 func (i *dockerInstance) StartupDuration() time.Duration {
