@@ -409,6 +409,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	err = p.client.ContainerStart(ctx, container.ID, dockertypes.ContainerStartOptions{})
 	if err != nil {
+		defer p.checkinCPUSets(ctx, cpuSets)
 		return nil, err
 	}
 
