@@ -1,7 +1,13 @@
 language: go
 go: 1.8.3
+sudo: required
 dist: trusty
 group: edge
+
+services:
+- rabbitmq
+- docker
+- redis
 
 env:
   global:
@@ -17,10 +23,6 @@ script: skip
 jobs:
   include:
   - stage: Build and Test
-    sudo: false
-    services:
-    - rabbitmq
-    - redis
     install:
     - go get -u github.com/alecthomas/gometalinter
     - gometalinter --install
@@ -44,10 +46,6 @@ jobs:
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
   - stage: Build and Push Docker Image
-    services:
-    - rabbitmq
-    - docker
-    - redis
     script:
     - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
         go get github.com/FiloSottile/gvt;
@@ -61,10 +59,6 @@ jobs:
     - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
     - make send-docker-hub-trigger
   - stage: Build and Test Packages
-    services:
-    - rabbitmq
-    - docker
-    - redis
     script:
     - if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
         go get github.com/FiloSottile/gvt;
