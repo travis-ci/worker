@@ -390,6 +390,8 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		ctx, dockerConfig, dockerHostConfig, nil, containerName)
 
 	if err != nil {
+		logger.WithField("err", err).Error("couldn't create container")
+
 		err := p.client.ContainerRemove(ctx, container.ID,
 			dockertypes.ContainerRemoveOptions{
 				Force:         true,
@@ -657,7 +659,11 @@ func (i *dockerInstance) ID() string {
 		return "{unidentified}"
 	}
 
-	return fmt.Sprintf("%s:%s", i.container.ID[0:7], i.imageName)
+	return i.container.ID[0:7]
+}
+
+func (i *dockerInstance) ImageName() string {
+	return i.imageName
 }
 
 func (i *dockerInstance) StartupDuration() time.Duration {
