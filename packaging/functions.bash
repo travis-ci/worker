@@ -52,8 +52,8 @@ __define_platform() {
   : "${PLATFORM_RELEASE:=${PLATFORM##${PLATFORM_FAMILY}:}}"
   PLATFORM_RELEASE_ALIAS="${PLATFORM_RELEASE}"
   case "${PLATFORM_RELEASE}" in
-    14.04) PLATFORM_RELEASE_ALIAS=trusty ;;
-    16.04) PLATFORM_RELEASE_ALIAS=xenial ;;
+  14.04) PLATFORM_RELEASE_ALIAS=trusty ;;
+  16.04) PLATFORM_RELEASE_ALIAS=xenial ;;
   esac
 
   "__define_platform_${PLATFORM_FAMILY}"
