@@ -366,7 +366,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		},
 	}
 
-	cpuSets, err := p.checkoutCPUSets()
+	cpuSets, err := p.checkoutCPUSets(ctx)
 	if err != nil {
 		logger.WithFields(logrus.Fields{
 			"err":            err,
@@ -375,7 +375,6 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		}).Error("couldn't checkout CPUSets")
 		return nil, err
 	}
-	logger.WithField("cpu_sets", cpuSets).Info("checked out")
 
 	if cpuSets != "" {
 		dockerHostConfig.Resources.CpusetCpus = cpuSets
@@ -390,6 +389,9 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		ctx, dockerConfig, dockerHostConfig, nil, containerName)
 
 	if err != nil {
+		logger.WithField("err", err).Error("couldn't create container")
+		defer p.checkinCPUSets(ctx, cpuSets)
+
 		err := p.client.ContainerRemove(ctx, container.ID,
 			dockertypes.ContainerRemoveOptions{
 				Force:         true,
@@ -450,7 +452,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 func (p *dockerProvider) Setup(ctx gocontext.Context) error { return nil }
 
-func (p *dockerProvider) checkoutCPUSets() (string, error) {
+func (p *dockerProvider) checkoutCPUSets(ctx gocontext.Context) (string, error) {
 	p.cpuSetsMutex.Lock()
 	defer p.cpuSetsMutex.Unlock()
 
@@ -477,19 +479,33 @@ func (p *dockerProvider) checkoutCPUSets() (string, error) {
 		cpuSetsString = append(cpuSetsString, fmt.Sprintf("%d", cpuSet))
 	}
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
+	logger.WithField("cpu_sets", cpuSetsString).Info("checked out")
 	return strings.Join(cpuSetsString, ","), nil
 }
 
-func (p *dockerProvider) checkinCPUSets(sets string) {
+func (p *dockerProvider) checkinCPUSets(ctx gocontext.Context, sets string) {
 	p.cpuSetsMutex.Lock()
 	defer p.cpuSetsMutex.Unlock()
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
 
 	for _, cpuString := range strings.Split(sets, ",") {
 		cpu, err := strconv.ParseUint(cpuString, 10, 64)
 		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err":        err,
+				"cpu_string": cpuString,
+			}).Error("couldn't checkin CPU")
 			continue
 		}
+
+		if !p.cpuSets[int(cpu)] {
+			logger.WithField("cpu_set", cpuString).Info("already checked in")
+			continue
+		}
+
 		p.cpuSets[int(cpu)] = false
+		logger.WithField("cpu_sets", sets).Info("checked in")
 	}
 }
 
@@ -636,7 +652,7 @@ func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (
 }
 
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {
-	defer i.provider.checkinCPUSets(i.container.HostConfig.Resources.CpusetCpus)
+	defer i.provider.checkinCPUSets(ctx, i.container.HostConfig.Resources.CpusetCpus)
 
 	timeout := 30 * time.Second
 	err := i.client.ContainerStop(ctx, i.container.ID, &timeout)
@@ -656,7 +672,6 @@ func (i *dockerInstance) ID() string {
 	if i.container == nil {
 		return "{unidentified}"
 	}
-
 	return fmt.Sprintf("%s:%s", i.container.ID[0:7], i.imageName)
 }
 
