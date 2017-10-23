@@ -73,7 +73,7 @@ func TestDockerProvider_Start(t *testing.T) {
 			defer dockerTestTeardown()
 
 			ctx := context.FromJobID(gocontext.TODO(), 123)
-			ctx = context.FromRepository(ctx, "foobar")
+			ctx = context.FromRepository(ctx, "foobar/quux")
 			containerName := hostnameFromContext(ctx)
 
 			// The client expects this to be sufficiently long
