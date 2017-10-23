@@ -162,7 +162,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 			// The client expects this to be sufficiently long
 			containerID := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
 			ctx := context.FromJobID(gocontext.TODO(), 123)
-			ctx = context.FromRepository(ctx, "foobar")
+			ctx = context.FromRepository(ctx, "foobar/quux")
 			containerName := hostnameFromContext(ctx)
 
 			imagesList := `[
@@ -208,6 +208,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerName), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
+				w.WriteHeader(404)
 				w.Write(containerStatusBytes)
 			})
 
@@ -221,7 +222,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 				w.WriteHeader(400)
 			})
 
-			instance, err := dockerTestProvider.Start(gocontext.TODO(), &StartAttributes{Language: "jvm", Group: ""})
+			instance, err := dockerTestProvider.Start(ctx, &StartAttributes{Language: "jvm", Group: ""})
 			if err != nil {
 				t.Errorf("provider.Start() returned error: %v", err)
 			}
