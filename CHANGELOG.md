@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- backend/docker: remove container by name if it already exists
 
 ### Changed
 
@@ -13,6 +14,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- backend/docker: check cpu sets back in if starting the instance fails
 
 ### Security
 
