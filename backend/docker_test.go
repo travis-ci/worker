@@ -18,6 +18,7 @@ import (
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/config"
+	"github.com/travis-ci/worker/context"
 )
 
 var (
@@ -71,6 +72,10 @@ func TestDockerProvider_Start(t *testing.T) {
 			}))
 			defer dockerTestTeardown()
 
+			ctx := context.FromJobID(gocontext.TODO(), 123)
+			ctx = context.FromRepository(ctx, "foobar")
+			containerName := hostnameFromContext(ctx)
+
 			// The client expects this to be sufficiently long
 			containerID := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
 
@@ -83,7 +88,7 @@ func TestDockerProvider_Start(t *testing.T) {
 				fmt.Fprintf(w, imagesList)
 			})
 
-			containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerID)
+			containerCreated := fmt.Sprintf(`{"Id": "%s","Name": "%s","Warnings":null}`, containerID, containerName)
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/create", dockerAPIVersion), func(w http.ResponseWriter, r *http.Request) {
 				defer r.Body.Close()
 				var req containerCreateRequest
@@ -101,11 +106,18 @@ func TestDockerProvider_Start(t *testing.T) {
 			})
 
 			containerStatus := &dockertypes.ContainerJSONBase{
-				ID: containerID,
+				ID:   containerID,
+				Name: containerName,
 				State: &dockertypes.ContainerState{
 					Running: true,
 				},
 			}
+
+			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerName), func(w http.ResponseWriter, r *http.Request) {
+				containerStatusBytes, _ := json.Marshal(containerStatus)
+				w.Write(containerStatusBytes)
+			})
+
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
 				w.Write(containerStatusBytes)
@@ -148,6 +160,9 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 
 			// The client expects this to be sufficiently long
 			containerID := "f2e475c0ee1825418a3d4661d39d28bee478f4190d46e1a3984b73ea175c20c3"
+			ctx := context.FromJobID(gocontext.TODO(), 123)
+			ctx = context.FromRepository(ctx, "foobar")
+			containerName := hostnameFromContext(ctx)
 
 			imagesList := `[
 		{"Created":1423149832,"Id":"fc24f3225c15b08f8d9f70c1f7148d7fcbf4b41c3acce4b7da25af9371b90501","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-garnet:packer-1505167479","travis:ruby","travis:default"],"Size":729301088,"VirtualSize":4808391658},
@@ -179,12 +194,18 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 			})
 
 			containerStatus := &dockertypes.ContainerJSONBase{
-				ID: containerID,
+				ID:   containerID,
+				Name: containerName,
 				State: &dockertypes.ContainerState{
 					Running: true,
 				},
 			}
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
+				containerStatusBytes, _ := json.Marshal(containerStatus)
+				w.Write(containerStatusBytes)
+			})
+
+			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerName), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
 				w.Write(containerStatusBytes)
 			})

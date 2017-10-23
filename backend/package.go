@@ -127,13 +127,17 @@ func hostnameFromContext(ctx gocontext.Context) string {
 	randName := fmt.Sprintf("travis-job-unk-unk-%s", uuid.NewRandom())
 	jobID, ok := context.JobIDFromContext(ctx)
 	if !ok {
+		fmt.Println("no job ID found")
 		return randName
 	}
+	fmt.Println("found job id", jobID)
 
 	repoName, ok := context.RepositoryFromContext(ctx)
 	if !ok {
+		fmt.Println("no repoName found")
 		return randName
 	}
+	fmt.Println("found repoName ", repoName)
 
 	nameParts := []string{"travis-job"}
 	for _, part := range strings.Split(repoName, "/") {
