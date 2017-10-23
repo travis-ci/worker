@@ -512,7 +512,7 @@ func (p *dockerProvider) checkinCPUSets(ctx gocontext.Context, sets string) {
 			logger.WithFields(logrus.Fields{
 				"err":        err,
 				"cpu_string": cpuString,
-			}).Error("couldn't checkin CPU")
+			}).Error("couldn't parse CPU string; CPU set not checked in")
 			continue
 		}
 
