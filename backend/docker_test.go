@@ -133,7 +133,7 @@ func TestDockerProvider_Start(t *testing.T) {
 				w.WriteHeader(400)
 			})
 
-			instance, err := dockerTestProvider.Start(gocontext.TODO(), &StartAttributes{
+			instance, err := dockerTestProvider.Start(ctx, &StartAttributes{
 				Language: "jvm",
 				Group:    "",
 			})
