@@ -115,6 +115,7 @@ func TestDockerProvider_Start(t *testing.T) {
 
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerName), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
+				w.WriteHeader(404)
 				w.Write(containerStatusBytes)
 			})
 
