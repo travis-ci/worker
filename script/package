@@ -18,9 +18,6 @@ main() {
     exit 1
   fi
 
-  __announce 'Pulling Docker images for builds and testing'
-  __docker_pull_images 2>&1 | __indent
-
   if [[ ! $NO_RUN ]]; then
     __announce 'Building for all platforms'
     __build_all_platforms 2>&1 | __indent
@@ -30,13 +27,6 @@ main() {
     __announce 'Cleaning up tmp/'
     rm -fvr tmp/* 2>&1 | __indent
   fi
-}
-
-__docker_pull_images() {
-  for image in "${PKG_PLATFORMS[@]}"; do
-    __log "pulling $image"
-    docker pull "${image}" &>/dev/null
-  done
 }
 
 __build_all_platforms() {
@@ -55,11 +45,10 @@ __build_all_platforms() {
     __define_platform "${platform}"
 
     test_container_name="test-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}"
-    build_docker_image="solarce/${PLATFORM_RELEASE}-ruby"
+    build_docker_image="travisci/${PLATFORM_FAMILY}-ruby:${PLATFORM_RELEASE}"
     test_docker_image="ubuntu-upstart:${PLATFORM_RELEASE}"
 
     if [[ $PLATFORM_FAMILY == centos ]]; then
-      build_docker_image="solarce/centos${PLATFORM_RELEASE}-ruby"
       test_docker_image="2k0ri/centos${PLATFORM_RELEASE}-systemd"
     fi
 
@@ -75,7 +64,7 @@ __build_all_platforms() {
     fi
 
     pub_query="$(
-      curl -s "https://${PACKAGECLOUD_TOKEN}:@packagecloud.io/api/v1/repos/${PC_USER}/${PC_REPO}/package/${PLATFORM_PACKAGE_TYPE}/${PACKAGECLOUD_OS}/${PLATFORM_RELEASE}/travis-worker/${PLATFORM_PACKAGE_ARCH}/${PC_VERSION}/1.json"
+      curl -s "https://${PACKAGECLOUD_TOKEN}:@packagecloud.io/api/v1/repos/${PC_USER}/${PC_REPO}/package/${PLATFORM_PACKAGE_TYPE}/${PACKAGECLOUD_OS}/${PLATFORM_RELEASE_ALIAS}/travis-worker/${PLATFORM_PACKAGE_ARCH}/${PC_VERSION}/1.json"
     )"
 
     if [[ "${pub_query}" ]]; then
@@ -98,7 +87,7 @@ __build_all_platforms() {
         if [[ "${VERSION}" == "${pub_version}" ]]; then
           if [[ "${VERSION}" =~ dev ]]; then
             package_cloud yank \
-              "travisci/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE" \
+              "travisci/$PC_REPO/$PACKAGECLOUD_OS/$PLATFORM_RELEASE_ALIAS" \
               "$pub_filename"
           else
             __error "Stable version $VERSION has already been published"
@@ -122,7 +111,7 @@ __build_all_platforms() {
 
     docker run "${docker_run_args_array[@]}" \
       -it \
-      --name "build-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}" \
+      --name "build-${PLATFORM_FAMILY}-${PLATFORM_RELEASE}-${PLATFORM_PACKAGE_TYPE}-${DATE}" \
       --rm \
       -v "${CHECKOUT_ROOT}/:/code" \
       -w /code \
@@ -165,12 +154,12 @@ __package_cloud_push() {
     echo "${CHECKOUT_ROOT}/tmp/output/${PLATFORM_PACKAGE_TYPE}/${PLATFORM_FAMILY}/${PLATFORM_RELEASE}/"*".${PLATFORM_PACKAGE_TYPE}" |
       head -1
   )"
-  local pc_push_dest="${PC_USER}/${PC_REPO}/${PACKAGECLOUD_OS}/${PLATFORM_RELEASE}"
+  local pc_push_dest="${PC_USER}/${PC_REPO}/${PACKAGECLOUD_OS}/${PLATFORM_RELEASE_ALIAS}"
   __log "Uploading ${pc_upload_file} to ${pc_push_dest}"
 
   pushd "${CHECKOUT_ROOT}/script/" &>/dev/null
   ./packagecloud-prune \
-    "${PC_REPO}" "${PACKAGECLOUD_OS}/${PLATFORM_RELEASE}" "${PC_LIMIT:-14}"
+    "${PC_REPO}" "${PACKAGECLOUD_OS}/${PLATFORM_RELEASE_ALIAS}" "${PC_LIMIT:-14}"
   popd &>/dev/null
 
   package_cloud push "${pc_push_dest}" "${pc_upload_file}" --verbose
