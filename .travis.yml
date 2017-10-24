@@ -1,5 +1,6 @@
 language: go
 go: 1.8.3
+sudo: required
 dist: trusty
 group: edge
 
@@ -17,48 +18,55 @@ env:
   - GO15VENDOREXPERIMENT='1'
   - REDIS_URL="redis://"
 
-addons:
-  artifacts:
-    paths:
-    - ./build/linux/amd64/travis-worker
-    - ./build/darwin/amd64/travis-worker
-    target_paths:
-    - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
-    - travis-ci/worker/$(git describe --always --dirty --tags)
-    - travis-ci/worker/$TRAVIS_BRANCH
+script: skip
 
-before_install:
-- sudo rm -vf /etc/apt/sources.list.d/*riak*
-- sudo apt-get update
-- sudo apt-get -y install docker-ce
-
-install:
-- go get github.com/FiloSottile/gvt
-- go get -u github.com/alecthomas/gometalinter
-- gometalinter --install
-- curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
-- chmod +x ~/bin/shfmt
-- shfmt -version
-- gem install package_cloud --no-ri --no-rdoc
-
-script:
-- travis_retry make deps
-- make lintall
-- make test
-- make crossbuild
-- make smoke
-- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-    make docker-build smoke-docker docker-push;
-  fi
-- if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
-    make package smoke-package;
-  fi
-
-after_success:
-  - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
-  - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
-  - script/send-docker-hub-trigger
-
-notifications:
-  slack:
-    secure: IyWrJhruYYHEIvi4YsN3vV2rycctnRiIolzUMwgiDo275AK6O4h58+fu1EXFjMZmCqdOan98MsF709yW3S9zDaZo2s233dKWzQ95S8+n2RS+pGsxBZacCiEvOh0u1K3f19hpf8zj0ybtpcox+a6yrxK+F3er9WveO39yPZjzwCA=
+jobs:
+  include:
+  - stage: Build and Test
+    install:
+    - go get -u github.com/alecthomas/gometalinter
+    - gometalinter --install
+    - curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
+    - chmod +x ~/bin/shfmt
+    - shfmt -version
+    script:
+    - make lintall
+    - go get github.com/FiloSottile/gvt
+    - travis_retry make deps
+    - make test
+    - make crossbuild
+    - make smoke
+    addons:
+      artifacts:
+        paths:
+        - ./build/linux/amd64/travis-worker
+        - ./build/darwin/amd64/travis-worker
+        target_paths:
+        - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+        - travis-ci/worker/$(git describe --always --dirty --tags)
+        - travis-ci/worker/$TRAVIS_BRANCH
+  - stage: Build and Push Docker Image
+    script:
+    - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
+        go get github.com/FiloSottile/gvt;
+        travis_retry make deps;
+        make crossbuild;
+        sudo apt-get update;
+        sudo apt-get -y install docker-ce;
+        make docker-build smoke-docker docker-push;
+      fi
+    - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
+    - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
+    - make send-docker-hub-trigger
+  - stage: Build and Test Packages
+    script:
+    - if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
+        go get github.com/FiloSottile/gvt;
+        travis_retry make deps;
+        make crossbuild;
+        gem install package_cloud --no-ri --no-rdoc;
+        make package smoke-package;
+      fi
+    notifications:
+      slack:
+        secure: IyWrJhruYYHEIvi4YsN3vV2rycctnRiIolzUMwgiDo275AK6O4h58+fu1EXFjMZmCqdOan98MsF709yW3S9zDaZo2s233dKWzQ95S8+n2RS+pGsxBZacCiEvOh0u1K3f19hpf8zj0ybtpcox+a6yrxK+F3er9WveO39yPZjzwCA=
