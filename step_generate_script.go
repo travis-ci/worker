@@ -15,6 +15,7 @@ type stepGenerateScript struct {
 }
 
 func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction {
+	procCtx := state.Get("procCtx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
@@ -40,7 +41,7 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't generate build script, erroring job")
-		err := buildJob.Error(ctx, "An error occurred while generating the build script.")
+		err := buildJob.Error(procCtx, "An error occurred while generating the build script.")
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}

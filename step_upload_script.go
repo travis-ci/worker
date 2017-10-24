@@ -17,6 +17,7 @@ type stepUploadScript struct {
 }
 
 func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
+	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 
@@ -39,7 +40,7 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		logger.WithField("err", err).Error("couldn't upload script, attemping requeue")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue(ctx)
+		err := buildJob.Requeue(procCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
