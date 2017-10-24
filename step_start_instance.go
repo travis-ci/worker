@@ -49,7 +49,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
-		err := buildJob.Requeue(ctx)
+		err := buildJob.Requeue(procCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
