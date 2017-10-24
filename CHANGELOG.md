@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- processor: use processor-level context when requeueing or erroring a job
 
 ### Security
 
