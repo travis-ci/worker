@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- backend/docker: remove container by name if it already exists
 
 ### Changed
 
@@ -14,9 +13,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
-- backend/docker: check cpu sets back in if starting the instance fails
 
 ### Security
+
+## [3.2.1] - 2017-11-24
+
+### Added
+- backend/docker: remove container by name if it already exists
+
+### Fixed
+- backend/docker: check cpu sets back in if starting the instance fails
 
 ## [3.2.0] - 2017-10-18
 
@@ -592,7 +598,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.2.1...HEAD
+[3.2.1]: https://github.com/travis-ci/worker/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/travis-ci/worker/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/travis-ci/worker/compare/v3.0.2...v3.1.0
 [3.0.2]: https://github.com/travis-ci/worker/compare/v3.0.1...v3.0.2
