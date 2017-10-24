@@ -185,11 +185,9 @@ __install_docker() {
 
   apt-get update
 
-  if ! docker version &>/dev/null; then
-    apt-get install -y \
-      "linux-image-extra-$(uname -r)" \
-      docker-ce
-  fi
+  apt-get install -y \
+    "linux-image-extra-$(uname -r)" \
+    docker-ce=17.09.0~ce-0~ubuntu
 
   if [[ $AWS == true ]]; then
     local docker_mount_point='--graph=/mnt/docker'
