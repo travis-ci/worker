@@ -125,7 +125,6 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 }
 
 func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
-
 	body := map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": state,
