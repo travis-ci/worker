@@ -610,7 +610,10 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		return &RunResult{Completed: false}, err
 	}
 
-	hijackedResponse, err := i.client.ContainerExecAttach(ctx, exec.ID, execConfig)
+	hijackedResponse, err := i.client.ContainerExecAttach(ctx, exec.ID, dockertypes.ExecStartCheck{
+		Detach: execConfig.Detach,
+		Tty:    execConfig.Tty,
+	})
 	if err != nil {
 		return &RunResult{Completed: false}, err
 	}
