@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- http-job-queue: use polling and refresh claim intervals from job delivery
+  responses, if available
 
 ### Changed
 
