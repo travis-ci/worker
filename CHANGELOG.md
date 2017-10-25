@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- backend: ensure generated hostnames do not contain `_`
 
 ### Security
 
