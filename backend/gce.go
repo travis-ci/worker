@@ -653,7 +653,6 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		}
 	}(c)
 
-	logger.Info("starting instance")
 	go runner.Run(state)
 
 	logger.Debug("selecting over instance, error, and done channels")
@@ -1204,7 +1203,11 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 }
 
 func (i *gceInstance) ID() string {
-	return fmt.Sprintf("%s:%s", i.instance.Name, i.imageName)
+	return i.instance.Name
+}
+
+func (i *gceInstance) ImageName() string {
+	return i.imageName
 }
 
 func (i *gceInstance) StartupDuration() time.Duration {

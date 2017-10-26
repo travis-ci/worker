@@ -179,7 +179,7 @@ func TestAMQPJob_Finish(t *testing.T) {
 
 func TestAMQPJob_createStateUpdateBody(t *testing.T) {
 	job := newTestAMQPJob(t)
-	body := job.createStateUpdateBody("foo")
+	body := job.createStateUpdateBody(gocontext.TODO(), "foo")
 
 	assert.Equal(t, "foo", body["state"])
 
@@ -194,15 +194,17 @@ func TestAMQPJob_createStateUpdateBody(t *testing.T) {
 		assert.Contains(t, body, key)
 	}
 
+	assert.Equal(t, body["meta"].(map[string]interface{})["instance_id"], nil)
+
 	job.received = time.Time{}
-	assert.NotContains(t, job.createStateUpdateBody("foo"), "received_at")
+	assert.NotContains(t, job.createStateUpdateBody(gocontext.TODO(), "foo"), "received_at")
 
 	job.Payload().Job.QueuedAt = nil
-	assert.NotContains(t, job.createStateUpdateBody("foo"), "queued_at")
+	assert.NotContains(t, job.createStateUpdateBody(gocontext.TODO(), "foo"), "queued_at")
 
 	job.started = time.Time{}
-	assert.NotContains(t, job.createStateUpdateBody("foo"), "started_at")
+	assert.NotContains(t, job.createStateUpdateBody(gocontext.TODO(), "foo"), "started_at")
 
 	job.finished = time.Time{}
-	assert.NotContains(t, job.createStateUpdateBody("foo"), "finished_at")
+	assert.NotContains(t, job.createStateUpdateBody(gocontext.TODO(), "foo"), "finished_at")
 }
