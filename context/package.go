@@ -26,6 +26,7 @@ const (
 	jobIDKey
 	repositoryKey
 	jwtKey
+	instanceIDKey
 )
 
 // FromUUID generates a new context with the given context as its parent and
@@ -68,6 +69,13 @@ func FromJWT(ctx context.Context, jwt string) context.Context {
 // can be retrieved again using RepositoryFromContext.
 func FromRepository(ctx context.Context, repository string) context.Context {
 	return context.WithValue(ctx, repositoryKey, repository)
+}
+
+// FromInstanceID generates a new context with the given context as its parent
+// and stores the given instance ID with the context. The instance ID
+// can be retrieved again using InstanceIDFromContext.
+func FromInstanceID(ctx context.Context, instanceID string) context.Context {
+	return context.WithValue(ctx, instanceIDKey, instanceID)
 }
 
 // UUIDFromContext returns the UUID stored in the context with FromUUID. If no
@@ -118,11 +126,23 @@ func RepositoryFromContext(ctx context.Context) (string, bool) {
 	return repository, ok
 }
 
+// InstanceIDFromContext returns the instance ID stored in the context with
+// FromInstanceID. If no instanceID was stored in the context, the second argument is
+// false. Otherwise it is true.
+func InstanceIDFromContext(ctx context.Context) (string, bool) {
+	instanceID, ok := ctx.Value(instanceIDKey).(string)
+	return instanceID, ok
+}
+
 // LoggerFromContext returns a logrus.Entry with the PID of the current process
 // set as a field, and also includes every field set using the From* functions
 // this package.
 func LoggerFromContext(ctx context.Context) *logrus.Entry {
 	entry := logrus.WithField("pid", os.Getpid())
+
+	if instanceID, ok := InstanceIDFromContext(ctx); ok {
+		entry = entry.WithField("instance_id", instanceID)
+	}
 
 	if uuid, ok := UUIDFromContext(ctx); ok {
 		entry = entry.WithField("uuid", uuid)

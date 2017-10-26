@@ -21,7 +21,7 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 			"\033[33;1mWorker information\033[0m",
 			fmt.Sprintf("hostname: %s", hostname),
 			fmt.Sprintf("version: %s %s", VersionString, RevisionURLString),
-			fmt.Sprintf("instance: %s (via %s)", instance.ID(), buildJob.Name()),
+			fmt.Sprintf("instance: %s %s (via %s)", instance.ID(), instance.ImageName(), buildJob.Name()),
 			fmt.Sprintf("startup: %v", instance.StartupDuration()),
 		}, "\n")))
 	}

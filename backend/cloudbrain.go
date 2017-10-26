@@ -622,7 +622,11 @@ func (i *cbInstance) stepWaitForInstanceDeleted(c *cbInstanceStopContext) multis
 }
 
 func (i *cbInstance) ID() string {
-	return fmt.Sprintf("%s:%s", i.instance.ID, i.imageName)
+	return i.instance.ID
+}
+
+func (i *cbInstance) ImageName() string {
+	return i.imageName
 }
 
 func (i *cbInstance) StartupDuration() time.Duration {

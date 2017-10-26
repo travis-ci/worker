@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- amqp-job: include instance name in state update sent to hub
 
 ### Changed
 

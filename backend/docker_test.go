@@ -143,8 +143,12 @@ func TestDockerProvider_Start(t *testing.T) {
 				t.Errorf("provider.Start() returned error: %v", err)
 			}
 
-			if instance.ID() != "f2e475c:travisci/ci-amethyst:packer-1504724461" {
-				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travisci/ci-amethyst:packer-1504724461\"", instance.ID())
+			if instance.ID() != "f2e475c" {
+				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c\"", instance.ID())
+			}
+
+			if instance.ImageName() != "travisci/ci-amethyst:packer-1504724461" {
+				t.Errorf("Provider returned unexpected ImageName (\"%s\" != \"travisci/ci-amethyst:packer-1504724461\"", instance.ID())
 			}
 		}()
 	}
@@ -227,8 +231,12 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 				t.Errorf("provider.Start() returned error: %v", err)
 			}
 
-			if instance.ID() != "f2e475c:travisci/ci-amethyst:packer-1504724461" {
-				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c:travisci/ci-amethyst:packer-1504724461\"", instance.ID())
+			if instance.ID() != "f2e475c" {
+				t.Errorf("Provider returned unexpected ID (\"%s\" != \"f2e475c\"", instance.ID())
+			}
+
+			if instance.ImageName() != "travisci/ci-amethyst:packer-1504724461" {
+				t.Errorf("Provider returned unexpected ImageName (\"%s\" != \"travisci/ci-amethyst:packer-1504724461\"", instance.ImageName())
 			}
 		}()
 	}
@@ -598,7 +606,8 @@ func TestDockerInstance_ID(t *testing.T) {
 		startBooting: now,
 	}
 
-	assert.Equal(t, "beabeba:fafafaf", instance.ID())
+	assert.Equal(t, "beabeba", instance.ID())
+	assert.Equal(t, "fafafaf", instance.ImageName())
 
 	instance.container = nil
 	assert.Equal(t, "{unidentified}", instance.ID())

@@ -647,7 +647,11 @@ func (i *osInstance) ID() string {
 	if i.instance == nil {
 		return "{unidentified}"
 	}
-	return fmt.Sprintf("%s:%s", i.instance.ID, i.imageName)
+	return i.instance.ID
+}
+
+func (i *osInstance) ImageName() string {
+	return i.imageName
 }
 
 func (i *osInstance) StartupDuration() time.Duration {
