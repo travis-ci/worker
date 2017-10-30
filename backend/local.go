@@ -118,4 +118,8 @@ func (i *localInstance) ID() string {
 	return fmt.Sprintf("local:%s", i.scriptPath)
 }
 
+func (i *localInstance) ImageName() string {
+	return ""
+}
+
 func (i *localInstance) StartupDuration() time.Duration { return zeroDuration }

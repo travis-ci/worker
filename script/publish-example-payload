@@ -1,0 +1,19 @@
+#!/usr/bin/python3
+import os
+import pika
+
+
+top = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+
+with open(os.path.join(top, 'example-payload.json'), 'r') as f:
+    data = f.read()
+
+connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
+channel = connection.channel()
+
+channel.basic_publish(exchange='',
+                      routing_key=os.environ["TRAVIS_WORKER_QUEUE_NAME"],
+                      body=data)
+print(" [x] Sent 'Enqueued the thing!'")
+
+connection.close()

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - http-job-queue: use polling and refresh claim intervals from job delivery
   responses, if available
+- amqp-job: include instance name in state update sent to hub
 
 ### Changed
 
@@ -15,7 +16,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
-- backend: ensure generated hostnames do not contain `_`
+- backend: ensure generated hostnames do not contain `_` and are lowercase
 
 ### Security
 

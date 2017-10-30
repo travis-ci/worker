@@ -57,7 +57,11 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	logger.WithField("boot_time", time.Since(startTime)).Info("started instance")
+	logger.WithFields(logrus.Fields{
+		"boot_time":   time.Since(startTime),
+		"instance_id": instance.ID(),
+		"image_name":  instance.ImageName(),
+	}).Info("started instance")
 
 	state.Put("instance", instance)
 

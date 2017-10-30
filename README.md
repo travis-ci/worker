@@ -99,6 +99,8 @@ export TRAVIS_WORKER_DOCKER_CERT_PATH="/etc/secret-docker-cert-stuff"   # option
 
 #### Queue configuration
 
+#### File-based queue
+
 For the queue configuration, there is a file-based queue implementation so you
 don't have to mess around with RabbitMQ.
 
@@ -110,6 +112,23 @@ Place the file in the `$TRAVIS_WORKER_QUEUE_NAME/10-created.d/` directory, where
 it will be picked up by the worker.
 
 See `example-payload.json` for an example payload.
+
+#### AMQP-based queue
+
+```
+export TRAVIS_WORKER_QUEUE_TYPE='amqp'
+export TRAVIS_WORKER_AMQP_URI='amqp://guest:guest@localhost'
+```
+
+The web interface is accessible at http://localhost:15672/
+
+To verify your messages are being published, try:
+
+`$ rabbitmqadmin get queue=reporting.jobs.builds`
+
+Note: You will first need to install `rabbitmqadmin`. See http://localhost:15672/cli
+
+See `script/publish-example-payload` for a script to enqueue `example-payload.json`.
 
 ### Building and running
 

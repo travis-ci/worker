@@ -76,6 +76,10 @@ func (i *fakeInstance) ID() string {
 	return "fake"
 }
 
+func (i *fakeInstance) ImageName() string {
+	return "fake"
+}
+
 func (i *fakeInstance) StartupDuration() time.Duration {
 	return i.startupDuration
 }
