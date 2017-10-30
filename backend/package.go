@@ -158,5 +158,5 @@ func hostnameFromContext(ctx gocontext.Context) string {
 	}
 
 	joined := strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), "-")
-	return multiDash.ReplaceAllString(joined, "-")
+	return strings.ToLower(multiDash.ReplaceAllString(joined, "-"))
 }
