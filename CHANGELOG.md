@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - amqp-job: include instance name in state update sent to hub
 
 ### Changed
+- backend/gce: make deterministic hostname configurable, defaulting to
+  previous behavior
 
 ### Deprecated
 
