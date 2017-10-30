@@ -51,7 +51,7 @@ func Test_hostnameFromContext(t *testing.T) {
 		},
 		{
 			r: "very-SiLlY.nAmE.wat/por-cu___-pine",
-			n: fmt.Sprintf("travis-job-very-SiLlY-nAm-por-cu-pine-%v", jobID),
+			n: fmt.Sprintf("travis-job-very-silly-nam-por-cu-pine-%v", jobID),
 		},
 	} {
 		ctx := context.FromRepository(context.FromJobID(gocontext.TODO(), jobID), tc.r)
