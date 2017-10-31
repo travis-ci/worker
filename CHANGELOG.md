@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - amqp-job: include instance name in state update sent to hub
 
 ### Changed
+- processor: improved logging around requeue conditions
 
 ### Deprecated
 

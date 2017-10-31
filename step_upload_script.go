@@ -7,6 +7,7 @@ import (
 
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
@@ -37,7 +38,10 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		metrics.Mark(errMetric)
 
-		logger.WithField("err", err).Error("couldn't upload script, attemping requeue")
+		logger.WithFields(logrus.Fields{
+			"err":            err,
+			"upload_timeout": s.uploadTimeout,
+		}).Error("couldn't upload script, attempting requeue")
 		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue(procCtx)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 )
@@ -64,7 +65,10 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 		if r.err != nil {
 			if !r.result.Completed {
-				logger.WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script, attempting requeue")
+				logger.WithFields(logrus.Fields{
+					"err":       r.err,
+					"completed": r.result.Completed,
+				}).Error("couldn't run script, attempting requeue")
 				context.CaptureError(ctx, r.err)
 
 				err := buildJob.Requeue(procCtx)
