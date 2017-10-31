@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- processor: improved logging around requeue conditions
 
 ### Deprecated
 
