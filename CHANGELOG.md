@@ -7,7 +7,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - http-job-queue: use polling and refresh claim intervals from job delivery
   responses, if available
-- amqp-job: include instance name in state update sent to hub
 
 ### Changed
 - processor: improved logging around requeue conditions
