@@ -23,6 +23,7 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/config"
@@ -61,38 +62,39 @@ const (
 
 var (
 	gceHelp = map[string]string{
-		"ACCOUNT_JSON":          "[REQUIRED] account JSON config",
-		"AUTO_IMPLODE":          "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
-		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
-		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
-		"DEFAULT_LANGUAGE":      fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
-		"DISK_SIZE":             fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
-		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
-		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
-		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
-		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
-		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
-		"PREEMPTIBLE":           "boot job instances with preemptible flag enabled (default true)",
-		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
-		"PROJECT_ID":            "[REQUIRED] GCE project id",
-		"PUBLIC_IP":             "boot job instances with a public ip, disable this for NAT (default true)",
-		"PUBLIC_IP_CONNECT":     "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
-		"IMAGE_PROJECT_ID":      "GCE project id to use for images, will use PROJECT_ID if not specified",
-		"RATE_LIMIT_PREFIX":     "prefix for the rate limit key in Redis",
-		"RATE_LIMIT_REDIS_URL":  "URL to Redis instance to use for rate limiting",
-		"RATE_LIMIT_MAX_CALLS":  fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
-		"RATE_LIMIT_DURATION":   fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
-		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
-		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
-		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
-		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
-		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
-		"SUBNETWORK":            fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
-		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
-		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"ACCOUNT_JSON":           "[REQUIRED] account JSON config",
+		"AUTO_IMPLODE":           "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
+		"BOOT_POLL_SLEEP":        fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":    fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
+		"DEFAULT_LANGUAGE":       fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
+		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_DEFAULT":          fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
+		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_URL":     "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_[ALIAS_]{ALIAS}":  "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"MACHINE_TYPE":           fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"NETWORK":                fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PREEMPTIBLE":            "boot job instances with preemptible flag enabled (default true)",
+		"PREMIUM_MACHINE_TYPE":   fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
+		"PROJECT_ID":             "[REQUIRED] GCE project id",
+		"PUBLIC_IP":              "boot job instances with a public ip, disable this for NAT (default true)",
+		"PUBLIC_IP_CONNECT":      "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
+		"IMAGE_PROJECT_ID":       "GCE project id to use for images, will use PROJECT_ID if not specified",
+		"RATE_LIMIT_PREFIX":      "prefix for the rate limit key in Redis",
+		"RATE_LIMIT_REDIS_URL":   "URL to Redis instance to use for rate limiting",
+		"RATE_LIMIT_MAX_CALLS":   fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
+		"RATE_LIMIT_DURATION":    fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
+		"REGION":                 fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
+		"SKIP_STOP_POLL":         "immediately return after issuing first instance deletion request (default false)",
+		"SSH_DIAL_TIMEOUT":       fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
+		"STOP_POLL_SLEEP":        fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
+		"STOP_PRE_POLL_SLEEP":    fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
+		"SUBNETWORK":             fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
+		"UPLOAD_RETRIES":         fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":     fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"ZONE":                   fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
@@ -146,16 +148,17 @@ type gceProvider struct {
 	ic             *gceInstanceConfig
 	cfg            *config.ProviderConfig
 
-	imageSelectorType string
-	imageSelector     image.Selector
-	bootPollSleep     time.Duration
-	bootPrePollSleep  time.Duration
-	defaultLanguage   string
-	defaultImage      string
-	uploadRetries     uint64
-	uploadRetrySleep  time.Duration
-	sshDialer         ssh.Dialer
-	sshDialTimeout    time.Duration
+	deterministicHostname bool
+	imageSelectorType     string
+	imageSelector         image.Selector
+	bootPollSleep         time.Duration
+	bootPrePollSleep      time.Duration
+	defaultLanguage       string
+	defaultImage          string
+	uploadRetries         uint64
+	uploadRetrySleep      time.Duration
+	sshDialer             ssh.Dialer
+	sshDialTimeout        time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -459,6 +462,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		publicIPConnect = asBool(cfg.Get("PUBLIC_IP_CONNECT"))
 	}
 
+	deterministicHostname := false
+	if cfg.IsSet("DETERMINISTIC_HOSTNAME") {
+		deterministicHostname = asBool(cfg.Get("DETERMINISTIC_HOSTNAME"))
+	}
+
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -480,14 +488,15 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			Site:             site,
 		},
 
-		imageSelector:     imageSelector,
-		imageSelectorType: imageSelectorType,
-		bootPollSleep:     bootPollSleep,
-		bootPrePollSleep:  bootPrePollSleep,
-		defaultLanguage:   defaultLanguage,
-		defaultImage:      defaultImage,
-		uploadRetries:     uploadRetries,
-		uploadRetrySleep:  uploadRetrySleep,
+		deterministicHostname: deterministicHostname,
+		imageSelector:         imageSelector,
+		imageSelectorType:     imageSelectorType,
+		bootPollSleep:         bootPollSleep,
+		bootPrePollSleep:      bootPrePollSleep,
+		defaultLanguage:       defaultLanguage,
+		defaultImage:          defaultImage,
+		uploadRetries:         uploadRetries,
+		uploadRetrySleep:      uploadRetrySleep,
 
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
@@ -899,6 +908,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		tags = append(tags, p.ic.Site)
 	}
 
+	hostname := ""
+	if p.deterministicHostname {
+		hostname = hostnameFromContext(ctx)
+	} else {
+		hostname = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -918,7 +934,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Preemptible: p.ic.Preemptible,
 		},
 		MachineType: machineType.SelfLink,
-		Name:        hostnameFromContext(ctx),
+		Name:        hostname,
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{

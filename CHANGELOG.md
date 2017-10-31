@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- amqp-job: include instance name in state update sent to hub
 
 ### Changed
 
@@ -14,9 +13,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
-- backend: ensure generated hostnames do not contain `_` and are lowercase
 
 ### Security
+
+## [3.3.0] - 2017-10-30
+
+### Added
+- amqp-job: include instance name in state update sent to hub
+
+### Changed
+- backend/gce: make deterministic hostname configurable, defaulting to
+  previous behavior
+
+### Fixed
+- backend: ensure generated hostnames do not contain `_` and are lowercase
 
 ## [3.2.2] - 2017-10-24
 
@@ -608,7 +618,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.2.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.3.0...HEAD
+[3.3.0]: https://github.com/travis-ci/worker/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/travis-ci/worker/compare/v3.2.1...v3.2.2
 [3.2.1]: https://github.com/travis-ci/worker/compare/v3.2.0...v3.2.1
 [3.2.0]: https://github.com/travis-ci/worker/compare/v3.1.0...v3.2.0
