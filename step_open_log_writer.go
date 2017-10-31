@@ -6,6 +6,7 @@ import (
 	gocontext "context"
 
 	"github.com/mitchellh/multistep"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
 )
 
@@ -22,7 +23,10 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 
 	logWriter, err := buildJob.LogWriter(ctx, s.defaultLogTimeout)
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't open a log writer")
+		logger.WithFields(logrus.Fields{
+			"err":         err,
+			"log_timeout": s.defaultLogTimeout,
+		}).Error("couldn't open a log writer, attempting requeue")
 		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue(procCtx)

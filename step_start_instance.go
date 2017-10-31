@@ -33,9 +33,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't start instance")
-		context.CaptureError(ctx, err)
-
 		jobAbortErr, ok := errors.Cause(err).(workererrors.JobAbortError)
 		if ok {
 			logWriter := state.Get("logWriter").(LogWriter)
@@ -48,6 +45,12 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 			return multistep.ActionHalt
 		}
+
+		logger.WithFields(logrus.Fields{
+			"err":           err,
+			"start_timeout": s.startTimeout,
+		}).Error("couldn't start instance, attempting requeue")
+		context.CaptureError(ctx, err)
 
 		err := buildJob.Requeue(procCtx)
 		if err != nil {
