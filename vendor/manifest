@@ -5,7 +5,7 @@
 			"importpath": "cloud.google.com/go/compute/metadata",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a62b9aca3c1641d3a416e7180eda01bc17e7664c",
+			"revision": "a9466f1b3589e3734a5d7b3296333aa88498b662",
 			"branch": "master",
 			"path": "/compute/metadata",
 			"notests": true
@@ -54,7 +54,7 @@
 			"importpath": "github.com/docker/docker",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "git",
-			"revision": "d85f5e73203a1f8537b7db02e1eadcb6d75798b2",
+			"revision": "a17bfb78e8c33f67338f480637948f537cb69f40",
 			"branch": "master",
 			"notests": true,
 			"allfiles": true
@@ -80,7 +80,7 @@
 			"importpath": "github.com/dustin/go-humanize",
 			"repository": "https://github.com/dustin/go-humanize",
 			"vcs": "git",
-			"revision": "77ed807830b4df581417e7f89eb81d4872832b72",
+			"revision": "6d15c0ae71e55ed645c21ac4945aaadbc0e9a590",
 			"branch": "master",
 			"notests": true
 		},
@@ -88,7 +88,7 @@
 			"importpath": "github.com/garyburd/redigo/internal",
 			"repository": "https://github.com/garyburd/redigo",
 			"vcs": "git",
-			"revision": "34a326de1fea52965fa5ad664d3fc7163dd4b0a1",
+			"revision": "06066d2f143c573c5cc10a91893dbe92103f4e92",
 			"branch": "master",
 			"path": "internal",
 			"notests": true
@@ -97,7 +97,7 @@
 			"importpath": "github.com/garyburd/redigo/redis",
 			"repository": "https://github.com/garyburd/redigo",
 			"vcs": "git",
-			"revision": "34a326de1fea52965fa5ad664d3fc7163dd4b0a1",
+			"revision": "06066d2f143c573c5cc10a91893dbe92103f4e92",
 			"branch": "master",
 			"path": "/redis",
 			"notests": true
@@ -296,7 +296,7 @@
 			"importpath": "golang.org/x/crypto/curve25519",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "2509b142fb2b797aa7587dad548f113b2c0f20ce",
+			"revision": "bd6f299fb381e4c3393d1c4b1f0b94f5e77650c8",
 			"branch": "master",
 			"path": "curve25519",
 			"notests": true
@@ -305,7 +305,7 @@
 			"importpath": "golang.org/x/crypto/ed25519",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "2509b142fb2b797aa7587dad548f113b2c0f20ce",
+			"revision": "bd6f299fb381e4c3393d1c4b1f0b94f5e77650c8",
 			"branch": "master",
 			"path": "ed25519",
 			"notests": true
@@ -314,7 +314,7 @@
 			"importpath": "golang.org/x/crypto/ssh",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "2509b142fb2b797aa7587dad548f113b2c0f20ce",
+			"revision": "bd6f299fb381e4c3393d1c4b1f0b94f5e77650c8",
 			"branch": "master",
 			"path": "ssh",
 			"notests": true
@@ -323,7 +323,7 @@
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "4b14673ba32bee7f5ac0f990a48f033919fd418b",
+			"revision": "c73622c77280266305273cb545f54516ced95b93",
 			"branch": "master",
 			"path": "/context",
 			"notests": true
@@ -340,7 +340,7 @@
 			"importpath": "golang.org/x/sys/unix",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
-			"revision": "a1a1f1746d156bbc9954f29134b20ed4ce2752f1",
+			"revision": "95c6576299259db960f6c5b9b69ea52422860fce",
 			"branch": "master",
 			"path": "/unix",
 			"notests": true
@@ -349,7 +349,7 @@
 			"importpath": "golang.org/x/sys/windows",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
-			"revision": "a1a1f1746d156bbc9954f29134b20ed4ce2752f1",
+			"revision": "95c6576299259db960f6c5b9b69ea52422860fce",
 			"branch": "master",
 			"path": "/windows",
 			"notests": true
@@ -358,7 +358,7 @@
 			"importpath": "google.golang.org/api/compute/v1",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "52fedcc3d56e51c5f1a571d48092238ab2746c73",
+			"revision": "75149eb4675e362b80c52d281a8df0d6aaf01dc6",
 			"branch": "master",
 			"path": "/compute/v1",
 			"notests": true
@@ -367,7 +367,7 @@
 			"importpath": "google.golang.org/api/gensupport",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "52fedcc3d56e51c5f1a571d48092238ab2746c73",
+			"revision": "75149eb4675e362b80c52d281a8df0d6aaf01dc6",
 			"branch": "master",
 			"path": "gensupport",
 			"notests": true
@@ -376,7 +376,7 @@
 			"importpath": "google.golang.org/api/googleapi",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "52fedcc3d56e51c5f1a571d48092238ab2746c73",
+			"revision": "75149eb4675e362b80c52d281a8df0d6aaf01dc6",
 			"branch": "master",
 			"path": "googleapi",
 			"notests": true
@@ -385,7 +385,7 @@
 			"importpath": "google.golang.org/appengine",
 			"repository": "https://github.com/golang/appengine",
 			"vcs": "git",
-			"revision": "a2e0dc829727a4f957a7428b1f322805cfc1f362",
+			"revision": "9d8544a6b2c7df9cff240fcf92d7b2f59bc13416",
 			"branch": "master",
 			"notests": true
 		},
