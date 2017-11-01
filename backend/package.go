@@ -32,6 +32,7 @@ import (
 	gocontext "context"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -50,6 +51,9 @@ var (
 	ErrMissingEndpointConfig = fmt.Errorf("expected config key endpoint")
 
 	zeroDuration time.Duration
+
+	hostnamePartsDisallowed = regexp.MustCompile("[^a-zA-Z0-9-]+")
+	multiDash               = regexp.MustCompile("-+")
 )
 
 // Provider represents some kind of instance provider. It can point to an
@@ -80,6 +84,9 @@ type Instance interface {
 
 	// ID is used when identifying the instance in logs and such
 	ID() string
+
+	// ImageName is the name of the image used to boot the instance
+	ImageName() string
 
 	// StartupDuration is the duration between "created" and "ready"
 	StartupDuration() time.Duration
@@ -137,7 +144,7 @@ func hostnameFromContext(ctx gocontext.Context) string {
 
 	nameParts := []string{"travis-job"}
 	for _, part := range strings.Split(repoName, "/") {
-		cleanedPart := containerNamePartDisallowed.ReplaceAllString(part, "-")
+		cleanedPart := hostnamePartsDisallowed.ReplaceAllString(part, "-")
 		// NOTE: the part limit of 14 is meant to ensure a maximum hostname of
 		// 64 characters, given:
 		// travis-job-{part}-{part}-{job-id}.travisci.net
@@ -150,5 +157,6 @@ func hostnameFromContext(ctx gocontext.Context) string {
 		nameParts = append(nameParts, cleanedPart)
 	}
 
-	return strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), "-")
+	joined := strings.Join(append(nameParts, fmt.Sprintf("%v", jobID)), "-")
+	return strings.ToLower(multiDash.ReplaceAllString(joined, "-"))
 }

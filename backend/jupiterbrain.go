@@ -363,7 +363,14 @@ func (i *jupiterBrainInstance) ID() string {
 	if i.payload == nil {
 		return "{unidentified}"
 	}
-	return fmt.Sprintf("%s:%s", i.payload.ID, i.payload.BaseImage)
+	return i.payload.ID
+}
+
+func (i *jupiterBrainInstance) ImageName() string {
+	if i.payload == nil {
+		return "{unidentified}"
+	}
+	return i.payload.BaseImage
 }
 
 func (i *jupiterBrainInstance) StartupDuration() time.Duration {

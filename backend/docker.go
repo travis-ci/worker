@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -63,8 +62,6 @@ var (
 		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
 		"BINDS":               "Bind mount a volume (example: \"/var/run/docker.sock:/var/run/docker.sock\", default \"\")",
 	}
-
-	containerNamePartDisallowed = regexp.MustCompile("[^a-zA-Z0-9_-]+")
 )
 
 func init() {
@@ -694,7 +691,12 @@ func (i *dockerInstance) ID() string {
 	if i.container == nil {
 		return "{unidentified}"
 	}
-	return fmt.Sprintf("%s:%s", i.container.ID[0:7], i.imageName)
+
+	return i.container.ID[0:7]
+}
+
+func (i *dockerInstance) ImageName() string {
+	return i.imageName
 }
 
 func (i *dockerInstance) StartupDuration() time.Duration {
