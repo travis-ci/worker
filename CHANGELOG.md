@@ -7,7 +7,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- processor: improved logging around requeue conditions
 
 ### Deprecated
 
@@ -16,6 +15,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [3.3.1] - 2017-11-01
+
+### Changed
+- processor: improved logging around requeue conditions
 
 ## [3.3.0] - 2017-10-30
 
@@ -619,7 +623,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.3.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.3.1...HEAD
+[3.3.1]: https://github.com/travis-ci/worker/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/travis-ci/worker/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/travis-ci/worker/compare/v3.2.1...v3.2.2
 [3.2.1]: https://github.com/travis-ci/worker/compare/v3.2.0...v3.2.1
