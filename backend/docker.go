@@ -51,7 +51,7 @@ var (
 		"CERT_PATH":           "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
 		"CMD":                 "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
-		"INSPECT_INTERVAL":    fmt.Sprintf("time to wait between container inspections in ms (default %q)", defaultInspectInterval),
+		"INSPECT_INTERVAL":    fmt.Sprintf("time to wait between container inspections as duration (default %q)", defaultInspectInterval),
 		"TMPFS_MAP":           fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
 		"MEMORY":              "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
