@@ -43,6 +43,7 @@ const (
 var (
 	defaultDockerNumCPUer       dockerNumCPUer = &stdlibNumCPUer{}
 	defaultDockerSSHDialTimeout                = 5 * time.Second
+	defaultInspectInterval                     = 500 * time.Millisecond
 	defaultExecCmd                             = "bash /home/travis/build.sh"
 	defaultTmpfsMap                            = map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k"}
 	dockerHelp                                 = map[string]string{
@@ -50,6 +51,7 @@ var (
 		"CERT_PATH":           "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
 		"CMD":                 "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
+		"INSPECT_INTERVAL":    fmt.Sprintf("time to wait between container inspections as duration (default %q)", defaultInspectInterval),
 		"TMPFS_MAP":           fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
 		"MEMORY":              "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
@@ -83,16 +85,17 @@ type dockerProvider struct {
 	sshDialer      ssh.Dialer
 	sshDialTimeout time.Duration
 
-	runPrivileged bool
-	runCmd        []string
-	runBinds      []string
-	runMemory     uint64
-	runShm        uint64
-	runCPUs       int
-	runNative     bool
-	execCmd       []string
-	tmpFs         map[string]string
-	imageSelector image.Selector
+	runPrivileged   bool
+	runCmd          []string
+	runBinds        []string
+	runMemory       uint64
+	runShm          uint64
+	runCPUs         int
+	runNative       bool
+	execCmd         []string
+	inspectInterval time.Duration
+	tmpFs           map[string]string
+	imageSelector   image.Selector
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -163,6 +166,15 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 	execCmd := strings.Split(defaultExecCmd, " ")
 	if cfg.IsSet("EXEC_CMD") {
 		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
+	}
+
+	inspectInterval := defaultInspectInterval
+	if cfg.IsSet("INSPECT_INTERVAL") {
+		v, err := time.ParseDuration(cfg.Get("INSPECT_INTERVAL"))
+		if err != nil {
+			return nil, err
+		}
+		inspectInterval = v
 	}
 
 	binds := []string{}
@@ -237,8 +249,9 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runNative:     runNative,
 		imageSelector: imageSelector,
 
-		execCmd: execCmd,
-		tmpFs:   tmpFs,
+		execCmd:         execCmd,
+		inspectInterval: inspectInterval,
+		tmpFs:           tmpFs,
 
 		cpuSets: make([]bool, cpuSetSize),
 	}, nil
@@ -648,7 +661,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		}
 
 		select {
-		case <-time.After(500 * time.Millisecond):
+		case <-time.After(i.provider.inspectInterval):
 			continue
 		case <-ctx.Done():
 			return &RunResult{Completed: false}, ctx.Err()
