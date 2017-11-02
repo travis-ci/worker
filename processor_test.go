@@ -34,8 +34,8 @@ func TestProcessor(t *testing.T) {
 			stateEvents: []string{"received", "started", string(FinishStatePassed)},
 		},
 		{
-			runSleep:    3 * time.Second,
-			hardTimeout: 5 * time.Second,
+			runSleep:    5 * time.Second,
+			hardTimeout: 6 * time.Second,
 			stateEvents: []string{"received", "started", string(FinishStateCancelled)},
 			isCancelled: true,
 		},
