@@ -170,11 +170,11 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	inspectInterval := defaultInspectInterval
 	if cfg.IsSet("INSPECT_INTERVAL") {
-		v, err := strconv.ParseInt(cfg.Get("INSPECT_INTERVAL"), 10, 64)
+		v, err := time.ParseDuration(cfg.Get("INSPECT_INTERVAL"))
 		if err != nil {
 			return nil, err
 		}
-		inspectInterval = time.Duration(v) * time.Millisecond
+		inspectInterval = v
 	}
 
 	binds := []string{}
@@ -250,7 +250,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageSelector: imageSelector,
 
 		execCmd:         execCmd,
-		inspectInterval: time.Duration(inspectInterval),
+		inspectInterval: inspectInterval,
 		tmpFs:           tmpFs,
 
 		cpuSets: make([]bool, cpuSetSize),

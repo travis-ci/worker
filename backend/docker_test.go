@@ -341,7 +341,7 @@ func TestNewDockerProvider_WithCMD(t *testing.T) {
 
 func TestNewDockerProvider_WithInspectInterval(t *testing.T) {
 	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
-		"INSPECT_INTERVAL": "1500",
+		"INSPECT_INTERVAL": "1500ms",
 	}))
 	defer dockerTestTeardown()
 
@@ -356,7 +356,7 @@ func TestNewDockerProvider_WithInvalidInspectInterval(t *testing.T) {
 	defer dockerTestTeardown()
 
 	assert.NotNil(t, err)
-	assert.Equal(t, "strconv.ParseInt: parsing \"mraaaaaaa\": invalid syntax", err.Error())
+	assert.Equal(t, "time: invalid duration mraaaaaaa", err.Error())
 	assert.Nil(t, provider)
 }
 
