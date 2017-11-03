@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,15 +23,13 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
-	"github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
-	travismetrics "github.com/travis-ci/worker/metrics"
+	"github.com/travis-ci/worker/metrics"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -309,19 +306,21 @@ func (i *CLI) setupSentry() {
 }
 
 func (i *CLI) setupMetrics() {
-	go travismetrics.ReportMemstatsMetrics()
+	go metrics.ReportMemstatsMetrics()
 
 	if i.Config.LibratoEmail != "" && i.Config.LibratoToken != "" && i.Config.LibratoSource != "" {
 		i.logger.Info("starting librato metrics reporter")
 
-		go librato.Librato(metrics.DefaultRegistry, time.Minute,
-			i.Config.LibratoEmail, i.Config.LibratoToken, i.Config.LibratoSource,
-			[]float64{0.50, 0.75, 0.90, 0.95, 0.99, 0.999, 1.0}, time.Millisecond)
+		// TODO: replace this bit with go-librato's way
+		// go librato.Librato(metrics.DefaultRegistry, time.Minute,
+		// i.Config.LibratoEmail, i.Config.LibratoToken, i.Config.LibratoSource,
+		// []float64{0.50, 0.75, 0.90, 0.95, 0.99, 0.999, 1.0}, time.Millisecond)
 	} else if !i.c.Bool("silence-metrics") {
 		i.logger.Info("starting logger metrics reporter")
 
-		go metrics.Log(metrics.DefaultRegistry, time.Minute,
-			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+		// TODO: replace this bit with go-librato's way
+		// go metrics.Log(metrics.DefaultRegistry, time.Minute,
+		// log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
 }
 
