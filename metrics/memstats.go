@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"runtime"
 	"time"
-
-	"github.com/henrikhodne/go-librato/librato"
 )
 
 // ReportMemstatsMetrics will send runtime Memstats metrics every 10 seconds,
 // and will block forever.
-func ReportMemstatsMetrics(c *Client) {
+func ReportMemstatsMetrics() {
 	memStats := &runtime.MemStats{}
 	lastSampleTime := time.Now()
 	var lastPauseNs uint64
@@ -31,18 +29,13 @@ func ReportMemstatsMetrics(c *Client) {
 			"memory.gc.heap":        memStats.HeapAlloc,
 			"memory.gc.stack":       memStats.StackInuse,
 		} {
-			c.AddGauge(&librato.GaugeMeasurement{
-				Name:  fmt.Sprintf("travis.worker.%s", n),
-				Count: librato.Uint(uint(c)),
-			})
+			Gauge(fmt.Sprintf("travis.worker.%s", n), c.(int64))
 		}
 
 		if lastPauseNs > 0 {
 			pauseSinceLastSample := memStats.PauseTotalNs - lastPauseNs
-			c.AddGauge(&librato.GaugeMeasurement{
-				Name:  "travis.worker.memory.gc.pause_per_second",
-				Count: librato.Uint(uint(float64(pauseSinceLastSample) / sleep.Seconds())),
-			})
+			Gauge("travis.worker.memory.gc.pause_per_second",
+				int64(float64(pauseSinceLastSample)/sleep.Seconds()))
 		}
 		lastPauseNs = memStats.PauseTotalNs
 
@@ -50,24 +43,20 @@ func ReportMemstatsMetrics(c *Client) {
 		if lastNumGC > 0 {
 			diff := float64(countGC)
 			diffTime := now.Sub(lastSampleTime).Seconds()
-			c.AddGauge(&librato.GaugeMeasurement{
-				Name:  "travis.worker.memory.gc.gc_per_second",
-				Count: librato.Uint(uint(diff / diffTime)),
-			})
+			Gauge("travis.worker.memory.gc.gc_per_second", int64(diff/diffTime))
 		}
 
-		// TODO: do this the go-librato way
-		// if countGC > 0 {
-		// if countGC > 256 {
-		// countGC = 256
-		// }
+		if countGC > 0 {
+			if countGC > 256 {
+				countGC = 256
+			}
 
-		// for i := 0; i < countGC; i++ {
-		// idx := int((memStats.NumGC-uint32(i))+255) % 256
-		// pause := time.Duration(memStats.PauseNs[idx])
-		// metrics.GetOrRegisterTimer("travis.worker.memory.gc.pause", metrics.DefaultRegistry).Update(pause)
-		// }
-		// }
+			for i := 0; i < countGC; i++ {
+				idx := int((memStats.NumGC-uint32(i))+255) % 256
+				pause := time.Duration(memStats.PauseNs[idx])
+				Gauge("travis.worker.memory.gc.pause", int64(pause))
+			}
+		}
 
 		lastNumGC = uint64(memStats.NumGC)
 		lastSampleTime = now

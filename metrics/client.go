@@ -4,12 +4,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/henrikhodne/go-librato/librato"
+	"github.com/sirupsen/logrus"
+)
+
+var (
+	DefaultClient *Client
 )
 
 type Client struct {
 	lc       *librato.Client
+	log      *logrus.Entry
 	source   string
 	max      uint
 	measures chan interface{}
@@ -18,20 +23,24 @@ type Client struct {
 	pm       sync.Mutex
 }
 
-func NewClient(email, token, source string, sampleTimeout, publishTick time.Duration,
-	max uint, log *logrus.Entry) *Client {
+type Config struct {
+	Email, Token, Source       string
+	SampleTimeout, PublishTick time.Duration
+	Max                        uint
+}
 
+func NewClient(cfg *Config, log *logrus.Entry) *Client {
 	c := &Client{
-		lc:       librato.NewClient(email, token),
+		lc:       librato.NewClient(cfg.Email, cfg.Token),
 		log:      log.WithField("self", "metrics_client"),
-		source:   source,
-		max:      max,
-		measures: make(chan interface{}, max),
+		source:   cfg.Source,
+		max:      cfg.Max,
+		measures: make(chan interface{}, cfg.Max),
 		done:     make(chan struct{}),
-		st:       sampleTimeout,
+		st:       cfg.SampleTimeout,
 		pm:       sync.Mutex{},
 	}
-	go c.run(publishTick)
+	go c.run(cfg.PublishTick)
 	return c
 }
 
@@ -48,7 +57,7 @@ func (cl *Client) AddGauge(g *librato.GaugeMeasurement) {
 		g.MeasureTime = librato.Uint(uint(time.Now().Unix()))
 	}
 	select {
-	case l.measures <- g:
+	case cl.measures <- g:
 	default:
 		cl.log.Error("failed to add gauge measurement")
 	}
@@ -59,7 +68,7 @@ func (cl *Client) AddCounter(c *librato.Measurement) {
 		c.MeasureTime = librato.Uint(uint(time.Now().Unix()))
 	}
 	select {
-	case l.measures <- c:
+	case cl.measures <- c:
 	default:
 		cl.log.Error("failed to add counter measurement")
 	}
@@ -72,7 +81,7 @@ func (cl *Client) run(publishTick time.Duration) {
 		select {
 		case <-t.C:
 			cl.push()
-		case <-c.done:
+		case <-cl.done:
 			t.Stop()
 			cl.push()
 			return
@@ -89,10 +98,7 @@ func (cl *Client) push() {
 		return
 	}
 
-	gauges := []interface{}{}
-	counters := []interface{}{}
-
-	ms := &librato.MeasurementSubmissions{
+	ms := &librato.MeasurementSubmission{
 		MeasureTime: librato.Uint(uint(time.Now().UTC().Unix())),
 		Source:      librato.String(cl.source),
 		Gauges:      s.gauges,
@@ -111,10 +117,10 @@ func (cl *Client) push() {
 	}
 }
 
-func (cl *Client) takeSample() sample {
-	s := sample{
-		gauges:   []interface{}{},
-		counters: []interface{}{},
+func (cl *Client) takeSample() *sample {
+	s := &sample{
+		gauges:   []*librato.GaugeMeasurement{},
+		counters: []*librato.Measurement{},
 	}
 
 	done := make(chan struct{})
@@ -124,7 +130,7 @@ func (cl *Client) takeSample() sample {
 	}()
 
 	func() {
-		for i := 0; i < cl.max; i++ {
+		for i := uint(0); i < cl.max; i++ {
 			select {
 			case m := <-cl.measures:
 				switch m.(type) {
@@ -151,6 +157,6 @@ func (cl *Client) takeSample() sample {
 }
 
 type sample struct {
-	gauges   []interface{}
-	counters []interface{}
+	gauges   []*librato.GaugeMeasurement
+	counters []*librato.Measurement
 }

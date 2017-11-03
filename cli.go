@@ -205,6 +205,12 @@ func (i *CLI) Run() {
 		"queue":     i.JobQueue,
 	}).Debug("running pool")
 
+	defer func() {
+		if metrics.DefaultClient != nil {
+			metrics.DefaultClient.Close()
+		}
+	}()
+
 	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
 
 	err := i.JobQueue.Cleanup()
@@ -306,22 +312,22 @@ func (i *CLI) setupSentry() {
 }
 
 func (i *CLI) setupMetrics() {
-	go metrics.ReportMemstatsMetrics()
-
-	if i.Config.LibratoEmail != "" && i.Config.LibratoToken != "" && i.Config.LibratoSource != "" {
-		i.logger.Info("starting librato metrics reporter")
-
-		// TODO: replace this bit with go-librato's way
-		// go librato.Librato(metrics.DefaultRegistry, time.Minute,
-		// i.Config.LibratoEmail, i.Config.LibratoToken, i.Config.LibratoSource,
-		// []float64{0.50, 0.75, 0.90, 0.95, 0.99, 0.999, 1.0}, time.Millisecond)
-	} else if !i.c.Bool("silence-metrics") {
-		i.logger.Info("starting logger metrics reporter")
-
-		// TODO: replace this bit with go-librato's way
-		// go metrics.Log(metrics.DefaultRegistry, time.Minute,
-		// log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+	if i.Config.LibratoEmail == "" || i.Config.LibratoToken == "" || i.Config.LibratoSource == "" {
+		i.logger.Info("skipping metrics setup")
+		return
 	}
+
+	i.logger.Info("starting librato metrics reporter")
+
+	metrics.DefaultClient = metrics.NewClient(&metrics.Config{
+		Email:         i.Config.LibratoEmail,
+		Token:         i.Config.LibratoToken,
+		Source:        i.Config.LibratoSource,
+		SampleTimeout: 5 * time.Second,
+		PublishTick:   10 * time.Second,
+		Max:           uint(10000),
+	}, i.logger)
+	go metrics.ReportMemstatsMetrics()
 }
 
 func (i *CLI) heartbeatHandler(heartbeatURL, heartbeatAuthToken string) {

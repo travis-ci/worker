@@ -507,7 +507,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()
-	defer metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
+	defer metrics.Gauge("travis.worker.vm.provider.gce.rate-limit", int64(time.Since(startWait)))
 
 	atomic.AddUint64(&p.rateLimitQueueDepth, 1)
 	// This decrements the counter, see the docs for atomic.AddUint64

@@ -444,7 +444,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	select {
 	case container := <-containerReady:
-		metrics.TimeSince("worker.vm.provider.docker.boot", startBooting)
+		metrics.Gauge("worker.vm.provider.docker.boot", int64(time.Since(startBooting)))
 		return &dockerInstance{
 			client:       p.client,
 			provider:     p,
