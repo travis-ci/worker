@@ -339,6 +339,27 @@ func TestNewDockerProvider_WithCMD(t *testing.T) {
 	assert.Equal(t, []string{"/bin/bash", "/fancy-docker-init-thing"}, provider.runCmd)
 }
 
+func TestNewDockerProvider_WithInspectInterval(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"INSPECT_INTERVAL": "1500ms",
+	}))
+	defer dockerTestTeardown()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1500*time.Millisecond, provider.inspectInterval)
+}
+
+func TestNewDockerProvider_WithInvalidInspectInterval(t *testing.T) {
+	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+		"INSPECT_INTERVAL": "mraaaaaaa",
+	}))
+	defer dockerTestTeardown()
+
+	assert.NotNil(t, err)
+	assert.Equal(t, "time: invalid duration mraaaaaaa", err.Error())
+	assert.Nil(t, provider)
+}
+
 func TestNewDockerProvider_WithMemory(t *testing.T) {
 	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
 		"MEMORY": "99MB",
