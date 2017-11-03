@@ -19,7 +19,9 @@ type Client struct {
 	max      uint
 	measures chan interface{}
 	done     chan struct{}
+	started  bool
 	st       time.Duration
+	pt       time.Duration
 	pm       sync.Mutex
 }
 
@@ -30,7 +32,7 @@ type Config struct {
 }
 
 func NewClient(cfg *Config, log *logrus.Entry) *Client {
-	c := &Client{
+	return &Client{
 		lc:       librato.NewClient(cfg.Email, cfg.Token),
 		log:      log.WithField("self", "metrics_client"),
 		source:   cfg.Source,
@@ -38,13 +40,21 @@ func NewClient(cfg *Config, log *logrus.Entry) *Client {
 		measures: make(chan interface{}, cfg.Max),
 		done:     make(chan struct{}),
 		st:       cfg.SampleTimeout,
+		pt:       cfg.PublishTick,
+		started:  false,
 		pm:       sync.Mutex{},
 	}
-	go c.run(cfg.PublishTick)
-	return c
 }
 
-func (cl *Client) Close() {
+func (cl *Client) Start() {
+	if cl.started {
+		return
+	}
+	go cl.run(cl.pt)
+	cl.started = true
+}
+
+func (cl *Client) Stop() {
 	select {
 	case cl.done <- struct{}{}:
 	case <-time.After(10 * time.Second):

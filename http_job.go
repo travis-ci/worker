@@ -101,7 +101,7 @@ func (j *httpJob) Received(ctx gocontext.Context) error {
 func (j *httpJob) Started(ctx gocontext.Context) error {
 	j.started = time.Now()
 
-	metrics.Gauge("travis.worker.job.start_time", int64(time.Since(j.received)))
+	metrics.Since("travis.worker.job.start_time", j.received)
 
 	return j.sendStateUpdate(ctx, "received", "started")
 }

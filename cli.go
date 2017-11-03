@@ -207,7 +207,7 @@ func (i *CLI) Run() {
 
 	defer func() {
 		if metrics.DefaultClient != nil {
-			metrics.DefaultClient.Close()
+			metrics.DefaultClient.Stop()
 		}
 	}()
 
@@ -327,6 +327,7 @@ func (i *CLI) setupMetrics() {
 		PublishTick:   10 * time.Second,
 		Max:           uint(10000),
 	}, i.logger)
+	metrics.DefaultClient.Start()
 	go metrics.ReportMemstatsMetrics()
 }
 

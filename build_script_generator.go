@@ -149,7 +149,7 @@ func (g *webBuildScriptGenerator) Generate(ctx gocontext.Context, job Job) ([]by
 	}
 
 	defer resp.Body.Close()
-	metrics.Gauge("worker.job.script.api", int64(time.Since(startRequest)))
+	metrics.Since("worker.job.script.api", startRequest)
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {

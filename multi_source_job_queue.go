@@ -67,7 +67,7 @@ func (msjq *MultiSourceJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job
 					logger.WithField("job_id", jobID).Debug("about to send job to multi source output channel")
 					buildJobChan <- job
 
-					metrics.Gauge("travis.worker.job_queue.multi.blocking_time", int64(time.Since(jobSendBegin)))
+					metrics.Since("travis.worker.job_queue.multi.blocking_time", jobSendBegin)
 					logger.WithFields(logrus.Fields{
 						"job_id": jobID,
 						"source": queueName,

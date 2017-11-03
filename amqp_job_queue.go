@@ -144,7 +144,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				jobSendBegin := time.Now()
 				select {
 				case buildJobChan <- buildJob:
-					metrics.Gauge("travis.worker.job_queue.amqp.blocking_time", int64(time.Since(jobSendBegin)))
+					metrics.Since("travis.worker.job_queue.amqp.blocking_time", jobSendBegin)
 					logger.WithFields(logrus.Fields{
 						"source": "amqp",
 						"dur":    time.Since(jobSendBegin),

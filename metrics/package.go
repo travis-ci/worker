@@ -2,6 +2,8 @@
 package metrics
 
 import (
+	"time"
+
 	"github.com/henrikhodne/go-librato/librato"
 )
 
@@ -25,4 +27,9 @@ func Gauge(name string, value int64) {
 		Measurement: &librato.Measurement{Name: name},
 		Count:       librato.Uint(uint(value)),
 	})
+}
+
+// Since sets a gauge metric to a given time.Since(timestamp)
+func Since(name string, timestamp time.Time) {
+	Gauge(name, int64(time.Since(timestamp)))
 }

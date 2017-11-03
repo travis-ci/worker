@@ -103,7 +103,7 @@ func (q *HTTPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				readyWaitBegin := time.Now()
 				logger.Debug("blocking on ready channel recv")
 				<-readyChan
-				metrics.Gauge("travis.worker.job_queue.http.ready_wait_time", int64(time.Since(readyWaitBegin)))
+				metrics.Since("travis.worker.job_queue.http.ready_wait_time", readyWaitBegin)
 			}
 			if !keepPolling {
 				return
@@ -147,7 +147,7 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 	jobSendBegin := time.Now()
 	select {
 	case buildJobChan <- buildJob:
-		metrics.Gauge("travis.worker.job_queue.http.blocking_time", int64(time.Since(jobSendBegin)))
+		metrics.Since("travis.worker.job_queue.http.blocking_time", jobSendBegin)
 		logger.WithFields(logrus.Fields{
 			"source": "http",
 			"dur":    time.Since(jobSendBegin),
