@@ -20,8 +20,8 @@ func ReportMemstatsMetrics() {
 		runtime.ReadMemStats(memStats)
 		now := time.Now()
 
-		for n, c := range map[string]interface{}{
-			"goroutines":            runtime.NumGoroutine(),
+		for n, c := range map[string]uint64{
+			"goroutines":            uint64(runtime.NumGoroutine()),
 			"memory.allocated":      memStats.Alloc,
 			"memory.mallocs":        memStats.Mallocs,
 			"memory.frees":          memStats.Frees,
@@ -29,7 +29,7 @@ func ReportMemstatsMetrics() {
 			"memory.gc.heap":        memStats.HeapAlloc,
 			"memory.gc.stack":       memStats.StackInuse,
 		} {
-			Gauge(fmt.Sprintf("travis.worker.%s", n), c.(int64))
+			Gauge(fmt.Sprintf("travis.worker.%s", n), int64(c))
 		}
 
 		if lastPauseNs > 0 {
