@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - backend/docker: add repo, job ID, and dist as container labels
 
 ### Changed
+- http-job-queue: use polling and refresh claim intervals from job delivery
+  responses, if available
 
 ### Deprecated
 
