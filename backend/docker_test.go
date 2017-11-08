@@ -275,7 +275,7 @@ func TestNewDockerProvider_WithRequiredConfig(t *testing.T) {
 	assert.Equal(t, uint64(1024*1024*1024*4), provider.runMemory)
 	assert.Equal(t, 3, len(provider.cpuSets))
 	assert.Equal(t, []string{"/sbin/init"}, provider.runCmd)
-	assert.Equal(t, 2, provider.runCPUs)
+	assert.Equal(t, uint(2), provider.runCPUs)
 }
 
 func TestNewDockerProvider_WithNative(t *testing.T) {
@@ -371,13 +371,17 @@ func TestNewDockerProvider_WithMemory(t *testing.T) {
 }
 
 func TestNewDockerProvider_WithCPUs(t *testing.T) {
-	provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
-		"CPUS": "4",
-	}))
-	defer dockerTestTeardown()
+	for _, v := range []uint{4, 1, 0} {
+		func(cpus uint) {
+			provider, err := dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+				"CPUS": fmt.Sprintf("%d", cpus),
+			}))
+			defer dockerTestTeardown()
 
-	assert.Nil(t, err)
-	assert.Equal(t, 4, provider.runCPUs)
+			assert.Nil(t, err)
+			assert.Equal(t, cpus, provider.runCPUs)
+		}(v)
+	}
 }
 
 func TestDockerProvider_Setup(t *testing.T) {
