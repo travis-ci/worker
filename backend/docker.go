@@ -373,11 +373,26 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		}
 	}
 
+	labels := map[string]string{
+		"travis.dist": startAttributes.Dist,
+	}
+
+	r, ok := context.RepositoryFromContext(ctx)
+	if ok {
+		labels["travis.repo"] = r
+	}
+
+	jid, ok := context.JobIDFromContext(ctx)
+	if ok {
+		labels["travis.job_id"] = strconv.FormatUint(jid, 10)
+	}
+
 	dockerConfig := &dockercontainer.Config{
 		Cmd:        p.runCmd,
 		Image:      imageID,
 		Hostname:   strings.ToLower(containerName),
 		Domainname: "travisci.net",
+		Labels:     labels,
 	}
 
 	dockerHostConfig := &dockercontainer.HostConfig{
