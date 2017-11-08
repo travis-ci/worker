@@ -5,11 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- backend/docker: add repo, job ID, and dist as container labels
 
 ### Changed
-- http-job-queue: use polling and refresh claim intervals from job delivery
-  responses, if available
 
 ### Deprecated
 
@@ -18,6 +15,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [3.4.0] - 2017-11-08
+
+### Added
+- backend/docker: repo, job ID, and dist container labels
+
+### Changed
+- http-job-queue: use polling and refresh claim intervals from job delivery
+  responses, if available
+- backend/docker: make container inspection interval configurable via
+  `INSPECT_INTERVAL`, defaulting to 500ms
+
+### Fixed
+- backend/docker: disable cpu set allocation when CPUS is 0, as documented
 
 ## [3.3.1] - 2017-11-01
 
@@ -626,7 +637,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.3.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.4.0...HEAD
+[3.4.0]: https://github.com/travis-ci/worker/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/travis-ci/worker/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/travis-ci/worker/compare/v3.2.2...v3.3.0
 [3.2.2]: https://github.com/travis-ci/worker/compare/v3.2.1...v3.2.2
