@@ -57,6 +57,7 @@ var (
 		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
 		"CPUS":                "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":        "size of available cpu set (default detected locally via runtime.NumCPU)",
+		"CPU_SHARES":          "CPU shares to allocate",
 		"NATIVE":              "upload and run build script via docker API instead of over ssh (default false)",
 		"PRIVILEGED":          "run containers in privileged mode (default false)",
 		"SSH_DIAL_TIMEOUT":    fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
@@ -99,6 +100,7 @@ type dockerProvider struct {
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
+	cpuShares    int64
 }
 
 type dockerInstance struct {
@@ -129,6 +131,15 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 
 		runNative = v
+	}
+
+	cpuShares := 1024
+	if cfg.IsSet("CPU_SHARES") {
+		v, err := strconv.ParseInt(cfg.Get("CPU_SHARES"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		cpuShares = int(v)
 	}
 
 	cpuSetSize := 0
@@ -253,7 +264,8 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		inspectInterval: inspectInterval,
 		tmpFs:           tmpFs,
 
-		cpuSets: make([]bool, cpuSetSize),
+		cpuSets:   make([]bool, cpuSetSize),
+		cpuShares: int64(cpuShares),
 	}, nil
 }
 
@@ -401,7 +413,8 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Tmpfs:      p.tmpFs,
 		ShmSize:    int64(p.runShm),
 		Resources: dockercontainer.Resources{
-			Memory: int64(p.runMemory),
+			Memory:    int64(p.runMemory),
+			CPUShares: p.cpuShares,
 		},
 	}
 

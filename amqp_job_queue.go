@@ -92,7 +92,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				continue
 			case delivery, ok := <-deliveries:
 				if !ok {
-					logger.Info("job queue channel closed")
+					logger.Warn("job queue channel closed")
 					return
 				}
 

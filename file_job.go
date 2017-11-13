@@ -26,6 +26,7 @@ type fileJob struct {
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
 	startAttributes *backend.StartAttributes
+	fishiness       *JobFishiness
 }
 
 func (j *fileJob) Payload() *JobPayload {
@@ -38,6 +39,10 @@ func (j *fileJob) RawPayload() *simplejson.Json {
 
 func (j *fileJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
+}
+
+func (j *fileJob) Fishiness() *JobFishiness {
+	return j.fishiness
 }
 
 func (j *fileJob) Received(_ gocontext.Context) error {

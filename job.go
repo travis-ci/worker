@@ -35,6 +35,10 @@ type JobPayload struct {
 	Meta       JobMetaPayload         `json:"meta"`
 }
 
+type JobFishiness struct {
+	Level int
+}
+
 // JobMetaPayload contains meta information about the job.
 type JobMetaPayload struct {
 	StateUpdateCount uint `json:"state_update_count"`
@@ -84,6 +88,7 @@ type Job interface {
 	Payload() *JobPayload
 	RawPayload() *simplejson.Json
 	StartAttributes() *backend.StartAttributes
+	Fishiness() *JobFishiness
 
 	Received(gocontext.Context) error
 	Started(gocontext.Context) error

@@ -23,6 +23,11 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
+	//sa := buildJob.StartAttributes()
+	pl := buildJob.Payload()
+	fishiness := buildJob.Fishiness()
+	logger.Panic(fishiness.Level)
+	logger.Panic(pl.Config)
 
 	logger.Info("starting instance")
 

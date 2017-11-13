@@ -96,7 +96,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
-		logger.Info("context was cancelled, stopping job")
+		logger.Warn("context was cancelled, stopping job")
 		return multistep.ActionHalt
 	case <-cancelChan:
 		s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")

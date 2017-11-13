@@ -25,6 +25,7 @@ type amqpJob struct {
 	started         time.Time
 	finished        time.Time
 	stateCount      uint
+	fishiness       *JobFishiness
 }
 
 func (j *amqpJob) GoString() string {
@@ -42,6 +43,11 @@ func (j *amqpJob) RawPayload() *simplejson.Json {
 
 func (j *amqpJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
+}
+
+func (j *amqpJob) Fishiness() *JobFishiness {
+	return j.fishiness
+	//return JobFishiness{Level: 50}
 }
 
 func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {

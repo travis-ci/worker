@@ -30,6 +30,7 @@ type httpJob struct {
 	refreshClaim func(gocontext.Context)
 	deleteSelf   func(gocontext.Context) error
 	cancelSelf   func(gocontext.Context)
+	fishiness    *JobFishiness
 }
 
 type jobScriptPayload struct {
@@ -45,6 +46,7 @@ type httpJobPayload struct {
 	JobPartsURL string           `json:"log_parts_url"`
 	JWT         string           `json:"jwt"`
 	ImageName   string           `json:"image_name"`
+	Fishiness   *JobFishiness    `json:"fishiness"`
 }
 
 func (j *httpJob) GoString() string {
@@ -62,6 +64,11 @@ func (j *httpJob) RawPayload() *simplejson.Json {
 
 func (j *httpJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
+}
+
+func (j *httpJob) Fishiness() *JobFishiness {
+	return j.fishiness
+	//return JobFishiness{Level: 50}
 }
 
 func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
