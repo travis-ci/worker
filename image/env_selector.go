@@ -44,6 +44,9 @@ func (es *EnvSelector) buildImageAliasMap() error {
 
 	for _, aliasName := range aliasNamesSlice {
 		normalizedAliasName := strings.ToUpper(string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_"))))
+		if len(normalizedAliasName) == 0 {
+			continue
+		}
 
 		key := fmt.Sprintf("IMAGE_ALIAS_%s", normalizedAliasName)
 		if !es.c.IsSet(key) {
