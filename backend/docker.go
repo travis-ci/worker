@@ -90,7 +90,7 @@ type dockerProvider struct {
 	runBinds        []string
 	runMemory       uint64
 	runShm          uint64
-	runCPUs         int
+	runCPUs         uint
 	runNative       bool
 	execCmd         []string
 	inspectInterval time.Duration
@@ -245,7 +245,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runBinds:      binds,
 		runMemory:     memory,
 		runShm:        shm,
-		runCPUs:       int(cpus),
+		runCPUs:       uint(cpus),
 		runNative:     runNative,
 		imageSelector: imageSelector,
 
@@ -405,18 +405,23 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		},
 	}
 
-	cpuSets, err := p.checkoutCPUSets(ctx)
-	if err != nil {
-		logger.WithFields(logrus.Fields{
-			"err":            err,
-			"cpu_set_length": len(p.cpuSets),
-			"run_cpus":       p.runCPUs,
-		}).Error("couldn't checkout CPUSets")
-		return nil, err
-	}
+	useCPUSets := p.runCPUs != uint(0)
+	cpuSets := ""
 
-	if cpuSets != "" {
-		dockerHostConfig.Resources.CpusetCpus = cpuSets
+	if useCPUSets {
+		cpuSets, err = p.checkoutCPUSets(ctx)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err":            err,
+				"cpu_set_length": len(p.cpuSets),
+				"run_cpus":       p.runCPUs,
+			}).Error("couldn't checkout CPUSets")
+			return nil, err
+		}
+
+		if cpuSets != "" {
+			dockerHostConfig.Resources.CpusetCpus = cpuSets
+		}
 	}
 
 	logger.WithFields(logrus.Fields{
@@ -429,7 +434,9 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create container")
-		p.checkinCPUSets(ctx, cpuSets)
+		if useCPUSets {
+			p.checkinCPUSets(ctx, cpuSets)
+		}
 
 		err := p.client.ContainerRemove(ctx, container.ID,
 			dockertypes.ContainerRemoveOptions{
@@ -449,7 +456,9 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	err = p.client.ContainerStart(ctx, container.ID, dockertypes.ContainerStartOptions{})
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't start container")
-		p.checkinCPUSets(ctx, cpuSets)
+		if useCPUSets {
+			p.checkinCPUSets(ctx, cpuSets)
+		}
 		return nil, err
 	}
 
@@ -485,7 +494,9 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
-			p.checkinCPUSets(ctx, cpuSets)
+			if useCPUSets {
+				p.checkinCPUSets(ctx, cpuSets)
+			}
 			metrics.Mark("worker.vm.provider.docker.boot.timeout")
 		}
 		return nil, ctx.Err()
@@ -505,12 +516,12 @@ func (p *dockerProvider) checkoutCPUSets(ctx gocontext.Context) (string, error) 
 			cpuSets = append(cpuSets, i)
 		}
 
-		if len(cpuSets) == p.runCPUs {
+		if len(cpuSets) == int(p.runCPUs) {
 			break
 		}
 	}
 
-	if len(cpuSets) != p.runCPUs {
+	if len(cpuSets) != int(p.runCPUs) {
 		return "", fmt.Errorf("not enough free CPUsets")
 	}
 
