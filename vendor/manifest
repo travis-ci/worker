@@ -85,6 +85,30 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/facebookgo/clock",
+			"repository": "https://github.com/facebookgo/clock",
+			"vcs": "git",
+			"revision": "600d898af40aa09a7a93ecb9265d87b0504b6f03",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/facebookgo/limitgroup",
+			"repository": "https://github.com/facebookgo/limitgroup",
+			"vcs": "git",
+			"revision": "6abd8d71ec01451d7f1929eacaa263bbe2935d05",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/facebookgo/muster",
+			"repository": "https://github.com/facebookgo/muster",
+			"vcs": "git",
+			"revision": "fd3d7953fd52354a74b9f6b3d70d0c9650c4ec2a",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/garyburd/redigo/internal",
 			"repository": "https://github.com/garyburd/redigo",
 			"vcs": "git",
@@ -149,6 +173,14 @@
 			"repository": "https://github.com/hashicorp/go-cleanhttp",
 			"vcs": "git",
 			"revision": "3573b8b52aa7b37b9358d966a898feb387f62437",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/honeycombio/libhoney-go",
+			"repository": "https://github.com/honeycombio/libhoney-go",
+			"vcs": "git",
+			"revision": "9bdca6032bc1b4f0bcbd590f3dc71102b38106dd",
 			"branch": "master",
 			"notests": true
 		},
@@ -394,6 +426,14 @@
 			"repository": "https://gopkg.in/airbrake/gobrake.v2",
 			"vcs": "git",
 			"revision": "668876711219e8b0206e2994bf0a59d889c775aa",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "gopkg.in/alexcesaro/statsd.v2",
+			"repository": "https://gopkg.in/alexcesaro/statsd.v2",
+			"vcs": "git",
+			"revision": "7fea3f0d2fab1ad973e641e51dba45443a311a90",
 			"branch": "master",
 			"notests": true
 		},
