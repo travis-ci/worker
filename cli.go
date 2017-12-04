@@ -24,6 +24,7 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
+	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
@@ -190,6 +191,7 @@ func (i *CLI) Setup() (bool, error) {
 // returns from its Run func
 func (i *CLI) Run() {
 	i.logger.Info("starting")
+	defer libhoney.Close()
 
 	i.handleStartHook()
 	defer i.handleStopHook()
@@ -322,6 +324,13 @@ func (i *CLI) setupMetrics() {
 
 		go metrics.Log(metrics.DefaultRegistry, time.Minute,
 			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+	}
+
+	if i.Config.HoneycombWriteKey != "" {
+		libhoney.Init(libhoney.Config{
+			WriteKey: i.Config.HoneycombWriteKey,
+			Dataset:  "worker",
+		})
 	}
 }
 
