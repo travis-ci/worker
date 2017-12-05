@@ -329,7 +329,7 @@ func (i *CLI) setupMetrics() {
 	if i.Config.HoneycombWriteKey != "" {
 		libhoney.Init(libhoney.Config{
 			WriteKey: i.Config.HoneycombWriteKey,
-			Dataset:  "worker",
+			Dataset:  i.Config.HoneycombDataset,
 		})
 	}
 }

@@ -108,6 +108,9 @@ var (
 		NewConfigDef("HoneycombWriteKey", &cli.StringFlag{
 			Usage: "Honeycomb.io write key",
 		}),
+		NewConfigDef("HoneycombDataset", &cli.StringFlag{
+			Usage: `The Honeycomb dataset to send metrics to (should be "worker" or "worker-staging")`,
+		}),
 		NewConfigDef("Hostname", &cli.StringFlag{
 			Value: defaultHostname,
 			Usage: "Host name used in log output to identify the source of a job",
@@ -323,6 +326,7 @@ type Config struct {
 	LibratoSource     string `config:"librato-source"`
 	SentryDSN         string `config:"sentry-dsn"`
 	HoneycombWriteKey string `config:"honeycomb-write-key"`
+	HoneycombDataset  string `config:"honeycomb-dataset"`
 	Hostname          string `config:"hostname"`
 	DefaultLanguage   string `config:"default-language"`
 	DefaultDist       string `config:"default-dist"`
