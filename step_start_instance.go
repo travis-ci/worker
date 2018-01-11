@@ -5,6 +5,7 @@ import (
 
 	gocontext "context"
 
+	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -65,6 +66,13 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		"instance_id": instance.ID(),
 		"image_name":  instance.ImageName(),
 	}).Info("started instance")
+
+	libhoney.SendNow(map[string]interface{}{
+		"boot_time":   time.Since(startTime),
+		"instance_id": instance.ID(),
+		"image_name":  instance.ImageName(),
+		"provider": s.provider
+	})
 
 	state.Put("instance", instance)
 
