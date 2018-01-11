@@ -71,7 +71,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		"boot_time":   time.Since(startTime),
 		"instance_id": instance.ID(),
 		"image_name":  instance.ImageName(),
-		"provider": s.provider
+		"provider":    s.provider,
 	})
 
 	state.Put("instance", instance)
