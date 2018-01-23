@@ -35,7 +35,7 @@ instructions](https://packagecloud.io/travisci/worker/install).
 1. install [gometalinter](https://github.com/alecthomas/gometalinter):
   * `go get -u github.com/alecthomas/gometalinter`
   * `gometalinter --install`
-1. install [spellcheck](https://github.com/koalaman/shellcheck)
+1. install [shellcheck](https://github.com/koalaman/shellcheck)
 1. `make`
 
 ## Configuring Travis Worker
