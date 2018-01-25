@@ -1,0 +1,9 @@
+[Unit]
+Description=Travis CI Worker <contact+travis-worker-systemd@travis-ci.com>
+After=syslog.target network.target sshd.service
+
+[Service]
+Environment=GOMAXPROCS=nproc
+ExecStart=/usr/local/bin/travis-worker
+Restart=always
+EnvironmentFile=/etc/default/travis-worker
