@@ -11,7 +11,7 @@ export DATE
 export PC_USER='travisci'
 export PC_REPO='worker'
 
-export PKG_PLATFORMS=('ubuntu:14.04' 'centos:7')
+export PKG_PLATFORMS=('ubuntu:14.04' 'centos:7' 'ubuntu:16.04')
 
 __define_version
 __define_shell_flags
