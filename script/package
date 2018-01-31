@@ -73,13 +73,13 @@ __build_all_platforms() {
       else
         pub_filename="$(echo "${pub_query}" | jq -r .filename)"
         pub_version="$(
-          IFS="_" read -r -a pfp <<<"$pub_filename"
+          IFS=_ read -r -a pfp <<<$pub_filename
           echo "${pfp[1]}"
         )"
 
         if [[ $PLATFORM_PACKAGE_TYPE == rpm ]]; then
           pub_version=$(
-            IFS="-" read -r -a vp <<<"$pub_filename"
+            IFS=- read -r -a vp <<<$pub_filename
             echo "${vp[2]//_/-}"
           )
         fi
