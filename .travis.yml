@@ -18,8 +18,10 @@ env:
   - GO15VENDOREXPERIMENT='1'
   - REDIS_URL="redis://"
 
-install: skip
-script: skip
+
+# TODO: re-add the skips once travis-yml is fixed
+#install: skip
+#script: skip
 
 jobs:
   include:
