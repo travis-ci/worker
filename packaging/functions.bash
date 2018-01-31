@@ -84,7 +84,7 @@ __define_version() {
   if [[ "${CURRENT_SHA1}" != "${VERSION_SHA1}" ]]; then
     orig_ifs="${IFS}"
     IFS=-
-    git_version_parts=(${GIT_DESCRIPTION})
+    IFS=" " read -r -a git_version_parts <<<"$GIT_DESCRIPTION"
     IFS="${orig_ifs}"
     if [[ "${git_version_parts[1]}" ]]; then
       export VERSION="${VERSION}.dev.${git_version_parts[1]}-${CURRENT_SHA1}"

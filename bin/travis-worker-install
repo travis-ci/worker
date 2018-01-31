@@ -249,7 +249,7 @@ __configure_travis_worker() {
 
   if [[ $TRAVIS_QUEUE_NAME ]]; then
     sed -i \
-      "s/export QUEUE_NAME='builds.linux'/export QUEUE_NAME=\'$TRAVIS_QUEUE_NAME\'/" \
+      "s/export QUEUE_NAME='builds.linux'/export QUEUE_NAME=\\'$TRAVIS_QUEUE_NAME\\'/" \
       "$TRAVIS_WORKER_CONFIG"
   fi
 
@@ -258,18 +258,18 @@ __configure_travis_worker() {
   fi
 
   sed -i \
-    "/\# export TRAVIS_WORKER_DOCKER_PRIVILEGED/s/^\# //"
+    "/\\# export TRAVIS_WORKER_DOCKER_PRIVILEGED/s/^\# //"
   $TRAVIS_ENTERPRISE_CONFIG
 
   if [[ $TRAVIS_ENTERPRISE_HOST ]]; then
     sed -i \
-      "s/\# export TRAVIS_ENTERPRISE_HOST=\"enterprise.yourhostname.corp\"/export TRAVIS_ENTERPRISE_HOST=\"$TRAVIS_ENTERPRISE_HOST\"/" \
+      "s/\\# export TRAVIS_ENTERPRISE_HOST=\"enterprise.yourhostname.corp\"/export TRAVIS_ENTERPRISE_HOST=\"$TRAVIS_ENTERPRISE_HOST\"/" \
       "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 
   if [[ $TRAVIS_ENTERPRISE_SECURITY_TOKEN ]]; then
     sed -i \
-      "s/\# export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"abcd1234\"/export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"$TRAVIS_ENTERPRISE_SECURITY_TOKEN\"/" \
+      "s/\\# export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"abcd1234\"/export TRAVIS_ENTERPRISE_SECURITY_TOKEN=\"$TRAVIS_ENTERPRISE_SECURITY_TOKEN\"/" \
       "$TRAVIS_ENTERPRISE_CONFIG"
   fi
 
