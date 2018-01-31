@@ -258,7 +258,7 @@ __configure_travis_worker() {
   fi
 
   sed -i \
-    "/\\# export TRAVIS_WORKER_DOCKER_PRIVILEGED/s/^\# //"
+    "/\\# export TRAVIS_WORKER_DOCKER_PRIVILEGED/s/^\\# //"
   $TRAVIS_ENTERPRISE_CONFIG
 
   if [[ $TRAVIS_ENTERPRISE_HOST ]]; then
