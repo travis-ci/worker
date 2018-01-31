@@ -21,7 +21,7 @@ main() {
     GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --errors"
   fi
 
-  local gmlargs_array=(${GOMETALINTER_ARGS})
+  IFS=" " read -r -a gmlargs_array <<<"$GOMETALINTER_ARGS"
 
   set -o xtrace
   gometalinter "${gmlargs_array[@]}" ./...
