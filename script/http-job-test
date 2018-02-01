@@ -12,6 +12,10 @@ main() {
     "${JOB_BOARD_CLONE_URL}" "${JOB_BOARD_CLONE_DIR}"
 
   docker run -d \
+    --name job-board-redis \
+    redis
+
+  docker run -d \
     --name job-board-postgres \
     -e POSTGRES_PASSWORD=yay \
     postgres
@@ -27,10 +31,6 @@ main() {
   docker exec \
     --user postgres \
     job-board-postgres psql -l
-
-  docker run -d \
-    --name job-board-redis \
-    redis
 
   docker run \
     --rm \
