@@ -31,7 +31,7 @@ main() {
   docker exec \
     --user postgres \
     job-board-postgres psql -l
-  
+
   docker run \
     --rm \
     --name travis-worker-http-job-test \
