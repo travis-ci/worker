@@ -68,10 +68,11 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	}).Info("started instance")
 
 	libhoney.SendNow(map[string]interface{}{
+		"provider":    s.provider,
+		"job_id":      buildJob.Payload().Job.ID,
 		"boot_time":   time.Since(startTime),
 		"instance_id": instance.ID(),
 		"image_name":  instance.ImageName(),
-		"provider":    s.provider,
 	})
 
 	state.Put("instance", instance)

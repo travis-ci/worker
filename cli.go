@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -191,7 +192,9 @@ func (i *CLI) Setup() (bool, error) {
 // returns from its Run func
 func (i *CLI) Run() {
 	i.logger.Info("starting")
-	defer libhoney.Close()
+	if i.Config.HoneycombWriteKey != "" {
+		defer libhoney.Close()
+	}
 
 	i.handleStartHook()
 	defer i.handleStopHook()
@@ -331,6 +334,11 @@ func (i *CLI) setupMetrics() {
 			WriteKey: i.Config.HoneycombWriteKey,
 			Dataset:  i.Config.HoneycombDataset,
 		})
+		// We want every event sent to Honeycomb to include the number of currently running
+		// goroutines and the current version number.
+		libhoney.AddDynamicField("num_goroutines",
+			func() interface{} { return runtime.NumGoroutine() })
+		libhoney.AddField("worker_version", VersionString)
 	}
 }
 
