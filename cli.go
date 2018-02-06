@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
+	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
 	"github.com/rcrowley/go-metrics"
@@ -190,6 +192,9 @@ func (i *CLI) Setup() (bool, error) {
 // returns from its Run func
 func (i *CLI) Run() {
 	i.logger.Info("starting")
+	if i.Config.HoneycombWriteKey != "" {
+		defer libhoney.Close()
+	}
 
 	i.handleStartHook()
 	defer i.handleStopHook()
@@ -322,6 +327,18 @@ func (i *CLI) setupMetrics() {
 
 		go metrics.Log(metrics.DefaultRegistry, time.Minute,
 			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+	}
+
+	if i.Config.HoneycombWriteKey != "" {
+		libhoney.Init(libhoney.Config{
+			WriteKey: i.Config.HoneycombWriteKey,
+			Dataset:  i.Config.HoneycombDataset,
+		})
+		// We want every event sent to Honeycomb to include the number of currently running
+		// goroutines and the current version number.
+		libhoney.AddDynamicField("num_goroutines",
+			func() interface{} { return runtime.NumGoroutine() })
+		libhoney.AddField("worker_version", VersionString)
 	}
 }
 

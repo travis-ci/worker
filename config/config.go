@@ -105,6 +105,12 @@ var (
 		NewConfigDef("SentryHookErrors", &cli.BoolFlag{
 			Usage: "Add logrus.ErrorLevel to logrus sentry hook",
 		}),
+		NewConfigDef("HoneycombWriteKey", &cli.StringFlag{
+			Usage: "Honeycomb.io write key",
+		}),
+		NewConfigDef("HoneycombDataset", &cli.StringFlag{
+			Usage: `The Honeycomb dataset to send metrics to (should be "worker" or "worker-staging")`,
+		}),
 		NewConfigDef("Hostname", &cli.StringFlag{
 			Value: defaultHostname,
 			Usage: "Host name used in log output to identify the source of a job",
@@ -305,27 +311,29 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	ProviderName    string `config:"provider-name"`
-	QueueType       string `config:"queue-type"`
-	AmqpURI         string `config:"amqp-uri"`
-	AmqpInsecure    bool   `config:"amqp-insecure"`
-	AmqpTlsCert     string `config:"amqp-tls-cert"`
-	AmqpTlsCertPath string `config:"amqp-tls-cert-path"`
-	BaseDir         string `config:"base-dir"`
-	PoolSize        int    `config:"pool-size"`
-	BuildAPIURI     string `config:"build-api-uri"`
-	QueueName       string `config:"queue-name"`
-	LibratoEmail    string `config:"librato-email"`
-	LibratoToken    string `config:"librato-token"`
-	LibratoSource   string `config:"librato-source"`
-	SentryDSN       string `config:"sentry-dsn"`
-	Hostname        string `config:"hostname"`
-	DefaultLanguage string `config:"default-language"`
-	DefaultDist     string `config:"default-dist"`
-	DefaultGroup    string `config:"default-group"`
-	DefaultOS       string `config:"default-os"`
-	JobBoardURL     string `config:"job-board-url"`
-	TravisSite      string `config:"travis-site"`
+	ProviderName      string `config:"provider-name"`
+	QueueType         string `config:"queue-type"`
+	AmqpURI           string `config:"amqp-uri"`
+	AmqpInsecure      bool   `config:"amqp-insecure"`
+	AmqpTlsCert       string `config:"amqp-tls-cert"`
+	AmqpTlsCertPath   string `config:"amqp-tls-cert-path"`
+	BaseDir           string `config:"base-dir"`
+	PoolSize          int    `config:"pool-size"`
+	BuildAPIURI       string `config:"build-api-uri"`
+	QueueName         string `config:"queue-name"`
+	LibratoEmail      string `config:"librato-email"`
+	LibratoToken      string `config:"librato-token"`
+	LibratoSource     string `config:"librato-source"`
+	SentryDSN         string `config:"sentry-dsn"`
+	HoneycombWriteKey string `config:"honeycomb-write-key"`
+	HoneycombDataset  string `config:"honeycomb-dataset"`
+	Hostname          string `config:"hostname"`
+	DefaultLanguage   string `config:"default-language"`
+	DefaultDist       string `config:"default-dist"`
+	DefaultGroup      string `config:"default-group"`
+	DefaultOS         string `config:"default-os"`
+	JobBoardURL       string `config:"job-board-url"`
+	TravisSite        string `config:"travis-site"`
 
 	FilePollingInterval      time.Duration `config:"file-polling-interval"`
 	HTTPPollingInterval      time.Duration `config:"http-polling-interval"`
