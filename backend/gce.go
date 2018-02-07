@@ -884,6 +884,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		subnetwork = p.ic.Subnetwork.SelfLink
 	}
 
+	tags := []string{"testing"}
 	var networkInterface *compute.NetworkInterface
 	if p.ic.PublicIP {
 		networkInterface = &compute.NetworkInterface{
@@ -897,13 +898,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Subnetwork: subnetwork,
 		}
 	} else {
+		tags = append(tags, "no-ip")
 		networkInterface = &compute.NetworkInterface{
 			Network:    p.ic.Network.SelfLink,
 			Subnetwork: subnetwork,
 		}
 	}
 
-	tags := []string{"testing"}
 	if p.ic.Site != "" {
 		tags = append(tags, p.ic.Site)
 	}
