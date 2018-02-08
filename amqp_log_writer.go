@@ -113,7 +113,6 @@ func (w *amqpLogWriter) Close() error {
 	w.logPartNumber++
 
 	err := w.publishLogPart(part)
-	_ = w.amqpChan.Close()
 	return err
 }
 
@@ -153,7 +152,6 @@ func (w *amqpLogWriter) WriteAndClose(p []byte) (int, error) {
 	w.logPartNumber++
 
 	err = w.publishLogPart(part)
-	_ = w.amqpChan.Close()
 	return n, err
 }
 
