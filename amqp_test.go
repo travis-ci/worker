@@ -24,7 +24,7 @@ func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel, *amqp.Channel
 
 	err = logChan.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil
 	}
 	_, err = logChan.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
 	if err != nil {
@@ -33,7 +33,7 @@ func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel, *amqp.Channel
 
 	err = logChan.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil
 	}
 
 	_, err = logChan.QueuePurge("reporting.jobs.logs", false)
