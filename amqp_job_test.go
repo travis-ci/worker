@@ -44,10 +44,8 @@ func (a *fakeAMQPAcknowledger) Reject(tag uint64, req bool) error {
 }
 
 func newTestAMQPJob(t *testing.T) *amqpJob {
-	amqpConn, err := setupAMQPConn(t)
-	if err != nil {
-		t.Error(err)
-	}
+	amqpConn, _ := setupAMQPConn(t)
+
 	logChan, err := amqpConn.Channel()
 	if err != nil {
 		t.Error(err)
