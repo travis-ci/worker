@@ -18,7 +18,7 @@ import (
 type amqpJob struct {
 	conn            *amqp.Connection
 	stateUpdateChan *amqp.Channel
-	logWriterChan	*amqp.Channel
+	logWriterChan   *amqp.Channel
 	delivery        amqp.Delivery
 	payload         *JobPayload
 	rawPayload      *simplejson.Json

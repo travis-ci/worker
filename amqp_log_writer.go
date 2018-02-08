@@ -23,9 +23,8 @@ type amqpLogPart struct {
 }
 
 type amqpLogWriter struct {
-	ctx      gocontext.Context
-	amqpConn *amqp.Connection
-	jobID    uint64
+	ctx   gocontext.Context
+	jobID uint64
 
 	closeChan chan struct{}
 
@@ -47,7 +46,6 @@ func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID 
 
 	writer := &amqpLogWriter{
 		ctx:       context.FromComponent(ctx, "log_writer"),
-		amqpConn:  conn,
 		amqpChan:  logWriterChan,
 		jobID:     jobID,
 		closeChan: make(chan struct{}),
@@ -215,19 +213,7 @@ func (w *amqpLogWriter) flush() {
 
 		err = w.publishLogPart(part)
 		if err != nil {
-			switch err.(type) {
-			case *amqp.Error:
-				if w.reopenChannel() != nil {
-					logger.WithField("err", err).Error("couldn't publish log part and couldn't reopen channel")
-					// Close or something
-					return
-				}
-
-				err = w.publishLogPart(part)
-				logger.WithField("err", err).Error("couldn't publish log part, even after reopening channel")
-			default:
-				logger.WithField("err", err).Error("couldn't publish log part")
-			}
+			logger.WithField("err", err).Error("couldn't publish log part")
 		}
 	}
 }
@@ -251,23 +237,4 @@ func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	w.amqpChanMutex.RUnlock()
 
 	return err
-}
-
-func (w *amqpLogWriter) reopenChannel() error {
-	w.amqpChanMutex.Lock()
-	defer w.amqpChanMutex.Unlock()
-
-	amqpChan, err := w.amqpConn.Channel()
-	if err != nil {
-		return err
-	}
-
-	// reopenChannel() shouldn't be called if the channel isn't already closed.
-	// but we're closing the channel again, just in case, to avoid leaking
-	// channels.
-	_ = w.amqpChan.Close()
-
-	w.amqpChan = amqpChan
-
-	return nil
 }

@@ -19,7 +19,7 @@ func TestAMQPLogWriterWrite(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestAMQPLogWriterClose(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestAMQPMaxLogLength(t *testing.T) {
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
