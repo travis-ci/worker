@@ -43,31 +43,12 @@ type amqpLogWriter struct {
 	timeout time.Duration
 }
 
-func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64, timeout time.Duration) (*amqpLogWriter, error) {
-	channel, err := conn.Channel()
-	if err != nil {
-		return nil, err
-	}
-
-	err = channel.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
-	if err != nil {
-		return nil, err
-	}
+func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, timeout time.Duration) (*amqpLogWriter, error) {
 
 	writer := &amqpLogWriter{
 		ctx:       context.FromComponent(ctx, "log_writer"),
 		amqpConn:  conn,
-		amqpChan:  channel,
+		amqpChan:  logWriterChan,
 		jobID:     jobID,
 		closeChan: make(chan struct{}),
 		buffer:    new(bytes.Buffer),
