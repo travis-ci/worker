@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
+func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel, *amqp.Channel) {
 	if os.Getenv("AMQP_URI") == "" {
 		t.Skip("skipping amqp test since there is no AMQP_URI")
 	}
@@ -32,5 +32,15 @@ func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
 		t.Error(err)
 	}
 
-	return amqpConn, logChan
+	stateChan, err := amqpConn.Channel()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = stateChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
+		return nil, nil, nil
+	}
+
+	return amqpConn, logChan, stateChan
 }

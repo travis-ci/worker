@@ -44,7 +44,7 @@ func (a *fakeAMQPAcknowledger) Reject(tag uint64, req bool) error {
 }
 
 func newTestAMQPJob(t *testing.T) *amqpJob {
-	amqpConn, logChan := setupAMQPConn(t)
+	amqpConn, logChan, stateChan := setupAMQPConn(t)
 
 	payload := &JobPayload{
 		Type: "job:test",
@@ -87,6 +87,7 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 	return &amqpJob{
 		conn:            amqpConn,
 		logWriterChan:   logChan,
+		stateUpdateChan: stateChan,
 		delivery:        delivery,
 		payload:         payload,
 		rawPayload:      rawPayload,

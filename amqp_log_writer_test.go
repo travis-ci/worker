@@ -12,7 +12,7 @@ import (
 )
 
 func TestAMQPLogWriterWrite(t *testing.T) {
-	amqpConn, amqpChan := setupAMQPConn(t)
+	amqpConn, amqpChan, _ := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
@@ -69,7 +69,7 @@ func TestAMQPLogWriterWrite(t *testing.T) {
 }
 
 func TestAMQPLogWriterClose(t *testing.T) {
-	amqpConn, amqpChan := setupAMQPConn(t)
+	amqpConn, amqpChan, _ := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
@@ -117,7 +117,7 @@ func TestAMQPLogWriterClose(t *testing.T) {
 }
 
 func TestAMQPMaxLogLength(t *testing.T) {
-	amqpConn, amqpChan := setupAMQPConn(t)
+	amqpConn, amqpChan, _ := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 

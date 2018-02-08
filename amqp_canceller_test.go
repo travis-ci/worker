@@ -12,7 +12,7 @@ import (
 )
 
 func newTestAMQPCanceller(t *testing.T, cancellationBroadcaster *CancellationBroadcaster) *AMQPCanceller {
-	amqpConn, _ := setupAMQPConn(t)
+	amqpConn, _, _ := setupAMQPConn(t)
 
 	uuid := uuid.NewRandom()
 	ctx := context.FromUUID(gocontext.TODO(), uuid.String())
