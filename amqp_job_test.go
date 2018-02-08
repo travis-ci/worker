@@ -96,8 +96,8 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 
 	return &amqpJob{
 		conn:            amqpConn,
-		logWriterChan	 logChan,
-		stateUpdateChan  stateChan,
+		logWriterChan:   logChan,
+		stateUpdateChan: stateChan,
 		delivery:        delivery,
 		payload:         payload,
 		rawPayload:      rawPayload,
