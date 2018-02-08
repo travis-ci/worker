@@ -48,11 +48,14 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 	if err != nil {
 		t.Error(err)
 	}
-	amqpChan, err := amqpConn.Channel()
+	logChan, err := amqpConn.Channel()
 	if err != nil {
 		t.Error(err)
 	}
-
+	stateChan, err := amqpConn.Channel()
+	if err != nil {
+		t.Error(err)
+	}
 	payload := &JobPayload{
 		Type: "job:test",
 		Job: JobJobPayload{
@@ -93,7 +96,8 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 
 	return &amqpJob{
 		conn:            amqpConn,
-		logWriterChan	 amqpChan,
+		logWriterChan	 logChan,
+		stateUpdateChan  stateChan,
 		delivery:        delivery,
 		payload:         payload,
 		rawPayload:      rawPayload,
