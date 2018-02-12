@@ -17,6 +17,8 @@ import (
 
 type amqpJob struct {
 	conn            *amqp.Connection
+	stateUpdateChan *amqp.Channel
+	logWriterChan   *amqp.Channel
 	delivery        amqp.Delivery
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
@@ -121,7 +123,7 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
+	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout)
 }
 
 func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
@@ -160,12 +162,6 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	default:
 	}
 
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
-
 	j.stateCount++
 	body := j.createStateUpdateBody(ctx, state)
 
@@ -174,12 +170,7 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 		return err
 	}
 
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+	return j.stateUpdateChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),

@@ -12,14 +12,14 @@ import (
 )
 
 func TestAMQPLogWriterWrite(t *testing.T) {
-	amqpConn, amqpChan := setupAMQPConn(t)
+	amqpConn, amqpChan, _ := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,14 +69,14 @@ func TestAMQPLogWriterWrite(t *testing.T) {
 }
 
 func TestAMQPLogWriterClose(t *testing.T) {
-	amqpConn, amqpChan := setupAMQPConn(t)
+	amqpConn, amqpChan, _ := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,14 +117,14 @@ func TestAMQPLogWriterClose(t *testing.T) {
 }
 
 func TestAMQPMaxLogLength(t *testing.T) {
-	amqpConn, amqpChan := setupAMQPConn(t)
+	amqpConn, amqpChan, _ := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
