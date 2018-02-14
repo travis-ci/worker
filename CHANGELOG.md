@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- backend/gce: add a `no-ip` tag when allocating instance without public IP
 
 ### Deprecated
 
