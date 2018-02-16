@@ -204,7 +204,7 @@ Once you've decided what the next version number should be, update the [changelo
 Once the changelog has been updated and merged to `master`, the merge commit needs to be signed and manually tagged with the version number. To do this, run:
 
 ```
-$ git tag -a vX.X.X -m "Worker version vX.X.X"
+$ git tag --sign -a vX.X.X -m "Worker version vX.X.X"
 $ git push origin vX.X.X
 ```
 
