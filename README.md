@@ -195,14 +195,22 @@ To add a new dependency, do the following:
 
 ## Release process
 
-The parts of the release process that haven't yet been automated look like this:
+Since we want to easily keep track of worker changes, we often associate them with a version number.
+To find out the current version, check the [changelog](https://github.com/travis-ci/worker/blob/master/CHANGELOG.md) or run `travis-worker --version`.
+We typically use [semantic versioning](https://semver.org/) to determine how to increase this number.
 
-- [ ] review the diff since last release for silliness
-- [ ] decide what the version bump should be
-- [ ] update [`./CHANGELOG.md`](./CHANGELOG.md) (in a release prep branch)
-- [ ] tag accordingly after merge
-- [ ] update github release tag with relevant section from [`./CHANGELOG.md`](./CHANGELOG.md)
-- [ ] attach binaries to github release tag
+Once you've decided what the next version number should be, update the [changelog](https://github.com/travis-ci/worker/blob/master/CHANGELOG.md) making sure you include all relevant changes that happened since the previous version was tagged. You can see these by running `git diff vX.X.X...HEAD`, where `v.X.X.X` is the name of the previous version.
+
+Once the changelog has been updated and merged to `master`, the merge commit needs to be signed and manually tagged with the version number. To do this, run:
+
+```
+$ git tag --sign -a vX.X.X -m "Worker version vX.X.X"
+$ git push origin vX.X.X
+```
+
+The Travis build corresponding to this push should build and upload a worker image with the new tag to [Dockerhub](https://hub.docker.com/r/travisci/worker/tags/).
+
+The next step is to create a new [Github release tag](https://github.com/travis-ci/worker/releases/new) with the appropriate information from the changelog.
 
 ## License and Copyright Information
 
