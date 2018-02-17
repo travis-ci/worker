@@ -22,7 +22,7 @@ main() {
 
   docker exec \
     --user postgres \
-    job-board-postgres bash -c 'while ! pg_isready; do sleep 1; done'
+    job-board-postgres bash -c 'while ! pg_isready -d template1; do sleep 1; done'
 
   docker exec \
     --user postgres \
