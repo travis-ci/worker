@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- backend/gce: add a `no-ip` tag when allocating instance without public IP
 
 ### Deprecated
 
@@ -15,6 +16,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [3.5.0] - 2018-02-12
+
+### Changed
+- amqp-job-queue: create the logUpdates and stateUpdates AMQP channels once per
+  job queue instead of per each individual job to prevent channel churn.
+
+### Fixed
+- shellcheck test failures
 
 ## [3.4.0] - 2017-11-08
 
@@ -637,7 +647,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.4.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.5.0...HEAD
+[3.4.0]: https://github.com/travis-ci/worker/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/travis-ci/worker/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/travis-ci/worker/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/travis-ci/worker/compare/v3.2.2...v3.3.0
