@@ -22,7 +22,11 @@ main() {
 
   docker exec \
     --user postgres \
-    job-board-postgres bash -c 'while ! psql -l; do sleep 1; done'
+    job-board-postgres bash -c 'while ! pg_isready; do sleep 1; done'
+
+  # despite pg_isready reporting the server as up, we still have to wait a bit
+  # for createdb to be able to successfully connect
+  sleep 1
 
   docker exec \
     --user postgres \
