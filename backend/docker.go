@@ -392,14 +392,14 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't read instance IP from /var/tmp/travis-run.d/instance-ipv4")
 	} else {
-		labels["travis.ipv4"] = ipv4
+		labels["travis.ipv4"] = string(ipv4)
 	}
 
 	iid, err := ioutil.ReadFile("/var/tmp/travis-run.d/instance-id")
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't read instance ID from /var/tmp/travis-run.d/instance-id")
 	} else {
-		labels["travis.instance_id"] = iid
+		labels["travis.instance_id"] = string(iid)
 	}
 
 	dockerConfig := &dockercontainer.Config{
