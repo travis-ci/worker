@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -385,6 +386,20 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	jid, ok := context.JobIDFromContext(ctx)
 	if ok {
 		labels["travis.job_id"] = strconv.FormatUint(jid, 10)
+	}
+
+	ipv4, err := ioutil.ReadFile("/var/tmp/travis-run.d/instance-ipv4")
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't read instance IP from /var/tmp/travis-run.d/instance-ipv4")
+	} else {
+		labels["travis.ipv4"] = ipv4
+	}
+
+	iid, err := ioutil.ReadFile("/var/tmp/travis-run.d/instance-id")
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't read instance ID from /var/tmp/travis-run.d/instance-id")
+	} else {
+		labels["travis.instance_id"] = iid
 	}
 
 	dockerConfig := &dockercontainer.Config{
