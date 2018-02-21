@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,15 +23,13 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
-	"github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
-	travismetrics "github.com/travis-ci/worker/metrics"
+	"github.com/travis-ci/worker/metrics"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -208,6 +205,12 @@ func (i *CLI) Run() {
 		"queue":     i.JobQueue,
 	}).Debug("running pool")
 
+	defer func() {
+		if metrics.DefaultClient != nil {
+			metrics.DefaultClient.Stop()
+		}
+	}()
+
 	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
 
 	err := i.JobQueue.Cleanup()
@@ -309,20 +312,23 @@ func (i *CLI) setupSentry() {
 }
 
 func (i *CLI) setupMetrics() {
-	go travismetrics.ReportMemstatsMetrics()
-
-	if i.Config.LibratoEmail != "" && i.Config.LibratoToken != "" && i.Config.LibratoSource != "" {
-		i.logger.Info("starting librato metrics reporter")
-
-		go librato.Librato(metrics.DefaultRegistry, time.Minute,
-			i.Config.LibratoEmail, i.Config.LibratoToken, i.Config.LibratoSource,
-			[]float64{0.50, 0.75, 0.90, 0.95, 0.99, 0.999, 1.0}, time.Millisecond)
-	} else if !i.c.Bool("silence-metrics") {
-		i.logger.Info("starting logger metrics reporter")
-
-		go metrics.Log(metrics.DefaultRegistry, time.Minute,
-			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+	if i.Config.LibratoEmail == "" || i.Config.LibratoToken == "" || i.Config.LibratoSource == "" {
+		i.logger.Info("skipping metrics setup")
+		return
 	}
+
+	i.logger.Info("starting librato metrics reporter")
+
+	metrics.DefaultClient = metrics.NewClient(&metrics.Config{
+		Email:         i.Config.LibratoEmail,
+		Token:         i.Config.LibratoToken,
+		Source:        i.Config.LibratoSource,
+		SampleTimeout: 5 * time.Second,
+		PublishTick:   10 * time.Second,
+		Max:           uint(10000),
+	}, i.logger)
+	metrics.DefaultClient.Start()
+	go metrics.ReportMemstatsMetrics()
 }
 
 func (i *CLI) heartbeatHandler(heartbeatURL, heartbeatAuthToken string) {

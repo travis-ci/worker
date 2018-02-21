@@ -129,6 +129,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/google/go-querystring/query",
+			"repository": "https://github.com/google/go-querystring",
+			"vcs": "git",
+			"revision": "53e6ce116135b80d037921a7fdd5138cf32d7a8a",
+			"branch": "master",
+			"path": "/query",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/gorilla/context",
 			"repository": "https://github.com/gorilla/context",
 			"vcs": "git",
@@ -153,6 +162,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/henrikhodne/go-librato/librato",
+			"repository": "https://github.com/henrikhodne/go-librato",
+			"vcs": "git",
+			"revision": "cd4baae4da94deaa0cfcf819c048a0e6a041c37a",
+			"branch": "master",
+			"path": "/librato",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/jtacoma/uritemplates",
 			"repository": "https://github.com/jtacoma/uritemplates",
 			"vcs": "git",
@@ -165,14 +183,6 @@
 			"repository": "https://github.com/kr/fs",
 			"vcs": "git",
 			"revision": "2788f0dbd16903de03cb8186e5c7d97b69ad387b",
-			"branch": "master",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/mihasya/go-metrics-librato",
-			"repository": "https://github.com/mihasya/go-metrics-librato",
-			"vcs": "git",
-			"revision": "0ec8d5e8bf04a48fc5c96792bfd016b08afdabad",
 			"branch": "master",
 			"notests": true
 		},
@@ -221,14 +231,6 @@
 			"repository": "https://github.com/rackspace/gophercloud",
 			"vcs": "git",
 			"revision": "e00690e87603abe613e9f02c816c7c4bef82e063",
-			"branch": "master",
-			"notests": true
-		},
-		{
-			"importpath": "github.com/rcrowley/go-metrics",
-			"repository": "https://github.com/rcrowley/go-metrics",
-			"vcs": "git",
-			"revision": "e181e095bae94582363434144c61a9653aff6e50",
 			"branch": "master",
 			"notests": true
 		},

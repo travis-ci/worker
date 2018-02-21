@@ -77,7 +77,7 @@ func (j *amqpJob) Received(ctx gocontext.Context) error {
 	j.received = time.Now()
 
 	if j.payload.Job.QueuedAt != nil {
-		metrics.TimeSince("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
+		metrics.Since("travis.worker.job.queue_time", *j.payload.Job.QueuedAt)
 	}
 
 	return j.sendStateUpdate(ctx, "job:test:receive", "received")
@@ -86,7 +86,7 @@ func (j *amqpJob) Received(ctx gocontext.Context) error {
 func (j *amqpJob) Started(ctx gocontext.Context) error {
 	j.started = time.Now()
 
-	metrics.TimeSince("travis.worker.job.start_time", j.received)
+	metrics.Since("travis.worker.job.start_time", j.received)
 
 	return j.sendStateUpdate(ctx, "job:test:start", "started")
 }

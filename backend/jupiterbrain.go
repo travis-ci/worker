@@ -280,9 +280,9 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 		return nil, err
 	}
 
-	metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
+	metrics.Since("worker.vm.provider.jupiterbrain.boot", startBooting)
 	normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
-	metrics.TimeSince(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
+	metrics.Since(fmt.Sprintf("worker.vm.provider.jupiterbrain.boot.image.%s", normalizedImageName), startBooting)
 	logger.WithField("instance_uuid", payload.ID).Info("booted instance")
 
 	if payload.BaseImage == "" {

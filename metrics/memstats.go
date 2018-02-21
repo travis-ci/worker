@@ -1,10 +1,9 @@
 package metrics
 
 import (
+	"fmt"
 	"runtime"
 	"time"
-
-	"github.com/rcrowley/go-metrics"
 )
 
 // ReportMemstatsMetrics will send runtime Memstats metrics every 10 seconds,
@@ -19,20 +18,24 @@ func ReportMemstatsMetrics() {
 
 	for {
 		runtime.ReadMemStats(memStats)
-
 		now := time.Now()
 
-		metrics.GetOrRegisterGauge("travis.worker.goroutines", metrics.DefaultRegistry).Update(int64(runtime.NumGoroutine()))
-		metrics.GetOrRegisterGauge("travis.worker.memory.allocated", metrics.DefaultRegistry).Update(int64(memStats.Alloc))
-		metrics.GetOrRegisterGauge("travis.worker.memory.mallocs", metrics.DefaultRegistry).Update(int64(memStats.Mallocs))
-		metrics.GetOrRegisterGauge("travis.worker.memory.frees", metrics.DefaultRegistry).Update(int64(memStats.Frees))
-		metrics.GetOrRegisterGauge("travis.worker.memory.gc.total_pause", metrics.DefaultRegistry).Update(int64(memStats.PauseTotalNs))
-		metrics.GetOrRegisterGauge("travis.worker.memory.gc.heap", metrics.DefaultRegistry).Update(int64(memStats.HeapAlloc))
-		metrics.GetOrRegisterGauge("travis.worker.memory.gc.stack", metrics.DefaultRegistry).Update(int64(memStats.StackInuse))
+		for n, c := range map[string]uint64{
+			"goroutines":            uint64(runtime.NumGoroutine()),
+			"memory.allocated":      memStats.Alloc,
+			"memory.mallocs":        memStats.Mallocs,
+			"memory.frees":          memStats.Frees,
+			"memory.gc.total_pause": memStats.PauseTotalNs,
+			"memory.gc.heap":        memStats.HeapAlloc,
+			"memory.gc.stack":       memStats.StackInuse,
+		} {
+			Gauge(fmt.Sprintf("travis.worker.%s", n), int64(c))
+		}
 
 		if lastPauseNs > 0 {
 			pauseSinceLastSample := memStats.PauseTotalNs - lastPauseNs
-			metrics.GetOrRegisterGauge("travis.worker.memory.gc.pause_per_second", metrics.DefaultRegistry).Update(int64(float64(pauseSinceLastSample) / sleep.Seconds()))
+			Gauge("travis.worker.memory.gc.pause_per_second",
+				int64(float64(pauseSinceLastSample)/sleep.Seconds()))
 		}
 		lastPauseNs = memStats.PauseTotalNs
 
@@ -40,7 +43,7 @@ func ReportMemstatsMetrics() {
 		if lastNumGC > 0 {
 			diff := float64(countGC)
 			diffTime := now.Sub(lastSampleTime).Seconds()
-			metrics.GetOrRegisterGauge("travis.worker.memory.gc.gc_per_second", metrics.DefaultRegistry).Update(int64(diff / diffTime))
+			Gauge("travis.worker.memory.gc.gc_per_second", int64(diff/diffTime))
 		}
 
 		if countGC > 0 {
@@ -51,7 +54,7 @@ func ReportMemstatsMetrics() {
 			for i := 0; i < countGC; i++ {
 				idx := int((memStats.NumGC-uint32(i))+255) % 256
 				pause := time.Duration(memStats.PauseNs[idx])
-				metrics.GetOrRegisterTimer("travis.worker.memory.gc.pause", metrics.DefaultRegistry).Update(pause)
+				Gauge("travis.worker.memory.gc.pause", int64(pause))
 			}
 		}
 

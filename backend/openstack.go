@@ -531,7 +531,7 @@ func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttribut
 		}
 	}
 
-	metrics.TimeSince("worker.vm.provider.openstack.boot", startBooting)
+	metrics.Since("worker.vm.provider.openstack.boot", startBooting)
 	logger.WithField("instance_id", inst.ID).Info("booted instance")
 	return &osInstance{
 		client:          p.client,
