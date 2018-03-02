@@ -5,10 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- backend/docker: include arbitrary container labels from config
 
 ### Changed
-- backend/gce: add a `no-ip` tag when allocating instance without public IP
 
 ### Deprecated
 
@@ -17,6 +15,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [3.6.0] - 2018-03-02
+
+### Added
+- backend/docker: include arbitrary container labels from config
+
+### Changed
+- backend/gce: add a `no-ip` tag when allocating instance without public IP
 
 ## [3.5.0] - 2018-02-12
 
@@ -648,8 +654,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.5.0...HEAD
-[3.4.0]: https://github.com/travis-ci/worker/compare/v3.4.0...v3.5.0
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.6.0...HEAD
+[3.6.0]: https://github.com/travis-ci/worker/compare/v3.5.0...v3.6.0
+[3.5.0]: https://github.com/travis-ci/worker/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/travis-ci/worker/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/travis-ci/worker/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/travis-ci/worker/compare/v3.2.2...v3.3.0
