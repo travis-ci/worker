@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- backend/docker: include arbitrary container labels from config
 
 ### Changed
 - backend/gce: add a `no-ip` tag when allocating instance without public IP
