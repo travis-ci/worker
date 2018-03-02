@@ -23,6 +23,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 - backend/gce: add a `no-ip` tag when allocating instance without public IP
+- build: support and build using Go 1.9.4
 
 ## [3.5.0] - 2018-02-12
 
