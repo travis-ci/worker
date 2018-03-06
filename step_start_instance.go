@@ -64,7 +64,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		"boot_time":   time.Since(startTime).Seconds() * 1e3,
 		"instance_id": instance.ID(),
 		"image_name":  instance.ImageName(),
-		"job_id":      buildJob.Payload().Job.ID,
 		"version":     VersionString,
 	}).Info("started instance")
 
