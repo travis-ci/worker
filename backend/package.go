@@ -32,6 +32,7 @@ import (
 	gocontext "context"
 	"fmt"
 	"io"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -127,7 +128,7 @@ func str2map(s string) map[string]string {
 		if len(kvParts) == 1 {
 			ret[key] = ""
 		} else {
-			ret[key] = strings.TrimSpace(kvParts[1])
+			ret[key] = url.QueryEscape(strings.TrimSpace(kvParts[1]))
 		}
 	}
 
