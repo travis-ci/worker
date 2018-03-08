@@ -66,11 +66,12 @@ func Test_hostnameFromContext(t *testing.T) {
 }
 
 func Test_str2Map(t *testing.T) {
-	s := "foo:bar,bang:baz"
+	s := "foo:bar,bang:baz hello:world"
 	m := str2map(s)
 	e := map[string]string{
-		"foo":  "bar",
-		"bang": "baz",
+		"foo":   "bar",
+		"bang":  "baz",
+		"hello": "world",
 	}
 	assert.Equal(t, e, m)
 }
