@@ -128,7 +128,9 @@ func str2map(s string) map[string]string {
 		if len(kvParts) == 1 {
 			ret[key] = ""
 		} else {
-			ret[key] = url.QueryEscape(strings.TrimSpace(kvParts[1]))
+			val := strings.TrimSpace(kvParts[1])
+			val, _ = url.QueryUnescape(val)
+			ret[key] = val
 		}
 	}
 
