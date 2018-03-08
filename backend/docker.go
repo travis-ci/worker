@@ -55,7 +55,7 @@ var (
 		"TMPFS_MAP":           fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
 		"MEMORY":              "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
-		"CONTAINER_LABELS":    "\",\"-delimited key:value pairs of labels to apply to each container (default \"\")",
+		"CONTAINER_LABELS":    "\" \"-delimited key:value pairs of labels to apply to each container (default \"\")",
 		"CPUS":                "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":        "size of available cpu set (default detected locally via runtime.NumCPU)",
 		"NATIVE":              "upload and run build script via docker API instead of over ssh (default false)",
