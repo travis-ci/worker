@@ -531,7 +531,7 @@ func (i *CLI) logProcessorInfo(msg string) {
 		"revision":        RevisionString,
 		"generated":       GeneratedString,
 		"boot_time":       i.bootTime.String(),
-		"uptime":          time.Since(i.bootTime),
+		"uptime_min":      time.Since(i.bootTime).Minutes(),
 		"pool_size":       i.ProcessorPool.Size(),
 		"total_processed": i.ProcessorPool.TotalProcessed(),
 	}).Info(msg)

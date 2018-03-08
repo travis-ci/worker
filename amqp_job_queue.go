@@ -180,8 +180,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				case buildJobChan <- buildJob:
 					metrics.TimeSince("travis.worker.job_queue.amqp.blocking_time", jobSendBegin)
 					logger.WithFields(logrus.Fields{
-						"source": "amqp",
-						"dur":    time.Since(jobSendBegin),
+						"source":           "amqp",
+						"send_duration_ms": time.Since(jobSendBegin).Seconds() * 1e3,
 					}).Info("sent job to output channel")
 				case <-ctx.Done():
 					delivery.Nack(false, true)

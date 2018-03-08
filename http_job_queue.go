@@ -149,8 +149,8 @@ func (q *HTTPJobQueue) pollForJob(ctx gocontext.Context, buildJobChan chan Job) 
 	case buildJobChan <- buildJob:
 		metrics.TimeSince("travis.worker.job_queue.http.blocking_time", jobSendBegin)
 		logger.WithFields(logrus.Fields{
-			"source": "http",
-			"dur":    time.Since(jobSendBegin),
+			"source":           "http",
+			"send_duration_ms": time.Since(jobSendBegin).Seconds() * 1e3,
 		}).Info("sent job to output channel")
 		return pollInterval, true, readyChan
 	case <-ctx.Done():

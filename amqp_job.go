@@ -61,7 +61,12 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *amqpJob) Requeue(ctx gocontext.Context) error {
-	context.LoggerFromContext(ctx).WithField("self", "amqp_job").Info("requeueing job")
+	context.LoggerFromContext(ctx).WithFields(
+		logrus.Fields{
+			"self":       "amqp_job",
+			"job_id":     j.Payload().Job.ID,
+			"repository": j.Payload().Repository.Slug,
+		}).Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
 
@@ -93,8 +98,10 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"state": state,
-		"self":  "amqp_job",
+		"state":      state,
+		"self":       "amqp_job",
+		"job_id":     j.Payload().Job.ID,
+		"repository": j.Payload().Repository.Slug,
 	}).Info("finishing job")
 
 	j.finished = time.Now()
