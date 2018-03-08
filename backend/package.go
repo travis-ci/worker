@@ -114,7 +114,7 @@ func asBool(s string) bool {
 func str2map(s string) map[string]string {
 	ret := map[string]string{}
 
-	for _, kv := range strings.Split(s, " ") {
+	for _, kv := range strings.Split(s, ",") {
 		kvParts := strings.SplitN(kv, ":", 2)
 		key := strings.TrimSpace(kvParts[0])
 		if key == "" {
