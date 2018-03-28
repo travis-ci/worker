@@ -35,7 +35,7 @@ var (
 
 	defaultHostname, _ = os.Hostname()
 	defaultLanguage    = "default"
-	defaultDist        = "precise"
+	defaultDist        = "trusty"
 	defaultGroup       = "stable"
 	defaultOS          = "linux"
 
