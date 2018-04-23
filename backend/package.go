@@ -32,6 +32,7 @@ import (
 	gocontext "context"
 	"fmt"
 	"io"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -114,7 +115,11 @@ func asBool(s string) bool {
 func str2map(s string) map[string]string {
 	ret := map[string]string{}
 
-	for _, kv := range strings.Split(s, " ") {
+	f := func(r rune) bool {
+		return r == ' ' || r == ','
+	}
+
+	for _, kv := range strings.FieldsFunc(s, f) {
 		kvParts := strings.SplitN(kv, ":", 2)
 		key := strings.TrimSpace(kvParts[0])
 		if key == "" {
@@ -123,7 +128,9 @@ func str2map(s string) map[string]string {
 		if len(kvParts) == 1 {
 			ret[key] = ""
 		} else {
-			ret[key] = strings.TrimSpace(kvParts[1])
+			val := strings.TrimSpace(kvParts[1])
+			val, _ = url.QueryUnescape(val)
+			ret[key] = val
 		}
 	}
 

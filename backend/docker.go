@@ -52,9 +52,10 @@ var (
 		"CMD":                 "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
 		"INSPECT_INTERVAL":    fmt.Sprintf("time to wait between container inspections as duration (default %q)", defaultInspectInterval),
-		"TMPFS_MAP":           fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
+		"TMPFS_MAP":           fmt.Sprintf("comma- or space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
 		"MEMORY":              "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
+		"CONTAINER_LABELS":    "comma- or space-delimited key:value pairs of labels to apply to each container (default \"\")",
 		"CPUS":                "cpu count to allocate to each container (0 disables allocation, default 2)",
 		"CPU_SET_SIZE":        "size of available cpu set (default detected locally via runtime.NumCPU)",
 		"NATIVE":              "upload and run build script via docker API instead of over ssh (default false)",
@@ -96,6 +97,7 @@ type dockerProvider struct {
 	inspectInterval time.Duration
 	tmpFs           map[string]string
 	imageSelector   image.Selector
+	containerLabels map[string]string
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -231,19 +233,25 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, errors.Wrap(err, "couldn't build docker image selector")
 	}
 
+	containerLabels := map[string]string{}
+	if cfg.IsSet("CONTAINER_LABELS") {
+		containerLabels = str2map(cfg.Get("CONTAINER_LABELS"))
+	}
+
 	return &dockerProvider{
 		client:         client,
 		sshDialer:      sshDialer,
 		sshDialTimeout: sshDialTimeout,
 
-		runPrivileged: privileged,
-		runCmd:        cmd,
-		runBinds:      binds,
-		runMemory:     memory,
-		runShm:        shm,
-		runCPUs:       uint(cpus),
-		runNative:     runNative,
-		imageSelector: imageSelector,
+		runPrivileged:   privileged,
+		runCmd:          cmd,
+		runBinds:        binds,
+		runMemory:       memory,
+		runShm:          shm,
+		runCPUs:         uint(cpus),
+		runNative:       runNative,
+		imageSelector:   imageSelector,
+		containerLabels: containerLabels,
 
 		execCmd:         execCmd,
 		inspectInterval: inspectInterval,
@@ -373,6 +381,9 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	labels := map[string]string{
 		"travis.dist": startAttributes.Dist,
+	}
+	for key, value := range p.containerLabels {
+		labels[key] = value
 	}
 
 	r, ok := context.RepositoryFromContext(ctx)

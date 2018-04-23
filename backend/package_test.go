@@ -64,3 +64,19 @@ func Test_hostnameFromContext(t *testing.T) {
 	assert.Equal(t, "unk", randParts[2])
 	assert.Equal(t, "unk", randParts[3])
 }
+
+func Test_str2Map(t *testing.T) {
+	s := "foo:bar,bang:baz Hello:World, extra space:justBecause sillychars:butwhy%3F encodedspace:yup+, colonInside:why%3Anot"
+	m := str2map(s)
+	e := map[string]string{
+		"foo":          "bar",
+		"bang":         "baz",
+		"Hello":        "World",
+		"extra":        "",
+		"space":        "justBecause",
+		"sillychars":   "butwhy?",
+		"encodedspace": "yup ",
+		"colonInside":  "why:not",
+	}
+	assert.Equal(t, e, m)
+}

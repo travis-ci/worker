@@ -17,6 +17,36 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.7.0] - 2018-04-17
+
+### Added
+- logging/metrics: include more fields, alter values in various log entries
+- packaging: add systemd service and wrapper script as expected by
+  [`tfw`](https://github.com/travis-ci/tfw).
+
+### Changed
+- backend: handle "map string" config values delimited by either spaces or
+  commas, with potentially URL-encoded parts
+- config: change default dist to `trusty`
+
+## [3.6.0] - 2018-03-02
+
+### Added
+- backend/docker: include arbitrary container labels from config
+
+### Changed
+- backend/gce: add a `no-ip` tag when allocating instance without public IP
+- build: support and build using Go 1.9.4
+
+## [3.5.0] - 2018-02-12
+
+### Changed
+- amqp-job-queue: create the logUpdates and stateUpdates AMQP channels once per
+  job queue instead of per each individual job to prevent channel churn.
+
+### Fixed
+- shellcheck test failures
+
 ## [3.4.0] - 2017-11-08
 
 ### Added
@@ -638,7 +668,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.4.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.7.0...HEAD
+[3.7.0]: https://github.com/travis-ci/worker/compare/v3.6.0...v3.7.0
+[3.6.0]: https://github.com/travis-ci/worker/compare/v3.5.0...v3.6.0
+[3.5.0]: https://github.com/travis-ci/worker/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/travis-ci/worker/compare/v3.3.1...v3.4.0
 [3.3.1]: https://github.com/travis-ci/worker/compare/v3.3.0...v3.3.1
 [3.3.0]: https://github.com/travis-ci/worker/compare/v3.2.2...v3.3.0

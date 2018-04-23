@@ -17,6 +17,8 @@ import (
 
 type amqpJob struct {
 	conn            *amqp.Connection
+	stateUpdateChan *amqp.Channel
+	logWriterChan   *amqp.Channel
 	delivery        amqp.Delivery
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
@@ -59,7 +61,12 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *amqpJob) Requeue(ctx gocontext.Context) error {
-	context.LoggerFromContext(ctx).WithField("self", "amqp_job").Info("requeueing job")
+	context.LoggerFromContext(ctx).WithFields(
+		logrus.Fields{
+			"self":       "amqp_job",
+			"job_id":     j.Payload().Job.ID,
+			"repository": j.Payload().Repository.Slug,
+		}).Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
 
@@ -91,8 +98,10 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"state": state,
-		"self":  "amqp_job",
+		"state":      state,
+		"self":       "amqp_job",
+		"job_id":     j.Payload().Job.ID,
+		"repository": j.Payload().Repository.Slug,
 	}).Info("finishing job")
 
 	j.finished = time.Now()
@@ -121,7 +130,7 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
+	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout)
 }
 
 func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
@@ -160,12 +169,6 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	default:
 	}
 
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
-
 	j.stateCount++
 	body := j.createStateUpdateBody(ctx, state)
 
@@ -174,12 +177,7 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 		return err
 	}
 
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+	return j.stateUpdateChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),

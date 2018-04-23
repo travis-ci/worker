@@ -28,7 +28,7 @@ main() {
 
   local login_args=(
     -u "${DOCKER_LOGIN_USERNAME}"
-    -p "${DOCKER_LOGIN_PASSWORD}"
+    --password-stdin
   )
 
   if [[ "${DOCKER_LOGIN_EMAIL}" ]]; then
@@ -37,9 +37,10 @@ main() {
 
   __log 'msg="docker login"'
   if [[ "${DOCKER_LOGIN_SERVER}" ]]; then
-    docker login "${login_args[@]}" "${DOCKER_LOGIN_SERVER}"
+    echo "${DOCKER_LOGIN_PASSWORD}" |
+      docker login "${login_args[@]}" "${DOCKER_LOGIN_SERVER}"
   else
-    docker login "${login_args[@]}"
+    echo "${DOCKER_LOGIN_PASSWORD}" | docker login "${login_args[@]}"
   fi
 
   : "${DOCKER_PUSH_RETRIES:=6}"

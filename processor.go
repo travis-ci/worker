@@ -31,8 +31,9 @@ type Processor struct {
 	generator               BuildScriptGenerator
 	cancellationBroadcaster *CancellationBroadcaster
 
-	graceful  chan struct{}
-	terminate gocontext.CancelFunc
+	graceful   chan struct{}
+	terminate  gocontext.CancelFunc
+	shutdownAt time.Time
 
 	// ProcessedCount contains the number of jobs that has been processed
 	// by this Processor. This value should not be modified outside of the
@@ -117,7 +118,7 @@ func (p *Processor) Run() {
 			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			logger.Info("processor is done, terminating")
+			logger.WithField("shutdown_duration_s", time.Since(p.shutdownAt).Seconds()).Info("processor is done, terminating")
 			p.terminate()
 			return
 		default:
@@ -128,7 +129,7 @@ func (p *Processor) Run() {
 			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			logger.Info("processor is done, terminating")
+			logger.WithField("shutdown_duration_s", time.Since(p.shutdownAt).Seconds()).Info("processor is done, terminating")
 			p.terminate()
 			return
 		case buildJob, ok := <-p.buildJobsChan:
@@ -193,6 +194,7 @@ func (p *Processor) GracefulShutdown() {
 		}
 	}()
 	logger.Info("processor initiating graceful shutdown")
+	p.shutdownAt = time.Now()
 	tryClose(p.graceful)
 }
 

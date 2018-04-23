@@ -38,6 +38,26 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 		return nil, err
 	}
 
+	_, err = channel.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = channel.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	err = channel.Close()
 	if err != nil {
 		return nil, err
@@ -53,17 +73,27 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 // first channel gets sent every BuildJob that we receive from AMQP. The
 // stopChan is a channel that can be closed in order to stop the consumer.
 func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err error) {
-	channel, err := q.conn.Channel()
+	jobsChannel, err := q.conn.Channel()
 	if err != nil {
 		return
 	}
 
-	err = channel.Qos(1, 0, false)
+	err = jobsChannel.Qos(1, 0, false)
 	if err != nil {
 		return
 	}
 
-	deliveries, err := channel.Consume(q.queue, "build-job-consumer", false, false, false, false, nil)
+	deliveries, err := jobsChannel.Consume(q.queue, "build-job-consumer", false, false, false, false, nil)
+	if err != nil {
+		return
+	}
+
+	stateUpdateChannel, err := q.conn.Channel()
+	if err != nil {
+		return
+	}
+
+	logWriterChannel, err := q.conn.Channel()
 	if err != nil {
 		return
 	}
@@ -72,7 +102,9 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 	outChan = buildJobChan
 
 	go func() {
-		defer channel.Close()
+		defer jobsChannel.Close()
+		defer stateUpdateChannel.Close()
+		defer logWriterChannel.Close()
 		defer close(buildJobChan)
 
 		logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -138,6 +170,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.VMType = buildJob.payload.VMType
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 				buildJob.conn = q.conn
+				buildJob.stateUpdateChan = stateUpdateChannel
+				buildJob.logWriterChan = logWriterChannel
 				buildJob.delivery = delivery
 				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
 
@@ -146,8 +180,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				case buildJobChan <- buildJob:
 					metrics.TimeSince("travis.worker.job_queue.amqp.blocking_time", jobSendBegin)
 					logger.WithFields(logrus.Fields{
-						"source": "amqp",
-						"dur":    time.Since(jobSendBegin),
+						"source":           "amqp",
+						"send_duration_ms": time.Since(jobSendBegin).Seconds() * 1e3,
 					}).Info("sent job to output channel")
 				case <-ctx.Done():
 					delivery.Nack(false, true)

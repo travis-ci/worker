@@ -73,13 +73,13 @@ __build_all_platforms() {
       else
         pub_filename="$(echo "${pub_query}" | jq -r .filename)"
         pub_version="$(
-          IFS=_ pfp=(${pub_filename})
+          IFS=_ read -r -a pfp <<<"$pub_filename"
           echo "${pfp[1]}"
         )"
 
         if [[ $PLATFORM_PACKAGE_TYPE == rpm ]]; then
           pub_version=$(
-            IFS=- vp=(${pub_filename})
+            IFS=- read -r -a vp <<<"$pub_filename"
             echo "${vp[2]//_/-}"
           )
         fi
@@ -107,7 +107,7 @@ __build_all_platforms() {
       export docker_run_args="--env BUILD_DEBUG=${BUILD_DEBUG}"
     fi
 
-    docker_run_args_array=(${docker_run_args})
+    IFS=" " read -r -a docker_run_args_array <<<"$docker_run_args"
 
     docker run "${docker_run_args_array[@]}" \
       -it \
