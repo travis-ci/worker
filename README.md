@@ -38,6 +38,17 @@ instructions](https://packagecloud.io/travisci/worker/install).
 1. install [shellcheck](https://github.com/koalaman/shellcheck)
 1. `make`
 
+
+## Uninstalling
+
+In the case where Travis Worker has been installed via a deb package, there is a
+convenience script available which may be executed like so:
+
+``` bash
+curl -sSL https://raw.githubusercontent.com/travis-ci/worker/master/bin/travis-worker-uninstall |
+  sudo bash -
+```
+
 ## Configuring Travis Worker
 
 Travis Worker is configured with environment variables or command line flags via
