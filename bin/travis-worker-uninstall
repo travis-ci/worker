@@ -31,14 +31,16 @@ EOUSAGE
   apt-get remove -yqq travis-worker || true
   apt-get purge -yqq travis-worker || true
 
-  rm -vf \
+  shopt -s nullglob
+
+  rm -rvf \
     /etc/apt/sources.list.d/travisci_worker.list \
-    /etc/default/travis-enterprise \
-    /etc/default/travis-worker \
+    /etc/default/travis-* \
     /etc/init.d/travis-worker \
     /etc/init/travis-worker.conf \
     /usr/local/bin/travis-worker \
-    /usr/share/doc/travis-worker/changelog.gz
+    /usr/share/doc/travis-worker \
+    /var/log/upstart/travis-worker*
 
   apt-get update -yqq || true
 }
