@@ -2,7 +2,7 @@
 
 # This script will trigger a multi-stage Docker build at the Docker hub repo referenced by $DOCKER_HUB_TRIGGER_URL.
 
-if [[ "$TRAVIS_PULL_REQUEST" != 'false' ]]; then
+if [[ -n "$TRAVIS_PULL_REQUEST" && "$TRAVIS_PULL_REQUEST" != 'false' ]]; then
   echo "This is a pull request (${TRAVIS_PULL_REQUEST}); not triggering Docker hub build"
   exit 0
 fi
