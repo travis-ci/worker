@@ -543,7 +543,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	var err error
 
 	p.apiRateLimit(ctx)
-	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Do()
+	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -551,19 +551,19 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
 	p.apiRateLimit(ctx)
-	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Do()
+	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
 
 	p.apiRateLimit(ctx)
-	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Do()
+	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
 
 	p.apiRateLimit(ctx)
-	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Do()
+	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -574,7 +574,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	if p.cfg.IsSet("SUBNETWORK") {
-		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).Do()
+		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).Context(ctx).Do()
 		if err != nil {
 			return err
 		}
@@ -719,7 +719,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	c.bootStart = time.Now().UTC()
 
 	p.apiRateLimit(c.ctx)
-	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
+	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Context(c.ctx).Do()
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
@@ -737,7 +737,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 	time.Sleep(p.bootPrePollSleep)
 
-	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name)
+	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name).Context(c.ctx)
 
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
@@ -799,7 +799,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
 	p.apiRateLimit(ctx)
 	// TODO: add some TTL cache in here maybe?
-	images, err := p.client.Images.List(p.imageProjectID).Filter(filter).Do()
+	images, err := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -997,7 +997,7 @@ func (i *gceInstance) getIP() string {
 
 func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	i.provider.apiRateLimit(ctx)
-	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
+	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -1071,7 +1071,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 	}
 
 	listOpCall := i.provider.client.GlobalOperations.AggregatedList(i.provider.projectID).
-		Filter(fmt.Sprintf("targetId eq %d", i.instance.Id))
+		Filter(fmt.Sprintf("targetId eq %d", i.instance.Id)).Context(ctx)
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = 1 * time.Second
