@@ -932,7 +932,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			},
 		},
 		Scheduling: &compute.Scheduling{
-			Preemptible: p.ic.Preemptible,
+			Preemptible:      p.ic.Preemptible,
+			AutomaticRestart: googleapi.Bool(false),
 		},
 		MachineType: machineType.SelfLink,
 		Name:        hostname,
