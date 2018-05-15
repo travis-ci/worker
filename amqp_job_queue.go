@@ -68,8 +68,21 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 
 	// TODO: make pool size configurable
 	stateUpdatePoolSize := 4
-	stateUpdatePool := tunny.New(stateUpdatePoolSize, func() tunny.Worker {
+	stateUpdatePool := newStateUpdatePool(conn, stateUpdatePoolSize)
+
+	return &AMQPJobQueue{
+		conn:  conn,
+		queue: queue,
+
+		stateUpdatePool: stateUpdatePool,
+	}, nil
+}
+
+func newStateUpdatePool(conn *amqp.Connection, poolSize int) *tunny.Pool {
+	return tunny.New(poolSize, func() tunny.Worker {
 		stateUpdateChan, err := conn.Channel()
+		// TODO: close pool on shutdown
+		// defer pool.Close()
 		if err != nil {
 			// TODO: handle err
 			panic(err)
@@ -78,15 +91,6 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 			stateUpdateChan: stateUpdateChan,
 		}
 	})
-	// TODO: close pool on shutdown
-	// defer pool.Close()
-
-	return &AMQPJobQueue{
-		conn:  conn,
-		queue: queue,
-
-		stateUpdatePool: stateUpdatePool,
-	}, nil
 }
 
 // Jobs creates a new consumer on the queue, and returns three channels. The

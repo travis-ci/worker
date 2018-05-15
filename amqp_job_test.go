@@ -84,10 +84,13 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 		t.Error(err)
 	}
 
+	stateUpdatePool := newStateUpdatePool(amqpConn, 1)
+	defer stateUpdatePool.Close()
+
 	return &amqpJob{
 		conn:            amqpConn,
 		logWriterChan:   logChan,
-		stateUpdateChan: stateChan,
+		stateUpdatePool: stateUpdatePool,
 		delivery:        delivery,
 		payload:         payload,
 		rawPayload:      rawPayload,

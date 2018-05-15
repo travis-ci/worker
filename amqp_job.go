@@ -134,12 +134,42 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout)
 }
 
+func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
+	body := map[string]interface{}{
+		"id":    j.Payload().Job.ID,
+		"state": state,
+		"meta": map[string]interface{}{
+			"state_update_count": j.stateCount,
+		},
+	}
+
+	if instanceID, ok := context.InstanceIDFromContext(ctx); ok {
+		body["meta"].(map[string]interface{})["instance_id"] = instanceID
+	}
+
+	if j.Payload().Job.QueuedAt != nil {
+		body["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+	if !j.received.IsZero() {
+		body["received_at"] = j.received.UTC().Format(time.RFC3339)
+	}
+	if !j.started.IsZero() {
+		body["started_at"] = j.started.UTC().Format(time.RFC3339)
+	}
+	if !j.finished.IsZero() {
+		body["finished_at"] = j.finished.UTC().Format(time.RFC3339)
+	}
+
+	return body
+}
+
 func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
 	err := j.stateUpdatePool.Process(&amqpStateUpdatePayload{
 		job:   j,
 		ctx:   ctx,
 		event: event,
 		state: state,
+		body:  j.createStateUpdateBody(ctx, state),
 	})
 
 	if err == nil {
@@ -158,6 +188,7 @@ type amqpStateUpdatePayload struct {
 	ctx   gocontext.Context
 	event string
 	state string
+	body  map[string]interface{}
 }
 
 type amqpStateUpdateWorker struct {
@@ -167,11 +198,13 @@ type amqpStateUpdateWorker struct {
 }
 
 func (w *amqpStateUpdateWorker) Process(payload interface{}) interface{} {
-	payload2 := payload.(*amqpStateUpdatePayload)
-	ctx, cancel := gocontext.WithCancel(payload2.ctx)
+	p := payload.(*amqpStateUpdatePayload)
+	ctx, cancel := gocontext.WithCancel(p.ctx)
+
 	w.ctx = ctx
 	w.cancel = cancel
-	return w.sendStateUpdate(payload2.job, payload2.event, payload2.state)
+
+	return w.sendStateUpdate(p)
 }
 
 func (w *amqpStateUpdateWorker) BlockUntilReady() {
@@ -189,17 +222,16 @@ func (w *amqpStateUpdateWorker) Terminate() {
 	}
 }
 
-func (w *amqpStateUpdateWorker) sendStateUpdate(job *amqpJob, event, state string) error {
+func (w *amqpStateUpdateWorker) sendStateUpdate(payload *amqpStateUpdatePayload) error {
 	select {
 	case <-w.ctx.Done():
 		return w.ctx.Err()
 	default:
 	}
 
-	job.stateCount++
-	body := w.createStateUpdateBody(job, state)
+	payload.job.stateCount++
 
-	bodyBytes, err := json.Marshal(body)
+	bodyBytes, err := json.Marshal(payload.body)
 	if err != nil {
 		return err
 	}
@@ -208,36 +240,7 @@ func (w *amqpStateUpdateWorker) sendStateUpdate(job *amqpJob, event, state strin
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),
-		Type:         event,
+		Type:         payload.event,
 		Body:         bodyBytes,
 	})
-}
-
-func (w *amqpStateUpdateWorker) createStateUpdateBody(job *amqpJob, state string) map[string]interface{} {
-	body := map[string]interface{}{
-		"id":    job.Payload().Job.ID,
-		"state": state,
-		"meta": map[string]interface{}{
-			"state_update_count": job.stateCount,
-		},
-	}
-
-	if instanceID, ok := context.InstanceIDFromContext(w.ctx); ok {
-		body["meta"].(map[string]interface{})["instance_id"] = instanceID
-	}
-
-	if job.Payload().Job.QueuedAt != nil {
-		body["queued_at"] = job.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
-	}
-	if !job.received.IsZero() {
-		body["received_at"] = job.received.UTC().Format(time.RFC3339)
-	}
-	if !job.started.IsZero() {
-		body["started_at"] = job.started.UTC().Format(time.RFC3339)
-	}
-	if !job.finished.IsZero() {
-		body["finished_at"] = job.finished.UTC().Format(time.RFC3339)
-	}
-
-	return body
 }
