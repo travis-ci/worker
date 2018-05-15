@@ -7,6 +7,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/Jeffail/tunny"
 	"github.com/bitly/go-simplejson"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -18,6 +19,7 @@ import (
 type amqpJob struct {
 	conn            *amqp.Connection
 	stateUpdateChan *amqp.Channel
+	stateUpdatePool *tunny.Pool
 	logWriterChan   *amqp.Channel
 	delivery        amqp.Delivery
 	payload         *JobPayload
@@ -133,51 +135,77 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout)
 }
 
-func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
-	body := map[string]interface{}{
-		"id":    j.Payload().Job.ID,
-		"state": state,
-		"meta": map[string]interface{}{
-			"state_update_count": j.stateCount,
-		},
+func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
+	err := j.stateUpdatePool.Process(&amqpStateUpdatePayload{
+		job:   j,
+		ctx:   ctx,
+		event: event,
+		state: state,
+	})
+
+	if err == nil {
+		return nil
 	}
 
-	if instanceID, ok := context.InstanceIDFromContext(ctx); ok {
-		body["meta"].(map[string]interface{})["instance_id"] = instanceID
-	}
-
-	if j.Payload().Job.QueuedAt != nil {
-		body["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
-	}
-	if !j.received.IsZero() {
-		body["received_at"] = j.received.UTC().Format(time.RFC3339)
-	}
-	if !j.started.IsZero() {
-		body["started_at"] = j.started.UTC().Format(time.RFC3339)
-	}
-	if !j.finished.IsZero() {
-		body["finished_at"] = j.finished.UTC().Format(time.RFC3339)
-	}
-
-	return body
+	return err.(error)
 }
 
-func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
+func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context { return ctx }
+
+func (j *amqpJob) Name() string { return "amqp" }
+
+type amqpStateUpdatePayload struct {
+	job   *amqpJob
+	ctx   gocontext.Context
+	event string
+	state string
+}
+
+type amqpStateUpdateWorker struct {
+	stateUpdateChan *amqp.Channel
+	ctx             gocontext.Context
+	cancel          gocontext.CancelFunc
+}
+
+func (w *amqpStateUpdateWorker) Process(payload interface{}) interface{} {
+	payload2 := payload.(*amqpStateUpdatePayload)
+	ctx, cancel := gocontext.WithCancel(payload2.ctx)
+	w.ctx = ctx
+	w.cancel = cancel
+	return w.sendStateUpdate(payload2.job, payload2.event, payload2.state)
+}
+
+func (w *amqpStateUpdateWorker) BlockUntilReady() {
+}
+
+func (w *amqpStateUpdateWorker) Interrupt() {
+	w.cancel()
+}
+
+func (w *amqpStateUpdateWorker) Terminate() {
+	err := w.stateUpdateChan.Close()
+	if err != nil {
+		// TODO: handle error
+		panic(err)
+	}
+}
+
+func (w *amqpStateUpdateWorker) sendStateUpdate(job *amqpJob, event, state string) error {
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-w.ctx.Done():
+		return w.ctx.Err()
 	default:
 	}
 
-	j.stateCount++
-	body := j.createStateUpdateBody(ctx, state)
+	job.stateCount++
+	body := w.createStateUpdateBody(job, state)
 
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
 
-	return j.stateUpdateChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+	return w.stateUpdateChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),
@@ -186,6 +214,31 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	})
 }
 
-func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context { return ctx }
+func (w *amqpStateUpdateWorker) createStateUpdateBody(job *amqpJob, state string) map[string]interface{} {
+	body := map[string]interface{}{
+		"id":    job.Payload().Job.ID,
+		"state": state,
+		"meta": map[string]interface{}{
+			"state_update_count": job.stateCount,
+		},
+	}
 
-func (j *amqpJob) Name() string { return "amqp" }
+	if instanceID, ok := context.InstanceIDFromContext(w.ctx); ok {
+		body["meta"].(map[string]interface{})["instance_id"] = instanceID
+	}
+
+	if job.Payload().Job.QueuedAt != nil {
+		body["queued_at"] = job.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
+	}
+	if !job.received.IsZero() {
+		body["received_at"] = job.received.UTC().Format(time.RFC3339)
+	}
+	if !job.started.IsZero() {
+		body["started_at"] = job.started.UTC().Format(time.RFC3339)
+	}
+	if !job.finished.IsZero() {
+		body["finished_at"] = job.finished.UTC().Format(time.RFC3339)
+	}
+
+	return body
+}

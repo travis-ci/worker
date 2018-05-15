@@ -24,9 +24,9 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
-	"github.com/mihasya/go-metrics-librato"
+	librato "github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"

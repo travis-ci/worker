@@ -7,6 +7,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/Jeffail/tunny"
 	"github.com/bitly/go-simplejson"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -19,6 +20,8 @@ import (
 type AMQPJobQueue struct {
 	conn  *amqp.Connection
 	queue string
+
+	stateUpdatePool *tunny.Pool
 
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
@@ -63,9 +66,26 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 		return nil, err
 	}
 
+	// TODO: make pool size configurable
+	stateUpdatePoolSize := 4
+	stateUpdatePool := tunny.New(stateUpdatePoolSize, func() tunny.Worker {
+		stateUpdateChan, err := conn.Channel()
+		if err != nil {
+			// TODO: handle err
+			panic(err)
+		}
+		return &amqpStateUpdateWorker{
+			stateUpdateChan: stateUpdateChan,
+		}
+	})
+	// TODO: close pool on shutdown
+	// defer pool.Close()
+
 	return &AMQPJobQueue{
 		conn:  conn,
 		queue: queue,
+
+		stateUpdatePool: stateUpdatePool,
 	}, nil
 }
 
@@ -131,6 +151,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob := &amqpJob{
 					payload:         &JobPayload{},
 					startAttributes: &backend.StartAttributes{},
+					stateUpdatePool: q.stateUpdatePool,
 				}
 				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
