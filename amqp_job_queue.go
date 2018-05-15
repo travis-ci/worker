@@ -108,11 +108,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 		return
 	}
 
-	stateUpdateChannel, err := q.conn.Channel()
-	if err != nil {
-		return
-	}
-
 	logWriterChannel, err := q.conn.Channel()
 	if err != nil {
 		return
@@ -123,7 +118,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 	go func() {
 		defer jobsChannel.Close()
-		defer stateUpdateChannel.Close()
 		defer logWriterChannel.Close()
 		defer close(buildJobChan)
 
@@ -191,7 +185,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.VMType = buildJob.payload.VMType
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 				buildJob.conn = q.conn
-				buildJob.stateUpdateChan = stateUpdateChannel
 				buildJob.logWriterChan = logWriterChannel
 				buildJob.delivery = delivery
 				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount

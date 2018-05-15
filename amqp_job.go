@@ -18,7 +18,6 @@ import (
 
 type amqpJob struct {
 	conn            *amqp.Connection
-	stateUpdateChan *amqp.Channel
 	stateUpdatePool *tunny.Pool
 	logWriterChan   *amqp.Channel
 	delivery        amqp.Delivery
