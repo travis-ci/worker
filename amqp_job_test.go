@@ -85,7 +85,6 @@ func newTestAMQPJob(t *testing.T) *amqpJob {
 	}
 
 	stateUpdatePool := newStateUpdatePool(amqpConn, 1)
-	defer stateUpdatePool.Close()
 
 	return &amqpJob{
 		conn:            amqpConn,
