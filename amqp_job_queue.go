@@ -93,7 +93,7 @@ func newStateUpdatePool(conn *amqp.Connection, poolSize int) *tunny.Pool {
 func reportPoolMetrics(poolName string, pool *tunny.Pool) {
 	for {
 		metrics.Gauge(fmt.Sprintf("travis.worker.%s.queue_length", poolName), pool.QueueLength())
-		metrics.Gauge(fmt.Sprintf("travis.worker.%s.pool_size", poolName), pool.GetSize())
+		metrics.Gauge(fmt.Sprintf("travis.worker.%s.pool_size", poolName), int64(pool.GetSize()))
 		time.Sleep(10 * time.Second)
 	}
 }
