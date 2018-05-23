@@ -217,8 +217,7 @@ func (w *amqpStateUpdateWorker) Interrupt() {
 func (w *amqpStateUpdateWorker) Terminate() {
 	err := w.stateUpdateChan.Close()
 	if err != nil {
-		// TODO: handle error
-		panic(err)
+		logrus.WithField("err", err).Panic("could not close state update amqp channel")
 	}
 }
 

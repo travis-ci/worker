@@ -82,8 +82,7 @@ func newStateUpdatePool(conn *amqp.Connection, poolSize int) *tunny.Pool {
 		// TODO: close pool on shutdown
 		// defer pool.Close()
 		if err != nil {
-			// TODO: handle err
-			panic(err)
+			logrus.WithField("err", err).Panic("could not create state update amqp channel")
 		}
 		return &amqpStateUpdateWorker{
 			stateUpdateChan: stateUpdateChan,
