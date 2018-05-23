@@ -68,7 +68,7 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 
 	stateUpdatePool := newStateUpdatePool(conn, stateUpdatePoolSize)
 
-	go reportPoolMetrics("travis.worker.state_update_pool.queue_length", stateUpdatePool)
+	go reportPoolMetrics("state_update_pool", stateUpdatePool)
 
 	return &AMQPJobQueue{
 		conn:  conn,
@@ -90,9 +90,10 @@ func newStateUpdatePool(conn *amqp.Connection, poolSize int) *tunny.Pool {
 	})
 }
 
-func reportPoolMetrics(metricName string, pool *tunny.Pool) {
+func reportPoolMetrics(poolName string, pool *tunny.Pool) {
 	for {
-		metrics.Gauge(metricName, pool.QueueLength())
+		metrics.Gauge(fmt.Sprintf("travis.worker.%s.queue_length", poolName), pool.QueueLength())
+		metrics.Gauge(fmt.Sprintf("travis.worker.%s.pool_size", poolName), pool.GetSize())
 		time.Sleep(10 * time.Second)
 	}
 }
