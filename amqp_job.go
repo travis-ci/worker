@@ -217,7 +217,11 @@ func (w *amqpStateUpdateWorker) Interrupt() {
 func (w *amqpStateUpdateWorker) Terminate() {
 	err := w.stateUpdateChan.Close()
 	if err != nil {
-		logrus.WithField("err", err).Panic("could not close state update amqp channel")
+		time.Sleep(time.Minute)
+		logrus.WithFields(logrus.Fields{
+			"self": "amqp_state_update_worker",
+			"err":  err,
+		}).Panic("timed out waiting for shutdown after amqp connection error")
 	}
 }
 
