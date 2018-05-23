@@ -68,6 +68,8 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 
 	stateUpdatePool := newStateUpdatePool(conn, stateUpdatePoolSize)
 
+	go reportPoolMetrics("travis.worker.state_update_pool.queue_length", stateUpdatePool)
+
 	return &AMQPJobQueue{
 		conn:  conn,
 		queue: queue,
@@ -86,6 +88,13 @@ func newStateUpdatePool(conn *amqp.Connection, poolSize int) *tunny.Pool {
 			stateUpdateChan: stateUpdateChan,
 		}
 	})
+}
+
+func reportPoolMetrics(metricName string, pool *tunny.Pool) {
+	for {
+		metrics.Gauge(metricName, pool.QueueLength())
+		time.Sleep(10 * time.Second)
+	}
 }
 
 // Jobs creates a new consumer on the queue, and returns three channels. The
