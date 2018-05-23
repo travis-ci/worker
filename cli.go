@@ -626,7 +626,7 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
 	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
-	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName)
+	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -155,6 +155,10 @@ var (
 		NewConfigDef("TravisSite", &cli.StringFlag{
 			Usage: "Either 'org' or 'com', used for job-board",
 		}),
+		NewConfigDef("StateUpdatePoolSize", &cli.IntFlag{
+			Usage: "The pool size for state update workers",
+			Value: 3,
+		}),
 
 		// build script generator flags
 		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
@@ -326,6 +330,8 @@ type Config struct {
 	DefaultOS       string `config:"default-os"`
 	JobBoardURL     string `config:"job-board-url"`
 	TravisSite      string `config:"travis-site"`
+
+	StateUpdatePoolSize int `config:"state-update-pool-size"`
 
 	FilePollingInterval      time.Duration `config:"file-polling-interval"`
 	HTTPPollingInterval      time.Duration `config:"http-polling-interval"`

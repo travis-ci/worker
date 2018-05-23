@@ -30,7 +30,7 @@ type AMQPJobQueue struct {
 // connects to the AMQP queue with the given name. The queue will be declared
 // in AMQP when this function is called, so an error could be raised if the
 // queue already exists, but with different attributes than we expect.
-func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error) {
+func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int) (*AMQPJobQueue, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -66,8 +66,6 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 		return nil, err
 	}
 
-	// TODO: make pool size configurable
-	stateUpdatePoolSize := 4
 	stateUpdatePool := newStateUpdatePool(conn, stateUpdatePoolSize)
 
 	return &AMQPJobQueue{
