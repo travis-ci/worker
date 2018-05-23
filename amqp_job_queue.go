@@ -79,8 +79,6 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 func newStateUpdatePool(conn *amqp.Connection, poolSize int) *tunny.Pool {
 	return tunny.New(poolSize, func() tunny.Worker {
 		stateUpdateChan, err := conn.Channel()
-		// TODO: close pool on shutdown
-		// defer pool.Close()
 		if err != nil {
 			logrus.WithField("err", err).Panic("could not create state update amqp channel")
 		}
@@ -216,5 +214,6 @@ func (q *AMQPJobQueue) Name() string {
 
 // Cleanup closes the underlying AMQP connection
 func (q *AMQPJobQueue) Cleanup() error {
+	q.stateUpdatePool.Close()
 	return q.conn.Close()
 }
