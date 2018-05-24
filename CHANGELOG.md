@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- amqp-job-queue: pool state updates instead of creating an amqp channel per processor
 
 ### Deprecated
 
