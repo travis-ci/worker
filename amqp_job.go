@@ -208,6 +208,8 @@ func (w *amqpStateUpdateWorker) Process(payload interface{}) interface{} {
 }
 
 func (w *amqpStateUpdateWorker) BlockUntilReady() {
+	// we do not need to perform any warm-up before processing jobs.
+	// Process() will block for the duration of the job itself.
 }
 
 func (w *amqpStateUpdateWorker) Interrupt() {
