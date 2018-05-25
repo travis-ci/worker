@@ -19,6 +19,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/Jeffail/tunny",
+			"repository": "https://github.com/Jeffail/tunny",
+			"vcs": "git",
+			"revision": "59cfa8fcb19f5acba8db07a0dd3cb2fa7edbc228",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/Microsoft/go-winio",
 			"repository": "https://github.com/Microsoft/go-winio",
 			"vcs": "git",

@@ -7,6 +7,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/Jeffail/tunny"
 	"github.com/bitly/go-simplejson"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -20,6 +21,8 @@ type AMQPJobQueue struct {
 	conn  *amqp.Connection
 	queue string
 
+	stateUpdatePool *tunny.Pool
+
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
 
@@ -27,7 +30,7 @@ type AMQPJobQueue struct {
 // connects to the AMQP queue with the given name. The queue will be declared
 // in AMQP when this function is called, so an error could be raised if the
 // queue already exists, but with different attributes than we expect.
-func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error) {
+func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int) (*AMQPJobQueue, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -63,10 +66,36 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string) (*AMQPJobQueue, error)
 		return nil, err
 	}
 
+	stateUpdatePool := newStateUpdatePool(conn, stateUpdatePoolSize)
+
+	go reportPoolMetrics("state_update_pool", stateUpdatePool)
+
 	return &AMQPJobQueue{
 		conn:  conn,
 		queue: queue,
+
+		stateUpdatePool: stateUpdatePool,
 	}, nil
+}
+
+func newStateUpdatePool(conn *amqp.Connection, poolSize int) *tunny.Pool {
+	return tunny.New(poolSize, func() tunny.Worker {
+		stateUpdateChan, err := conn.Channel()
+		if err != nil {
+			logrus.WithField("err", err).Panic("could not create state update amqp channel")
+		}
+		return &amqpStateUpdateWorker{
+			stateUpdateChan: stateUpdateChan,
+		}
+	})
+}
+
+func reportPoolMetrics(poolName string, pool *tunny.Pool) {
+	for {
+		metrics.Gauge(fmt.Sprintf("travis.worker.%s.queue_length", poolName), pool.QueueLength())
+		metrics.Gauge(fmt.Sprintf("travis.worker.%s.pool_size", poolName), int64(pool.GetSize()))
+		time.Sleep(10 * time.Second)
+	}
 }
 
 // Jobs creates a new consumer on the queue, and returns three channels. The
@@ -88,11 +117,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 		return
 	}
 
-	stateUpdateChannel, err := q.conn.Channel()
-	if err != nil {
-		return
-	}
-
 	logWriterChannel, err := q.conn.Channel()
 	if err != nil {
 		return
@@ -103,7 +127,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 	go func() {
 		defer jobsChannel.Close()
-		defer stateUpdateChannel.Close()
 		defer logWriterChannel.Close()
 		defer close(buildJobChan)
 
@@ -131,6 +154,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob := &amqpJob{
 					payload:         &JobPayload{},
 					startAttributes: &backend.StartAttributes{},
+					stateUpdatePool: q.stateUpdatePool,
 				}
 				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
@@ -170,7 +194,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.VMType = buildJob.payload.VMType
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
 				buildJob.conn = q.conn
-				buildJob.stateUpdateChan = stateUpdateChannel
 				buildJob.logWriterChan = logWriterChannel
 				buildJob.delivery = delivery
 				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
@@ -201,5 +224,6 @@ func (q *AMQPJobQueue) Name() string {
 
 // Cleanup closes the underlying AMQP connection
 func (q *AMQPJobQueue) Cleanup() error {
+	q.stateUpdatePool.Close()
 	return q.conn.Close()
 }

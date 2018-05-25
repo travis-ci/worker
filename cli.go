@@ -24,9 +24,9 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
-	"github.com/mihasya/go-metrics-librato"
+	librato "github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
@@ -626,7 +626,7 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
 	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
-	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName)
+	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize)
 	if err != nil {
 		return nil, nil, err
 	}
