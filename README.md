@@ -228,3 +228,4 @@ The next step is to create a new [Github release tag](https://github.com/travis-
 See [LICENSE file](./LICENSE).
 
 © 2018 Travis CI GmbH
+---------------------
