@@ -7,7 +7,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [3.8.0] - 2018-05-31
+
+### Added
+
+### Changed
 - amqp-job-queue: pool state updates instead of creating an amqp channel per processor
+backend/gce: disable automatic restart
+backend/gce: pass context to all GCE API calls
 
 ### Deprecated
 
