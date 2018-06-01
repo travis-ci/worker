@@ -676,7 +676,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.7.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.8.0...HEAD
+[3.8.0]: https://github.com/travis-ci/worker/compare/v3.7.0...v3.8.0
 [3.7.0]: https://github.com/travis-ci/worker/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/travis-ci/worker/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/travis-ci/worker/compare/v3.4.0...v3.5.0
