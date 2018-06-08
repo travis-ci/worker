@@ -686,6 +686,54 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 	return jobQueue, nil
 }
 
+func (i *CLI) setupLogQueue() error {
+	if i.Config.LogsAmqpURI == "" {
+		// No separate AMQP logs cluster is set. Use the JobsQueue to send log parts
+		return nil
+	}
+	err := i.buildAMQPLogQueue()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (i *CLI) buildAMQPLogQueue() error {
+	var amqpConn *amqp.Connection
+	var err error
+
+	if i.Config.LogsAmqpTlsCert != "" || i.Config.LogsAmqpTlsCertPath != "" {
+		cfg := new(tls.Config)
+		cfg.RootCAs = x509.NewCertPool()
+		if i.Config.LogsAmqpTlsCert != "" {
+			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.LogsAmqpTlsCert))
+		}
+		if i.Config.LogsAmqpTlsCertPath != "" {
+			cert, err := ioutil.ReadFile(i.Config.LogsAmqpTlsCertPath)
+			if err != nil {
+				return err
+			}
+			cfg.RootCAs.AppendCertsFromPEM(cert)
+		}
+		amqpConn, err = amqp.DialTLS(i.Config.LogsAmqpURI, cfg)
+	} else if i.Config.AmqpInsecure {
+		amqpConn, err = amqp.DialTLS(
+			i.Config.LogsAmqpURI,
+			&tls.Config{InsecureSkipVerify: true},
+		)
+	} else {
+		amqpConn, err = amqp.Dial(i.Config.LogsAmqpURI)
+	}
+	if err != nil {
+		i.logger.WithField("err", err).Error("couldn't connect to the logs AMQP server")
+		return err
+	}
+
+	go i.amqpErrorWatcher(amqpConn)
+	i.logger.Debug("connected to the logs AMQP server")
+	return nil
+}
+
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {
 	errChan := make(chan *amqp.Error)
 	errChan = amqpConn.NotifyClose(errChan)
