@@ -184,6 +184,12 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
+	err = i.setupLogsQueue()
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't create logs queue")
+		return false, err
+	}
+
 	return true, nil
 }
 
@@ -686,19 +692,19 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 	return jobQueue, nil
 }
 
-func (i *CLI) setupLogQueue() error {
+func (i *CLI) setupLogsQueue() error {
 	if i.Config.LogsAmqpURI == "" {
 		// No separate AMQP logs cluster is set. Use the JobsQueue to send log parts
 		return nil
 	}
-	err := i.buildAMQPLogQueue()
+	err := i.buildAMQPLogsQueue()
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (i *CLI) buildAMQPLogQueue() error {
+func (i *CLI) buildAMQPLogsQueue() error {
 	var amqpConn *amqp.Connection
 	var err error
 
