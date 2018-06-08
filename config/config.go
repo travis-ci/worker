@@ -336,8 +336,8 @@ type Config struct {
 	LibratoToken        string `config:"librato-token"`
 	LibratoSource       string `config:"librato-source"`
 	LogsAmqpURI         string `config:"logs-amqp-uri"`
-	LogsAmqpTlsCert     string `config:"amqp-tls-cert"`
-	LogsAmqpTlsCertPath string `config:"amqp-tls-cert-path"`
+	LogsAmqpTlsCert     string `config:"logs-amqp-tls-cert"`
+	LogsAmqpTlsCertPath string `config:"logs-amqp-tls-cert-path"`
 	SentryDSN           string `config:"sentry-dsn"`
 	Hostname            string `config:"hostname"`
 	DefaultLanguage     string `config:"default-language"`
