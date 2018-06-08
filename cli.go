@@ -694,14 +694,11 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 
 func (i *CLI) setupLogsQueue() error {
 	if i.Config.LogsAmqpURI == "" {
-		// No separate AMQP logs cluster is set. Use the JobsQueue to send log parts
+		// If no separate URI is set for LogsAMQP, use the JobsQueue to send log parts
 		return nil
 	}
 	err := i.buildAMQPLogsQueue()
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (i *CLI) buildAMQPLogsQueue() error {
