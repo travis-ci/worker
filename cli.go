@@ -56,6 +56,7 @@ type CLI struct {
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
 	JobQueue                JobQueue
+	LogsQueue				LogsQueue
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
@@ -206,6 +207,7 @@ func (i *CLI) Run() {
 	i.logger.WithFields(logrus.Fields{
 		"pool_size": i.Config.PoolSize,
 		"queue":     i.JobQueue,
+		"log_queue": i.LogsQueue,
 	}).Debug("running pool")
 
 	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
@@ -213,6 +215,13 @@ func (i *CLI) Run() {
 	err := i.JobQueue.Cleanup()
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
+	}
+
+	if i.LogsQueue != nil {
+		err := i.LogsQueue.Cleanup()
+		if err != nil {
+			i.logger.WithField("err", err).Error("couldn't clean up logs queue")
+		}
 	}
 }
 
