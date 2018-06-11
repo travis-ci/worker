@@ -213,7 +213,7 @@ func (i *CLI) Run() {
 	i.logger.WithFields(logrus.Fields{
 		"pool_size": i.Config.PoolSize,
 		"queue":     i.JobQueue,
-		"log_queue": i.LogsQueue,
+		"logs_queue": i.LogsQueue,
 	}).Debug("running pool")
 
 	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
