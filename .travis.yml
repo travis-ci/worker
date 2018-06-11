@@ -33,9 +33,9 @@ jobs:
     - chmod +x ~/bin/shfmt
     - shfmt -version
     script:
-    - make lintall
     - go get github.com/FiloSottile/gvt
     - travis_retry make deps
+    - make lintall
     - make test
     - make crossbuild
     - make smoke
