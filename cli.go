@@ -56,6 +56,7 @@ type CLI struct {
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
 	JobQueue                JobQueue
+	LogsQueue               LogsQueue
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
@@ -183,6 +184,12 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
+	err = i.setupLogsQueue()
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't create logs queue")
+		return false, err
+	}
+
 	return true, nil
 }
 
@@ -204,8 +211,9 @@ func (i *CLI) Run() {
 	go i.signalHandler()
 
 	i.logger.WithFields(logrus.Fields{
-		"pool_size": i.Config.PoolSize,
-		"queue":     i.JobQueue,
+		"pool_size":  i.Config.PoolSize,
+		"queue":      i.JobQueue,
+		"logs_queue": i.LogsQueue,
 	}).Debug("running pool")
 
 	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
@@ -213,6 +221,13 @@ func (i *CLI) Run() {
 	err := i.JobQueue.Cleanup()
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
+	}
+
+	if i.LogsQueue != nil {
+		err := i.LogsQueue.Cleanup()
+		if err != nil {
+			i.logger.WithField("err", err).Error("couldn't clean up logs queue")
+		}
 	}
 }
 
@@ -675,6 +690,51 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 	jobQueue.DefaultOS = i.Config.DefaultOS
 
 	return jobQueue, nil
+}
+
+func (i *CLI) setupLogsQueue() error {
+	if i.Config.LogsAmqpURI == "" {
+		// If no separate URI is set for LogsAMQP, use the JobsQueue to send log parts
+		return nil
+	}
+	err := i.buildAMQPLogsQueue()
+	return err
+}
+
+func (i *CLI) buildAMQPLogsQueue() error {
+	var amqpConn *amqp.Connection
+	var err error
+
+	if i.Config.LogsAmqpTlsCert != "" || i.Config.LogsAmqpTlsCertPath != "" {
+		cfg := new(tls.Config)
+		cfg.RootCAs = x509.NewCertPool()
+		if i.Config.LogsAmqpTlsCert != "" {
+			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.LogsAmqpTlsCert))
+		}
+		if i.Config.LogsAmqpTlsCertPath != "" {
+			cert, err := ioutil.ReadFile(i.Config.LogsAmqpTlsCertPath)
+			if err != nil {
+				return err
+			}
+			cfg.RootCAs.AppendCertsFromPEM(cert)
+		}
+		amqpConn, err = amqp.DialTLS(i.Config.LogsAmqpURI, cfg)
+	} else if i.Config.AmqpInsecure {
+		amqpConn, err = amqp.DialTLS(
+			i.Config.LogsAmqpURI,
+			&tls.Config{InsecureSkipVerify: true},
+		)
+	} else {
+		amqpConn, err = amqp.Dial(i.Config.LogsAmqpURI)
+	}
+	if err != nil {
+		i.logger.WithField("err", err).Error("couldn't connect to the logs AMQP server")
+		return err
+	}
+
+	go i.amqpErrorWatcher(amqpConn)
+	i.logger.Debug("connected to the logs AMQP server")
+	return nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {
