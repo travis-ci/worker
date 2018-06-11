@@ -41,7 +41,7 @@ CROSSBUILD_BINARIES := \
 
 %-coverage.coverprofile:
 	$(GO) test -covermode=count -coverprofile=$@ \
-		-tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" \
+		-tags netgo -ldflags "$(GOBUILD_LDFLAGS)" \
 		$(PACKAGE)/$(subst -,/,$(subst root,,$(subst -coverage.coverprofile,,$@)))
 
 .PHONY: %
