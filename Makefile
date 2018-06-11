@@ -40,8 +40,8 @@ CROSSBUILD_BINARIES := \
 	build/linux/amd64/travis-worker
 
 %-coverage.coverprofile:
-	$(GO) test -v -covermode=count -coverprofile=$@ \
-		-tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" \
+	$(GO) test -covermode=count -coverprofile=$@ \
+		-tags netgo -ldflags "$(GOBUILD_LDFLAGS)" \
 		$(PACKAGE)/$(subst -,/,$(subst root,,$(subst -coverage.coverprofile,,$@)))
 
 .PHONY: %
@@ -56,7 +56,7 @@ test: deps lintall build fmtpolice test-no-cover coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test -v -race -tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
+	$(GO) test -race -tags netgo -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@
@@ -67,7 +67,7 @@ coverage.coverprofile: $(COVERPROFILES)
 
 .PHONY: build
 build: deps
-	$(GO) install -tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
+	$(GO) install -tags netgo -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
 crossbuild: deps $(CROSSBUILD_BINARIES)
