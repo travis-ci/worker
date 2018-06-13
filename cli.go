@@ -627,7 +627,11 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 			&tls.Config{InsecureSkipVerify: true},
 		)
 	} else {
-		amqpConn, err = amqp.Dial(i.Config.AmqpURI)
+		amqpConfig := amqp.Config{
+			Heartbeat: 0 * time.Second,
+			Locale:    "en_US",
+		}
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI, amqpConfig)
 	}
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't connect to AMQP")
