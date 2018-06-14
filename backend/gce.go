@@ -105,6 +105,7 @@ var (
 cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
+sudo chown -R travis:travis ~travis/.ssh/
 `))
 
 	// FIXME: get rid of the need for this global goop
