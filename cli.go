@@ -620,14 +620,26 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 			}
 			cfg.RootCAs.AppendCertsFromPEM(cert)
 		}
-		amqpConn, err = amqp.DialTLS(i.Config.AmqpURI, cfg)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: cfg,
+			})
 	} else if i.Config.AmqpInsecure {
-		amqpConn, err = amqp.DialTLS(
+		amqpConn, err = amqp.DialConfig(
 			i.Config.AmqpURI,
-			&tls.Config{InsecureSkipVerify: true},
-		)
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			})
 	} else {
-		amqpConn, err = amqp.Dial(i.Config.AmqpURI)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat: i.Config.AmqpHeartbeat,
+				Locale:    "en_US",
+			})
 	}
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't connect to AMQP")
@@ -718,14 +730,26 @@ func (i *CLI) buildAMQPLogsQueue() error {
 			}
 			cfg.RootCAs.AppendCertsFromPEM(cert)
 		}
-		amqpConn, err = amqp.DialTLS(i.Config.LogsAmqpURI, cfg)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: cfg,
+			})
 	} else if i.Config.AmqpInsecure {
-		amqpConn, err = amqp.DialTLS(
-			i.Config.LogsAmqpURI,
-			&tls.Config{InsecureSkipVerify: true},
-		)
+		amqpConn, err = amqp.DialConfig(
+			i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			})
 	} else {
-		amqpConn, err = amqp.Dial(i.Config.LogsAmqpURI)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat: i.Config.AmqpHeartbeat,
+				Locale:    "en_US",
+			})
 	}
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't connect to the logs AMQP server")
