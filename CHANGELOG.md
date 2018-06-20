@@ -16,6 +16,18 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.8.1] - 2018-06-20
+
+### Added
+- cli: create a LogQueue that connects to a separate AMQP server, to prepare for splitting the build logs from the current JobQueue
+
+### Changed
+- cli: the connection to the AMQP server now uses a configurable AmqpHeartbeat option
+- Makefile: log output from building or running the tests is now less verbose
+
+### Fixed
+- backend/docker_test: check for EOF instead of Nil for archive/tar errors 
+
 ## [3.8.0] - 2018-05-31
 
 ### Added
@@ -676,7 +688,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.8.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.8.1...HEAD
+[3.8.1]: https://github.com/travis-ci/worker/compare/v3.8.0...v3.8.1
 [3.8.0]: https://github.com/travis-ci/worker/compare/v3.7.0...v3.8.0
 [3.7.0]: https://github.com/travis-ci/worker/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/travis-ci/worker/compare/v3.5.0...v3.6.0
