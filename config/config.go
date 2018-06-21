@@ -54,6 +54,10 @@ var (
 			Value: 10 * time.Second,
 			Usage: "The heartbeat timeout value defines after what time the peer TCP connection should be considered unreachable",
 		}),
+		NewConfigDef("AmqpConsumerPriority", &cli.IntFlag{
+			Value: 0,
+			Usage: "The consumer priority to set when consuming jobs",
+		}),
 		NewConfigDef("AmqpURI", &cli.StringFlag{
 			Value: defaultAmqpURI,
 			Usage: `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
@@ -326,31 +330,32 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	ProviderName        string        `config:"provider-name"`
-	QueueType           string        `config:"queue-type"`
-	AmqpURI             string        `config:"amqp-uri"`
-	AmqpInsecure        bool          `config:"amqp-insecure"`
-	AmqpTlsCert         string        `config:"amqp-tls-cert"`
-	AmqpTlsCertPath     string        `config:"amqp-tls-cert-path"`
-	AmqpHeartbeat       time.Duration `config:"amqp-heartbeat"`
-	BaseDir             string        `config:"base-dir"`
-	PoolSize            int           `config:"pool-size"`
-	BuildAPIURI         string        `config:"build-api-uri"`
-	QueueName           string        `config:"queue-name"`
-	LibratoEmail        string        `config:"librato-email"`
-	LibratoToken        string        `config:"librato-token"`
-	LibratoSource       string        `config:"librato-source"`
-	LogsAmqpURI         string        `config:"logs-amqp-uri"`
-	LogsAmqpTlsCert     string        `config:"logs-amqp-tls-cert"`
-	LogsAmqpTlsCertPath string        `config:"logs-amqp-tls-cert-path"`
-	SentryDSN           string        `config:"sentry-dsn"`
-	Hostname            string        `config:"hostname"`
-	DefaultLanguage     string        `config:"default-language"`
-	DefaultDist         string        `config:"default-dist"`
-	DefaultGroup        string        `config:"default-group"`
-	DefaultOS           string        `config:"default-os"`
-	JobBoardURL         string        `config:"job-board-url"`
-	TravisSite          string        `config:"travis-site"`
+	ProviderName         string        `config:"provider-name"`
+	QueueType            string        `config:"queue-type"`
+	AmqpURI              string        `config:"amqp-uri"`
+	AmqpInsecure         bool          `config:"amqp-insecure"`
+	AmqpTlsCert          string        `config:"amqp-tls-cert"`
+	AmqpTlsCertPath      string        `config:"amqp-tls-cert-path"`
+	AmqpHeartbeat        time.Duration `config:"amqp-heartbeat"`
+	AmqpConsumerPriority int           `config:"amqp-consumer-priority"`
+	BaseDir              string        `config:"base-dir"`
+	PoolSize             int           `config:"pool-size"`
+	BuildAPIURI          string        `config:"build-api-uri"`
+	QueueName            string        `config:"queue-name"`
+	LibratoEmail         string        `config:"librato-email"`
+	LibratoToken         string        `config:"librato-token"`
+	LibratoSource        string        `config:"librato-source"`
+	LogsAmqpURI          string        `config:"logs-amqp-uri"`
+	LogsAmqpTlsCert      string        `config:"logs-amqp-tls-cert"`
+	LogsAmqpTlsCertPath  string        `config:"logs-amqp-tls-cert-path"`
+	SentryDSN            string        `config:"sentry-dsn"`
+	Hostname             string        `config:"hostname"`
+	DefaultLanguage      string        `config:"default-language"`
+	DefaultDist          string        `config:"default-dist"`
+	DefaultGroup         string        `config:"default-group"`
+	DefaultOS            string        `config:"default-os"`
+	JobBoardURL          string        `config:"job-board-url"`
+	TravisSite           string        `config:"travis-site"`
 
 	StateUpdatePoolSize int `config:"state-update-pool-size"`
 	LogPoolSize         int `config:"log-pool-size"`
