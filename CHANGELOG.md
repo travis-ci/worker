@@ -16,13 +16,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.8.2] - 2018-06-21
+
+### Added
+- amqp-job-queue: support for setting priority when consuming jobs via
+  `x-priority` argument
+
 ## [3.8.1] - 2018-06-20
 
 ### Added
-- cli: create a LogQueue that connects to a separate AMQP server, to prepare for splitting the build logs from the current JobQueue
+- cli: create a LogQueue that connects to a separate AMQP server, to prepare for
+  splitting the build logs from the current JobQueue
 
 ### Changed
-- cli: the connection to the AMQP server now uses a configurable AmqpHeartbeat option
+- cli: the connection to the AMQP server now uses a configurable AmqpHeartbeat
+  option
 - Makefile: log output from building or running the tests is now less verbose
 
 ### Fixed
@@ -31,7 +39,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [3.8.0] - 2018-05-31
 
 ### Added
-- amqp-job-queue: pool state updates instead of creating an amqp channel per processor
+- amqp-job-queue: pool state updates instead of creating an amqp channel per
+    processor
 
 ### Fixed
 - backend/gce: disable automatic restart
@@ -688,7 +697,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.8.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.8.2...HEAD
+[3.8.2]: https://github.com/travis-ci/worker/compare/v3.8.1...v3.8.2
 [3.8.1]: https://github.com/travis-ci/worker/compare/v3.8.0...v3.8.1
 [3.8.0]: https://github.com/travis-ci/worker/compare/v3.7.0...v3.8.0
 [3.7.0]: https://github.com/travis-ci/worker/compare/v3.6.0...v3.7.0

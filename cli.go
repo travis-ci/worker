@@ -654,6 +654,11 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
 	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
+
+	// Set the consumer priority directly instead of altering the signature of
+	// NewAMQPJobQueue :sigh_cat:
+	jobQueue.priority = i.Config.AmqpConsumerPriority
+
 	if err != nil {
 		return nil, nil, err
 	}

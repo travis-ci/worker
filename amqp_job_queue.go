@@ -20,6 +20,7 @@ import (
 type AMQPJobQueue struct {
 	conn            *amqp.Connection
 	queue           string
+	priority        int
 	withLogSharding bool
 
 	stateUpdatePool *tunny.Pool
@@ -122,7 +123,16 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 		return
 	}
 
-	deliveries, err := jobsChannel.Consume(q.queue, "build-job-consumer", false, false, false, false, nil)
+	deliveries, err := jobsChannel.Consume(
+		q.queue,              // queue
+		"build-job-consumer", // consumer
+
+		false, // autoAck
+		false, // exclusive
+		false, // noLocal
+		false, // noWait
+		amqp.Table{"x-priority": int64(q.priority)}) // args
+
 	if err != nil {
 		return
 	}
