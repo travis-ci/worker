@@ -54,8 +54,8 @@ var (
 			Value: 10 * time.Second,
 			Usage: "The heartbeat timeout value defines after what time the peer TCP connection should be considered unreachable",
 		}),
-		NewConfigDef("AmqpConsumerPriority", &cli.IntFlag{
-			Value: 0,
+		NewConfigDef("AmqpConsumerPriority", &cli.Int64Flag{
+			Value: int64(0),
 			Usage: "The consumer priority to set when consuming jobs",
 		}),
 		NewConfigDef("AmqpURI", &cli.StringFlag{
@@ -337,7 +337,7 @@ type Config struct {
 	AmqpTlsCert          string        `config:"amqp-tls-cert"`
 	AmqpTlsCertPath      string        `config:"amqp-tls-cert-path"`
 	AmqpHeartbeat        time.Duration `config:"amqp-heartbeat"`
-	AmqpConsumerPriority int           `config:"amqp-consumer-priority"`
+	AmqpConsumerPriority int64         `config:"amqp-consumer-priority"`
 	BaseDir              string        `config:"base-dir"`
 	PoolSize             int           `config:"pool-size"`
 	BuildAPIURI          string        `config:"build-api-uri"`

@@ -20,7 +20,7 @@ import (
 type AMQPJobQueue struct {
 	conn     *amqp.Connection
 	queue    string
-	priority int
+	priority int64
 
 	stateUpdatePool *tunny.Pool
 
