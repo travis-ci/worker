@@ -18,8 +18,9 @@ import (
 
 // AMQPJobQueue is a JobQueue that uses AMQP
 type AMQPJobQueue struct {
-	conn  *amqp.Connection
-	queue string
+	conn            *amqp.Connection
+	queue           string
+	withLogSharding bool
 
 	stateUpdatePool *tunny.Pool
 
@@ -79,8 +80,9 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 	go reportPoolMetrics("state_update_pool", stateUpdatePool)
 
 	return &AMQPJobQueue{
-		conn:  conn,
-		queue: queue,
+		conn:            conn,
+		queue:           queue,
+		withLogSharding: sharded,
 
 		stateUpdatePool: stateUpdatePool,
 	}, nil
@@ -163,6 +165,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 					payload:         &JobPayload{},
 					startAttributes: &backend.StartAttributes{},
 					stateUpdatePool: q.stateUpdatePool,
+					withLogSharding: q.withLogSharding,
 				}
 				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 

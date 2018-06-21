@@ -23,8 +23,9 @@ type amqpLogPart struct {
 }
 
 type amqpLogWriter struct {
-	ctx   gocontext.Context
-	jobID uint64
+	ctx     gocontext.Context
+	jobID   uint64
+	sharded bool
 
 	closeChan chan struct{}
 
@@ -42,7 +43,7 @@ type amqpLogWriter struct {
 	timeout time.Duration
 }
 
-func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, timeout time.Duration) (*amqpLogWriter, error) {
+func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
 
 	writer := &amqpLogWriter{
 		ctx:       context.FromComponent(ctx, "log_writer"),
@@ -52,6 +53,7 @@ func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID 
 		buffer:    new(bytes.Buffer),
 		timer:     time.NewTimer(time.Hour),
 		timeout:   timeout,
+		sharded:   sharded,
 	}
 
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -225,7 +227,13 @@ func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	}
 
 	w.amqpChanMutex.RLock()
-	err = w.amqpChan.Publish("reporting", "reporting.jobs.logs", false, false, amqp.Publishing{
+	var exchange string
+	if w.sharded {
+		exchange = "reporting.jobs.logs_sharded"
+	} else {
+		exchange = "reporting"
+	}
+	err = w.amqpChan.Publish(exchange, "reporting.jobs.logs", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now(),
