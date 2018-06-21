@@ -30,7 +30,7 @@ type AMQPJobQueue struct {
 // connects to the AMQP queue with the given name. The queue will be declared
 // in AMQP when this function is called, so an error could be raised if the
 // queue already exists, but with different attributes than we expect.
-func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int) (*AMQPJobQueue, error) {
+func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int, sharded bool) (*AMQPJobQueue, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -41,24 +41,32 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 		return nil, err
 	}
 
-	_, err = channel.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	err = channel.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+	_, err = channel.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
-	if err != nil {
-		return nil, err
+	if sharded {
+		// This exchange should be declared as sharded using a policy that matches its name.
+		err = channel.ExchangeDeclare("reporting.jobs.logs_sharded", "direct", true, false, false, false, nil)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = channel.Close()
