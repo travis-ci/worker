@@ -55,7 +55,7 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 
 	if sharded {
 		// This exchange should be declared as sharded using a policy that matches its name.
-		err = channel.ExchangeDeclare("reporting.jobs.logs_sharded", "direct", true, false, false, false, nil)
+		err = channel.ExchangeDeclare("reporting.jobs.logs_sharded", "x-modulus-hash", true, false, false, false, nil)
 		if err != nil {
 			return nil, err
 		}

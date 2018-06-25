@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -228,12 +229,15 @@ func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 
 	w.amqpChanMutex.RLock()
 	var exchange string
+	var routingKey string
 	if w.sharded {
 		exchange = "reporting.jobs.logs_sharded"
+		routingKey = strconv.FormatUint(w.jobID, 10)
 	} else {
 		exchange = "reporting"
+		routingKey = "reporting.jobs.logs"
 	}
-	err = w.amqpChan.Publish(exchange, "reporting.jobs.logs", false, false, amqp.Publishing{
+	err = w.amqpChan.Publish(exchange, routingKey, false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now(),
