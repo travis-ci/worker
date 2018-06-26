@@ -6,6 +6,7 @@ import (
 	gocontext "context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -428,8 +429,7 @@ func TestDockerInstance_UploadScript_WithNative(t *testing.T) {
 
 				buf := make([]byte, hdr.Size)
 				_, err = tr.Read(buf)
-				assert.Nil(t, err)
-				//assert.Equal(t, err, io.EOF)
+				assert.Equal(t, err, io.EOF)
 				assert.Equal(t, buf, script)
 
 				scriptUploaded = true
