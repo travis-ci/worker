@@ -1,6 +1,9 @@
 {
    "type":"test",
    "vm_type":"premium",
+   "vm_config":{
+      "gpus":9
+   },
    "queue":"builds.gce",
    "config":{
       "os":"linux",
