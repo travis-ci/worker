@@ -180,6 +180,9 @@ var (
 			Usage: "The pool size for log workers",
 			Value: 3,
 		}),
+		NewConfigDef("RabbitMQSharding", &cli.BoolFlag{
+			Usage: "Enable sharding for the logs AMQP queue",
+		}),
 
 		// build script generator flags
 		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
@@ -356,6 +359,7 @@ type Config struct {
 	DefaultOS            string        `config:"default-os"`
 	JobBoardURL          string        `config:"job-board-url"`
 	TravisSite           string        `config:"travis-site"`
+	RabbitMQSharding     bool          `config:"rabbitmq-sharding"`
 
 	StateUpdatePoolSize int `config:"state-update-pool-size"`
 	LogPoolSize         int `config:"log-pool-size"`

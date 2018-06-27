@@ -28,6 +28,7 @@ type amqpJob struct {
 	started         time.Time
 	finished        time.Time
 	stateCount      uint
+	withLogSharding bool
 }
 
 func (j *amqpJob) GoString() string {
@@ -131,7 +132,7 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout)
+	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout, j.withLogSharding)
 }
 
 func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
