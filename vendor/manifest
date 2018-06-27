@@ -35,6 +35,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/beorn7/perks/quantile",
+			"repository": "https://github.com/beorn7/perks",
+			"vcs": "git",
+			"revision": "3a771d992973f24aa725d07868b467d1ddfceafb",
+			"branch": "master",
+			"path": "/quantile",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/bitly/go-simplejson",
 			"repository": "https://github.com/bitly/go-simplejson",
 			"vcs": "git",
@@ -177,6 +186,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/matttproud/golang_protobuf_extensions/pbutil",
+			"repository": "https://github.com/matttproud/golang_protobuf_extensions",
+			"vcs": "git",
+			"revision": "c12348ce28de40eed0136aa2b644d0ee0650e56c",
+			"branch": "master",
+			"path": "/pbutil",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/mihasya/go-metrics-librato",
 			"repository": "https://github.com/mihasya/go-metrics-librato",
 			"vcs": "git",
@@ -221,6 +239,58 @@
 			"repository": "https://github.com/pkg/sftp",
 			"vcs": "git",
 			"revision": "22e9c1ccc02fc1b9fa3264572e49109b68a86947",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/client_golang",
+			"repository": "https://github.com/prometheus/client_golang",
+			"vcs": "git",
+			"revision": "77e8f2ddcfed59ece3a8151879efb2304b5cbbcf",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/client_model/go",
+			"repository": "https://github.com/prometheus/client_model",
+			"vcs": "git",
+			"revision": "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c",
+			"branch": "master",
+			"path": "/go",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/common/expfmt",
+			"repository": "https://github.com/prometheus/common",
+			"vcs": "git",
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"branch": "master",
+			"path": "expfmt",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
+			"repository": "https://github.com/prometheus/common",
+			"vcs": "git",
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"branch": "master",
+			"path": "internal/bitbucket.org/ww/goautoneg",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/common/model",
+			"repository": "https://github.com/prometheus/common",
+			"vcs": "git",
+			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"branch": "master",
+			"path": "/model",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/prometheus/procfs",
+			"repository": "https://github.com/prometheus/procfs",
+			"vcs": "git",
+			"revision": "7d6f385de8bea29190f15ba9931442a0eaef9af7",
 			"branch": "master",
 			"notests": true
 		},
