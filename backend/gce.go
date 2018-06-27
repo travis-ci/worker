@@ -23,7 +23,6 @@ import (
 	gocontext "context"
 
 	"github.com/cenk/backoff"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -74,7 +73,7 @@ var (
 		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
 		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
 		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEAcceleratorCount),
-		"GPU_TYPE":               fmt.Sprintf("Type of GPU to use (default %q)", defaultGCEAcceleratorType),
+		"GPU_TYPE":               fmt.Sprintf("type of GPU to use (default %q)", defaultGCEAcceleratorType),
 		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
 		"IMAGE_DEFAULT":          fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
@@ -510,7 +509,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			SkipStopPoll:     skipStopPoll,
 			Site:             site,
 			AcceleratorCount: defaultAcceleratorCount,
-			AcceleratorType:  defaultAcceleratorType,
+			AcceleratorType:  fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", defaultAcceleratorType), // TODO
 		},
 
 		deterministicHostname: deterministicHostname,
@@ -526,7 +525,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
 		rateLimitDuration: rateLimitDuration,
-		// defaultAcceleratorCount: defaultAcceleratorCount,
 	}, nil
 }
 
@@ -908,10 +906,17 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	/* TODO: set accelerator type config here based on number of desired GPUs.
 	For a list of GPU limits based on the machine type of your instance, see:
 	https://cloud.google.com/compute/docs/gpus/#introduction
+
+	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p100 (us-central1-c only)
+	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-a/acceleratorTypes/nvidia-tesla-k80
+	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-a/acceleratorTypes/nvidia-tesla-v100
 	*/
+	var acceleratorType *compute.AcceleratorType
 	switch startAttributes.VMConfig.GpuCount {
 	case 1:
 		machineType = p.ic.PremiumMachineType
+		// acceleratorType.SelfLink = p.ic.AcceleratorType
+		acceleratorType.SelfLink = "https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p100"
 	}
 
 	var subnetwork string
@@ -970,7 +975,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		GuestAccelerators: []*compute.AcceleratorConfig{
 			&compute.AcceleratorConfig{
 				AcceleratorCount: p.ic.AcceleratorCount,
-				AcceleratorType:  p.ic.AcceleratorType,
+				AcceleratorType:  acceleratorType.SelfLink, //p.ic.AcceleratorType,
 			},
 		},
 		Scheduling: &compute.Scheduling{
@@ -994,10 +999,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Items: tags,
 		},
 	}
-	log.Println("--------")
-	spew.Dump(i)
-	log.Println("--------")
-	log.Panic(i)
+	log.Println(i)
 	return i
 }
 
