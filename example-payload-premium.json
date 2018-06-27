@@ -2,7 +2,8 @@
    "type":"test",
    "vm_type":"premium",
    "vm_config":{
-      "gpus":9
+      "gpus":1,
+      "gpu_type":"nvidia-tesla-p100"
    },
    "queue":"builds.gce",
    "config":{

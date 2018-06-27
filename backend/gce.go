@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
@@ -22,6 +23,7 @@ import (
 	gocontext "context"
 
 	"github.com/cenk/backoff"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -55,6 +57,8 @@ const (
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci.+"
+	defaultGCEAcceleratorCount   = int64(1)
+	defaultGCEAcceleratorType    = "nvidia-tesla-k80"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 	defaultGCESSHDialTimeout     = 5 * time.Second
@@ -69,6 +73,8 @@ var (
 		"DEFAULT_LANGUAGE":       fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
 		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEAcceleratorCount),
+		"GPU_TYPE":               fmt.Sprintf("Type of GPU to use (default %q)", defaultGCEAcceleratorType),
 		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
 		"IMAGE_DEFAULT":          fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
@@ -148,17 +154,18 @@ type gceProvider struct {
 	ic             *gceInstanceConfig
 	cfg            *config.ProviderConfig
 
-	deterministicHostname bool
-	imageSelectorType     string
-	imageSelector         image.Selector
-	bootPollSleep         time.Duration
-	bootPrePollSleep      time.Duration
-	defaultLanguage       string
-	defaultImage          string
-	uploadRetries         uint64
-	uploadRetrySleep      time.Duration
-	sshDialer             ssh.Dialer
-	sshDialTimeout        time.Duration
+	deterministicHostname   bool
+	imageSelectorType       string
+	imageSelector           image.Selector
+	bootPollSleep           time.Duration
+	bootPrePollSleep        time.Duration
+	defaultLanguage         string
+	defaultImage            string
+	defaultAcceleratorCount int
+	uploadRetries           uint64
+	uploadRetrySleep        time.Duration
+	sshDialer               ssh.Dialer
+	sshDialTimeout          time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -172,6 +179,8 @@ type gceInstanceConfig struct {
 	Zone               *compute.Zone
 	Network            *compute.Network
 	Subnetwork         *compute.Subnetwork
+	AcceleratorCount   int64
+	AcceleratorType    string
 	DiskType           string
 	DiskSize           int64
 	SSHPubKey          string
@@ -376,6 +385,20 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultImage = cfg.Get("IMAGE_DEFAULT")
 	}
 
+	defaultAcceleratorType := defaultGCEAcceleratorType
+	if cfg.IsSet("GPU_TYPE") {
+		defaultAcceleratorType = cfg.Get("GPU_TYPE")
+	}
+
+	defaultAcceleratorCount := defaultGCEAcceleratorCount
+	if cfg.IsSet("GPU_COUNT") {
+		dgc, err := strconv.ParseInt(cfg.Get("GPU_COUNT"), 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		defaultAcceleratorCount = dgc
+	}
+
 	autoImplode := true
 	if cfg.IsSet("AUTO_IMPLODE") {
 		ai, err := strconv.ParseBool(cfg.Get("AUTO_IMPLODE"))
@@ -486,6 +509,8 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			StopPrePollSleep: stopPrePollSleep,
 			SkipStopPoll:     skipStopPoll,
 			Site:             site,
+			AcceleratorCount: defaultAcceleratorCount,
+			AcceleratorType:  defaultAcceleratorType,
 		},
 
 		deterministicHostname: deterministicHostname,
@@ -501,6 +526,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
 		rateLimitDuration: rateLimitDuration,
+		// defaultAcceleratorCount: defaultAcceleratorCount,
 	}, nil
 }
 
@@ -879,6 +905,15 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		machineType = p.ic.MachineType
 	}
 
+	/* TODO: set accelerator type config here based on number of desired GPUs.
+	For a list of GPU limits based on the machine type of your instance, see:
+	https://cloud.google.com/compute/docs/gpus/#introduction
+	*/
+	switch startAttributes.VMConfig.GpuCount {
+	case 1:
+		machineType = p.ic.PremiumMachineType
+	}
+
 	var subnetwork string
 	if p.ic.Subnetwork != nil {
 		subnetwork = p.ic.Subnetwork.SelfLink
@@ -916,7 +951,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		hostname = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
 	}
 
-	return &compute.Instance{
+	// return &compute.Instance{
+	i := &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
 			&compute.AttachedDisk{
@@ -929,6 +965,12 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 					DiskType:    p.ic.DiskType,
 					DiskSizeGb:  p.ic.DiskSize,
 				},
+			},
+		},
+		GuestAccelerators: []*compute.AcceleratorConfig{
+			&compute.AcceleratorConfig{
+				AcceleratorCount: p.ic.AcceleratorCount,
+				AcceleratorType:  p.ic.AcceleratorType,
 			},
 		},
 		Scheduling: &compute.Scheduling{
@@ -952,6 +994,11 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Items: tags,
 		},
 	}
+	log.Println("--------")
+	spew.Dump(i)
+	log.Println("--------")
+	log.Panic(i)
+	return i
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
