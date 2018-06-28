@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
@@ -40,7 +39,7 @@ import (
 )
 
 const (
-	defaultGCEZone               = "us-central1-a"
+	defaultGCEZone               = "us-central1-c"
 	defaultGCEMachineType        = "n1-standard-2"
 	defaultGCEPremiumMachineType = "n1-standard-4"
 	defaultGCENetwork            = "default"
@@ -56,8 +55,8 @@ const (
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci.+"
-	defaultGCEAcceleratorCount   = int64(1)
-	defaultGCEAcceleratorType    = "nvidia-tesla-k80"
+	defaultGCEGpuCount           = int64(1)
+	defaultGCEGpuType            = "nvidia-tesla-p100"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 	defaultGCESSHDialTimeout     = 5 * time.Second
@@ -72,8 +71,8 @@ var (
 		"DEFAULT_LANGUAGE":       fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
 		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEAcceleratorCount),
-		"GPU_TYPE":               fmt.Sprintf("type of GPU to use (default %q)", defaultGCEAcceleratorType),
+		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEGpuCount),
+		"GPU_TYPE":               fmt.Sprintf("type of GPU to use (default %q)", defaultGCEGpuType),
 		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
 		"IMAGE_DEFAULT":          fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
@@ -153,18 +152,19 @@ type gceProvider struct {
 	ic             *gceInstanceConfig
 	cfg            *config.ProviderConfig
 
-	deterministicHostname   bool
-	imageSelectorType       string
-	imageSelector           image.Selector
-	bootPollSleep           time.Duration
-	bootPrePollSleep        time.Duration
-	defaultLanguage         string
-	defaultImage            string
-	defaultAcceleratorCount int
-	uploadRetries           uint64
-	uploadRetrySleep        time.Duration
-	sshDialer               ssh.Dialer
-	sshDialTimeout          time.Duration
+	deterministicHostname bool
+	imageSelectorType     string
+	imageSelector         image.Selector
+	bootPollSleep         time.Duration
+	bootPrePollSleep      time.Duration
+	defaultLanguage       string
+	defaultImage          string
+	defaultGpuCount       uint64
+	defaultGpuType        string
+	uploadRetries         uint64
+	uploadRetrySleep      time.Duration
+	sshDialer             ssh.Dialer
+	sshDialTimeout        time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -178,8 +178,7 @@ type gceInstanceConfig struct {
 	Zone               *compute.Zone
 	Network            *compute.Network
 	Subnetwork         *compute.Subnetwork
-	AcceleratorCount   int64
-	AcceleratorType    string
+	AcceleratorConfig  *compute.AcceleratorConfig
 	DiskType           string
 	DiskSize           int64
 	SSHPubKey          string
@@ -384,18 +383,23 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultImage = cfg.Get("IMAGE_DEFAULT")
 	}
 
-	defaultAcceleratorType := defaultGCEAcceleratorType
+	defaultGpuType := defaultGCEGpuType
 	if cfg.IsSet("GPU_TYPE") {
-		defaultAcceleratorType = cfg.Get("GPU_TYPE")
+		defaultGpuType = cfg.Get("GPU_TYPE")
 	}
 
-	defaultAcceleratorCount := defaultGCEAcceleratorCount
+	defaultGpuCount := defaultGCEGpuCount
 	if cfg.IsSet("GPU_COUNT") {
 		dgc, err := strconv.ParseInt(cfg.Get("GPU_COUNT"), 0, 64)
 		if err != nil {
 			return nil, err
 		}
-		defaultAcceleratorCount = dgc
+		defaultGpuCount = dgc
+	}
+
+	defaultAcceleratorConfig := &compute.AcceleratorConfig{
+		AcceleratorCount: defaultGpuCount,
+		AcceleratorType:  fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", defaultGpuType), //defaultGpuType,
 	}
 
 	autoImplode := true
@@ -498,18 +502,19 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		sshDialTimeout: sshDialTimeout,
 
 		ic: &gceInstanceConfig{
-			Preemptible:      preemptible,
-			PublicIP:         publicIP,
-			PublicIPConnect:  publicIPConnect,
-			DiskSize:         diskSize,
-			SSHPubKey:        string(pubKey),
-			AutoImplode:      autoImplode,
-			StopPollSleep:    stopPollSleep,
-			StopPrePollSleep: stopPrePollSleep,
-			SkipStopPoll:     skipStopPoll,
-			Site:             site,
-			AcceleratorCount: defaultAcceleratorCount,
-			AcceleratorType:  fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", defaultAcceleratorType), // TODO
+			Preemptible:       preemptible,
+			PublicIP:          publicIP,
+			PublicIPConnect:   publicIPConnect,
+			DiskSize:          diskSize,
+			SSHPubKey:         string(pubKey),
+			AutoImplode:       autoImplode,
+			StopPollSleep:     stopPollSleep,
+			StopPrePollSleep:  stopPrePollSleep,
+			SkipStopPoll:      skipStopPoll,
+			Site:              site,
+			AcceleratorConfig: defaultAcceleratorConfig,
+			//GpuCount:         defaultGpuCount,
+			//GpuType:          defaultGpuType, //fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", defaultGpuType), // TODO
 		},
 
 		deterministicHostname: deterministicHostname,
@@ -911,12 +916,22 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-a/acceleratorTypes/nvidia-tesla-k80
 	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-a/acceleratorTypes/nvidia-tesla-v100
 	*/
-	var acceleratorType *compute.AcceleratorType
-	switch startAttributes.VMConfig.GpuCount {
-	case 1:
-		machineType = p.ic.PremiumMachineType
-		// acceleratorType.SelfLink = p.ic.AcceleratorType
-		acceleratorType.SelfLink = "https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p100"
+	var acceleratorConfig *compute.AcceleratorConfig
+	/*
+		switch startAttributes.VMConfig.GpuCount {
+		case 1:
+			//acceleratorType.SelfLink = "https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p100"
+			ac = p.ic.AcceleratorConfig
+			//acceleratorType = p.ic.AcceleratorConfig.AcceleratorType //Type //.SelfLink
+		default:
+			//acceleratorType = p.ic.AcceleratorConfig.AcceleratorType //Type //.SelfLink
+			ac = p.ic.AcceleratorConfig
+		}
+	*/
+
+	acceleratorConfig = &compute.AcceleratorConfig{
+		AcceleratorCount: p.ic.AcceleratorConfig.AcceleratorCount, //p.ic.AcceleratorCount,
+		AcceleratorType:  p.ic.AcceleratorConfig.AcceleratorType,  //.SelfLink, //p.ic.GpuType.SelfLink, //AcceleratorType, //acceleratorType.SelfLink,
 	}
 
 	var subnetwork string
@@ -958,7 +973,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 
 	// return &compute.Instance{
 	i := &compute.Instance{
-		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
+		Description: fmt.Sprintf("AJ Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
 			&compute.AttachedDisk{
 				Type:       "PERSISTENT",
@@ -973,10 +988,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			},
 		},
 		GuestAccelerators: []*compute.AcceleratorConfig{
-			&compute.AcceleratorConfig{
-				AcceleratorCount: p.ic.AcceleratorCount,
-				AcceleratorType:  acceleratorType.SelfLink, //p.ic.AcceleratorType,
-			},
+			acceleratorConfig,
 		},
 		Scheduling: &compute.Scheduling{
 			Preemptible:      p.ic.Preemptible,
@@ -999,7 +1011,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Items: tags,
 		},
 	}
-	log.Println(i)
 	return i
 }
 
