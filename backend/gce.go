@@ -22,6 +22,7 @@ import (
 	gocontext "context"
 
 	"github.com/cenk/backoff"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -39,7 +40,7 @@ import (
 )
 
 const (
-	defaultGCEZone               = "us-central1-c"
+	defaultGCEZone               = "us-central1-a"
 	defaultGCEMachineType        = "n1-standard-2"
 	defaultGCEPremiumMachineType = "n1-standard-4"
 	defaultGCENetwork            = "default"
@@ -55,7 +56,7 @@ const (
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci.+"
-	defaultGCEGpuCount           = int64(1)
+	defaultGCEGpuCount           = int64(0)
 	defaultGCEGpuType            = "nvidia-tesla-p100"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
@@ -383,23 +384,21 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultImage = cfg.Get("IMAGE_DEFAULT")
 	}
 
-	defaultGpuType := defaultGCEGpuType
+	defaultAcceleratorConfig := &compute.AcceleratorConfig{}
+
+	defaultAcceleratorConfig.AcceleratorType = defaultGCEGpuType
 	if cfg.IsSet("GPU_TYPE") {
-		defaultGpuType = cfg.Get("GPU_TYPE")
+		dgt := cfg.Get("GPU_TYPE")
+		defaultAcceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", dgt)
 	}
 
-	defaultGpuCount := defaultGCEGpuCount
+	defaultAcceleratorConfig.AcceleratorCount = defaultGCEGpuCount
 	if cfg.IsSet("GPU_COUNT") {
 		dgc, err := strconv.ParseInt(cfg.Get("GPU_COUNT"), 0, 64)
 		if err != nil {
 			return nil, err
 		}
-		defaultGpuCount = dgc
-	}
-
-	defaultAcceleratorConfig := &compute.AcceleratorConfig{
-		AcceleratorCount: defaultGpuCount,
-		AcceleratorType:  fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", defaultGpuType), //defaultGpuType,
+		defaultAcceleratorConfig.AcceleratorCount = dgc
 	}
 
 	autoImplode := true
@@ -513,8 +512,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			SkipStopPoll:      skipStopPoll,
 			Site:              site,
 			AcceleratorConfig: defaultAcceleratorConfig,
-			//GpuCount:         defaultGpuCount,
-			//GpuType:          defaultGpuType, //fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", defaultGpuType), // TODO
 		},
 
 		deterministicHostname: deterministicHostname,
@@ -908,30 +905,17 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		machineType = p.ic.MachineType
 	}
 
-	/* TODO: set accelerator type config here based on number of desired GPUs.
-	For a list of GPU limits based on the machine type of your instance, see:
-	https://cloud.google.com/compute/docs/gpus/#introduction
-
-	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p100 (us-central1-c only)
-	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-a/acceleratorTypes/nvidia-tesla-k80
-	https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-a/acceleratorTypes/nvidia-tesla-v100
-	*/
+	// Set accelerator config based on number of requested GPUs
 	var acceleratorConfig *compute.AcceleratorConfig
-	/*
-		switch startAttributes.VMConfig.GpuCount {
-		case 1:
-			//acceleratorType.SelfLink = "https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/nvidia-tesla-p100"
-			ac = p.ic.AcceleratorConfig
-			//acceleratorType = p.ic.AcceleratorConfig.AcceleratorType //Type //.SelfLink
-		default:
-			//acceleratorType = p.ic.AcceleratorConfig.AcceleratorType //Type //.SelfLink
-			ac = p.ic.AcceleratorConfig
+	switch startAttributes.VMConfig.GpuCount {
+	case 1:
+		acceleratorConfig = &compute.AcceleratorConfig{
+			AcceleratorCount: p.ic.AcceleratorConfig.AcceleratorCount,
+			AcceleratorType:  p.ic.AcceleratorConfig.AcceleratorType,
 		}
-	*/
-
-	acceleratorConfig = &compute.AcceleratorConfig{
-		AcceleratorCount: p.ic.AcceleratorConfig.AcceleratorCount, //p.ic.AcceleratorCount,
-		AcceleratorType:  p.ic.AcceleratorConfig.AcceleratorType,  //.SelfLink, //p.ic.GpuType.SelfLink, //AcceleratorType, //acceleratorType.SelfLink,
+		p.ic.Zone.Name = "us-central1-c" // p100 GPUs are only available in zone c
+	default:
+		acceleratorConfig = &compute.AcceleratorConfig{}
 	}
 
 	var subnetwork string
@@ -1011,6 +995,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Items: tags,
 		},
 	}
+	spew.Dump(i)
 	return i
 }
 
