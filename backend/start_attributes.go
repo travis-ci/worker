@@ -5,7 +5,8 @@ import (
 )
 
 type VmConfig struct {
-	GpuCount int `json:"gpus"`
+	GpuCount int64  `json:"gpu_count"`
+	GpuType  string `json:"gpu_type"`
 }
 
 // StartAttributes contains some parts of the config which can be used to

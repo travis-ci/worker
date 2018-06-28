@@ -14,11 +14,11 @@ const (
 	VMTypePremium = "premium"
 )
 
-var VMConfigDefault = backend.VmConfig{GpuCount: 1}
+var VMConfigDefault = backend.VmConfig{GpuCount: 0, GpuType: ""}
 
 type jobPayloadStartAttrs struct {
 	Config   *backend.StartAttributes `json:"config"`
-	VmConfig *backend.StartAttributes `json:"vm_config"`
+	VmConfig *backend.VmConfig        `json:"vm_config"`
 }
 
 type httpJobPayloadStartAttrs struct {

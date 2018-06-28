@@ -22,7 +22,6 @@ import (
 	gocontext "context"
 
 	"github.com/cenk/backoff"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -910,9 +909,10 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	switch startAttributes.VMConfig.GpuCount {
 	case 1:
 		acceleratorConfig = &compute.AcceleratorConfig{
-			AcceleratorCount: p.ic.AcceleratorConfig.AcceleratorCount,
-			AcceleratorType:  p.ic.AcceleratorConfig.AcceleratorType,
+			AcceleratorCount: startAttributes.VMConfig.GpuCount,
+			AcceleratorType:  fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", startAttributes.VMConfig.GpuType),
 		}
+		p.ic.AcceleratorConfig = acceleratorConfig
 		p.ic.Zone.Name = "us-central1-c" // p100 GPUs are only available in zone c
 	default:
 		acceleratorConfig = &compute.AcceleratorConfig{}
@@ -955,6 +955,11 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		hostname = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
 	}
 
+	acceleratorConfigs := []*compute.AcceleratorConfig{}
+	if p.ic.AcceleratorConfig.AcceleratorCount > 0 {
+		acceleratorConfigs = []*compute.AcceleratorConfig{acceleratorConfig}
+	}
+
 	// return &compute.Instance{
 	i := &compute.Instance{
 		Description: fmt.Sprintf("AJ Travis CI %s test VM", startAttributes.Language),
@@ -971,9 +976,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 				},
 			},
 		},
-		GuestAccelerators: []*compute.AcceleratorConfig{
-			acceleratorConfig,
-		},
+		GuestAccelerators: acceleratorConfigs,
 		Scheduling: &compute.Scheduling{
 			Preemptible:      p.ic.Preemptible,
 			AutomaticRestart: googleapi.Bool(false),
@@ -995,7 +998,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Items: tags,
 		},
 	}
-	spew.Dump(i)
+
 	return i
 }
 
