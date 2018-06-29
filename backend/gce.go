@@ -22,6 +22,7 @@ import (
 	gocontext "context"
 
 	"github.com/cenk/backoff"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -387,8 +388,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	defaultAcceleratorConfig.AcceleratorType = defaultGCEGpuType
 	if cfg.IsSet("GPU_TYPE") {
-		dgt := cfg.Get("GPU_TYPE")
-		defaultAcceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", dgt)
+		defaultAcceleratorConfig.AcceleratorType = cfg.Get("GPU_TYPE")
 	}
 
 	defaultAcceleratorConfig.AcceleratorCount = defaultGCEGpuCount
@@ -586,6 +586,8 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// TODO: check accelerators here
 
 	p.apiRateLimit(ctx)
 	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Context(ctx).Do()
@@ -910,12 +912,20 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	case 1:
 		acceleratorConfig = &compute.AcceleratorConfig{
 			AcceleratorCount: startAttributes.VMConfig.GpuCount,
-			AcceleratorType:  fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/travis-staging-1/zones/us-central1-c/acceleratorTypes/%s", startAttributes.VMConfig.GpuType),
+			AcceleratorType:  startAttributes.VMConfig.GpuType,
 		}
 		p.ic.AcceleratorConfig = acceleratorConfig
-		p.ic.Zone.Name = "us-central1-c" // p100 GPUs are only available in zone c
 	default:
 		acceleratorConfig = &compute.AcceleratorConfig{}
+	}
+
+	if acceleratorConfig.AcceleratorType != "" {
+		acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/beta/projects/%s/zones/%s/acceleratorTypes/%s",
+			p.projectID,
+			startAttributes.VMConfig.Zone,
+			startAttributes.VMConfig.GpuType)
+		// TODO: override zone here
+		p.ic.Zone.Name = "us-central1-c" // p100 GPUs are only available in zone c
 	}
 
 	var subnetwork string
@@ -998,6 +1008,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Items: tags,
 		},
 	}
+	spew.Dump(i)
 
 	return i
 }
