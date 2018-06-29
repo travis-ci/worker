@@ -57,4 +57,8 @@ func (sa *StartAttributes) SetDefaults(lang, dist, group, os, vmType string, vmC
 	if sa.VMConfig.GpuCount == 0 {
 		sa.VMConfig.GpuCount = vmConfig.GpuCount
 	}
+
+	if sa.VMConfig.GpuType == "" {
+		sa.VMConfig.GpuType = vmConfig.GpuType
+	}
 }
