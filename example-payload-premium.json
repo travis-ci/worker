@@ -1,9 +1,10 @@
 {
    "type":"test",
-   "vm_type":"default",
+   "vm_type":"premium",
    "vm_config":{
       "gpu_count":1,
-      "gpu_type":"nvidia-tesla-p100"
+      "gpu_type":"nvidia-tesla-v100",
+      "zone":"us-central1-a"
    },
    "queue":"builds.gce",
    "config":{
@@ -18,9 +19,6 @@
       ".result":"configured",
       "language":"python",
       "before_install":[
-         "docker pull ruby:2.3.5",
-         "docker pull ubuntu",
-         "docker run -ti ubuntu echo hello world",
          "pip install ."
       ]
    },

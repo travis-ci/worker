@@ -7,6 +7,7 @@ import (
 type VmConfig struct {
 	GpuCount int64  `json:"gpu_count"`
 	GpuType  string `json:"gpu_type"`
+	Zone     string `json:"zone"`
 }
 
 // StartAttributes contains some parts of the config which can be used to
@@ -60,5 +61,9 @@ func (sa *StartAttributes) SetDefaults(lang, dist, group, os, vmType string, vmC
 
 	if sa.VMConfig.GpuType == "" {
 		sa.VMConfig.GpuType = vmConfig.GpuType
+	}
+
+	if sa.VMConfig.Zone == "" {
+		sa.VMConfig.Zone = vmConfig.Zone
 	}
 }

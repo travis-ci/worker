@@ -20,7 +20,7 @@ var (
 				{Language: "python", Dist: "frob", Group: "edge", OS: "flob"},
 				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob"},
 				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob", VMType: "premium"},
-				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob", VMType: "premium", VMConfig: VmConfig{GpuCount: 0, GpuType: ""}},
+				{Language: "python", Dist: "frob", OsxImage: "", Group: "edge", OS: "flob", VMType: "premium", VMConfig: VmConfig{GpuCount: 0, GpuType: "", Zone: ""}},
 			},
 			O: []*StartAttributes{
 				{Language: "default", Dist: "precise", Group: "stable", OS: "linux", VMType: "default"},
@@ -44,7 +44,7 @@ func TestStartAttributes(t *testing.T) {
 	assert.Equal(t, "", sa.OS)
 	assert.Equal(t, "", sa.OsxImage)
 	assert.Equal(t, "", sa.VMType)
-	assert.Equal(t, VmConfig{GpuCount: 0, GpuType: ""}, sa.VMConfig)
+	assert.Equal(t, VmConfig{GpuCount: 0, GpuType: "", Zone: ""}, sa.VMConfig)
 }
 
 func TestStartAttributes_SetDefaults(t *testing.T) {
