@@ -932,14 +932,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 
 	/* TODO: We should do this only if we're using a custom zone to avoid unnecessary lookups. */
 	var machineType *compute.MachineType
-	switch startAttributes.VMType {
-	case "premium":
+	if startAttributes.VMType == "premium" {
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
 			logger.WithField("err", err).Warn("failed to look up premium machine type")
 		}
 		machineType = pic
-	default:
+	} else {
 		p.apiRateLimit(ctx)
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
@@ -949,18 +948,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}
 
 	// Set accelerator config based on number and type of requested GPUs (empty if none)
-	var acceleratorConfig *compute.AcceleratorConfig
-	switch startAttributes.VMConfig.GpuCount {
-	case 0:
-		acceleratorConfig = &compute.AcceleratorConfig{}
-	default:
-		acceleratorConfig = &compute.AcceleratorConfig{
-			AcceleratorCount: startAttributes.VMConfig.GpuCount,
-			AcceleratorType:  startAttributes.VMConfig.GpuType,
-		}
-	}
-
-	if acceleratorConfig.AcceleratorType != "" {
+	acceleratorConfig := &compute.AcceleratorConfig{}
+	if startAttributes.VMConfig.GpuCount > 0 {
+		acceleratorConfig.AcceleratorCount = startAttributes.VMConfig.GpuCount
 		acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
 			p.projectID,
 			startAttributes.VMConfig.Zone,
