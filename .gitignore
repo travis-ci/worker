@@ -50,4 +50,4 @@ build/
 .write-test
 .envrc
 
-builds.ec2/
+builds.*/

@@ -159,7 +159,7 @@ type gceProvider struct {
 	bootPrePollSleep      time.Duration
 	defaultLanguage       string
 	defaultImage          string
-	defaultGpuCount       uint64
+	defaultGpuCount       int64
 	defaultGpuType        string
 	uploadRetries         uint64
 	uploadRetrySleep      time.Duration
@@ -665,7 +665,8 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	)
 	zone = p.ic.Zone
 	if startAttributes.VMConfig.Zone != "" {
-		logger.Debugf("setting custom zone: %s", startAttributes.VMConfig.Zone)
+		logger.WithField("zone", startAttributes.VMConfig.Zone).Debug("setting zone from vm config")
+
 		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
 		if err != nil {
 			return nil, err
@@ -922,7 +923,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		if err != nil {
 			logger.Warn(err)
 		}
-		logger.Info(fmt.Sprintf("Setting custom diskType: zones/%s/diskTypes/pd-ssd", zone.Name))
+		logger.WithFields(logrus.Fields{
+			"disk_type": fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
+		}).Info("setting disk type based on zone in vm config")
 		diskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name)
 
 	}
@@ -933,14 +936,14 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	case "premium":
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
-			logger.Warn(err)
+			logger.WithField("err", err).Warn("failed to look up premium machine type")
 		}
 		machineType = pic
 	default:
 		p.apiRateLimit(ctx)
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
-			logger.Warn(err)
+			logger.WithField("err", err).Warn("failed to look up machine type")
 		}
 		machineType = pic
 	}
@@ -998,13 +1001,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	if p.deterministicHostname {
 		hostname = hostnameFromContext(ctx)
 	} else {
-		hostname = fmt.Sprintf("aj-travis-job-%s", uuid.NewRandom())
+		hostname = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
 	}
 
 	acceleratorConfigs := []*compute.AcceleratorConfig{}
 	if acceleratorConfig.AcceleratorCount > 0 {
 		logger.Debug("GPU requested, setting acceleratorConfig")
-		acceleratorConfigs = []*compute.AcceleratorConfig{acceleratorConfig}
+		acceleratorConfigs = append(acceleratorConfigs, acceleratorConfig)
 	}
 
 	return &compute.Instance{
