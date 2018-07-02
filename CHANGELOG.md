@@ -16,6 +16,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.9.0] - 2018-07-02
+
+### Added
+- support for a sharded logs queue (using the rabbitmq-sharding plugin)
+
 ## [3.8.2] - 2018-06-21
 
 ### Added
@@ -697,7 +702,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.8.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.9.0...HEAD
+[3.9.0]: https://github.com/travis-ci/worker/compare/v3.8.2...v3.9.0
 [3.8.2]: https://github.com/travis-ci/worker/compare/v3.8.1...v3.8.2
 [3.8.1]: https://github.com/travis-ci/worker/compare/v3.8.0...v3.8.1
 [3.8.0]: https://github.com/travis-ci/worker/compare/v3.7.0...v3.8.0
