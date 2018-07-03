@@ -93,6 +93,10 @@ export TRAVIS_WORKER_BUILD_API_URI='https://x:API_KEY@build-staging.travis-ci.or
 `TRAVIS_WORKER_BUILD_API_URI` can be found in the env of the job board app, e.g.:
 `heroku config:get JOB_BOARD_BUILD_API_ORG_URL -a job-board-staging`.
 
+#### Images
+
+TODO
+
 #### Configuring the requested provider/backend
 
 Each provider requires its own configuration, which must be provided via

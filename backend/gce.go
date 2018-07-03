@@ -55,6 +55,8 @@ const (
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci.+"
+	defaultGCEGpuCount           = int64(0)
+	defaultGCEGpuType            = "nvidia-tesla-p100"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 	defaultGCESSHDialTimeout     = 5 * time.Second
@@ -69,6 +71,8 @@ var (
 		"DEFAULT_LANGUAGE":       fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
 		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEGpuCount),
+		"GPU_TYPE":               fmt.Sprintf("type of GPU to use (default %q)", defaultGCEGpuType),
 		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
 		"IMAGE_DEFAULT":          fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
 		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
@@ -155,6 +159,8 @@ type gceProvider struct {
 	bootPrePollSleep      time.Duration
 	defaultLanguage       string
 	defaultImage          string
+	defaultGpuCount       int64
+	defaultGpuType        string
 	uploadRetries         uint64
 	uploadRetrySleep      time.Duration
 	sshDialer             ssh.Dialer
@@ -172,6 +178,7 @@ type gceInstanceConfig struct {
 	Zone               *compute.Zone
 	Network            *compute.Network
 	Subnetwork         *compute.Subnetwork
+	AcceleratorConfig  *compute.AcceleratorConfig
 	DiskType           string
 	DiskSize           int64
 	SSHPubKey          string
@@ -376,6 +383,22 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultImage = cfg.Get("IMAGE_DEFAULT")
 	}
 
+	defaultAcceleratorConfig := &compute.AcceleratorConfig{}
+
+	defaultAcceleratorConfig.AcceleratorType = defaultGCEGpuType
+	if cfg.IsSet("GPU_TYPE") {
+		defaultAcceleratorConfig.AcceleratorType = cfg.Get("GPU_TYPE")
+	}
+
+	defaultAcceleratorConfig.AcceleratorCount = defaultGCEGpuCount
+	if cfg.IsSet("GPU_COUNT") {
+		dgc, err := strconv.ParseInt(cfg.Get("GPU_COUNT"), 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		defaultAcceleratorConfig.AcceleratorCount = dgc
+	}
+
 	autoImplode := true
 	if cfg.IsSet("AUTO_IMPLODE") {
 		ai, err := strconv.ParseBool(cfg.Get("AUTO_IMPLODE"))
@@ -476,16 +499,17 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		sshDialTimeout: sshDialTimeout,
 
 		ic: &gceInstanceConfig{
-			Preemptible:      preemptible,
-			PublicIP:         publicIP,
-			PublicIPConnect:  publicIPConnect,
-			DiskSize:         diskSize,
-			SSHPubKey:        string(pubKey),
-			AutoImplode:      autoImplode,
-			StopPollSleep:    stopPollSleep,
-			StopPrePollSleep: stopPrePollSleep,
-			SkipStopPoll:     skipStopPoll,
-			Site:             site,
+			Preemptible:       preemptible,
+			PublicIP:          publicIP,
+			PublicIPConnect:   publicIPConnect,
+			DiskSize:          diskSize,
+			SSHPubKey:         string(pubKey),
+			AutoImplode:       autoImplode,
+			StopPollSleep:     stopPollSleep,
+			StopPrePollSleep:  stopPrePollSleep,
+			SkipStopPoll:      skipStopPoll,
+			Site:              site,
+			AcceleratorConfig: defaultAcceleratorConfig,
 		},
 
 		deterministicHostname: deterministicHostname,
@@ -635,6 +659,20 @@ func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
+	var (
+		zone *compute.Zone
+		err  error
+	)
+	zone = p.ic.Zone
+	if startAttributes.VMConfig.Zone != "" {
+		logger.WithField("zone", startAttributes.VMConfig.Zone).Debug("setting zone from vm config")
+
+		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	state := &multistep.BasicStateBag{}
 
 	c := &gceStartContext{
@@ -658,7 +696,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	defer func(c *gceStartContext) {
 		if c.instance != nil && abandonedStart {
 			p.apiRateLimit(c.ctx)
-			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, c.instance.Name).Do()
+			_, _ = p.client.Instances.Delete(p.projectID, zone.Name, c.instance.Name).Do()
 		}
 	}(c)
 
@@ -871,12 +909,52 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 }
 
 func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+
+	var (
+		zone     *compute.Zone
+		err      error
+		diskType string
+	)
+
+	zone = p.ic.Zone
+	if startAttributes.VMConfig.Zone != "" {
+		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
+		if err != nil {
+			logger.Warn(err)
+		}
+		logger.WithFields(logrus.Fields{
+			"disk_type": fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
+		}).Info("setting disk type based on zone in vm config")
+		diskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name)
+
+	}
+
+	/* TODO: We should do this only if we're using a custom zone to avoid unnecessary lookups. */
 	var machineType *compute.MachineType
-	switch startAttributes.VMType {
-	case "premium":
-		machineType = p.ic.PremiumMachineType
-	default:
-		machineType = p.ic.MachineType
+	if startAttributes.VMType == "premium" {
+		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
+		if err != nil {
+			logger.WithField("err", err).Warn("failed to look up premium machine type")
+		}
+		machineType = pic
+	} else {
+		p.apiRateLimit(ctx)
+		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
+		if err != nil {
+			logger.WithField("err", err).Warn("failed to look up machine type")
+		}
+		machineType = pic
+	}
+
+	// Set accelerator config based on number and type of requested GPUs (empty if none)
+	acceleratorConfig := &compute.AcceleratorConfig{}
+	if startAttributes.VMConfig.GpuCount > 0 {
+		acceleratorConfig.AcceleratorCount = startAttributes.VMConfig.GpuCount
+		acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
+			p.projectID,
+			startAttributes.VMConfig.Zone,
+			startAttributes.VMConfig.GpuType)
 	}
 
 	var subnetwork string
@@ -916,6 +994,12 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		hostname = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
 	}
 
+	acceleratorConfigs := []*compute.AcceleratorConfig{}
+	if acceleratorConfig.AcceleratorCount > 0 {
+		logger.Debug("GPU requested, setting acceleratorConfig")
+		acceleratorConfigs = append(acceleratorConfigs, acceleratorConfig)
+	}
+
 	return &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
 		Disks: []*compute.AttachedDisk{
@@ -926,11 +1010,12 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 				AutoDelete: true,
 				InitializeParams: &compute.AttachedDiskInitializeParams{
 					SourceImage: imageLink,
-					DiskType:    p.ic.DiskType,
+					DiskType:    diskType,
 					DiskSizeGb:  p.ic.DiskSize,
 				},
 			},
 		},
+		GuestAccelerators: acceleratorConfigs,
 		Scheduling: &compute.Scheduling{
 			Preemptible:      p.ic.Preemptible,
 			AutomaticRestart: googleapi.Bool(false),
