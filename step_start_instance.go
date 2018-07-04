@@ -23,6 +23,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
+	logWriter := state.Get("logWriter").(LogWriter)
 
 	logger.Info("starting instance")
 
@@ -31,11 +32,13 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	startTime := time.Now()
 
-	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
+	writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\n"))
+	defer writeFoldEnd(logWriter, "step_start_instance", []byte("\n"))
+
+	instance, err := s.provider.StartWithProgress(ctx, buildJob.StartAttributes(), logWriter)
 	if err != nil {
 		jobAbortErr, ok := errors.Cause(err).(workererrors.JobAbortError)
 		if ok {
-			logWriter := state.Get("logWriter").(LogWriter)
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
 
 			err = buildJob.Finish(procCtx, FinishStateErrored)

@@ -69,6 +69,10 @@ type Provider interface {
 	// ready to call UploadScript on (this may, for example, mean that it
 	// waits for SSH connections to be possible).
 	Start(gocontext.Context, *StartAttributes) (Instance, error)
+
+	// StartWithProgress starts an instance as with Start and also reports
+	// progress via an io.Writer.
+	StartWithProgress(gocontext.Context, *StartAttributes, io.Writer) (Instance, error)
 }
 
 // An Instance is something that can run a build script.

@@ -206,6 +206,7 @@ func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
 
 type gceStartContext struct {
 	startAttributes  *StartAttributes
+	progressWriter   io.Writer
 	ctx              gocontext.Context
 	instChan         chan Instance
 	errChan          chan error
@@ -216,11 +217,17 @@ type gceStartContext struct {
 	instanceInsertOp *compute.Operation
 }
 
+func (sc *gceStartContext) progress(msg string) {
+	_, _ = sc.progressWriter.Write([]byte(msg))
+}
+
 type gceInstance struct {
 	client   *compute.Service
 	provider *gceProvider
 	instance *compute.Instance
 	ic       *gceInstanceConfig
+
+	progressWriter io.Writer
 
 	authUser     string
 	cachedIPAddr string
@@ -656,7 +663,7 @@ func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
 	return a, err
 }
 
-func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, progressWriter io.Writer) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
 	var (
@@ -677,6 +684,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	c := &gceStartContext{
 		startAttributes: startAttributes,
+		progressWriter:  progressWriter,
 		ctx:             ctx,
 		instChan:        make(chan Instance),
 		errChan:         make(chan error),
@@ -713,19 +721,26 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.boot.timeout")
 		}
+		c.progress("\n✗ timeout waiting for instance to be ready\n")
 		abandonedStart = true
 		return nil, ctx.Err()
 	}
 }
 
+func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+	return p.StartWithProgress(ctx, startAttributes, ioutil.Discard)
+}
+
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
 	if err != nil {
+		c.progress("✗ could not select image\n")
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.image = image
+	c.progress(fmt.Sprintf("✓ selected image %q\n", image.Name))
 	return multistep.ActionContinue
 }
 
@@ -738,11 +753,13 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 	}
 	err := gceStartupScript.Execute(&scriptBuf, scriptData)
 	if err != nil {
+		c.progress("✗ could not render startup script\n")
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.script = scriptBuf.String()
+	c.progress("✓ rendered startup script\n")
 	return multistep.ActionContinue
 }
 
@@ -759,12 +776,14 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	p.apiRateLimit(c.ctx)
 	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Context(c.ctx).Do()
 	if err != nil {
+		c.progress("✗ could not insert instance\n")
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.instance = inst
 	c.instanceInsertOp = op
+	c.progress("✓ inserted instance\n")
 	return multistep.ActionContinue
 }
 
@@ -772,23 +791,27 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
 	logger.WithField("duration", p.bootPrePollSleep).Debug("sleeping before first checking instance insert operation")
+	c.progress(fmt.Sprintf("• sleeping %s before checking instance insert\n", p.bootPrePollSleep))
 
 	time.Sleep(p.bootPrePollSleep)
 
 	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name).Context(c.ctx)
 
+	c.progress("• polling for instance insert completion")
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
 		p.apiRateLimit(c.ctx)
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
+			c.progress("\n✗ could not check for instance insert\n")
 			c.errChan <- err
 			return multistep.ActionHalt
 		}
 
 		if newOp.Status == "RUNNING" || newOp.Status == "DONE" {
 			if newOp.Error != nil {
+				c.progress("\n✗ instance could not be inserted\n")
 				c.errChan <- &gceOpError{Err: newOp.Error}
 				return multistep.ActionHalt
 			}
@@ -798,11 +821,13 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				"name":   c.instanceInsertOp.Name,
 			}).Debug("instance is ready")
 
+			c.progress("\n✓ instance is ready\n")
 			c.instChan <- &gceInstance{
-				client:   p.client,
-				provider: p,
-				instance: c.instance,
-				ic:       p.ic,
+				client:         p.client,
+				provider:       p,
+				instance:       c.instance,
+				ic:             p.ic,
+				progressWriter: c.progressWriter,
 
 				authUser: "travis",
 
@@ -820,6 +845,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				"name": c.instanceInsertOp.Name,
 			}).Error("encountered an error while waiting for instance insert operation")
 
+			c.progress("\n✗ error while waiting for instance insert\n")
 			c.errChan <- &gceOpError{Err: newOp.Error}
 			return multistep.ActionHalt
 		}
@@ -830,6 +856,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			"duration": p.bootPollSleep,
 		}).Debug("sleeping before checking instance insert operation")
 
+		c.progress(".")
 		time.Sleep(p.bootPollSleep)
 	}
 }
@@ -1039,6 +1066,10 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}
 }
 
+func (i *gceInstance) progress(msg string) {
+	_, _ = i.progressWriter.Write([]byte(msg))
+}
+
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
 	if i.cachedIPAddr == "" {
 		err := i.refreshInstance(ctx)
@@ -1096,6 +1127,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 	var lastErr error
 
+	i.progress("• waiting for ssh connectivity")
 	go func() {
 		var errCount uint64
 		for {
@@ -1105,6 +1137,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 
 			err := i.uploadScriptAttempt(ctx, script)
 			if err == nil {
+				i.progress("\n✓ uploaded script\n")
 				uploadedChan <- nil
 				return
 			}
@@ -1117,6 +1150,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 				return
 			}
 
+			i.progress(".")
 			time.Sleep(i.provider.uploadRetrySleep)
 		}
 	}()
@@ -1142,6 +1176,7 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 
 	existed, err := conn.UploadFile("build.sh", script)
 	if existed {
+		i.progress("\n✗ existing script detected\n")
 		return ErrStaleVM
 	}
 	if err != nil {

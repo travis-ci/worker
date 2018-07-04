@@ -23,6 +23,10 @@ func newFakeProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &fakeProvider{cfg: cfg}, nil
 }
 
+func (p *fakeProvider) StartWithProgress(ctx context.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
 	var (
 		dur time.Duration

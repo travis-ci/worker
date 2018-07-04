@@ -211,6 +211,10 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 	}
 }
 
+func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	var (
 		imageName string

@@ -443,6 +443,10 @@ func (p *osProvider) waitForStatus(ctx gocontext.Context, id string, status stri
 	}
 }
 
+func (p *osProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_provider")
 

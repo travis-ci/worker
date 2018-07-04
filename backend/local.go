@@ -44,6 +44,10 @@ func newLocalProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &localProvider{cfg: cfg, scriptsDir: scriptsDir}, nil
 }
 
+func (p *localProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *localProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	return newLocalInstance(p)
 }

@@ -289,6 +289,10 @@ func (p *cbProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
+func (p *cbProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *cbProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/cloudbrain_provider")
 

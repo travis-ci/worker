@@ -342,6 +342,10 @@ func (p *dockerProvider) dockerImageNameForID(ctx gocontext.Context, imageID str
 	return imageID
 }
 
+func (p *dockerProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	var (
 		imageID   string
