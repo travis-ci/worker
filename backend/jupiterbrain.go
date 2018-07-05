@@ -211,7 +211,11 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 	}
 }
 
-func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+func (p *jupiterBrainProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
 	return p.Start(ctx, startAttributes)
 }
 
@@ -302,6 +306,10 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 
 func (p *jupiterBrainProvider) Setup(ctx gocontext.Context) error {
 	return nil
+}
+
+func (i *jupiterBrainInstance) SupportsProgress() bool {
+	return false
 }
 
 func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte) error {

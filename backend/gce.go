@@ -206,7 +206,7 @@ func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
 
 type gceStartContext struct {
 	startAttributes  *StartAttributes
-	progressWriter   io.Writer
+	progresser       Progresser
 	ctx              gocontext.Context
 	instChan         chan Instance
 	errChan          chan error
@@ -217,17 +217,13 @@ type gceStartContext struct {
 	instanceInsertOp *compute.Operation
 }
 
-func (sc *gceStartContext) progress(msg string) {
-	_, _ = sc.progressWriter.Write([]byte(msg))
-}
-
 type gceInstance struct {
 	client   *compute.Service
 	provider *gceProvider
 	instance *compute.Instance
 	ic       *gceInstanceConfig
 
-	progressWriter io.Writer
+	progresser Progresser
 
 	authUser     string
 	cachedIPAddr string
@@ -663,7 +659,11 @@ func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
 	return a, err
 }
 
-func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, progressWriter io.Writer) (Instance, error) {
+func (p *gceProvider) SupportsProgress() bool {
+	return true
+}
+
+func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, progresser Progresser) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
 	var (
@@ -684,7 +684,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 
 	c := &gceStartContext{
 		startAttributes: startAttributes,
-		progressWriter:  progressWriter,
+		progresser:      progresser,
 		ctx:             ctx,
 		instChan:        make(chan Instance),
 		errChan:         make(chan error),
@@ -721,26 +721,36 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.boot.timeout")
 		}
-		c.progress("\n✗ timeout waiting for instance to be ready\n")
+		c.progresser.Progress(&ProgressEntry{
+			Message:    "timeout waiting for instance to be ready",
+			State:      ProgressFailure,
+			Interrupts: true,
+		})
 		abandonedStart = true
 		return nil, ctx.Err()
 	}
 }
 
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	return p.StartWithProgress(ctx, startAttributes, ioutil.Discard)
+	return p.StartWithProgress(ctx, startAttributes, NewTextProgresser(ioutil.Discard))
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
 	if err != nil {
-		c.progress("✗ could not select image\n")
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not select image",
+			State:   ProgressFailure,
+		})
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.image = image
-	c.progress(fmt.Sprintf("✓ selected image %q\n", image.Name))
+	c.progresser.Progress(&ProgressEntry{
+		Message: fmt.Sprintf("selected image %q", image.Name),
+		State:   ProgressSuccess,
+	})
 	return multistep.ActionContinue
 }
 
@@ -753,13 +763,19 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 	}
 	err := gceStartupScript.Execute(&scriptBuf, scriptData)
 	if err != nil {
-		c.progress("✗ could not render startup script\n")
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not render startup script",
+			State:   ProgressFailure,
+		})
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.script = scriptBuf.String()
-	c.progress("✓ rendered startup script\n")
+	c.progresser.Progress(&ProgressEntry{
+		Message: "rendered startup script",
+		State:   ProgressSuccess,
+	})
 	return multistep.ActionContinue
 }
 
@@ -776,14 +792,20 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	p.apiRateLimit(c.ctx)
 	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Context(c.ctx).Do()
 	if err != nil {
-		c.progress("✗ could not insert instance\n")
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not insert instance",
+			State:   ProgressFailure,
+		})
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.instance = inst
 	c.instanceInsertOp = op
-	c.progress("✓ inserted instance\n")
+	c.progresser.Progress(&ProgressEntry{
+		Message: "inserted instance",
+		State:   ProgressSuccess,
+	})
 	return multistep.ActionContinue
 }
 
@@ -791,27 +813,42 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
 	logger.WithField("duration", p.bootPrePollSleep).Debug("sleeping before first checking instance insert operation")
-	c.progress(fmt.Sprintf("• sleeping %s before checking instance insert\n", p.bootPrePollSleep))
+	c.progresser.Progress(&ProgressEntry{
+		Message: fmt.Sprintf("sleeping %s before checking instance insert", p.bootPrePollSleep),
+		State:   ProgressNeutral,
+	})
 
 	time.Sleep(p.bootPrePollSleep)
 
 	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name).Context(c.ctx)
 
-	c.progress("• polling for instance insert completion")
+	c.progresser.Progress(&ProgressEntry{
+		Message:   "polling for instance insert completion...",
+		State:     ProgressNeutral,
+		Continues: true,
+	})
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
 		p.apiRateLimit(c.ctx)
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
-			c.progress("\n✗ could not check for instance insert\n")
+			c.progresser.Progress(&ProgressEntry{
+				Message:    "could not check for instance insert",
+				State:      ProgressFailure,
+				Interrupts: true,
+			})
 			c.errChan <- err
 			return multistep.ActionHalt
 		}
 
 		if newOp.Status == "RUNNING" || newOp.Status == "DONE" {
 			if newOp.Error != nil {
-				c.progress("\n✗ instance could not be inserted\n")
+				c.progresser.Progress(&ProgressEntry{
+					Message:    "instance could not be inserted",
+					State:      ProgressFailure,
+					Interrupts: true,
+				})
 				c.errChan <- &gceOpError{Err: newOp.Error}
 				return multistep.ActionHalt
 			}
@@ -821,20 +858,25 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				"name":   c.instanceInsertOp.Name,
 			}).Debug("instance is ready")
 
-			c.progress("\n✓ instance is ready\n")
+			startupDuration := time.Now().UTC().Sub(c.bootStart)
+			c.progresser.Progress(&ProgressEntry{
+				Message:    fmt.Sprintf("instance is ready (%s)", startupDuration.Truncate(time.Millisecond)),
+				State:      ProgressSuccess,
+				Interrupts: true,
+			})
 			c.instChan <- &gceInstance{
-				client:         p.client,
-				provider:       p,
-				instance:       c.instance,
-				ic:             p.ic,
-				progressWriter: c.progressWriter,
+				client:     p.client,
+				provider:   p,
+				instance:   c.instance,
+				ic:         p.ic,
+				progresser: c.progresser,
 
 				authUser: "travis",
 
 				projectID: p.projectID,
 				imageName: c.image.Name,
 
-				startupDuration: time.Now().UTC().Sub(c.bootStart),
+				startupDuration: startupDuration,
 			}
 			return multistep.ActionContinue
 		}
@@ -845,7 +887,11 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				"name": c.instanceInsertOp.Name,
 			}).Error("encountered an error while waiting for instance insert operation")
 
-			c.progress("\n✗ error while waiting for instance insert\n")
+			c.progresser.Progress(&ProgressEntry{
+				Message:    "error while waiting for instance insert",
+				State:      ProgressFailure,
+				Interrupts: true,
+			})
 			c.errChan <- &gceOpError{Err: newOp.Error}
 			return multistep.ActionHalt
 		}
@@ -856,7 +902,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			"duration": p.bootPollSleep,
 		}).Debug("sleeping before checking instance insert operation")
 
-		c.progress(".")
+		c.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 		time.Sleep(p.bootPollSleep)
 	}
 }
@@ -1066,10 +1112,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}
 }
 
-func (i *gceInstance) progress(msg string) {
-	_, _ = i.progressWriter.Write([]byte(msg))
-}
-
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
 	if i.cachedIPAddr == "" {
 		err := i.refreshInstance(ctx)
@@ -1123,11 +1165,21 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	return nil
 }
 
+func (i *gceInstance) SupportsProgress() bool {
+	return true
+}
+
 func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 	var lastErr error
 
-	i.progress("• waiting for ssh connectivity")
+	waitStart := time.Now().UTC()
+	i.progresser.Progress(&ProgressEntry{
+		Message:   "waiting for ssh connectivity...",
+		State:     ProgressNeutral,
+		Continues: true,
+	})
+
 	go func() {
 		var errCount uint64
 		for {
@@ -1137,7 +1189,16 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 
 			err := i.uploadScriptAttempt(ctx, script)
 			if err == nil {
-				i.progress("\n✓ uploaded script\n")
+				timeToSsh := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
+				i.progresser.Progress(&ProgressEntry{
+					Message:    fmt.Sprintf("ssh connectivity established (%s)", timeToSsh),
+					State:      ProgressSuccess,
+					Interrupts: true,
+				})
+				i.progresser.Progress(&ProgressEntry{
+					Message: "uploaded script",
+					State:   ProgressSuccess,
+				})
 				uploadedChan <- nil
 				return
 			}
@@ -1150,7 +1211,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 				return
 			}
 
-			i.progress(".")
+			i.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 			time.Sleep(i.provider.uploadRetrySleep)
 		}
 	}()
@@ -1176,7 +1237,11 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 
 	existed, err := conn.UploadFile("build.sh", script)
 	if existed {
-		i.progress("\n✗ existing script detected\n")
+		i.progresser.Progress(&ProgressEntry{
+			Message:    "existing script detected",
+			State:      ProgressFailure,
+			Interrupts: true,
+		})
 		return ErrStaleVM
 	}
 	if err != nil {

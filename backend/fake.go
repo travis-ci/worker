@@ -23,7 +23,11 @@ func newFakeProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &fakeProvider{cfg: cfg}, nil
 }
 
-func (p *fakeProvider) StartWithProgress(ctx context.Context, startAttributes *StartAttributes, _ io.Writer) (Instance, error) {
+func (p *fakeProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *fakeProvider) StartWithProgress(ctx context.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
 	return p.Start(ctx, startAttributes)
 }
 
@@ -49,6 +53,10 @@ type fakeInstance struct {
 	p *fakeProvider
 
 	startupDuration time.Duration
+}
+
+func (i *fakeInstance) SupportsProgress() bool {
+	return false
 }
 
 func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {

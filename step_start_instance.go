@@ -32,10 +32,20 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	startTime := time.Now()
 
-	writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\n"))
-	defer writeFoldEnd(logWriter, "step_start_instance", []byte("\n"))
+	var (
+		instance backend.Instance
+		err      error
+	)
 
-	instance, err := s.provider.StartWithProgress(ctx, buildJob.StartAttributes(), logWriter)
+	if s.provider.SupportsProgress() {
+		writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\r\n"))
+		defer writeFoldEnd(logWriter, "step_start_instance", []byte(""))
+
+		instance, err = s.provider.StartWithProgress(ctx, buildJob.StartAttributes(), backend.NewTextProgresser(logWriter))
+	} else {
+		instance, err = s.provider.Start(ctx, buildJob.StartAttributes())
+	}
+
 	if err != nil {
 		jobAbortErr, ok := errors.Cause(err).(workererrors.JobAbortError)
 		if ok {

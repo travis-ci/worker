@@ -72,7 +72,10 @@ type Provider interface {
 
 	// StartWithProgress starts an instance as with Start and also reports
 	// progress via an io.Writer.
-	StartWithProgress(gocontext.Context, *StartAttributes, io.Writer) (Instance, error)
+	StartWithProgress(gocontext.Context, *StartAttributes, Progresser) (Instance, error)
+
+	// SupportsProgress allows for querying of progress support, yeah!
+	SupportsProgress() bool
 }
 
 // An Instance is something that can run a build script.
@@ -95,6 +98,9 @@ type Instance interface {
 
 	// StartupDuration is the duration between "created" and "ready"
 	StartupDuration() time.Duration
+
+	// SupportsProgress allows for querying of progress support, yeah!
+	SupportsProgress() bool
 }
 
 // RunResult represents the result of running a script with Instance.RunScript.
