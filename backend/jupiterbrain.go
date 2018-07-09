@@ -308,9 +308,10 @@ func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAtt
 	}
 
 	progresser.Progress(&ProgressEntry{
-		Message:   "waiting for ssh connectivity...",
-		State:     ProgressNeutral,
-		Continues: true,
+		Message:    "waiting for ssh connectivity...",
+		State:      ProgressNeutral,
+		Interrupts: true,
+		Continues:  true,
 	})
 
 	// Wait for SSH to be ready
