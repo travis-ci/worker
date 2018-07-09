@@ -984,13 +984,11 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 
-	var (
-		zone     *compute.Zone
-		err      error
-		diskType string
-	)
+	var err error
 
-	zone = p.ic.Zone
+	zone := p.ic.Zone
+	diskType := p.ic.DiskType
+
 	if startAttributes.VMConfig.Zone != "" {
 		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
 		if err != nil {
