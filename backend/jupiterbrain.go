@@ -82,8 +82,9 @@ type jupiterBrainProvider struct {
 }
 
 type jupiterBrainInstance struct {
-	payload  *jupiterBrainInstancePayload
-	provider *jupiterBrainProvider
+	payload    *jupiterBrainInstancePayload
+	provider   *jupiterBrainProvider
+	progresser Progresser
 
 	startupDuration time.Duration
 }
@@ -212,14 +213,14 @@ func buildJupiterBrainImageSelector(selectorType string, cfg *config.ProviderCon
 }
 
 func (p *jupiterBrainProvider) SupportsProgress() bool {
-	return false
-}
-
-func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
-	return p.Start(ctx, startAttributes)
+	return true
 }
 
 func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+	return p.StartWithProgress(ctx, startAttributes, NewTextProgresser(nil))
+}
+
+func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, progresser Progresser) (Instance, error) {
 	var (
 		imageName string
 		err       error
@@ -230,9 +231,18 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 	} else {
 		imageName, err = p.getImageName(ctx, startAttributes)
 		if err != nil {
+			progresser.Progress(&ProgressEntry{
+				Message: "could not select image",
+				State:   ProgressFailure,
+			})
 			return nil, errors.Wrap(err, "couldn't get image name")
 		}
 	}
+
+	progresser.Progress(&ProgressEntry{
+		Message: fmt.Sprintf("selected image %q", imageName),
+		State:   ProgressSuccess,
+	})
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/jupiterbrain_provider")
 
@@ -250,43 +260,82 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 	// Start the instance
 	instancePayload, err := p.apiClient.Start(ctx, imageName)
 	if err != nil {
+		progresser.Progress(&ProgressEntry{
+			Message: "could not create instance",
+			State:   ProgressFailure,
+		})
 		return nil, errors.Wrap(err, "error creating instance in Jupiter Brain")
 	}
 
+	progresser.Progress(&ProgressEntry{
+		Message: "started instance",
+		State:   ProgressSuccess,
+	})
+
+	progresser.Progress(&ProgressEntry{
+		Message: fmt.Sprintf("sleeping %s before checking instance start", p.bootPollSleep),
+		State:   ProgressNeutral,
+	})
 	// Sleep to allow the new instance to be fully visible
 	time.Sleep(p.bootPollSleep)
 
+	progresser.Progress(&ProgressEntry{
+		Message:   "polling for instance start completion...",
+		State:     ProgressNeutral,
+		Continues: true,
+	})
+
 	// Wait for instance to get IP address
-	ip, payload, err := p.waitForIP(ctx, instancePayload.ID)
+	ip, payload, err := p.waitForIP(ctx, instancePayload.ID, progresser)
 	if err != nil {
 		if ctx.Err() == gocontext.DeadlineExceeded {
+			progresser.Progress(&ProgressEntry{
+				Message:    "timeout waiting for instance to be ready",
+				State:      ProgressFailure,
+				Interrupts: true,
+			})
 			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
 		}
 
 		instance := &jupiterBrainInstance{
-			payload:  instancePayload,
-			provider: p,
+			payload:    instancePayload,
+			provider:   p,
+			progresser: progresser,
 		}
 		instance.Stop(ctx)
 
 		return nil, err
 	}
+
+	progresser.Progress(&ProgressEntry{
+		Message:   "waiting for ssh connectivity...",
+		State:     ProgressNeutral,
+		Continues: true,
+	})
 
 	// Wait for SSH to be ready
-	err = p.waitForSSH(ctx, ip)
+	err = p.waitForSSH(ctx, ip, progresser)
 	if err != nil {
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.jupiterbrain.boot.timeout")
 		}
 
 		instance := &jupiterBrainInstance{
-			payload:  instancePayload,
-			provider: p,
+			payload:    instancePayload,
+			provider:   p,
+			progresser: progresser,
 		}
 		instance.Stop(ctx)
 
 		return nil, err
 	}
+	timeToSsh := time.Now().UTC().Sub(startBooting).Truncate(time.Millisecond)
+
+	progresser.Progress(&ProgressEntry{
+		Message:    fmt.Sprintf("instance is ready (%s)", timeToSsh),
+		State:      ProgressSuccess,
+		Interrupts: true,
+	})
 
 	metrics.TimeSince("worker.vm.provider.jupiterbrain.boot", startBooting)
 	normalizedImageName := string(metricNameCleanRegexp.ReplaceAll([]byte(imageName), []byte("-")))
@@ -298,8 +347,10 @@ func (p *jupiterBrainProvider) Start(ctx gocontext.Context, startAttributes *Sta
 	}
 
 	return &jupiterBrainInstance{
-		payload:         payload,
-		provider:        p,
+		payload:    payload,
+		provider:   p,
+		progresser: progresser,
+
 		startupDuration: time.Now().UTC().Sub(startBooting),
 	}, nil
 }
@@ -309,28 +360,57 @@ func (p *jupiterBrainProvider) Setup(ctx gocontext.Context) error {
 }
 
 func (i *jupiterBrainInstance) SupportsProgress() bool {
-	return false
+	return true
 }
 
 func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+	waitStart := time.Now().UTC()
+	i.progresser.Progress(&ProgressEntry{
+		Message:   "waiting for ssh connectivity...",
+		State:     ProgressNeutral,
+		Continues: true,
+	})
+
 	conn, err := i.sshConnection()
 	if err != nil {
 		return errors.Wrap(err, "couldn't connect to SSH server")
 	}
 	defer conn.Close()
 
+	timeToSsh := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
+	i.progresser.Progress(&ProgressEntry{
+		Message:    fmt.Sprintf("ssh connectivity established (%s)", timeToSsh),
+		State:      ProgressSuccess,
+		Interrupts: true,
+	})
+
 	existed, err := conn.UploadFile("build.sh", script)
 	if existed {
+		i.progresser.Progress(&ProgressEntry{
+			Message:    "existing script detected",
+			State:      ProgressFailure,
+			Interrupts: true,
+		})
 		return ErrStaleVM
 	}
 	if err != nil {
 		return errors.Wrap(err, "couldn't upload build script")
 	}
 
+	i.progresser.Progress(&ProgressEntry{
+		Message: "uploaded script",
+		State:   ProgressSuccess,
+	})
+
 	_, err = conn.UploadFile("wrapper.sh", []byte(wrapperSh))
 	if err != nil {
 		return errors.Wrap(err, "couldn't upload wrapper.sh script")
 	}
+
+	i.progresser.Progress(&ProgressEntry{
+		Message: "uploaded wrapper.sh script",
+		State:   ProgressSuccess,
+	})
 
 	return nil
 }
@@ -423,14 +503,25 @@ func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttribut
 	})
 }
 
-func (p *jupiterBrainProvider) waitForIP(ctx gocontext.Context, id string) (net.IP, *jupiterBrainInstancePayload, error) {
+func (p *jupiterBrainProvider) waitForIP(ctx gocontext.Context, id string, progresser Progresser) (net.IP, *jupiterBrainInstancePayload, error) {
 	for {
 		if ctx.Err() != nil {
+			progresser.Progress(&ProgressEntry{
+				Message:    "cancelling waiting for instance start",
+				State:      ProgressFailure,
+				Interrupts: true,
+			})
+
 			return nil, nil, errors.Errorf("cancelling waiting for instance to boot, was waiting for IP")
 		}
 
 		payload, err := p.apiClient.Get(ctx, id)
 		if err != nil {
+			progresser.Progress(&ProgressEntry{
+				Message:    "could not check for instance start",
+				State:      ProgressFailure,
+				Interrupts: true,
+			})
 			return nil, nil, errors.Wrap(err, "error trying to refresh instance waiting for IP address")
 		}
 
@@ -441,6 +532,7 @@ func (p *jupiterBrainProvider) waitForIP(ctx gocontext.Context, id string) (net.
 			}
 		}
 
+		progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 		select {
 		case <-time.After(p.bootPollSleep):
 		case <-ctx.Done():
@@ -448,7 +540,7 @@ func (p *jupiterBrainProvider) waitForIP(ctx gocontext.Context, id string) (net.
 	}
 }
 
-func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, ip net.IP) error {
+func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, ip net.IP, progresser Progresser) error {
 	for {
 		if ctx.Err() != nil {
 			return errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")
@@ -467,6 +559,7 @@ func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, ip net.IP) erro
 			return nil
 		}
 
+		progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 		select {
 		case <-time.After(p.bootPollSleep):
 		case <-ctx.Done():
