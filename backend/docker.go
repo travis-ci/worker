@@ -342,6 +342,14 @@ func (p *dockerProvider) dockerImageNameForID(ctx gocontext.Context, imageID str
 	return imageID
 }
 
+func (p *dockerProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *dockerProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	var (
 		imageID   string
@@ -584,6 +592,10 @@ func (i *dockerInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, e
 	time.Sleep(2 * time.Second)
 
 	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis", i.provider.sshDialTimeout)
+}
+
+func (i *dockerInstance) SupportsProgress() bool {
+	return false
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {
