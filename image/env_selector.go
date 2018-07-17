@@ -1,63 +1,35 @@
 package image
 
 import (
-	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/travis-ci/worker/config"
-)
-
-var (
-	nonAlphaNumRegexp = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
 )
 
 // EnvSelector implements Selector for environment-based mappings
 type EnvSelector struct {
 	c *config.ProviderConfig
 
-	imageAliases map[string]string
+	lookup map[string]string
 }
 
 // NewEnvSelector builds a new EnvSelector from the given *config.ProviderConfig
 func NewEnvSelector(c *config.ProviderConfig) (*EnvSelector, error) {
 	es := &EnvSelector{c: c}
-	err := es.buildImageAliasMap()
-	if err != nil {
-		return nil, err
-	}
+	es.buildLookup()
 	return es, nil
 }
 
-func (es *EnvSelector) buildImageAliasMap() error {
-	aliasNames := es.c.Get("IMAGE_ALIASES")
-
-	aliasNamesSlice := strings.Split(aliasNames, ",")
-
-	imageAliases := map[string]string{}
+func (es *EnvSelector) buildLookup() {
+	lookup := map[string]string{}
 
 	es.c.Each(func(key, value string) {
 		if strings.HasPrefix(key, "IMAGE_") {
-			imageAliases[strings.ToLower(strings.Replace(key, "IMAGE_", "", -1))] = value
+			lookup[strings.ToLower(strings.Replace(key, "IMAGE_", "", -1))] = value
 		}
 	})
 
-	for _, aliasName := range aliasNamesSlice {
-		normalizedAliasName := strings.ToUpper(string(nonAlphaNumRegexp.ReplaceAll([]byte(aliasName), []byte("_"))))
-		if len(normalizedAliasName) == 0 {
-			continue
-		}
-
-		key := fmt.Sprintf("IMAGE_ALIAS_%s", normalizedAliasName)
-		if !es.c.IsSet(key) {
-			return fmt.Errorf("missing config key %q", key)
-		}
-
-		imageAliases[aliasName] = es.c.Get(key)
-	}
-
-	es.imageAliases = imageAliases
-	return nil
+	es.lookup = lookup
 }
 
 func (es *EnvSelector) Select(params *Params) (string, error) {
@@ -68,13 +40,14 @@ func (es *EnvSelector) Select(params *Params) (string, error) {
 			continue
 		}
 
-		if s, ok := es.imageAliases[key]; ok {
+		if s, ok := es.lookup[key]; ok {
 			imageName = s
 			break
 		}
 	}
 
-	if selected, ok := es.imageAliases[imageName]; ok {
+	// check for one level of indirection
+	if selected, ok := es.lookup[imageName]; ok {
 		return selected, nil
 	}
 

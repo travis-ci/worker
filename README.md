@@ -66,34 +66,26 @@ Some backend providers supports image selection based on environment variables.
 The required format uses keys that are prefixed with the provider-specific
 prefix:
 
-- `TRAVIS_WORKER_{UPPERCASE_PROVIDER}_IMAGE_ALIASES`: comma-delimited strings used for
-  looking up full image name strings from other environment variables
-- `TRAVIS_WORKER_{UPPERCASE_PROVIDER}_IMAGE_ALIAS_{UPPERCASE_ALIAS}`: contains
-  an alias name which will be used to look up another environment variable, such
-as when routing multiple languages to the same image
-- `TRAVIS_WORKER_{UPPERCASE_PROVIDER}_IMAGE_{UPPERCASE_ALIAS}`: contains a full image name
+- `TRAVIS_WORKER_{UPPERCASE_PROVIDER}_IMAGE_{UPPERCASE_NAME}`: contains an image name
   string to be used by the backend provider
 
 The following example is for use with the Docker backend:
 
 ``` bash
-# declare aliases for `dist: trusty`, `os: linux`, and `group: dev`
-export TRAVIS_WORKER_DOCKER_IMAGE_ALIASES=dist_trusty,os_linux,group_dev
-export TRAVIS_WORKER_DOCKER_IMAGE_ALIAS_GROUP_DEV=bionic
-export TRAVIS_WORKER_DOCKER_IMAGE_ALIAS_DIST_TRUSTY=trusty
-export TRAVIS_WORKER_DOCKER_IMAGE_ALIAS_OS_LINUX=trusty
+# matches on `dist: trusty`
+export TRAVIS_WORKER_DOCKER_IMAGE_DIST_TRUSTY=travisci/ci-connie:packer-1420290255-fafafaf
 
-# resolves the above alias of `trusty`
-export TRAVIS_WORKER_DOCKER_IMAGE_TRUSTY=travisci/ci-connie:packer-1420290255-fafafaf
-
-# resolves the above alias of `bionic`
-export TRAVIS_WORKER_DOCKER_IMAGE_BIONIC=registry.business.com/fancy/ubuntu:bionic
-
-# resolves as the fallback default image
-export TRAVIS_WORKER_DOCKER_IMAGE_DEFAULT=travisci/ci-garnet:packer-1410230255-fafafaf
+# matches on `dist: bionic`
+export TRAVIS_WORKER_DOCKER_IMAGE_DIST_BIONIC=registry.business.com/fancy/ubuntu:bionic
 
 # resolves for `language: ruby`
-export TRAVIS_WORKER_DOCKER_IMAGE_LANGUAGE_RUBY=registry.business.com/travisci/ci-ruby:whatever
+export TRAVIS_WORKER_DOCKER_IMAGE_RUBY=registry.business.com/travisci/ci-ruby:whatever
+
+# resolves for `group: edge` + `language: python`
+export TRAVIS_WORKER_DOCKER_IMAGE_GROUP_EDGE_PYTHON=travisci/ci-garnet:packer-1530230255-fafafaf
+
+# used when no dist, language, or group matches
+export TRAVIS_WORKER_DOCKER_IMAGE_DEFAULT=travisci/ci-garnet:packer-1410230255-fafafaf
 ```
 
 
