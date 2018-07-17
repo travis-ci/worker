@@ -22,6 +22,7 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	logWriter := state.Get("logWriter").(LogWriter)
+	receivedAt := state.Get("receivedAt").(time.Time)
 
 	instance := state.Get("instance").(backend.Instance)
 	script := state.Get("script").([]byte)
@@ -58,7 +59,9 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	logger.Info("uploaded script")
+	logger.WithFields(logrus.Fields{
+		"since_received_ms": time.Since(receivedAt).Seconds() * 1e3,
+	}).Info("uploaded script")
 
 	return multistep.ActionContinue
 }

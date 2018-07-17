@@ -2,6 +2,7 @@ package worker
 
 import (
 	gocontext "context"
+	"time"
 
 	"github.com/mitchellh/multistep"
 	"github.com/sirupsen/logrus"
@@ -15,6 +16,9 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
+	receivedAt := state.Get("receivedAt").(time.Time)
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
 
 	instanceID := instance.ID()
 	if instanceID != "" {
@@ -31,6 +35,11 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 		}).Error("couldn't mark job as started")
 	}
 
+	logger.WithFields(logrus.Fields{
+		"since_received_ms": time.Since(receivedAt).Seconds() * 1e3,
+		"action":            "run",
+	}).Info("marked job as started")
+
 	return multistep.ActionContinue
 }
 
@@ -38,6 +47,7 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	buildJob := state.Get("buildJob").(Job)
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
+	receivedAt := state.Get("receivedAt").(time.Time)
 
 	instance := state.Get("instance").(backend.Instance)
 	instanceID := instance.ID()
@@ -45,6 +55,12 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 		ctx = context.FromInstanceID(ctx, instanceID)
 		state.Put("ctx", ctx)
 	}
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
+	logger.WithFields(logrus.Fields{
+		"since_received_ms": time.Since(receivedAt).Seconds() * 1e3,
+		"action":            "cleanup",
+	}).Info("cleaning up")
 
 	mresult, ok := state.GetOk("scriptResult")
 
