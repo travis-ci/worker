@@ -24,9 +24,9 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
-	"github.com/mihasya/go-metrics-librato"
+	librato "github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
@@ -56,6 +56,7 @@ type CLI struct {
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
 	JobQueue                JobQueue
+	LogsQueue               LogsQueue
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
@@ -183,6 +184,12 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
+	err = i.setupLogsQueue()
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't create logs queue")
+		return false, err
+	}
+
 	return true, nil
 }
 
@@ -204,8 +211,9 @@ func (i *CLI) Run() {
 	go i.signalHandler()
 
 	i.logger.WithFields(logrus.Fields{
-		"pool_size": i.Config.PoolSize,
-		"queue":     i.JobQueue,
+		"pool_size":  i.Config.PoolSize,
+		"queue":      i.JobQueue,
+		"logs_queue": i.LogsQueue,
 	}).Debug("running pool")
 
 	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
@@ -213,6 +221,13 @@ func (i *CLI) Run() {
 	err := i.JobQueue.Cleanup()
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
+	}
+
+	if i.LogsQueue != nil {
+		err := i.LogsQueue.Cleanup()
+		if err != nil {
+			i.logger.WithField("err", err).Error("couldn't clean up logs queue")
+		}
 	}
 }
 
@@ -605,14 +620,26 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 			}
 			cfg.RootCAs.AppendCertsFromPEM(cert)
 		}
-		amqpConn, err = amqp.DialTLS(i.Config.AmqpURI, cfg)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: cfg,
+			})
 	} else if i.Config.AmqpInsecure {
-		amqpConn, err = amqp.DialTLS(
+		amqpConn, err = amqp.DialConfig(
 			i.Config.AmqpURI,
-			&tls.Config{InsecureSkipVerify: true},
-		)
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			})
 	} else {
-		amqpConn, err = amqp.Dial(i.Config.AmqpURI)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat: i.Config.AmqpHeartbeat,
+				Locale:    "en_US",
+			})
 	}
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't connect to AMQP")
@@ -626,7 +653,12 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
 	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
-	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName)
+	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
+
+	// Set the consumer priority directly instead of altering the signature of
+	// NewAMQPJobQueue :sigh_cat:
+	jobQueue.priority = i.Config.AmqpConsumerPriority
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -675,6 +707,63 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 	jobQueue.DefaultOS = i.Config.DefaultOS
 
 	return jobQueue, nil
+}
+
+func (i *CLI) setupLogsQueue() error {
+	if i.Config.LogsAmqpURI == "" {
+		// If no separate URI is set for LogsAMQP, use the JobsQueue to send log parts
+		return nil
+	}
+	err := i.buildAMQPLogsQueue()
+	return err
+}
+
+func (i *CLI) buildAMQPLogsQueue() error {
+	var amqpConn *amqp.Connection
+	var err error
+
+	if i.Config.LogsAmqpTlsCert != "" || i.Config.LogsAmqpTlsCertPath != "" {
+		cfg := new(tls.Config)
+		cfg.RootCAs = x509.NewCertPool()
+		if i.Config.LogsAmqpTlsCert != "" {
+			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.LogsAmqpTlsCert))
+		}
+		if i.Config.LogsAmqpTlsCertPath != "" {
+			cert, err := ioutil.ReadFile(i.Config.LogsAmqpTlsCertPath)
+			if err != nil {
+				return err
+			}
+			cfg.RootCAs.AppendCertsFromPEM(cert)
+		}
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: cfg,
+			})
+	} else if i.Config.AmqpInsecure {
+		amqpConn, err = amqp.DialConfig(
+			i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			})
+	} else {
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat: i.Config.AmqpHeartbeat,
+				Locale:    "en_US",
+			})
+	}
+	if err != nil {
+		i.logger.WithField("err", err).Error("couldn't connect to the logs AMQP server")
+		return err
+	}
+
+	go i.amqpErrorWatcher(amqpConn)
+	i.logger.Debug("connected to the logs AMQP server")
+	return nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {

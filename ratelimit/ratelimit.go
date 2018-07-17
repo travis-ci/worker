@@ -69,7 +69,7 @@ func NewNullRateLimiter() RateLimiter {
 	return nullRateLimiter{}
 }
 
-// BUG(henrikhodne): The Redis rate limiter is known to let through too many
+// BUG(sarahhodne): The Redis rate limiter is known to let through too many
 // requests when there are many clients talking to the same Redis. The reason
 // for this is unknown, but it's probably wise to limit the number of clients
 // to 5 or 6 for the time being.

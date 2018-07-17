@@ -7,6 +7,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/Jeffail/tunny"
 	"github.com/bitly/go-simplejson"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -17,7 +18,7 @@ import (
 
 type amqpJob struct {
 	conn            *amqp.Connection
-	stateUpdateChan *amqp.Channel
+	stateUpdatePool *tunny.Pool
 	logWriterChan   *amqp.Channel
 	delivery        amqp.Delivery
 	payload         *JobPayload
@@ -27,6 +28,7 @@ type amqpJob struct {
 	started         time.Time
 	finished        time.Time
 	stateCount      uint
+	withLogSharding bool
 }
 
 func (j *amqpJob) GoString() string {
@@ -130,7 +132,7 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout)
+	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout, j.withLogSharding)
 }
 
 func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
@@ -163,29 +165,88 @@ func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map
 }
 
 func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
-	j.stateCount++
-	body := j.createStateUpdateBody(ctx, state)
-
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-
-	return j.stateUpdateChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
-		ContentType:  "application/json",
-		DeliveryMode: amqp.Persistent,
-		Timestamp:    time.Now().UTC(),
-		Type:         event,
-		Body:         bodyBytes,
+	err := j.stateUpdatePool.Process(&amqpStateUpdatePayload{
+		job:   j,
+		ctx:   ctx,
+		event: event,
+		state: state,
+		body:  j.createStateUpdateBody(ctx, state),
 	})
+
+	if err == nil {
+		return nil
+	}
+
+	return err.(error)
 }
 
 func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context { return ctx }
 
 func (j *amqpJob) Name() string { return "amqp" }
+
+type amqpStateUpdatePayload struct {
+	job   *amqpJob
+	ctx   gocontext.Context
+	event string
+	state string
+	body  map[string]interface{}
+}
+
+type amqpStateUpdateWorker struct {
+	stateUpdateChan *amqp.Channel
+	ctx             gocontext.Context
+	cancel          gocontext.CancelFunc
+}
+
+func (w *amqpStateUpdateWorker) Process(payload interface{}) interface{} {
+	p := payload.(*amqpStateUpdatePayload)
+	ctx, cancel := gocontext.WithCancel(p.ctx)
+
+	w.ctx = ctx
+	w.cancel = cancel
+
+	return w.sendStateUpdate(p)
+}
+
+func (w *amqpStateUpdateWorker) BlockUntilReady() {
+	// we do not need to perform any warm-up before processing jobs.
+	// Process() will block for the duration of the job itself.
+}
+
+func (w *amqpStateUpdateWorker) Interrupt() {
+	w.cancel()
+}
+
+func (w *amqpStateUpdateWorker) Terminate() {
+	err := w.stateUpdateChan.Close()
+	if err != nil {
+		time.Sleep(time.Minute)
+		logrus.WithFields(logrus.Fields{
+			"self": "amqp_state_update_worker",
+			"err":  err,
+		}).Panic("timed out waiting for shutdown after amqp connection error")
+	}
+}
+
+func (w *amqpStateUpdateWorker) sendStateUpdate(payload *amqpStateUpdatePayload) error {
+	select {
+	case <-w.ctx.Done():
+		return w.ctx.Err()
+	default:
+	}
+
+	payload.job.stateCount++
+
+	bodyBytes, err := json.Marshal(payload.body)
+	if err != nil {
+		return err
+	}
+
+	return w.stateUpdateChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Timestamp:    time.Now().UTC(),
+		Type:         payload.event,
+		Body:         bodyBytes,
+	})
+}

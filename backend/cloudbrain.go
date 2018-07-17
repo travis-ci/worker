@@ -289,6 +289,14 @@ func (p *cbProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
+func (p *cbProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *cbProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *cbProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/cloudbrain_provider")
 
@@ -499,6 +507,10 @@ func (i *cbInstance) refreshInstance(ctx gocontext.Context) error {
 
 	i.instance = inst
 	return nil
+}
+
+func (i *cbInstance) SupportsProgress() bool {
+	return false
 }
 
 func (i *cbInstance) UploadScript(ctx gocontext.Context, script []byte) error {

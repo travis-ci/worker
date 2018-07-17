@@ -21,6 +21,8 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
+	logWriter := state.Get("logWriter").(LogWriter)
+	processedAt := state.Get("processedAt").(time.Time)
 
 	instance := state.Get("instance").(backend.Instance)
 	script := state.Get("script").([]byte)
@@ -29,6 +31,11 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx, cancel := gocontext.WithTimeout(ctx, s.uploadTimeout)
 	defer cancel()
+
+	if instance.SupportsProgress() {
+		writeFoldStart(logWriter, "step_upload_script", []byte("\033[33;1mUploading script\033[0m\r\n"))
+		defer writeFoldEnd(logWriter, "step_upload_script", []byte(""))
+	}
 
 	err := instance.UploadScript(ctx, script)
 	if err != nil {
@@ -52,7 +59,9 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	logger.Info("uploaded script")
+	logger.WithFields(logrus.Fields{
+		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
+	}).Info("uploaded script")
 
 	return multistep.ActionContinue
 }

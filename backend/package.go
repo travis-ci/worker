@@ -69,6 +69,13 @@ type Provider interface {
 	// ready to call UploadScript on (this may, for example, mean that it
 	// waits for SSH connections to be possible).
 	Start(gocontext.Context, *StartAttributes) (Instance, error)
+
+	// StartWithProgress starts an instance as with Start and also reports
+	// progress via an io.Writer.
+	StartWithProgress(gocontext.Context, *StartAttributes, Progresser) (Instance, error)
+
+	// SupportsProgress allows for querying of progress support, yeah!
+	SupportsProgress() bool
 }
 
 // An Instance is something that can run a build script.
@@ -91,6 +98,9 @@ type Instance interface {
 
 	// StartupDuration is the duration between "created" and "ready"
 	StartupDuration() time.Duration
+
+	// SupportsProgress allows for querying of progress support, yeah!
+	SupportsProgress() bool
 }
 
 // RunResult represents the result of running a script with Instance.RunScript.

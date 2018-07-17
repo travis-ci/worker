@@ -50,18 +50,35 @@ var (
 			Value: defaultQueueType,
 			Usage: `The name of the queue type to use ("amqp", "http", or "file")`,
 		}),
+		NewConfigDef("AmqpHeartbeat", &cli.DurationFlag{
+			Value: 10 * time.Second,
+			Usage: "The heartbeat timeout value defines after what time the peer TCP connection should be considered unreachable",
+		}),
+		NewConfigDef("AmqpConsumerPriority", &cli.IntFlag{
+			Value: 0,
+			Usage: "The consumer priority to set when consuming jobs",
+		}),
 		NewConfigDef("AmqpURI", &cli.StringFlag{
 			Value: defaultAmqpURI,
 			Usage: `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
+		}),
+		NewConfigDef("LogsAmqpURI", &cli.StringFlag{
+			Usage: `The URI to the Logs AMQP server to connect to (only valid for "amqp" queue type)`,
 		}),
 		NewConfigDef("AmqpInsecure", &cli.BoolFlag{
 			Usage: `Whether to connect to the AMQP server without verifying TLS certificates (only valid for "amqp" queue type)`,
 		}),
 		NewConfigDef("AmqpTlsCert", &cli.StringFlag{
-			Usage: `The TLS certificate used to connet to the AMQP server`,
+			Usage: `The TLS certificate used to connet to the jobs AMQP server`,
 		}),
 		NewConfigDef("AmqpTlsCertPath", &cli.StringFlag{
-			Usage: `Path to the TLS certificate used to connet to the AMQP server`,
+			Usage: `Path to the TLS certificate used to connet to the jobs AMQP server`,
+		}),
+		NewConfigDef("LogsAmqpTlsCert", &cli.StringFlag{
+			Usage: `The TLS certificate used to connet to the logs AMQP server`,
+		}),
+		NewConfigDef("LogsAmqpTlsCertPath", &cli.StringFlag{
+			Usage: `Path to the TLS certificate used to connet to the logs AMQP server`,
 		}),
 		NewConfigDef("BaseDir", &cli.StringFlag{
 			Value: defaultBaseDir,
@@ -154,6 +171,17 @@ var (
 		}),
 		NewConfigDef("TravisSite", &cli.StringFlag{
 			Usage: "Either 'org' or 'com', used for job-board",
+		}),
+		NewConfigDef("StateUpdatePoolSize", &cli.IntFlag{
+			Usage: "The pool size for state update workers",
+			Value: 3,
+		}),
+		NewConfigDef("LogPoolSize", &cli.IntFlag{
+			Usage: "The pool size for log workers",
+			Value: 3,
+		}),
+		NewConfigDef("RabbitMQSharding", &cli.BoolFlag{
+			Usage: "Enable sharding for the logs AMQP queue",
 		}),
 
 		// build script generator flags
@@ -305,27 +333,36 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	ProviderName    string `config:"provider-name"`
-	QueueType       string `config:"queue-type"`
-	AmqpURI         string `config:"amqp-uri"`
-	AmqpInsecure    bool   `config:"amqp-insecure"`
-	AmqpTlsCert     string `config:"amqp-tls-cert"`
-	AmqpTlsCertPath string `config:"amqp-tls-cert-path"`
-	BaseDir         string `config:"base-dir"`
-	PoolSize        int    `config:"pool-size"`
-	BuildAPIURI     string `config:"build-api-uri"`
-	QueueName       string `config:"queue-name"`
-	LibratoEmail    string `config:"librato-email"`
-	LibratoToken    string `config:"librato-token"`
-	LibratoSource   string `config:"librato-source"`
-	SentryDSN       string `config:"sentry-dsn"`
-	Hostname        string `config:"hostname"`
-	DefaultLanguage string `config:"default-language"`
-	DefaultDist     string `config:"default-dist"`
-	DefaultGroup    string `config:"default-group"`
-	DefaultOS       string `config:"default-os"`
-	JobBoardURL     string `config:"job-board-url"`
-	TravisSite      string `config:"travis-site"`
+	ProviderName         string        `config:"provider-name"`
+	QueueType            string        `config:"queue-type"`
+	AmqpURI              string        `config:"amqp-uri"`
+	AmqpInsecure         bool          `config:"amqp-insecure"`
+	AmqpTlsCert          string        `config:"amqp-tls-cert"`
+	AmqpTlsCertPath      string        `config:"amqp-tls-cert-path"`
+	AmqpHeartbeat        time.Duration `config:"amqp-heartbeat"`
+	AmqpConsumerPriority int           `config:"amqp-consumer-priority"`
+	BaseDir              string        `config:"base-dir"`
+	PoolSize             int           `config:"pool-size"`
+	BuildAPIURI          string        `config:"build-api-uri"`
+	QueueName            string        `config:"queue-name"`
+	LibratoEmail         string        `config:"librato-email"`
+	LibratoToken         string        `config:"librato-token"`
+	LibratoSource        string        `config:"librato-source"`
+	LogsAmqpURI          string        `config:"logs-amqp-uri"`
+	LogsAmqpTlsCert      string        `config:"logs-amqp-tls-cert"`
+	LogsAmqpTlsCertPath  string        `config:"logs-amqp-tls-cert-path"`
+	SentryDSN            string        `config:"sentry-dsn"`
+	Hostname             string        `config:"hostname"`
+	DefaultLanguage      string        `config:"default-language"`
+	DefaultDist          string        `config:"default-dist"`
+	DefaultGroup         string        `config:"default-group"`
+	DefaultOS            string        `config:"default-os"`
+	JobBoardURL          string        `config:"job-board-url"`
+	TravisSite           string        `config:"travis-site"`
+	RabbitMQSharding     bool          `config:"rabbitmq-sharding"`
+
+	StateUpdatePoolSize int `config:"state-update-pool-size"`
+	LogPoolSize         int `config:"log-pool-size"`
 
 	FilePollingInterval      time.Duration `config:"file-polling-interval"`
 	HTTPPollingInterval      time.Duration `config:"http-polling-interval"`

@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel, *amqp.Channel) {
+func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
 	if os.Getenv("AMQP_URI") == "" {
 		t.Skip("skipping amqp test since there is no AMQP_URI")
 	}
@@ -24,7 +24,7 @@ func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel, *amqp.Channel
 
 	err = logChan.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
 	if err != nil {
-		return nil, nil, nil
+		return nil, nil
 	}
 	_, err = logChan.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
 	if err != nil {
@@ -33,7 +33,7 @@ func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel, *amqp.Channel
 
 	err = logChan.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
 	if err != nil {
-		return nil, nil, nil
+		return nil, nil
 	}
 
 	_, err = logChan.QueuePurge("reporting.jobs.logs", false)
@@ -41,15 +41,5 @@ func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel, *amqp.Channel
 		t.Error(err)
 	}
 
-	stateChan, err := amqpConn.Channel()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = stateChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return nil, nil, nil
-	}
-
-	return amqpConn, logChan, stateChan
+	return amqpConn, logChan
 }

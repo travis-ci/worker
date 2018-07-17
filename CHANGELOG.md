@@ -17,6 +17,57 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.11.0] - 2018-07-12
+
+### Added
+- backend/gce, backend/jupiterbrain: incremental progress reporting during
+    instance startup
+
+## [3.10.1] - 2018-07-06
+
+### Fixed
+- backend/gce: use default disk type when no zone is given via VM config
+
+## [3.10.0] - 2018-07-03
+
+### Added
+- backend/gce: support for GPU allocation via VM config
+
+## [3.9.0] - 2018-07-02
+
+### Added
+- support for a sharded logs queue (using the rabbitmq-sharding plugin)
+
+## [3.8.2] - 2018-06-21
+
+### Added
+- amqp-job-queue: support for setting priority when consuming jobs via
+  `x-priority` argument
+
+## [3.8.1] - 2018-06-20
+
+### Added
+- cli: create a LogQueue that connects to a separate AMQP server, to prepare for
+  splitting the build logs from the current JobQueue
+
+### Changed
+- cli: the connection to the AMQP server now uses a configurable AmqpHeartbeat
+  option
+- Makefile: log output from building or running the tests is now less verbose
+
+### Fixed
+- backend/docker_test: check for EOF instead of Nil for archive/tar errors 
+
+## [3.8.0] - 2018-05-31
+
+### Added
+- amqp-job-queue: pool state updates instead of creating an amqp channel per
+    processor
+
+### Fixed
+- backend/gce: disable automatic restart
+- backend/gce: pass context to all GCE API calls
+
 ## [3.7.0] - 2018-04-17
 
 ### Added
@@ -668,7 +719,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.7.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.11.0...HEAD
+[3.11.0]: https://github.com/travis-ci/worker/compare/v3.10.1...v3.11.0
+[3.10.1]: https://github.com/travis-ci/worker/compare/v3.10.0...v3.10.1
+[3.10.0]: https://github.com/travis-ci/worker/compare/v3.9.0...v3.10.0
+[3.9.0]: https://github.com/travis-ci/worker/compare/v3.8.2...v3.9.0
+[3.8.2]: https://github.com/travis-ci/worker/compare/v3.8.1...v3.8.2
+[3.8.1]: https://github.com/travis-ci/worker/compare/v3.8.0...v3.8.1
+[3.8.0]: https://github.com/travis-ci/worker/compare/v3.7.0...v3.8.0
 [3.7.0]: https://github.com/travis-ci/worker/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/travis-ci/worker/compare/v3.5.0...v3.6.0
 [3.5.0]: https://github.com/travis-ci/worker/compare/v3.4.0...v3.5.0

@@ -71,6 +71,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		"--librato-email=email",
 		"--librato-source=source",
 		"--librato-token=token",
+		"--logs-amqp-uri=amqp://logs",
 		"--provider-name=provider",
 		"--queue-name=name",
 		"--queue-type=type",
@@ -97,6 +98,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		assert.Equal(t, "email", cfg.LibratoEmail, "LibratoEmail")
 		assert.Equal(t, "source", cfg.LibratoSource, "LibratoSource")
 		assert.Equal(t, "token", cfg.LibratoToken, "LibratoToken")
+		assert.Equal(t, "amqp://logs", cfg.LogsAmqpURI, "LogsAmqpURI")
 		assert.Equal(t, "provider", cfg.ProviderName, "ProviderName")
 		assert.Equal(t, "name", cfg.QueueName, "QueueName")
 		assert.Equal(t, "type", cfg.QueueType, "QueueType")

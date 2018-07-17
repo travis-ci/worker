@@ -482,8 +482,9 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 	buildJob.rawPayload = rawPayload.Get("data")
 
 	buildJob.startAttributes = startAttrs.Data.Config
+	buildJob.startAttributes.VMConfig = buildJob.payload.Data.VMConfig
 	buildJob.startAttributes.VMType = buildJob.payload.Data.VMType
-	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
+	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 
 	return buildJob, readyChan, nil
 }
