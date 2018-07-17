@@ -16,7 +16,7 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
-	receivedAt := state.Get("receivedAt").(time.Time)
+	processedAt := state.Get("processedAt").(time.Time)
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
 
@@ -36,8 +36,8 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	}
 
 	logger.WithFields(logrus.Fields{
-		"since_received_ms": time.Since(receivedAt).Seconds() * 1e3,
-		"action":            "run",
+		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
+		"action":             "run",
 	}).Info("marked job as started")
 
 	return multistep.ActionContinue
@@ -47,7 +47,7 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	buildJob := state.Get("buildJob").(Job)
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
-	receivedAt := state.Get("receivedAt").(time.Time)
+	processedAt := state.Get("processedAt").(time.Time)
 
 	instance := state.Get("instance").(backend.Instance)
 	instanceID := instance.ID()
@@ -58,8 +58,8 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
 	logger.WithFields(logrus.Fields{
-		"since_received_ms": time.Since(receivedAt).Seconds() * 1e3,
-		"action":            "cleanup",
+		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
+		"action":             "cleanup",
 	}).Info("cleaning up")
 
 	mresult, ok := state.GetOk("scriptResult")

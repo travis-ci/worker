@@ -210,7 +210,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("buildJob", buildJob)
 	state.Put("procCtx", buildJob.SetupContext(p.ctx))
 	state.Put("ctx", buildJob.SetupContext(ctx))
-	state.Put("receivedAt", time.Now().UTC())
+	state.Put("processedAt", time.Now().UTC())
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,
