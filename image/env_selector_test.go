@@ -15,19 +15,21 @@ var (
 	}{
 		{
 			E: map[string]string{
-				"IMAGE_DEFAULT":         "travis:default",
-				"IMAGE_DEFAULT_LINUX":   "travis:linux",
-				"IMAGE_DIST_XENIAL":     "travis:xenial",
-				"IMAGE_GROUP_EDGE":      "travis:edge",
-				"IMAGE_GROUP_EDGE_RUBY": "travis:ruby9001",
-				"IMAGE_LANGUAGE_RUBY":   "travis:ruby8999",
-				"IMAGE_PYTHON":          "travis:python",
+				"IMAGE_DEFAULT":            "travis:default",
+				"IMAGE_LINUX":              "travis:linux",
+				"IMAGE_DIST_XENIAL":        "travis:xenial",
+				"IMAGE_DIST_XENIAL_PYTHON": "travis:py3k",
+				"IMAGE_GROUP_EDGE":         "travis:edge",
+				"IMAGE_GROUP_EDGE_RUBY":    "travis:ruby9001",
+				"IMAGE_LANGUAGE_RUBY":      "travis:ruby8999",
+				"IMAGE_PYTHON":             "travis:python",
 			},
 			O: []*testEnvCase{
 				{E: "travis:default", P: &Params{Language: "clojure"}},
 				{E: "travis:default", P: &Params{Language: "java"}},
 				{E: "travis:edge", P: &Params{Language: "java", Group: "edge"}},
 				{E: "travis:linux", P: &Params{Language: "bf", Group: "wat", OS: "linux"}},
+				{E: "travis:py3k", P: &Params{Language: "python", Dist: "xenial"}},
 				{E: "travis:ruby8999", P: &Params{Language: "ruby"}},
 				{E: "travis:ruby9001", P: &Params{Language: "ruby", Group: "edge"}},
 				{E: "travis:xenial", P: &Params{Language: "java", Dist: "xenial"}},

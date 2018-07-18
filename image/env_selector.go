@@ -50,7 +50,6 @@ func (es *EnvSelector) Select(params *Params) (string, error) {
 	if selected, ok := es.lookup[imageName]; ok {
 		return selected, nil
 	}
-
 	return imageName, nil
 }
 
@@ -58,67 +57,60 @@ func (es *EnvSelector) buildCandidateKeys(params *Params) []string {
 	fullKey := []string{}
 	candidateKeys := []string{}
 
-	addKey := func(key string, addToFull bool) {
-		if addToFull {
-			fullKey = append(fullKey, key)
-		}
-		candidateKeys = append(candidateKeys, key)
-	}
-
 	hasLang := params.Language != ""
-	needsOS := true
-	needsLangSuffix := false
+	hasDist := params.Dist != ""
+	hasGroup := params.Group != ""
+	hasOS := params.OS != ""
 
-	if params.OS == "osx" && params.OsxImage != "" && hasLang {
-		addKey("osx_image_"+params.OsxImage, true)
-		needsOS = false
-		needsLangSuffix = true
-	}
-
-	if params.Dist != "" && hasLang {
-		addKey("dist_"+params.Dist, true)
-		needsLangSuffix = true
-	}
-
-	if params.Group != "" && hasLang {
-		addKey("group_"+params.Group+"_"+params.Language, false)
-		addKey("group_"+params.Group, true)
-		needsLangSuffix = true
-	}
-
-	if params.OS != "" && hasLang {
-		if needsOS {
-			addKey(params.OS, true)
-			addKey("os_"+params.OS, false)
+	if params.OS == "osx" && params.OsxImage != "" {
+		if hasLang {
+			candidateKeys = append(candidateKeys, "osx_image_"+params.OsxImage+"_"+params.Language)
 		}
-		needsLangSuffix = true
+		candidateKeys = append(candidateKeys, "osx_image_"+params.OsxImage)
+	}
+
+	if hasDist && hasGroup && hasLang {
+		candidateKeys = append(candidateKeys, "dist_"+params.Dist+"_group_"+params.Group+"_"+params.Language)
+		candidateKeys = append(candidateKeys, params.Dist+"_"+params.Group+"_"+params.Language)
+	}
+
+	if hasDist && hasLang {
+		candidateKeys = append(candidateKeys, "dist_"+params.Dist+"_"+params.Language)
+		candidateKeys = append(candidateKeys, params.Dist+"_"+params.Language)
+	}
+
+	if hasGroup && hasLang {
+		candidateKeys = append(candidateKeys, "group_"+params.Group+"_"+params.Language)
+		candidateKeys = append(candidateKeys, params.Group+"_"+params.Language)
+	}
+
+	if hasOS && hasLang {
+		candidateKeys = append(candidateKeys, "os_"+params.OS+"_"+params.Language)
+		candidateKeys = append(candidateKeys, params.OS+"_"+params.Language)
+	}
+
+	if hasDist {
+		candidateKeys = append(candidateKeys, "default_dist_"+params.Dist)
+		candidateKeys = append(candidateKeys, "dist_"+params.Dist)
+		candidateKeys = append(candidateKeys, params.Dist)
+	}
+
+	if hasGroup {
+		candidateKeys = append(candidateKeys, "default_group_"+params.Group)
+		candidateKeys = append(candidateKeys, "group_"+params.Group)
+		candidateKeys = append(candidateKeys, params.Group)
 	}
 
 	if hasLang {
-		if needsLangSuffix {
-			addKey(params.Language, true)
-			addKey("language_"+params.Language, false)
-		} else {
-			addKey("language_"+params.Language, true)
-		}
+		candidateKeys = append(candidateKeys, "language_"+params.Language)
+		candidateKeys = append(candidateKeys, params.Language)
+		candidateKeys = append(candidateKeys, params.Language)
 	}
 
-	if params.OS == "osx" && params.OsxImage != "" {
-		addKey("osx_image_"+params.OsxImage, false)
-	}
-
-	if params.Dist != "" {
-		addKey("dist_"+params.Dist, false)
-	}
-
-	if params.Group != "" {
-		addKey("group_"+params.Group, false)
-	}
-
-	if params.OS != "" {
-		addKey(params.OS, false)
-		addKey("default_"+params.OS, false)
-		addKey(params.OS, false)
+	if hasOS {
+		candidateKeys = append(candidateKeys, "default_os_"+params.OS)
+		candidateKeys = append(candidateKeys, "os_"+params.OS)
+		candidateKeys = append(candidateKeys, params.OS)
 	}
 
 	return append([]string{strings.Join(fullKey, "_")}, candidateKeys...)
