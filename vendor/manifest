@@ -324,7 +324,16 @@
 			"vcs": "git",
 			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
 			"branch": "master",
-			"path": "/internal/chacha20",
+			"path": "internal/chacha20",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/internal/subtle",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
+			"branch": "master",
+			"path": "internal/subtle",
 			"notests": true
 		},
 		{
@@ -333,7 +342,7 @@
 			"vcs": "git",
 			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
 			"branch": "master",
-			"path": "/poly1305",
+			"path": "poly1305",
 			"notests": true
 		},
 		{
@@ -342,7 +351,7 @@
 			"vcs": "git",
 			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
 			"branch": "master",
-			"path": "ssh",
+			"path": "/ssh",
 			"notests": true
 		},
 		{
