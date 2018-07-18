@@ -653,7 +653,11 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
 	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
-	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
+	if i.Config.LogsAmqpURI == "" {
+		jobQueue, err := NewAMQPJobQueueWithLogs(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
+	} else {
+		jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize)
+	}
 
 	// Set the consumer priority directly instead of altering the signature of
 	// NewAMQPJobQueue :sigh_cat:
@@ -714,8 +718,12 @@ func (i *CLI) setupLogsQueue() error {
 		// If no separate URI is set for LogsAMQP, use the JobsQueue to send log parts
 		return nil
 	}
-	err := i.buildAMQPLogsQueue()
-	return err
+	logsQueue, err := i.buildAMQPLogsQueue()
+	if err != nil {
+		return err
+	}
+	i.LogsQueue = logsQueue
+	return nil
 }
 
 func (i *CLI) buildAMQPLogsQueue() error {
@@ -763,7 +771,12 @@ func (i *CLI) buildAMQPLogsQueue() error {
 
 	go i.amqpErrorWatcher(amqpConn)
 	i.logger.Debug("connected to the logs AMQP server")
-	return nil
+
+	logsQueue, err := NewAMQPLogsQueue(amqpConn, i.Config.RabbitMQSharding)
+	if err != nil {
+		return nil, err
+	}
+	return logsQueue, nil 
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {
