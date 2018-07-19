@@ -155,7 +155,7 @@
 			"importpath": "github.com/Shopify/sarama",
 			"repository": "https://github.com/Shopify/sarama",
 			"vcs": "git",
-			"revision": "5cd4d8675b3b11c08e71529e7280c45f9fc3dafe",
+			"revision": "22114655baec1a3d72fc99e95968c9e97b226b22",
 			"branch": "master",
 			"notests": true
 		},
@@ -426,7 +426,7 @@
 			"vcs": "git",
 			"revision": "14aad3d5ea4c323bcd7a2137e735da24a76e814c",
 			"branch": "master",
-			"path": "protoc-gen-go/descriptor",
+			"path": "/protoc-gen-go/descriptor",
 			"notests": true
 		},
 		{
@@ -608,7 +608,7 @@
 			"vcs": "git",
 			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
 			"branch": "master",
-			"path": "expfmt",
+			"path": "/expfmt",
 			"notests": true
 		},
 		{
@@ -626,7 +626,7 @@
 			"vcs": "git",
 			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
 			"branch": "master",
-			"path": "/model",
+			"path": "model",
 			"notests": true
 		},
 		{
@@ -978,7 +978,7 @@
 			"vcs": "git",
 			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
 			"branch": "master",
-			"path": "/secure/bidirule",
+			"path": "secure/bidirule",
 			"notests": true
 		},
 		{
@@ -1014,7 +1014,7 @@
 			"vcs": "git",
 			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
 			"branch": "master",
-			"path": "unicode/norm",
+			"path": "/unicode/norm",
 			"notests": true
 		},
 		{
