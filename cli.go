@@ -653,11 +653,7 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
 	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
-	if i.Config.LogsAmqpURI == "" {
-		jobQueue, err := NewAMQPJobQueueWithLogs(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
-	} else {
-		jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize)
-	}
+	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
 
 	// Set the consumer priority directly instead of altering the signature of
 	// NewAMQPJobQueue :sigh_cat:

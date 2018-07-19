@@ -32,48 +32,7 @@ type AMQPJobQueue struct {
 // connects to the AMQP queue with the given name. The queue will be declared
 // in AMQP when this function is called, so an error could be raised if the
 // queue already exists, but with different attributes than we expect.
-func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int) (*AMQPJobQueue, error) {
-	channel, err := conn.Channel()
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = channel.QueueDeclare(queue, true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	err = channel.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = channel.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	err = channel.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	stateUpdatePool := newStateUpdatePool(conn, stateUpdatePoolSize)
-
-	go reportPoolMetrics("state_update_pool", stateUpdatePool)
-
-	return &AMQPJobQueue{
-		conn:            conn,
-		queue:           queue,
-		withLogSharding: false,
-
-		stateUpdatePool: stateUpdatePool,
-	}, nil
-}
-
-// NewAMQPJobQueueWithLogs does the same thing as NewAMQPJobQueue, but
-// also creates the logs exchage and queue
-func NewAMQPJobQueueWithLogs(conn *amqp.Connection, queue string, stateUpdatePoolSize int, sharded bool) (*AMQPJobQueue, error) {
+func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int, sharded bool) (*AMQPJobQueue, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -254,7 +213,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 				buildJob.startAttributes = startAttrs.Config
 				buildJob.startAttributes.VMType = buildJob.payload.VMType
-				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
+				buildJob.startAttributes.VMConfig = buildJob.payload.VMConfig
+				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 				buildJob.conn = q.conn
 				buildJob.logWriterChan = logWriterChannel
 				buildJob.delivery = delivery
