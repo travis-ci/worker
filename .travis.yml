@@ -1,5 +1,5 @@
 language: go
-go: 1.9.4
+go: 1.10.3
 sudo: required
 dist: trusty
 group: edge
