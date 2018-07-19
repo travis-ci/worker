@@ -2,7 +2,6 @@ package image
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,78 +15,45 @@ var (
 	}{
 		{
 			E: map[string]string{
-				"IMAGE_ALIASES": strings.Join([]string{
-					"language_haskell",
-					"language_java",
-				}, ","),
-				"IMAGE_ALIAS_LANGUAGE_HASKELL": "language_ruby",
-				"IMAGE_ALIAS_LANGUAGE_JAVA":    "legacy",
-				"IMAGE_LANGUAGE_RUBY":          "travis-ci-ruby-9001",
-				"IMAGE_LEGACY":                 "travis-ci-legacy-00",
-				"IMAGE_DEFAULT":                "travis-ci-default",
+				"IMAGE_DEFAULT":            "travis:default",
+				"IMAGE_LINUX":              "travis:linux",
+				"IMAGE_DIST_XENIAL":        "travis:xenial",
+				"IMAGE_DIST_XENIAL_PYTHON": "travis:py3k",
+				"IMAGE_GROUP_EDGE":         "travis:edge",
+				"IMAGE_GROUP_EDGE_RUBY":    "travis:ruby9001",
+				"IMAGE_LANGUAGE_RUBY":      "travis:ruby8999",
+				"IMAGE_PYTHON":             "travis:python",
 			},
 			O: []*testEnvCase{
-				{E: "travis-ci-ruby-9001", P: &Params{Language: "haskell"}},
-				{E: "travis-ci-legacy-00", P: &Params{Language: "java"}},
-				{E: "travis-ci-default", P: &Params{Language: "clojure"}},
-				{E: "travis-ci-ruby-9001", P: &Params{Language: "ruby"}},
+				{E: "travis:default", P: &Params{Language: "clojure"}},
+				{E: "travis:default", P: &Params{Language: "java"}},
+				{E: "travis:edge", P: &Params{Language: "java", Group: "edge"}},
+				{E: "travis:linux", P: &Params{Language: "bf", Group: "wat", OS: "linux"}},
+				{E: "travis:py3k", P: &Params{Language: "python", Dist: "xenial"}},
+				{E: "travis:ruby8999", P: &Params{Language: "ruby"}},
+				{E: "travis:ruby9001", P: &Params{Language: "ruby", Group: "edge"}},
+				{E: "travis:xenial", P: &Params{Language: "java", Dist: "xenial"}},
 			},
 		},
 		{
 			E: map[string]string{
-				"IMAGE_ALIASES": strings.Join([]string{
-					"dist_trusty_ruby",
-					"dist_trusty",
-				}, ","),
-				"IMAGE_ALIAS_DIST_TRUSTY":      "trusty",
-				"IMAGE_ALIAS_DIST_TRUSTY_RUBY": "travis-ci-ruby",
-				"IMAGE_TRUSTY":                 "travis-ci-mega",
+				"IMAGE_DEFAULT":           "travisci/ci-garnet:packer-1410230255-fafafaf",
+				"IMAGE_DIST_BIONIC":       "registry.business.com/fancy/ubuntu:bionic",
+				"IMAGE_DIST_TRUSTY":       "travisci/ci-connie:packer-1420290255-fafafaf",
+				"IMAGE_DIST_TRUSTY_RUBY":  "registry.business.com/travisci/ci-ruby:whatever",
+				"IMAGE_GROUP_EDGE_PYTHON": "travisci/ci-garnet:packer-1530230255-fafafaf",
+				"IMAGE_LANGUAGE_RUBY":     "registry.business.com/travisci/ci-ruby:whatever",
 			},
 			O: []*testEnvCase{
-				{E: "travis-ci-mega", P: &Params{Dist: "trusty"}},
-				{E: "travis-ci-ruby", P: &Params{Dist: "trusty", Language: "ruby"}},
-			},
-		},
-		{
-			E: map[string]string{
-				"IMAGE_ALIASES": strings.Join([]string{
-					"group_dev",
-					"group_dev_go",
-					"dist_trusty",
-					"osx_image_xcode6.4",
-					"osx_image_xcode7_swift",
-					"os_linux",
-					"linux_java",
-					"language_haskell",
-					"default_solaris",
-				}, ","),
-				"IMAGE_ALIAS_GROUP_DEV":              "vivid",
-				"IMAGE_ALIAS_GROUP_DEV_GO":           "utopic",
-				"IMAGE_ALIAS_DIST_TRUSTY":            "trusty",
-				"IMAGE_ALIAS_OSX_IMAGE_XCODE6_4":     "xcode6",
-				"IMAGE_ALIAS_OSX_IMAGE_XCODE7_SWIFT": "xcode7_swift",
-				"IMAGE_ALIAS_OS_LINUX":               "trusty",
-				"IMAGE_ALIAS_LINUX_JAVA":             "utopic",
-				"IMAGE_ALIAS_LANGUAGE_HASKELL":       "trusty",
-				"IMAGE_ALIAS_DEFAULT_SOLARIS":        "smartos",
-				"IMAGE_DEFAULT_OSX":                  "xcode7",
-				"IMAGE_TRUSTY":                       "travis-ci-mega",
-				"IMAGE_XCODE7":                       "travis-xcode7b4",
-				"IMAGE_XCODE7_SWIFT":                 "travis-xcode7b6",
-				"IMAGE_SMARTOS":                      "base64-20150902",
-			},
-			O: []*testEnvCase{
-				{E: "travis-ci-mega", P: &Params{OS: "linux", Dist: "trusty"}},
-				{E: "travis-ci-mega", P: &Params{OS: "linux", Dist: "trusty", Language: "ruby"}},
-				{E: "travis-xcode7b6", P: &Params{OS: "osx", OsxImage: "xcode7", Language: "swift"}},
-				{E: "travis-xcode7b4", P: &Params{OS: "osx", Language: "objective-c"}},
-				{E: "base64-20150902", P: &Params{OS: "solaris", Language: "ruby"}},
-				{E: "base64-20150902", P: &Params{OS: "smartos"}},
-				{E: "utopic", P: &Params{OS: "linux", Language: "java"}},
-				{E: "vivid", P: &Params{OS: "linux", Group: "dev", Language: "java"}},
-				{E: "utopic", P: &Params{OS: "linux", Group: "dev", Language: "go"}},
-				{E: "travis-ci-mega", P: &Params{OS: "linux", Language: "haskell"}},
-				{E: "xcode6", P: &Params{OS: "osx", OsxImage: "xcode6.4"}},
+				{E: "registry.business.com/fancy/ubuntu:bionic", P: &Params{Language: "bash", Dist: "bionic"}},
+				{E: "registry.business.com/fancy/ubuntu:bionic", P: &Params{Language: "ruby", Dist: "bionic"}},
+				{E: "registry.business.com/travisci/ci-ruby:whatever", P: &Params{Language: "ruby", Dist: "trusty"}},
+				{E: "registry.business.com/travisci/ci-ruby:whatever", P: &Params{Language: "ruby"}},
+				{E: "travisci/ci-connie:packer-1420290255-fafafaf", P: &Params{Language: "wat", Dist: "trusty"}},
+				{E: "travisci/ci-garnet:packer-1410230255-fafafaf", P: &Params{Language: "python", Group: "stable"}},
+				{E: "travisci/ci-garnet:packer-1410230255-fafafaf", P: &Params{Language: "python"}},
+				{E: "travisci/ci-garnet:packer-1410230255-fafafaf", P: &Params{Language: "wat"}},
+				{E: "travisci/ci-garnet:packer-1530230255-fafafaf", P: &Params{Language: "python", Group: "edge"}},
 			},
 		},
 	}

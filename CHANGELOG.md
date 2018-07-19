@@ -16,6 +16,28 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [3.12.0] - 2018-07-18
+
+### Added
+- backend/docker: support for env-based image selection
+- processor: log entries recording time delta since start of processing
+
+## [3.11.0] - 2018-07-12
+
+### Added
+- backend/gce, backend/jupiterbrain: incremental progress reporting during
+    instance startup
+
+## [3.10.1] - 2018-07-06
+
+### Fixed
+- backend/gce: use default disk type when no zone is given via VM config
+
+## [3.10.0] - 2018-07-03
+
+### Added
+- backend/gce: support for GPU allocation via VM config
+
 ## [3.9.0] - 2018-07-02
 
 ### Added
@@ -702,7 +724,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.9.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v3.12.0...HEAD
+[3.12.0]: https://github.com/travis-ci/worker/compare/v3.11.0...v3.12.0
+[3.11.0]: https://github.com/travis-ci/worker/compare/v3.10.1...v3.11.0
+[3.10.1]: https://github.com/travis-ci/worker/compare/v3.10.0...v3.10.1
+[3.10.0]: https://github.com/travis-ci/worker/compare/v3.9.0...v3.10.0
 [3.9.0]: https://github.com/travis-ci/worker/compare/v3.8.2...v3.9.0
 [3.8.2]: https://github.com/travis-ci/worker/compare/v3.8.1...v3.8.2
 [3.8.1]: https://github.com/travis-ci/worker/compare/v3.8.0...v3.8.1

@@ -190,24 +190,27 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	}
 
 	hasLang := params.Language != ""
+	hasDist := params.Dist != ""
+	hasGroup := params.Group != ""
+	hasOS := params.OS != ""
 
 	if params.OS == "osx" && params.OsxImage != "" {
 		addTags("osx_image:"+params.OsxImage, "os:osx")
 	}
 
-	if params.Dist != "" && params.Group != "" && hasLang {
+	if hasDist && hasGroup && hasLang {
 		addTags("dist:"+params.Dist, "group_"+params.Group+":true", "language_"+params.Language+":true")
 	}
 
-	if params.Dist != "" && hasLang {
+	if hasDist && hasLang {
 		addTags("dist:"+params.Dist, "language_"+params.Language+":true")
 	}
 
-	if params.Group != "" && hasLang {
+	if hasGroup && hasLang {
 		addTags("group_"+params.Group+":true", "language_"+params.Language+":true")
 	}
 
-	if params.OS != "" && hasLang {
+	if hasOS && hasLang {
 		addTags("os:"+params.OS, "language_"+params.Language+":true")
 	}
 
@@ -219,15 +222,15 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 		addDefaultTag("osx_image:" + params.OsxImage)
 	}
 
-	if params.Dist != "" {
+	if hasDist {
 		addDefaultTag("dist:" + params.Dist)
 	}
 
-	if params.Group != "" {
+	if hasGroup {
 		addDefaultTag("group_" + params.Group + ":true")
 	}
 
-	if params.OS != "" {
+	if hasOS {
 		addDefaultTag("os:" + params.OS)
 	}
 

@@ -61,7 +61,7 @@ var (
 		"NATIVE":              "upload and run build script via docker API instead of over ssh (default false)",
 		"PRIVILEGED":          "run containers in privileged mode (default false)",
 		"SSH_DIAL_TIMEOUT":    fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultDockerSSHDialTimeout),
-		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\" or \"api\", default %q)", defaultDockerImageSelectorType),
+		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\", \"api\", or \"env\", default %q)", defaultDockerImageSelectorType),
 		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
 		"BINDS":               "Bind mount a volume (example: \"/var/run/docker.sock:/var/run/docker.sock\", default \"\")",
 	}
@@ -228,10 +228,6 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
 	}
 
-	if imageSelectorType != "tag" && imageSelectorType != "api" {
-		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
-	}
-
 	imageSelector, err := buildDockerImageSelector(imageSelectorType, client, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't build docker image selector")
@@ -312,6 +308,8 @@ func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *c
 	switch selectorType {
 	case "tag":
 		return &dockerTagImageSelector{client: client}, nil
+	case "env":
+		return image.NewEnvSelector(cfg)
 	case "api":
 		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
 		if err != nil {
@@ -340,6 +338,14 @@ func (p *dockerProvider) dockerImageNameForID(ctx gocontext.Context, imageID str
 		}
 	}
 	return imageID
+}
+
+func (p *dockerProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *dockerProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
 }
 
 func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
@@ -584,6 +590,10 @@ func (i *dockerInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, e
 	time.Sleep(2 * time.Second)
 
 	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis", i.provider.sshDialTimeout)
+}
+
+func (i *dockerInstance) SupportsProgress() bool {
+	return false
 }
 
 func (i *dockerInstance) UploadScript(ctx gocontext.Context, script []byte) error {

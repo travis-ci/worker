@@ -60,6 +60,34 @@ built-in help system:
 travis-worker --help
 ```
 
+### Environment-based image selection configuration
+
+Some backend providers supports image selection based on environment variables.
+The required format uses keys that are prefixed with the provider-specific
+prefix:
+
+- `TRAVIS_WORKER_{UPPERCASE_PROVIDER}_IMAGE_{UPPERCASE_NAME}`: contains an image name
+  string to be used by the backend provider
+
+The following example is for use with the Docker backend:
+
+``` bash
+# matches on `dist: trusty`
+export TRAVIS_WORKER_DOCKER_IMAGE_DIST_TRUSTY=travisci/ci-connie:packer-1420290255-fafafaf
+
+# matches on `dist: bionic`
+export TRAVIS_WORKER_DOCKER_IMAGE_DIST_BIONIC=registry.business.com/fancy/ubuntu:bionic
+
+# resolves for `language: ruby`
+export TRAVIS_WORKER_DOCKER_IMAGE_RUBY=registry.business.com/travisci/ci-ruby:whatever
+
+# resolves for `group: edge` + `language: python`
+export TRAVIS_WORKER_DOCKER_IMAGE_GROUP_EDGE_PYTHON=travisci/ci-garnet:packer-1530230255-fafafaf
+
+# used when no dist, language, or group matches
+export TRAVIS_WORKER_DOCKER_IMAGE_DEFAULT=travisci/ci-garnet:packer-1410230255-fafafaf
+```
+
 
 ## Development: Running Travis Worker locally
 
@@ -92,6 +120,10 @@ export TRAVIS_WORKER_BUILD_API_URI='https://x:API_KEY@build-staging.travis-ci.or
 
 `TRAVIS_WORKER_BUILD_API_URI` can be found in the env of the job board app, e.g.:
 `heroku config:get JOB_BOARD_BUILD_API_ORG_URL -a job-board-staging`.
+
+#### Images
+
+TODO
 
 #### Configuring the requested provider/backend
 

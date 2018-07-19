@@ -443,6 +443,14 @@ func (p *osProvider) waitForStatus(ctx gocontext.Context, id string, status stri
 	}
 }
 
+func (p *osProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *osProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_provider")
 
@@ -589,6 +597,10 @@ func (p *osProvider) getImageName(ctx gocontext.Context, startAttributes *StartA
 func (i *osInstance) sshConnection() (ssh.Connection, error) {
 	time.Sleep(time.Second * 20)
 	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.ipAddr), i.ic.AuthUser, i.provider.sshDialTimeout)
+}
+
+func (i *osInstance) SupportsProgress() bool {
+	return false
 }
 
 func (i *osInstance) UploadScript(ctx gocontext.Context, script []byte) error {
