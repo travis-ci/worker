@@ -13,7 +13,7 @@ type AMQPLogsQueue struct {
 	withLogSharding bool
 }
 
-// NewAMQPLogsQueue creates a AMQPLogsQueue backed by the given AMQP 
+// NewAMQPLogsQueue creates a AMQPLogsQueue backed by the given AMQP
 // connection and creates the expected exchange and queues.
 func NewAMQPLogsQueue(conn *amqp.Connection, sharded bool) (*AMQPLogsQueue, error) {
 	channel, err := conn.Channel()

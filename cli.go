@@ -772,7 +772,7 @@ func (i *CLI) buildAMQPLogsQueue() error {
 	if err != nil {
 		return nil, err
 	}
-	return logsQueue, nil 
+	return logsQueue, nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {
