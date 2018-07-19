@@ -447,6 +447,10 @@ func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer
 	}
 }
 
+func (i *jupiterBrainInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
+}
+
 func (i *jupiterBrainInstance) Stop(ctx gocontext.Context) error {
 	err := i.provider.apiClient.Stop(ctx, i.payload.ID)
 	return errors.Wrap(err, "error sending Stop request to Jupiter Brain")

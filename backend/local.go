@@ -2,6 +2,7 @@ package backend
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -120,6 +121,10 @@ func (i *localInstance) RunScript(ctx gocontext.Context, writer io.Writer) (*Run
 		}
 		return &RunResult{Completed: true}, nil
 	}
+}
+
+func (i *localInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
 }
 
 func (i *localInstance) Stop(ctx gocontext.Context) error {

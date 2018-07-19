@@ -88,6 +88,11 @@ type Instance interface {
 	// RunScript runs the build script that was uploaded with the
 	// UploadScript method.
 	RunScript(gocontext.Context, io.Writer) (*RunResult, error)
+
+	// DownloadTrace attempts to download a job trace from the instance
+	DownloadTrace(gocontext.Context) ([]byte, error)
+
+	// Stop stops (and deletes) the instance
 	Stop(gocontext.Context) error
 
 	// ID is used when identifying the instance in logs and such
