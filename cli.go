@@ -739,7 +739,7 @@ func (i *CLI) buildAMQPLogsQueue() (*AMQPLogsQueue, error) {
 			}
 			cfg.RootCAs.AppendCertsFromPEM(cert)
 		}
-		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+		amqpConn, err = amqp.DialConfig(i.Config.LogsAmqpURI,
 			amqp.Config{
 				Heartbeat:       i.Config.AmqpHeartbeat,
 				Locale:          "en_US",
@@ -747,14 +747,14 @@ func (i *CLI) buildAMQPLogsQueue() (*AMQPLogsQueue, error) {
 			})
 	} else if i.Config.AmqpInsecure {
 		amqpConn, err = amqp.DialConfig(
-			i.Config.AmqpURI,
+			i.Config.LogsAmqpURI,
 			amqp.Config{
 				Heartbeat:       i.Config.AmqpHeartbeat,
 				Locale:          "en_US",
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			})
 	} else {
-		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+		amqpConn, err = amqp.DialConfig(i.Config.LogsAmqpURI,
 			amqp.Config{
 				Heartbeat: i.Config.AmqpHeartbeat,
 				Locale:    "en_US",
