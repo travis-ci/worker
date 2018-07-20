@@ -1088,8 +1088,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		},
 		GuestAccelerators: acceleratorConfigs,
 		Scheduling: &compute.Scheduling{
-			Preemptible:      p.ic.Preemptible,
-			AutomaticRestart: googleapi.Bool(false),
+			Preemptible:       p.ic.Preemptible,
+			AutomaticRestart:  googleapi.Bool(false),
+			OnHostMaintenance: "TERMINATE",
 		},
 		MachineType: machineType.SelfLink,
 		Name:        hostname,
