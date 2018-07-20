@@ -216,7 +216,7 @@ func (i *CLI) Run() {
 		"logs_queue": i.LogsQueue,
 	}).Debug("running pool")
 
-	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
+	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogsQueue)
 
 	err := i.JobQueue.Cleanup()
 	if err != nil {
