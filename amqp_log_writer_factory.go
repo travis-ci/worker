@@ -7,13 +7,13 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type AMQPLogsQueue struct {
+type AMQPLogWriterFactory struct {
 	conn            *amqp.Connection
 	withLogSharding bool
 	logWriterChan   *amqp.Channel
 }
 
-func NewAMQPLogsQueue(conn *amqp.Connection, sharded bool) (*AMQPLogsQueue, error) {
+func NewAMQPLogWriterFactory(conn *amqp.Connection, sharded bool) (*AMQPLogWriterFactory, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -37,14 +37,14 @@ func NewAMQPLogsQueue(conn *amqp.Connection, sharded bool) (*AMQPLogsQueue, erro
 		}
 	}
 
-	return &AMQPLogsQueue{
+	return &AMQPLogWriterFactory{
 		conn:            conn,
 		withLogSharding: sharded,
 		logWriterChan:   channel,
 	}, nil
 }
 
-func (l *AMQPLogsQueue) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration, job Job) (LogWriter, error) {
+func (l *AMQPLogWriterFactory) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration, job Job) (LogWriter, error) {
 	logTimeout := time.Duration(job.Payload().Timeouts.LogSilence) * time.Second
 	if logTimeout == 0 {
 		logTimeout = defaultLogTimeout
@@ -53,7 +53,7 @@ func (l *AMQPLogsQueue) LogWriter(ctx gocontext.Context, defaultLogTimeout time.
 	return newAMQPLogWriter(ctx, l.logWriterChan, job.Payload().Job.ID, logTimeout, l.withLogSharding)
 }
 
-func (l *AMQPLogsQueue) Cleanup() error {
+func (l *AMQPLogWriterFactory) Cleanup() error {
 	l.logWriterChan.Close()
 	return l.conn.Close()
 }

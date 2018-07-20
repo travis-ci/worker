@@ -56,7 +56,7 @@ type CLI struct {
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
 	JobQueue                JobQueue
-	LogsQueue               LogsQueue
+	LogWriterFactory               LogWriterFactory
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
@@ -184,7 +184,7 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
-	err = i.setupLogsQueue()
+	err = i.setupLogWriterFactory()
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create logs queue")
 		return false, err
@@ -213,18 +213,18 @@ func (i *CLI) Run() {
 	i.logger.WithFields(logrus.Fields{
 		"pool_size":  i.Config.PoolSize,
 		"queue":      i.JobQueue,
-		"logs_queue": i.LogsQueue,
+		"logs_queue": i.LogWriterFactory,
 	}).Debug("running pool")
 
-	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogsQueue)
+	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogWriterFactory)
 
 	err := i.JobQueue.Cleanup()
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
 
-	if i.LogsQueue != nil {
-		err := i.LogsQueue.Cleanup()
+	if i.LogWriterFactory != nil {
+		err := i.LogWriterFactory.Cleanup()
 		if err != nil {
 			i.logger.WithField("err", err).Error("couldn't clean up logs queue")
 		}
@@ -709,20 +709,20 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 	return jobQueue, nil
 }
 
-func (i *CLI) setupLogsQueue() error {
+func (i *CLI) setupLogWriterFactory() error {
 	if i.Config.LogsAmqpURI == "" {
 		// If no separate URI is set for LogsAMQP, use the JobsQueue to send log parts
 		return nil
 	}
-	logsQueue, err := i.buildAMQPLogsQueue()
+	logWriterFactory, err := i.buildAMQPLogWriterFactory()
 	if err != nil {
 		return err
 	}
-	i.LogsQueue = logsQueue
+	i.LogWriterFactory = logWriterFactory
 	return nil
 }
 
-func (i *CLI) buildAMQPLogsQueue() (*AMQPLogsQueue, error) {
+func (i *CLI) buildAMQPLogWriterFactory() (*AMQPLogWriterFactory, error) {
 	var amqpConn *amqp.Connection
 	var err error
 
@@ -768,11 +768,11 @@ func (i *CLI) buildAMQPLogsQueue() (*AMQPLogsQueue, error) {
 	go i.amqpErrorWatcher(amqpConn)
 	i.logger.Debug("connected to the logs AMQP server")
 
-	logsQueue, err := NewAMQPLogsQueue(amqpConn, i.Config.RabbitMQSharding)
+	logWriterFactory, err := NewAMQPLogWriterFactory(amqpConn, i.Config.RabbitMQSharding)
 	if err != nil {
 		return nil, err
 	}
-	return logsQueue, nil
+	return logWriterFactory, nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {

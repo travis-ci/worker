@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type LogsQueue interface {
+type LogWriterFactory interface {
 	LogWriter(gocontext.Context, time.Duration, Job) (LogWriter, error)
 	Cleanup() error
 }
