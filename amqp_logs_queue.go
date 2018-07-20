@@ -7,15 +7,12 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// AMQPLogsQueue is a LogsQueue that uses AMQP.
 type AMQPLogsQueue struct {
 	conn            *amqp.Connection
 	withLogSharding bool
 	logWriterChan   *amqp.Channel
 }
 
-// NewAMQPLogsQueue creates a AMQPLogsQueue backed by the given AMQP
-// connection and creates the expected exchange and queues.
 func NewAMQPLogsQueue(conn *amqp.Connection, sharded bool) (*AMQPLogsQueue, error) {
 	channel, err := conn.Channel()
 	if err != nil {
@@ -56,7 +53,6 @@ func (l *AMQPLogsQueue) LogWriter(ctx gocontext.Context, defaultLogTimeout time.
 	return newAMQPLogWriter(ctx, l.logWriterChan, job.Payload().Job.ID, logTimeout, l.withLogSharding)
 }
 
-// Cleanup closes the underlying AMQP connection
 func (l *AMQPLogsQueue) Cleanup() error {
 	l.logWriterChan.Close()
 	return l.conn.Close()
