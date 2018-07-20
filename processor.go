@@ -25,6 +25,11 @@ type Processor struct {
 	startupTimeout          time.Duration
 	payloadFilterExecutable string
 
+	buildTraceEnabled     bool
+	buildTraceS3Bucket    string
+	buildTraceS3KeyPrefix string
+	buildTraceS3Region    string
+
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
@@ -58,6 +63,11 @@ type ProcessorConfig struct {
 	ScriptUploadTimeout     time.Duration
 	StartupTimeout          time.Duration
 	PayloadFilterExecutable string
+
+	BuildTraceEnabled     bool
+	BuildTraceS3Bucket    string
+	BuildTraceS3KeyPrefix string
+	BuildTraceS3Region    string
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
@@ -89,6 +99,11 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		startupTimeout:          config.StartupTimeout,
 		maxLogLength:            config.MaxLogLength,
 		payloadFilterExecutable: config.PayloadFilterExecutable,
+
+		buildTraceEnabled:     config.BuildTraceEnabled,
+		buildTraceS3Bucket:    config.BuildTraceS3Bucket,
+		buildTraceS3KeyPrefix: config.BuildTraceS3KeyPrefix,
+		buildTraceS3Region:    config.BuildTraceS3Region,
 
 		ctx:                     ctx,
 		buildJobsChan:           buildJobsChan,
@@ -256,6 +271,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
+		},
+		&stepDownloadTrace{
+			enabled:            p.buildTraceEnabled,
+			archiveS3Bucket:    p.buildTraceS3Bucket,
+			archiveS3KeyPrefix: p.buildTraceS3KeyPrefix,
+			archiveS3Region:    p.buildTraceS3Region,
 		},
 	}
 

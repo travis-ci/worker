@@ -94,8 +94,6 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		return
 	}
 
-	// TODO: inline step_download_trace here?
-
 	skipShutdown, ok := state.Get("skipShutdown").(bool)
 	if ok && skipShutdown {
 		logger.WithField("instance", instance).Error("skipping shutdown, VM will be left running")

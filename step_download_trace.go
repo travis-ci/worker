@@ -16,15 +16,18 @@ import (
 	"github.com/travis-ci/worker/metrics"
 )
 
-// TODO: actually run this step in the processor (opt-in via worker config)
-
 type stepDownloadTrace struct {
+	enabled            bool
 	archiveS3Bucket    string
 	archiveS3KeyPrefix string
 	archiveS3Region    string
 }
 
 func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
+	if !s.enabled {
+		return multistep.ActionContinue
+	}
+
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	processedAt := state.Get("processedAt").(time.Time)

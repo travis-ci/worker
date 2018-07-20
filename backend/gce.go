@@ -1341,10 +1341,7 @@ func (i *gceInstance) downloadTrace(ctx gocontext.Context) ([]byte, error) {
 	}
 	defer conn.Close()
 
-	// TODO: figure out filename and location, maybe hide it inside .git, or /tmp
-	// TODO: decide on consistent terminology. "build trace" vs "job trace"
-
-	buf, err := conn.DownloadFile("build.trace")
+	buf, err := conn.DownloadFile("/tmp/build.trace")
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't download trace")
 	}

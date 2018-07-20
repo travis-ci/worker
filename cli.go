@@ -169,6 +169,11 @@ func (i *CLI) Setup() (bool, error) {
 		ScriptUploadTimeout:     i.Config.ScriptUploadTimeout,
 		StartupTimeout:          i.Config.StartupTimeout,
 		PayloadFilterExecutable: i.Config.PayloadFilterExecutable,
+
+		BuildTraceEnabled:     i.Config.BuildTraceEnabled,
+		BuildTraceS3Bucket:    i.Config.BuildTraceS3Bucket,
+		BuildTraceS3KeyPrefix: i.Config.BuildTraceS3KeyPrefix,
+		BuildTraceS3Region:    i.Config.BuildTraceS3Region,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)
