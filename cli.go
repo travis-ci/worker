@@ -722,7 +722,7 @@ func (i *CLI) setupLogsQueue() error {
 	return nil
 }
 
-func (i *CLI) buildAMQPLogsQueue() error {
+func (i *CLI) buildAMQPLogsQueue() (*AMQPLogsQueue, error) {
 	var amqpConn *amqp.Connection
 	var err error
 
@@ -735,7 +735,7 @@ func (i *CLI) buildAMQPLogsQueue() error {
 		if i.Config.LogsAmqpTlsCertPath != "" {
 			cert, err := ioutil.ReadFile(i.Config.LogsAmqpTlsCertPath)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			cfg.RootCAs.AppendCertsFromPEM(cert)
 		}
@@ -762,7 +762,7 @@ func (i *CLI) buildAMQPLogsQueue() error {
 	}
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't connect to the logs AMQP server")
-		return err
+		return nil, err
 	}
 
 	go i.amqpErrorWatcher(amqpConn)

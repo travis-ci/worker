@@ -68,7 +68,6 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 
 		Provider:                provider,
 		Generator:               generator,
-		LogsQueue:               logsQueue,
 		CancellationBroadcaster: cancellationBroadcaster,
 		PayloadFilterExecutable: ppc.PayloadFilterExecutable,
 	}

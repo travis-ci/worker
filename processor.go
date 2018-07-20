@@ -29,7 +29,7 @@ type Processor struct {
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
-	LogsQueue               LogsQueue
+	logsQueue               LogsQueue
 	cancellationBroadcaster *CancellationBroadcaster
 
 	graceful   chan struct{}

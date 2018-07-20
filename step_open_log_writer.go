@@ -19,13 +19,16 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
-	logsQueue := state.Get("logsQueue").(LogsQueue)
+	logsQueue := state.Get("logsQueue")
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_open_log_writer")
 
-	if logsQueue {
-		logWriter, err := logsQueue.LogWriter(ctx, s.defaultLogTimeout, buildJob)
+	var logWriter LogWriter
+	var err error
+
+	if logsQueue != nil {
+		logWriter, err = logsQueue.(LogsQueue).LogWriter(ctx, s.defaultLogTimeout, buildJob)
 	} else {
-		logWriter, err := buildJob.LogWriter(ctx, s.defaultLogTimeout)
+		logWriter, err = buildJob.LogWriter(ctx, s.defaultLogTimeout)
 	}
 	if err != nil {
 		logger.WithFields(logrus.Fields{

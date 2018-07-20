@@ -2,16 +2,16 @@ package worker
 
 import (
 	gocontext "context"
+	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
 // AMQPLogsQueue is a LogsQueue that uses AMQP.
 type AMQPLogsQueue struct {
-	conn             *amqp.Connection
-	withLogSharding  bool
-	logWriterChannel *amqp.Channel
+	conn            *amqp.Connection
+	withLogSharding bool
+	logWriterChan   *amqp.Channel
 }
 
 // NewAMQPLogsQueue creates a AMQPLogsQueue backed by the given AMQP
@@ -41,23 +41,23 @@ func NewAMQPLogsQueue(conn *amqp.Connection, sharded bool) (*AMQPLogsQueue, erro
 	}
 
 	return &AMQPLogsQueue{
-		conn:             conn,
-		withLogSharding:  sharded,
-		logWriterChannel: channel,
+		conn:            conn,
+		withLogSharding: sharded,
+		logWriterChan:   channel,
 	}, nil
 }
 
-func (l *AMQPLogsQueue) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration, job amqpJob) (LogWriter, error) {
-	logTimeout := time.Duration(job.payload.Timeouts.LogSilence) * time.Second
+func (l *AMQPLogsQueue) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration, job Job) (LogWriter, error) {
+	logTimeout := time.Duration(job.Payload().Timeouts.LogSilence) * time.Second
 	if logTimeout == 0 {
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, l.logWriterChan, job.payload.Job.ID, logTimeout, l.withLogSharding)
+	return newAMQPLogWriter(ctx, l.logWriterChan, job.Payload().Job.ID, logTimeout, l.withLogSharding)
 }
 
 // Cleanup closes the underlying AMQP connection
 func (l *AMQPLogsQueue) Cleanup() error {
-	l.logWriterChannel.Close()
+	l.logWriterChan.Close()
 	return l.conn.Close()
 }
