@@ -56,7 +56,7 @@ type CLI struct {
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
 	JobQueue                JobQueue
-	LogWriterFactory               LogWriterFactory
+	LogWriterFactory        LogWriterFactory
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration

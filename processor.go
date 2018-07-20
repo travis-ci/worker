@@ -29,7 +29,7 @@ type Processor struct {
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
-	logWriterFactory               LogWriterFactory
+	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
 
 	graceful   chan struct{}
@@ -96,7 +96,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		provider:                provider,
 		generator:               generator,
 		cancellationBroadcaster: cancellationBroadcaster,
-		logWriterFactory:               logWriterFactory,
+		logWriterFactory:        logWriterFactory,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,

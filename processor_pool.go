@@ -31,13 +31,13 @@ type ProcessorPool struct {
 
 	SkipShutdownOnLogTimeout bool
 
-	queue          JobQueue
-	logWriterFactory      LogWriterFactory
-	poolErrors     []error
-	processorsLock sync.Mutex
-	processors     []*Processor
-	processorsWG   sync.WaitGroup
-	pauseCount     int
+	queue            JobQueue
+	logWriterFactory LogWriterFactory
+	poolErrors       []error
+	processorsLock   sync.Mutex
+	processors       []*Processor
+	processorsWG     sync.WaitGroup
+	pauseCount       int
 }
 
 type ProcessorPoolConfig struct {
