@@ -25,15 +25,11 @@ type Processor struct {
 	startupTimeout          time.Duration
 	payloadFilterExecutable string
 
-	buildTraceEnabled     bool
-	buildTraceS3Bucket    string
-	buildTraceS3KeyPrefix string
-	buildTraceS3Region    string
-
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
+	persister               BuildTracePersister
 	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
 
@@ -75,7 +71,7 @@ type ProcessorConfig struct {
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
+	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	processorID, _ := context.ProcessorFromContext(ctx)
@@ -101,15 +97,11 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		maxLogLength:            config.MaxLogLength,
 		payloadFilterExecutable: config.PayloadFilterExecutable,
 
-		buildTraceEnabled:     config.BuildTraceEnabled,
-		buildTraceS3Bucket:    config.BuildTraceS3Bucket,
-		buildTraceS3KeyPrefix: config.BuildTraceS3KeyPrefix,
-		buildTraceS3Region:    config.BuildTraceS3Region,
-
 		ctx:                     ctx,
 		buildJobsChan:           buildJobsChan,
 		provider:                provider,
 		generator:               generator,
+		persister:               persister,
 		cancellationBroadcaster: cancellationBroadcaster,
 		logWriterFactory:        logWriterFactory,
 
@@ -276,10 +268,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
 		},
 		&stepDownloadTrace{
-			enabled:            p.buildTraceEnabled,
-			archiveS3Bucket:    p.buildTraceS3Bucket,
-			archiveS3KeyPrefix: p.buildTraceS3KeyPrefix,
-			archiveS3Region:    p.buildTraceS3Region,
+			persister: p.persister,
 		},
 	}
 

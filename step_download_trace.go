@@ -1,14 +1,10 @@
 package worker
 
 import (
-	"bytes"
 	"time"
 
 	gocontext "context"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/mitchellh/multistep"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
@@ -25,14 +21,11 @@ import (
 // or via the EC2 instance IAM role
 
 type stepDownloadTrace struct {
-	enabled            bool
-	archiveS3Bucket    string
-	archiveS3KeyPrefix string
-	archiveS3Region    string
+	persister BuildTracePersister
 }
 
 func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
-	if !s.enabled {
+	if s.persister == nil {
 		return multistep.ActionContinue
 	}
 
@@ -65,40 +58,14 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
 	}).Info("downloaded trace")
 
-	// TODO: goroutine pool for aws session reuse?
+	err = s.persister.Persist(ctx, buildJob, buf)
 
-	sess, err := session.NewSession(&aws.Config{Region: aws.String(s.archiveS3Region)})
 	if err != nil {
-		metrics.Mark("worker.job.trace.archive.error")
+		metrics.Mark("worker.job.trace.persist.error")
 
 		logger.WithFields(logrus.Fields{
 			"err": err,
-		}).Error("couldn't archive trace")
-		context.CaptureError(ctx, err)
-
-		return multistep.ActionContinue
-	}
-
-	// TODO: handle job restarts -- archive separate trace per run? use job UUID?
-
-	key := s.archiveS3KeyPrefix + "/" + string(buildJob.Payload().Job.ID)
-
-	_, err = s3.New(sess).PutObject(&s3.PutObjectInput{
-		Bucket:               aws.String(s.archiveS3Bucket),
-		Key:                  aws.String(key),
-		ACL:                  aws.String("private"),
-		Body:                 bytes.NewReader(buf),
-		ContentLength:        aws.Int64(int64(len(buf))),
-		ContentType:          aws.String("application/octet-stream"),
-		ContentDisposition:   aws.String("attachment"),
-		ServerSideEncryption: aws.String("AES256"),
-	})
-	if err != nil {
-		metrics.Mark("worker.job.trace.archive.error")
-
-		logger.WithFields(logrus.Fields{
-			"err": err,
-		}).Error("couldn't archive trace")
+		}).Error("couldn't persist trace")
 		context.CaptureError(ctx, err)
 
 		return multistep.ActionContinue
@@ -106,7 +73,7 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 
 	logger.WithFields(logrus.Fields{
 		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
-	}).Info("archived trace")
+	}).Info("persisted trace")
 
 	return multistep.ActionContinue
 }
