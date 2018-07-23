@@ -16,6 +16,14 @@ import (
 	"github.com/travis-ci/worker/metrics"
 )
 
+// credentials are configured via env:
+// * AWS_ACCESS_KEY_ID
+// * AWS_SECRET_ACCESS_KEY
+//
+// or via the shared creds file ~/.aws/credentials
+//
+// or via the EC2 instance IAM role
+
 type stepDownloadTrace struct {
 	enabled            bool
 	archiveS3Bucket    string
@@ -57,7 +65,6 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
 	}).Info("downloaded trace")
 
-	// TODO: aws credentials
 	// TODO: goroutine pool for aws session reuse?
 
 	sess, err := session.NewSession(&aws.Config{Region: aws.String(s.archiveS3Region)})
