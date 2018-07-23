@@ -203,6 +203,13 @@ var (
 		NewConfigDef("BuildCacheS3AccessKeyID", &cli.StringFlag{}),
 		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
 
+		NewConfigDef("BuildTraceEnabled", &cli.BoolFlag{
+			Usage: "Enable downloading build traces",
+		}),
+		NewConfigDef("BuildTraceS3Bucket", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3KeyPrefix", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3Region", &cli.StringFlag{}),
+
 		// non-config and special case flags
 		NewConfigDef("PayloadFilterExecutable", &cli.StringFlag{
 			Usage: "External executable which will be called to filter the json to be sent to the build script generator",
