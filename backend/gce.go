@@ -205,19 +205,21 @@ func (gsmw *gceStartMultistepWrapper) Run(multistep.StateBag) multistep.StepActi
 func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
 
 type gceStartContext struct {
-	startAttributes  *StartAttributes
-	progresser       Progresser
-	ctx              gocontext.Context
-	instChan         chan Instance
-	errChan          chan error
-	image            *compute.Image
-	script           string
-	bootStart        time.Time
-	instance         *compute.Instance
-	instanceInsertOp *compute.Operation
+	startAttributes      *StartAttributes
+	progresser           Progresser
+	ctx                  gocontext.Context
+	instChan             chan Instance
+	errChan              chan error
+	image                *compute.Image
+	script               string
+	bootStart            time.Time
+	instance             *compute.Instance
+	instanceInsertOpName string
+	zoneName             string
 }
 
 type gceInstance struct {
+	zoneName string
 	client   *compute.Service
 	provider *gceProvider
 	instance *compute.Instance
@@ -684,6 +686,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 
 	c := &gceStartContext{
 		startAttributes: startAttributes,
+		zoneName:        zone.Name,
 		progresser:      progresser,
 		ctx:             ctx,
 		instChan:        make(chan Instance),
@@ -704,7 +707,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	defer func(c *gceStartContext) {
 		if c.instance != nil && abandonedStart {
 			p.apiRateLimit(c.ctx)
-			_, _ = p.client.Instances.Delete(p.projectID, zone.Name, c.instance.Name).Do()
+			_, _ = p.client.Instances.Delete(p.projectID, c.zoneName, c.instance.Name).Do()
 		}
 	}(c)
 
@@ -790,7 +793,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	c.bootStart = time.Now().UTC()
 
 	p.apiRateLimit(c.ctx)
-	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Context(c.ctx).Do()
+	op, err := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
 			Message: "could not insert instance",
@@ -801,7 +804,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	}
 
 	c.instance = inst
-	c.instanceInsertOp = op
+	c.instanceInsertOpName = op.Name
 	c.progresser.Progress(&ProgressEntry{
 		Message: "inserted instance",
 		State:   ProgressSuccess,
@@ -820,7 +823,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 	time.Sleep(p.bootPrePollSleep)
 
-	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name).Context(c.ctx)
+	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(c.ctx)
 
 	c.progresser.Progress(&ProgressEntry{
 		Message:   "polling for instance insert completion...",
@@ -855,7 +858,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 			logger.WithFields(logrus.Fields{
 				"status": newOp.Status,
-				"name":   c.instanceInsertOp.Name,
+				"name":   c.instanceInsertOpName,
 			}).Debug("instance is ready")
 
 			startupDuration := time.Now().UTC().Sub(c.bootStart)
@@ -865,6 +868,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				Interrupts: true,
 			})
 			c.instChan <- &gceInstance{
+				zoneName:   c.zoneName,
 				client:     p.client,
 				provider:   p,
 				instance:   c.instance,
@@ -884,7 +888,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		if newOp.Error != nil {
 			logger.WithFields(logrus.Fields{
 				"err":  newOp.Error,
-				"name": c.instanceInsertOp.Name,
+				"name": c.instanceInsertOpName,
 			}).Error("encountered an error while waiting for instance insert operation")
 
 			c.progresser.Progress(&ProgressEntry{
@@ -898,7 +902,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 		logger.WithFields(logrus.Fields{
 			"status":   newOp.Status,
-			"name":     c.instanceInsertOp.Name,
+			"name":     c.instanceInsertOpName,
 			"duration": p.bootPollSleep,
 		}).Debug("sleeping before checking instance insert operation")
 
@@ -1088,8 +1092,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		},
 		GuestAccelerators: acceleratorConfigs,
 		Scheduling: &compute.Scheduling{
-			Preemptible:      p.ic.Preemptible,
-			AutomaticRestart: googleapi.Bool(false),
+			Preemptible:       p.ic.Preemptible,
+			AutomaticRestart:  googleapi.Bool(false),
+			OnHostMaintenance: "TERMINATE",
 		},
 		MachineType: machineType.SelfLink,
 		Name:        hostname,
@@ -1154,7 +1159,7 @@ func (i *gceInstance) getIP() string {
 
 func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	i.provider.apiRateLimit(ctx)
-	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Context(ctx).Do()
+	inst, err := i.client.Instances.Get(i.projectID, i.zoneName, i.instance.Name).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -1343,7 +1348,7 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 }
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
-	op, err := i.client.Instances.Delete(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
+	op, err := i.client.Instances.Delete(i.projectID, i.zoneName, i.instance.Name).Do()
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
@@ -1369,7 +1374,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	time.Sleep(i.ic.StopPrePollSleep)
 
 	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
-		i.ic.Zone.Name, c.instanceDeleteOp.Name)
+		i.zoneName, c.instanceDeleteOp.Name)
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = i.ic.StopPollSleep
