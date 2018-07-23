@@ -29,6 +29,7 @@ type Processor struct {
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
+	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
 
 	graceful   chan struct{}
@@ -64,7 +65,7 @@ type ProcessorConfig struct {
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
+	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	processorID, _ := context.ProcessorFromContext(ctx)
@@ -95,6 +96,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		provider:                provider,
 		generator:               generator,
 		cancellationBroadcaster: cancellationBroadcaster,
+		logWriterFactory:        logWriterFactory,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -208,6 +210,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
+	state.Put("logWriterFactory", p.logWriterFactory)
 	state.Put("procCtx", buildJob.SetupContext(p.ctx))
 	state.Put("ctx", buildJob.SetupContext(ctx))
 	state.Put("processedAt", time.Now().UTC())
