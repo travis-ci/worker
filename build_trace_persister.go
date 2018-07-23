@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bytes"
+	"strconv"
 
 	gocontext "context"
 
@@ -47,7 +48,7 @@ func (p *s3BuildTracePersister) Persist(ctx gocontext.Context, job Job, buf []by
 		return err
 	}
 
-	key := p.keyPrefix + "/" + string(job.Payload().Job.ID)
+	key := p.keyPrefix + strconv.FormatUint(job.Payload().Job.ID, 10)
 
 	_, err = s3.New(sess).PutObject(&s3.PutObjectInput{
 		Bucket:               aws.String(p.bucket),
