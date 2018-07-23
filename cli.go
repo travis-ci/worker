@@ -211,9 +211,9 @@ func (i *CLI) Run() {
 	go i.signalHandler()
 
 	i.logger.WithFields(logrus.Fields{
-		"pool_size":  i.Config.PoolSize,
-		"queue":      i.JobQueue,
-		"logs_queue": i.LogWriterFactory,
+		"pool_size":         i.Config.PoolSize,
+		"queue":             i.JobQueue,
+		"logwriter_factory": i.LogWriterFactory,
 	}).Debug("running pool")
 
 	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogWriterFactory)
