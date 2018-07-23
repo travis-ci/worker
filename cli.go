@@ -56,7 +56,7 @@ type CLI struct {
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
 	JobQueue                JobQueue
-	LogsQueue               LogsQueue
+	LogWriterFactory        LogWriterFactory
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
@@ -189,7 +189,7 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
-	err = i.setupLogsQueue()
+	err = i.setupLogWriterFactory()
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create logs queue")
 		return false, err
@@ -216,20 +216,20 @@ func (i *CLI) Run() {
 	go i.signalHandler()
 
 	i.logger.WithFields(logrus.Fields{
-		"pool_size":  i.Config.PoolSize,
-		"queue":      i.JobQueue,
-		"logs_queue": i.LogsQueue,
+		"pool_size":         i.Config.PoolSize,
+		"queue":             i.JobQueue,
+		"logwriter_factory": i.LogWriterFactory,
 	}).Debug("running pool")
 
-	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
+	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogWriterFactory)
 
 	err := i.JobQueue.Cleanup()
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
 	}
 
-	if i.LogsQueue != nil {
-		err := i.LogsQueue.Cleanup()
+	if i.LogWriterFactory != nil {
+		err := i.LogWriterFactory.Cleanup()
 		if err != nil {
 			i.logger.WithField("err", err).Error("couldn't clean up logs queue")
 		}
@@ -714,16 +714,20 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 	return jobQueue, nil
 }
 
-func (i *CLI) setupLogsQueue() error {
+func (i *CLI) setupLogWriterFactory() error {
 	if i.Config.LogsAmqpURI == "" {
 		// If no separate URI is set for LogsAMQP, use the JobsQueue to send log parts
 		return nil
 	}
-	err := i.buildAMQPLogsQueue()
-	return err
+	logWriterFactory, err := i.buildAMQPLogWriterFactory()
+	if err != nil {
+		return err
+	}
+	i.LogWriterFactory = logWriterFactory
+	return nil
 }
 
-func (i *CLI) buildAMQPLogsQueue() error {
+func (i *CLI) buildAMQPLogWriterFactory() (*AMQPLogWriterFactory, error) {
 	var amqpConn *amqp.Connection
 	var err error
 
@@ -736,11 +740,11 @@ func (i *CLI) buildAMQPLogsQueue() error {
 		if i.Config.LogsAmqpTlsCertPath != "" {
 			cert, err := ioutil.ReadFile(i.Config.LogsAmqpTlsCertPath)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			cfg.RootCAs.AppendCertsFromPEM(cert)
 		}
-		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+		amqpConn, err = amqp.DialConfig(i.Config.LogsAmqpURI,
 			amqp.Config{
 				Heartbeat:       i.Config.AmqpHeartbeat,
 				Locale:          "en_US",
@@ -748,14 +752,14 @@ func (i *CLI) buildAMQPLogsQueue() error {
 			})
 	} else if i.Config.AmqpInsecure {
 		amqpConn, err = amqp.DialConfig(
-			i.Config.AmqpURI,
+			i.Config.LogsAmqpURI,
 			amqp.Config{
 				Heartbeat:       i.Config.AmqpHeartbeat,
 				Locale:          "en_US",
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			})
 	} else {
-		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+		amqpConn, err = amqp.DialConfig(i.Config.LogsAmqpURI,
 			amqp.Config{
 				Heartbeat: i.Config.AmqpHeartbeat,
 				Locale:    "en_US",
@@ -763,12 +767,17 @@ func (i *CLI) buildAMQPLogsQueue() error {
 	}
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't connect to the logs AMQP server")
-		return err
+		return nil, err
 	}
 
 	go i.amqpErrorWatcher(amqpConn)
 	i.logger.Debug("connected to the logs AMQP server")
-	return nil
+
+	logWriterFactory, err := NewAMQPLogWriterFactory(amqpConn, i.Config.RabbitMQSharding)
+	if err != nil {
+		return nil, err
+	}
+	return logWriterFactory, nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {
