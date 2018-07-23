@@ -12,14 +12,6 @@ import (
 	"github.com/travis-ci/worker/metrics"
 )
 
-// credentials are configured via env:
-// * AWS_ACCESS_KEY_ID
-// * AWS_SECRET_ACCESS_KEY
-//
-// or via the shared creds file ~/.aws/credentials
-//
-// or via the EC2 instance IAM role
-
 type stepDownloadTrace struct {
 	persister BuildTracePersister
 }

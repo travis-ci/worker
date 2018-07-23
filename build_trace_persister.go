@@ -12,12 +12,18 @@ import (
 	"github.com/travis-ci/worker/config"
 )
 
+// credentials are configured via env:
+// * AWS_ACCESS_KEY_ID
+// * AWS_SECRET_ACCESS_KEY
+//
+// or via the shared creds file ~/.aws/credentials
+//
+// or via the EC2 instance IAM role
+
 // A BuildTracePersister persists a build trace. (duh)
 type BuildTracePersister interface {
 	Persist(gocontext.Context, Job, []byte) error
 }
-
-// TODO: explicit accessKeyID, secretAccessKey like build cache
 
 type s3BuildTracePersister struct {
 	bucket    string
