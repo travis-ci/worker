@@ -46,6 +46,9 @@ type ProcessorPoolConfig struct {
 	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
 	MaxLogLength                                                               int
 
+	BuildTraceEnabled                                             bool
+	BuildTraceS3Bucket, BuildTraceS3KeyPrefix, BuildTraceS3Region string
+
 	PayloadFilterExecutable string
 }
 
