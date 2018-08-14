@@ -16,6 +16,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [4.0.0] - 2018-07-23
+
+### Added
+- amqp_log_writer: support separate AMQP connection for log writing
+
+### Changed
+- build: update all dependencies, build binaries via go 1.10.3
+- development: move tooling dependencies into the `deps` target
+- backend/gce: specify `"TERMINATE"` on host maintenance
+- processor: signature of `NewProcessor` to allow for log writer factory
+    injection
+
+### Fixed
+- backend/gce: use consistent zone value
+
 ## [3.12.0] - 2018-07-18
 
 ### Added
@@ -724,7 +739,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.12.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/travis-ci/worker/compare/v3.12.0...v4.0.0
 [3.12.0]: https://github.com/travis-ci/worker/compare/v3.11.0...v3.12.0
 [3.11.0]: https://github.com/travis-ci/worker/compare/v3.10.1...v3.11.0
 [3.10.1]: https://github.com/travis-ci/worker/compare/v3.10.0...v3.10.1

@@ -26,14 +26,7 @@ env:
 jobs:
   include:
   - stage: Build and Test
-    install:
-    - go get -u github.com/alecthomas/gometalinter
-    - gometalinter --install
-    - curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
-    - chmod +x ~/bin/shfmt
-    - shfmt -version
     script:
-    - go get github.com/FiloSottile/gvt
     - travis_retry make deps
     - make lintall
     - make test
@@ -49,21 +42,13 @@ jobs:
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
   - stage: Job Board Integration Tests
-    install:
-    - go get -u github.com/alecthomas/gometalinter
-    - gometalinter --install
-    - curl -o ~/bin/shfmt -sSL https://github.com/mvdan/sh/releases/download/v2.0.0/shfmt_v2.0.0_linux_amd64
-    - chmod +x ~/bin/shfmt
-    - shfmt -version
     script:
-    - go get github.com/FiloSottile/gvt
     - travis_retry make deps
     - make crossbuild
     - make http-job-test
   - stage: Build and Push Docker Image
     script:
     - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-        go get github.com/FiloSottile/gvt;
         travis_retry make deps;
         make crossbuild;
         sudo apt-get update;
@@ -76,7 +61,6 @@ jobs:
   - stage: Build and Test Packages
     script:
     - if [[ $TRAVIS_PULL_REQUEST = 'false' && $PACKAGECLOUD_TOKEN ]]; then
-        go get github.com/FiloSottile/gvt;
         travis_retry make deps;
         make crossbuild;
         gem install package_cloud --no-ri --no-rdoc;
