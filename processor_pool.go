@@ -21,6 +21,7 @@ type ProcessorPool struct {
 	Context                 gocontext.Context
 	Provider                backend.Provider
 	Generator               BuildScriptGenerator
+	Persister               BuildTracePersister
 	CancellationBroadcaster *CancellationBroadcaster
 	Hostname                string
 
@@ -52,7 +53,7 @@ type ProcessorPoolConfig struct {
 
 // NewProcessorPool creates a new processor pool using the given arguments.
 func NewProcessorPool(ppc *ProcessorPoolConfig,
-	provider backend.Provider, generator BuildScriptGenerator,
+	provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister,
 	cancellationBroadcaster *CancellationBroadcaster) *ProcessorPool {
 
 	return &ProcessorPool{
@@ -68,6 +69,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 
 		Provider:                provider,
 		Generator:               generator,
+		Persister:               persister,
 		CancellationBroadcaster: cancellationBroadcaster,
 		PayloadFilterExecutable: ppc.PayloadFilterExecutable,
 	}
@@ -186,7 +188,7 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 	ctx := context.FromProcessor(p.Context, processorID)
 
 	proc, err := NewProcessor(ctx, p.Hostname,
-		queue, logWriterFactory, p.Provider, p.Generator, p.CancellationBroadcaster,
+		queue, logWriterFactory, p.Provider, p.Generator, p.Persister, p.CancellationBroadcaster,
 		ProcessorConfig{
 			HardTimeout:             p.HardTimeout,
 			InitialSleep:            p.InitialSleep,

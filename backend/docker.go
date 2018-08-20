@@ -728,6 +728,10 @@ func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
+func (i *dockerInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
+}
+
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 	defer i.provider.checkinCPUSets(ctx, i.container.HostConfig.Resources.CpusetCpus)
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")

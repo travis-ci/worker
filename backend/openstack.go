@@ -637,6 +637,10 @@ func (i *osInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRes
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
+func (i *osInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
+}
+
 func (i *osInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_instance")
 
