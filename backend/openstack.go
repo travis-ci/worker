@@ -443,6 +443,14 @@ func (p *osProvider) waitForStatus(ctx gocontext.Context, id string, status stri
 	}
 }
 
+func (p *osProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *osProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_provider")
 
@@ -591,6 +599,10 @@ func (i *osInstance) sshConnection() (ssh.Connection, error) {
 	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.ipAddr), i.ic.AuthUser, i.provider.sshDialTimeout)
 }
 
+func (i *osInstance) SupportsProgress() bool {
+	return false
+}
+
 func (i *osInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_instance")
 
@@ -623,6 +635,10 @@ func (i *osInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRes
 	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
 
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
+}
+
+func (i *osInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
 }
 
 func (i *osInstance) Stop(ctx gocontext.Context) error {

@@ -29,6 +29,8 @@ type Processor struct {
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
+	persister               BuildTracePersister
+	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
 
 	graceful   chan struct{}
@@ -58,13 +60,18 @@ type ProcessorConfig struct {
 	ScriptUploadTimeout     time.Duration
 	StartupTimeout          time.Duration
 	PayloadFilterExecutable string
+
+	BuildTraceEnabled     bool
+	BuildTraceS3Bucket    string
+	BuildTraceS3KeyPrefix string
+	BuildTraceS3Region    string
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
+	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	processorID, _ := context.ProcessorFromContext(ctx)
@@ -94,7 +101,9 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		buildJobsChan:           buildJobsChan,
 		provider:                provider,
 		generator:               generator,
+		persister:               persister,
 		cancellationBroadcaster: cancellationBroadcaster,
+		logWriterFactory:        logWriterFactory,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -208,8 +217,10 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
+	state.Put("logWriterFactory", p.logWriterFactory)
 	state.Put("procCtx", buildJob.SetupContext(p.ctx))
 	state.Put("ctx", buildJob.SetupContext(ctx))
+	state.Put("processedAt", time.Now().UTC())
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,
@@ -255,6 +266,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
+		},
+		&stepDownloadTrace{
+			persister: p.persister,
 		},
 	}
 

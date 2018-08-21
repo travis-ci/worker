@@ -18,8 +18,10 @@ import (
 
 // AMQPJobQueue is a JobQueue that uses AMQP
 type AMQPJobQueue struct {
-	conn  *amqp.Connection
-	queue string
+	conn            *amqp.Connection
+	queue           string
+	priority        int
+	withLogSharding bool
 
 	stateUpdatePool *tunny.Pool
 
@@ -30,7 +32,7 @@ type AMQPJobQueue struct {
 // connects to the AMQP queue with the given name. The queue will be declared
 // in AMQP when this function is called, so an error could be raised if the
 // queue already exists, but with different attributes than we expect.
-func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int) (*AMQPJobQueue, error) {
+func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize int, sharded bool) (*AMQPJobQueue, error) {
 	channel, err := conn.Channel()
 	if err != nil {
 		return nil, err
@@ -41,24 +43,32 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 		return nil, err
 	}
 
-	_, err = channel.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	err = channel.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+	_, err = channel.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
-	if err != nil {
-		return nil, err
+	if sharded {
+		// This exchange should be declared as sharded using a policy that matches its name.
+		err = channel.ExchangeDeclare("reporting.jobs.logs_sharded", "x-modulus-hash", true, false, false, false, nil)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = channel.Close()
@@ -71,8 +81,9 @@ func NewAMQPJobQueue(conn *amqp.Connection, queue string, stateUpdatePoolSize in
 	go reportPoolMetrics("state_update_pool", stateUpdatePool)
 
 	return &AMQPJobQueue{
-		conn:  conn,
-		queue: queue,
+		conn:            conn,
+		queue:           queue,
+		withLogSharding: sharded,
 
 		stateUpdatePool: stateUpdatePool,
 	}, nil
@@ -112,7 +123,16 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 		return
 	}
 
-	deliveries, err := jobsChannel.Consume(q.queue, "build-job-consumer", false, false, false, false, nil)
+	deliveries, err := jobsChannel.Consume(
+		q.queue,              // queue
+		"build-job-consumer", // consumer
+
+		false, // autoAck
+		false, // exclusive
+		false, // noLocal
+		false, // noWait
+		amqp.Table{"x-priority": int64(q.priority)}) // args
+
 	if err != nil {
 		return
 	}
@@ -155,6 +175,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 					payload:         &JobPayload{},
 					startAttributes: &backend.StartAttributes{},
 					stateUpdatePool: q.stateUpdatePool,
+					withLogSharding: q.withLogSharding,
 				}
 				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
@@ -192,7 +213,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 				buildJob.startAttributes = startAttrs.Config
 				buildJob.startAttributes.VMType = buildJob.payload.VMType
-				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault)
+				buildJob.startAttributes.VMConfig = buildJob.payload.VMConfig
+				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 				buildJob.conn = q.conn
 				buildJob.logWriterChan = logWriterChannel
 				buildJob.delivery = delivery

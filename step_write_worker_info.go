@@ -29,5 +29,4 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 	return multistep.ActionContinue
 }
 
-func (s *stepWriteWorkerInfo) Cleanup(state multistep.StateBag) {
-}
+func (s *stepWriteWorkerInfo) Cleanup(state multistep.StateBag) {}

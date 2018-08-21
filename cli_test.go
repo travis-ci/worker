@@ -36,7 +36,7 @@ func TestCLI_heartbeatHandler(t *testing.T) {
 
 	i.ProcessorPool = NewProcessorPool(&ProcessorPoolConfig{
 		Context: ctx,
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 
 	n := 0
 	done := make(chan struct{})

@@ -72,7 +72,7 @@ func TestProcessor(t *testing.T) {
 		jobQueue := &fakeJobQueue{c: jobChan}
 		cancellationBroadcaster := NewCancellationBroadcaster()
 
-		processor, err := NewProcessor(ctx, "test-hostname", jobQueue, provider, generator, cancellationBroadcaster, ProcessorConfig{
+		processor, err := NewProcessor(ctx, "test-hostname", jobQueue, nil, provider, generator, nil, cancellationBroadcaster, ProcessorConfig{
 			HardTimeout:             tc.hardTimeout,
 			LogTimeout:              time.Second,
 			ScriptUploadTimeout:     3 * time.Second,

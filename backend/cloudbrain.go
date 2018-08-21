@@ -289,6 +289,14 @@ func (p *cbProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
+func (p *cbProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *cbProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *cbProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/cloudbrain_provider")
 
@@ -501,6 +509,10 @@ func (i *cbInstance) refreshInstance(ctx gocontext.Context) error {
 	return nil
 }
 
+func (i *cbInstance) SupportsProgress() bool {
+	return false
+}
+
 func (i *cbInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 	var lastErr error
@@ -570,6 +582,10 @@ func (i *cbInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRes
 	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
 
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
+}
+
+func (i *cbInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
 }
 
 func (i *cbInstance) Stop(ctx gocontext.Context) error {

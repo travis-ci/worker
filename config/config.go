@@ -50,6 +50,14 @@ var (
 			Value: defaultQueueType,
 			Usage: `The name of the queue type to use ("amqp", "http", or "file")`,
 		}),
+		NewConfigDef("AmqpHeartbeat", &cli.DurationFlag{
+			Value: 10 * time.Second,
+			Usage: "The heartbeat timeout value defines after what time the peer TCP connection should be considered unreachable",
+		}),
+		NewConfigDef("AmqpConsumerPriority", &cli.IntFlag{
+			Value: 0,
+			Usage: "The consumer priority to set when consuming jobs",
+		}),
 		NewConfigDef("AmqpURI", &cli.StringFlag{
 			Value: defaultAmqpURI,
 			Usage: `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
@@ -172,6 +180,9 @@ var (
 			Usage: "The pool size for log workers",
 			Value: 3,
 		}),
+		NewConfigDef("RabbitMQSharding", &cli.BoolFlag{
+			Usage: "Enable sharding for the logs AMQP queue",
+		}),
 
 		// build script generator flags
 		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
@@ -191,6 +202,13 @@ var (
 		NewConfigDef("BuildCacheS3Bucket", &cli.StringFlag{}),
 		NewConfigDef("BuildCacheS3AccessKeyID", &cli.StringFlag{}),
 		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
+
+		NewConfigDef("BuildTraceEnabled", &cli.BoolFlag{
+			Usage: "Enable downloading build traces",
+		}),
+		NewConfigDef("BuildTraceS3Bucket", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3KeyPrefix", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3Region", &cli.StringFlag{}),
 
 		// non-config and special case flags
 		NewConfigDef("PayloadFilterExecutable", &cli.StringFlag{
@@ -322,30 +340,33 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	ProviderName        string `config:"provider-name"`
-	QueueType           string `config:"queue-type"`
-	AmqpURI             string `config:"amqp-uri"`
-	AmqpInsecure        bool   `config:"amqp-insecure"`
-	AmqpTlsCert         string `config:"amqp-tls-cert"`
-	AmqpTlsCertPath     string `config:"amqp-tls-cert-path"`
-	BaseDir             string `config:"base-dir"`
-	PoolSize            int    `config:"pool-size"`
-	BuildAPIURI         string `config:"build-api-uri"`
-	QueueName           string `config:"queue-name"`
-	LibratoEmail        string `config:"librato-email"`
-	LibratoToken        string `config:"librato-token"`
-	LibratoSource       string `config:"librato-source"`
-	LogsAmqpURI         string `config:"logs-amqp-uri"`
-	LogsAmqpTlsCert     string `config:"logs-amqp-tls-cert"`
-	LogsAmqpTlsCertPath string `config:"logs-amqp-tls-cert-path"`
-	SentryDSN           string `config:"sentry-dsn"`
-	Hostname            string `config:"hostname"`
-	DefaultLanguage     string `config:"default-language"`
-	DefaultDist         string `config:"default-dist"`
-	DefaultGroup        string `config:"default-group"`
-	DefaultOS           string `config:"default-os"`
-	JobBoardURL         string `config:"job-board-url"`
-	TravisSite          string `config:"travis-site"`
+	ProviderName         string        `config:"provider-name"`
+	QueueType            string        `config:"queue-type"`
+	AmqpURI              string        `config:"amqp-uri"`
+	AmqpInsecure         bool          `config:"amqp-insecure"`
+	AmqpTlsCert          string        `config:"amqp-tls-cert"`
+	AmqpTlsCertPath      string        `config:"amqp-tls-cert-path"`
+	AmqpHeartbeat        time.Duration `config:"amqp-heartbeat"`
+	AmqpConsumerPriority int           `config:"amqp-consumer-priority"`
+	BaseDir              string        `config:"base-dir"`
+	PoolSize             int           `config:"pool-size"`
+	BuildAPIURI          string        `config:"build-api-uri"`
+	QueueName            string        `config:"queue-name"`
+	LibratoEmail         string        `config:"librato-email"`
+	LibratoToken         string        `config:"librato-token"`
+	LibratoSource        string        `config:"librato-source"`
+	LogsAmqpURI          string        `config:"logs-amqp-uri"`
+	LogsAmqpTlsCert      string        `config:"logs-amqp-tls-cert"`
+	LogsAmqpTlsCertPath  string        `config:"logs-amqp-tls-cert-path"`
+	SentryDSN            string        `config:"sentry-dsn"`
+	Hostname             string        `config:"hostname"`
+	DefaultLanguage      string        `config:"default-language"`
+	DefaultDist          string        `config:"default-dist"`
+	DefaultGroup         string        `config:"default-group"`
+	DefaultOS            string        `config:"default-os"`
+	JobBoardURL          string        `config:"job-board-url"`
+	TravisSite           string        `config:"travis-site"`
+	RabbitMQSharding     bool          `config:"rabbitmq-sharding"`
 
 	StateUpdatePoolSize int `config:"state-update-pool-size"`
 	LogPoolSize         int `config:"log-pool-size"`
@@ -360,6 +381,11 @@ type Config struct {
 	MaxLogLength        int           `config:"max-log-length"`
 	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
 	StartupTimeout      time.Duration `config:"startup-timeout"`
+
+	BuildTraceEnabled     bool   `config:"build-trace-enabled"`
+	BuildTraceS3Bucket    string `config:"build-trace-s3-bucket"`
+	BuildTraceS3KeyPrefix string `config:"build-trace-s3-key-prefix"`
+	BuildTraceS3Region    string `config:"build-trace-s3-region"`
 
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`

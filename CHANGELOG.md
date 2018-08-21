@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- backend/gce: build.sh trace persisting
 
 ### Changed
 
@@ -16,10 +17,73 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [4.0.0] - 2018-07-23
+
+### Added
+- amqp_log_writer: support separate AMQP connection for log writing
+
+### Changed
+- build: update all dependencies, build binaries via go 1.10.3
+- development: move tooling dependencies into the `deps` target
+- backend/gce: specify `"TERMINATE"` on host maintenance
+- processor: signature of `NewProcessor` to allow for log writer factory
+    injection
+
+### Fixed
+- backend/gce: use consistent zone value
+
+## [3.12.0] - 2018-07-18
+
+### Added
+- backend/docker: support for env-based image selection
+- processor: log entries recording time delta since start of processing
+
+## [3.11.0] - 2018-07-12
+
+### Added
+- backend/gce, backend/jupiterbrain: incremental progress reporting during
+    instance startup
+
+## [3.10.1] - 2018-07-06
+
+### Fixed
+- backend/gce: use default disk type when no zone is given via VM config
+
+## [3.10.0] - 2018-07-03
+
+### Added
+- backend/gce: support for GPU allocation via VM config
+
+## [3.9.0] - 2018-07-02
+
+### Added
+- support for a sharded logs queue (using the rabbitmq-sharding plugin)
+
+## [3.8.2] - 2018-06-21
+
+### Added
+- amqp-job-queue: support for setting priority when consuming jobs via
+  `x-priority` argument
+
+## [3.8.1] - 2018-06-20
+
+### Added
+- cli: create a LogQueue that connects to a separate AMQP server, to prepare for
+  splitting the build logs from the current JobQueue
+
+### Changed
+- cli: the connection to the AMQP server now uses a configurable AmqpHeartbeat
+  option
+- Makefile: log output from building or running the tests is now less verbose
+
+### Fixed
+- backend/docker_test: check for EOF instead of Nil for archive/tar errors 
+
 ## [3.8.0] - 2018-05-31
 
 ### Added
-- amqp-job-queue: pool state updates instead of creating an amqp channel per processor
+- amqp-job-queue: pool state updates instead of creating an amqp channel per
+    processor
 
 ### Fixed
 - backend/gce: disable automatic restart
@@ -676,7 +740,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.8.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/travis-ci/worker/compare/v3.12.0...v4.0.0
+[3.12.0]: https://github.com/travis-ci/worker/compare/v3.11.0...v3.12.0
+[3.11.0]: https://github.com/travis-ci/worker/compare/v3.10.1...v3.11.0
+[3.10.1]: https://github.com/travis-ci/worker/compare/v3.10.0...v3.10.1
+[3.10.0]: https://github.com/travis-ci/worker/compare/v3.9.0...v3.10.0
+[3.9.0]: https://github.com/travis-ci/worker/compare/v3.8.2...v3.9.0
+[3.8.2]: https://github.com/travis-ci/worker/compare/v3.8.1...v3.8.2
+[3.8.1]: https://github.com/travis-ci/worker/compare/v3.8.0...v3.8.1
 [3.8.0]: https://github.com/travis-ci/worker/compare/v3.7.0...v3.8.0
 [3.7.0]: https://github.com/travis-ci/worker/compare/v3.6.0...v3.7.0
 [3.6.0]: https://github.com/travis-ci/worker/compare/v3.5.0...v3.6.0

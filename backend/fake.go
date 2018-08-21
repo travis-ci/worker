@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -21,6 +22,14 @@ type fakeProvider struct {
 
 func newFakeProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &fakeProvider{cfg: cfg}, nil
+}
+
+func (p *fakeProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *fakeProvider) StartWithProgress(ctx context.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
 }
 
 func (p *fakeProvider) Start(ctx context.Context, _ *StartAttributes) (Instance, error) {
@@ -47,6 +56,10 @@ type fakeInstance struct {
 	startupDuration time.Duration
 }
 
+func (i *fakeInstance) SupportsProgress() bool {
+	return false
+}
+
 func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 	return nil
 }
@@ -66,6 +79,10 @@ func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunRes
 	}
 
 	return &RunResult{Completed: true}, nil
+}
+
+func (i *fakeInstance) DownloadTrace(ctx context.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
 }
 
 func (i *fakeInstance) Stop(ctx context.Context) error {
