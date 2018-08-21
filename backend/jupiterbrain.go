@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"time"
 
 	gocontext "context"
@@ -77,6 +78,8 @@ type jupiterBrainProvider struct {
 
 	imageSelectorType string
 	imageSelector     image.Selector
+	imageCPUs         int
+	imageRAM          int
 
 	apiClient *jupiterBrainAPIClient
 }
@@ -179,6 +182,22 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
+	var imageCPUs int
+	if cfg.IsSet("IMAGE_CPUS") {
+		imageCPUs, err = strconv.Atoi(cfg.Get("IMAGE_CPUS"))
+		if err != nil {
+			return nil, errors.Wrap(err, "error parsing image CPU count")
+		}
+	}
+
+	var imageRAM int
+	if cfg.IsSet("IMAGE_RAM") {
+		imageRAM, err = strconv.Atoi(cfg.Get("IMAGE_RAM"))
+		if err != nil {
+			return nil, errors.Wrap(err, "error parsing image RAM amount")
+		}
+	}
+
 	return &jupiterBrainProvider{
 		sshDialer:            sshDialer,
 		sshDialTimeout:       sshDialTimeout,
@@ -189,6 +208,8 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		imageSelectorType: imageSelectorType,
 		imageSelector:     imageSelector,
+		imageCPUs:         imageCPUs,
+		imageRAM:          imageRAM,
 
 		apiClient: &jupiterBrainAPIClient{
 			client:  http.DefaultClient,
@@ -258,7 +279,7 @@ func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAtt
 	startBooting := time.Now()
 
 	// Start the instance
-	instancePayload, err := p.apiClient.Start(ctx, imageName)
+	instancePayload, err := p.apiClient.Start(ctx, imageName, p.imageCPUs, p.imageRAM)
 	if err != nil {
 		progresser.Progress(&ProgressEntry{
 			Message: "could not create instance",
@@ -577,12 +598,19 @@ type jupiterBrainAPIClient struct {
 	baseURL *url.URL
 }
 
-func (ac *jupiterBrainAPIClient) Start(ctx gocontext.Context, baseImage string) (*jupiterBrainInstancePayload, error) {
-	bodyPayload := map[string]map[string]string{
+func (ac *jupiterBrainAPIClient) Start(ctx gocontext.Context, baseImage string, cpus int, ram int) (*jupiterBrainInstancePayload, error) {
+	bodyPayload := map[string]map[string]interface{}{
 		"data": {
 			"type":       "instances",
 			"base-image": baseImage,
 		},
+	}
+
+	if cpus != 0 {
+		bodyPayload["data"]["cpus"] = cpus
+	}
+	if ram != 0 {
+		bodyPayload["data"]["ram"] = ram
 	}
 
 	jsonBody, err := json.Marshal(bodyPayload)
