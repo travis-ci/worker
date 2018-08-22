@@ -2,7 +2,6 @@ package backend
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
