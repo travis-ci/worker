@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Added
 - backend/gce: build.sh trace persisting
+- backend/gce: make migration behavior on host maintenance events conditional on GPU usage
 
 ### Changed
 
