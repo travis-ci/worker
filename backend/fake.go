@@ -82,7 +82,7 @@ func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunRes
 }
 
 func (i *fakeInstance) DownloadTrace(ctx context.Context) ([]byte, error) {
-	return nil, errors.New("DownloadTrace not implemented")
+	return nil, ErrDownloadTraceNotImplemented
 }
 
 func (i *fakeInstance) Stop(ctx context.Context) error {

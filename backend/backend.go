@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -12,6 +13,8 @@ var (
 	backendRegistry      = map[string]*Backend{}
 	backendRegistryMutex sync.Mutex
 )
+
+var ErrDownloadTraceNotImplemented = errors.New("DownloadTrace not implemented")
 
 // Backend wraps up an alias, backend provider help, and a factory func for a
 // given backend provider wheee

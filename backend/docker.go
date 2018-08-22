@@ -729,7 +729,7 @@ func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (
 }
 
 func (i *dockerInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
-	return nil, errors.New("DownloadTrace not implemented")
+	return nil, ErrDownloadTraceNotImplemented
 }
 
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {
