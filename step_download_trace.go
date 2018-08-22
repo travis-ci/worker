@@ -1,11 +1,13 @@
 package worker
 
 import (
+	"os"
 	"time"
 
 	gocontext "context"
 
 	"github.com/mitchellh/multistep"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
@@ -36,6 +38,14 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 
 	buf, err := instance.DownloadTrace(ctx)
 	if err != nil {
+		if err == backend.ErrDownloadTraceNotImplemented || os.IsNotExist(errors.Cause(err)) {
+			logger.WithFields(logrus.Fields{
+				"err": err,
+			}).Info("skipping trace download")
+
+			return multistep.ActionContinue
+		}
+
 		metrics.Mark("worker.job.trace.download.error")
 
 		logger.WithFields(logrus.Fields{
