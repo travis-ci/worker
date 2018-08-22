@@ -76,10 +76,10 @@ type jupiterBrainProvider struct {
 	bootPollDialTimeout  time.Duration
 	bootPollWaitForError time.Duration
 
-	imageSelectorType string
-	imageSelector     image.Selector
-	imageCPUs         int
-	imageRAM          int
+	imageSelectorType   string
+	imageSelector       image.Selector
+	defaultInstanceCPUs int
+	defaultInstanceRAM  int
 
 	apiClient *jupiterBrainAPIClient
 }
@@ -182,17 +182,17 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	var imageCPUs int
-	if cfg.IsSet("IMAGE_CPUS") {
-		imageCPUs, err = strconv.Atoi(cfg.Get("IMAGE_CPUS"))
+	var defaultInstanceCPUs int
+	if cfg.IsSet("INSTANCE_CPUS") {
+		defaultInstanceCPUs, err = strconv.Atoi(cfg.Get("INSTANCE_CPUS"))
 		if err != nil {
 			return nil, errors.Wrap(err, "error parsing image CPU count")
 		}
 	}
 
-	var imageRAM int
-	if cfg.IsSet("IMAGE_RAM") {
-		imageRAM, err = strconv.Atoi(cfg.Get("IMAGE_RAM"))
+	var defaultInstanceRAM int
+	if cfg.IsSet("INSTANCE_RAM") {
+		defaultInstanceRAM, err = strconv.Atoi(cfg.Get("INSTANCE_RAM"))
 		if err != nil {
 			return nil, errors.Wrap(err, "error parsing image RAM amount")
 		}
@@ -206,10 +206,10 @@ func newJupiterBrainProvider(cfg *config.ProviderConfig) (Provider, error) {
 		bootPollDialTimeout:  bootPollDialTimeout,
 		bootPollWaitForError: bootPollWaitForError,
 
-		imageSelectorType: imageSelectorType,
-		imageSelector:     imageSelector,
-		imageCPUs:         imageCPUs,
-		imageRAM:          imageRAM,
+		imageSelectorType:   imageSelectorType,
+		imageSelector:       imageSelector,
+		defaultInstanceCPUs: defaultInstanceCPUs,
+		defaultInstanceRAM:  defaultInstanceRAM,
 
 		apiClient: &jupiterBrainAPIClient{
 			client:  http.DefaultClient,
@@ -279,7 +279,7 @@ func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAtt
 	startBooting := time.Now()
 
 	// Start the instance
-	instancePayload, err := p.apiClient.Start(ctx, imageName, p.imageCPUs, p.imageRAM)
+	instancePayload, err := p.apiClient.Start(ctx, imageName, p.defaultInstanceCPUs, p.defaultInstanceRAM)
 	if err != nil {
 		progresser.Progress(&ProgressEntry{
 			Message: "could not create instance",
