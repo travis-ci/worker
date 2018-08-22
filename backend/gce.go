@@ -1069,10 +1069,14 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		hostname = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
 	}
 
+	var onHostMaintenance string
+	onHostMaintenance = "MIGRATE"
+
 	acceleratorConfigs := []*compute.AcceleratorConfig{}
 	if acceleratorConfig.AcceleratorCount > 0 {
 		logger.Debug("GPU requested, setting acceleratorConfig")
 		acceleratorConfigs = append(acceleratorConfigs, acceleratorConfig)
+		onHostMaintenance = "TERMINATE"
 	}
 
 	return &compute.Instance{
@@ -1094,7 +1098,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		Scheduling: &compute.Scheduling{
 			Preemptible:       p.ic.Preemptible,
 			AutomaticRestart:  googleapi.Bool(false),
-			OnHostMaintenance: "TERMINATE",
+			OnHostMaintenance: onHostMaintenance,
 		},
 		MachineType: machineType.SelfLink,
 		Name:        hostname,
