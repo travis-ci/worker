@@ -29,6 +29,7 @@ type Processor struct {
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
+	persister               BuildTracePersister
 	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
 
@@ -59,13 +60,18 @@ type ProcessorConfig struct {
 	ScriptUploadTimeout     time.Duration
 	StartupTimeout          time.Duration
 	PayloadFilterExecutable string
+
+	BuildTraceEnabled     bool
+	BuildTraceS3Bucket    string
+	BuildTraceS3KeyPrefix string
+	BuildTraceS3Region    string
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
+	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	processorID, _ := context.ProcessorFromContext(ctx)
@@ -95,6 +101,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		buildJobsChan:           buildJobsChan,
 		provider:                provider,
 		generator:               generator,
+		persister:               persister,
 		cancellationBroadcaster: cancellationBroadcaster,
 		logWriterFactory:        logWriterFactory,
 
@@ -259,6 +266,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			logTimeout:               logTimeout,
 			hardTimeout:              p.hardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
+		},
+		&stepDownloadTrace{
+			persister: p.persister,
 		},
 	}
 

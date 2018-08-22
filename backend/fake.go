@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -78,6 +79,10 @@ func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunRes
 	}
 
 	return &RunResult{Completed: true}, nil
+}
+
+func (i *fakeInstance) DownloadTrace(ctx context.Context) ([]byte, error) {
+	return nil, errors.New("DownloadTrace not implemented")
 }
 
 func (i *fakeInstance) Stop(ctx context.Context) error {

@@ -203,6 +203,13 @@ var (
 		NewConfigDef("BuildCacheS3AccessKeyID", &cli.StringFlag{}),
 		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
 
+		NewConfigDef("BuildTraceEnabled", &cli.BoolFlag{
+			Usage: "Enable downloading build traces",
+		}),
+		NewConfigDef("BuildTraceS3Bucket", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3KeyPrefix", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3Region", &cli.StringFlag{}),
+
 		// non-config and special case flags
 		NewConfigDef("PayloadFilterExecutable", &cli.StringFlag{
 			Usage: "External executable which will be called to filter the json to be sent to the build script generator",
@@ -374,6 +381,11 @@ type Config struct {
 	MaxLogLength        int           `config:"max-log-length"`
 	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
 	StartupTimeout      time.Duration `config:"startup-timeout"`
+
+	BuildTraceEnabled     bool   `config:"build-trace-enabled"`
+	BuildTraceS3Bucket    string `config:"build-trace-s3-bucket"`
+	BuildTraceS3KeyPrefix string `config:"build-trace-s3-key-prefix"`
+	BuildTraceS3Region    string `config:"build-trace-s3-region"`
 
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`

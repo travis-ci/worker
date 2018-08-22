@@ -52,6 +52,7 @@ type CLI struct {
 
 	Config                  *config.Config
 	BuildScriptGenerator    BuildScriptGenerator
+	BuildTracePersister     BuildTracePersister
 	BackendProvider         backend.Provider
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
@@ -138,6 +139,11 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.BuildScriptGenerator = generator
 
+	persister := NewBuildTracePersister(i.Config)
+	logger.WithField("build_trace_persister", fmt.Sprintf("%#v", persister)).Debug("built")
+
+	i.BuildTracePersister = persister
+
 	if i.Config.TravisSite != "" {
 		i.Config.ProviderConfig.Set("TRAVIS_SITE", i.Config.TravisSite)
 	}
@@ -171,7 +177,7 @@ func (i *CLI) Setup() (bool, error) {
 		PayloadFilterExecutable: i.Config.PayloadFilterExecutable,
 	}
 
-	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)
+	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.BuildTracePersister, i.CancellationBroadcaster)
 
 	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
 	logger.WithField("pool", pool).Debug("built")
