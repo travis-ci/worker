@@ -469,7 +469,7 @@ func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer
 }
 
 func (i *jupiterBrainInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
-	return nil, errors.New("DownloadTrace not implemented")
+	return nil, ErrDownloadTraceNotImplemented
 }
 
 func (i *jupiterBrainInstance) Stop(ctx gocontext.Context) error {

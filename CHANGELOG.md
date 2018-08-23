@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- backend/gce: build.sh trace persisting
 
 ### Changed
 
@@ -16,6 +15,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.0.1] - 2018-08-22
+
+### Added
+- backend/gce: build.sh trace persisting
+- backend/gce: make migration behavior on host maintenance events conditional on GPU usage
 
 ## [4.0.0] - 2018-07-23
 
@@ -740,7 +745,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.0.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.0.1...HEAD
+[4.0.1]: https://github.com/travis-ci/worker/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/travis-ci/worker/compare/v3.12.0...v4.0.0
 [3.12.0]: https://github.com/travis-ci/worker/compare/v3.11.0...v3.12.0
 [3.11.0]: https://github.com/travis-ci/worker/compare/v3.10.1...v3.11.0
