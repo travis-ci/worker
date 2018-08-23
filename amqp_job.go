@@ -161,6 +161,10 @@ func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map
 		body["finished_at"] = j.finished.UTC().Format(time.RFC3339)
 	}
 
+	if j.Payload().Trace {
+		body["trace"] = true
+	}
+
 	return body
 }
 
