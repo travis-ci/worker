@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 
+- trace: guard trace download step on the trace flag from the payload
+- trace: propagate the trace flag in state update message
+
 ### Deprecated
 
 ### Removed
