@@ -36,6 +36,10 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 
 	// downloading the trace is best-effort, so we continue in any case
 
+	if !buildJob.Payload().Trace {
+		return multistep.ActionContinue
+	}
+
 	buf, err := instance.DownloadTrace(ctx)
 	if err != nil {
 		if err == backend.ErrDownloadTraceNotImplemented || os.IsNotExist(errors.Cause(err)) {
