@@ -80,7 +80,7 @@ var (
 		"IMAGE_[ALIAS_]{ALIAS}":  "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"MACHINE_TYPE":           fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
 		"NETWORK":                fmt.Sprintf("network name (default %q)", defaultGCENetwork),
-		"PREEMPTIBLE":            "boot job instances with preemptible flag enabled (default true)",
+		"PREEMPTIBLE":            "boot job instances with preemptible flag enabled (default false)",
 		"PREMIUM_MACHINE_TYPE":   fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
 		"PROJECT_ID":             "[REQUIRED] GCE project id",
 		"PUBLIC_IP":              "boot job instances with a public ip, disable this for NAT (default true)",
@@ -475,7 +475,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	preemptible := true
+	preemptible := false
 	if cfg.IsSet("PREEMPTIBLE") {
 		preemptible = asBool(cfg.Get("PREEMPTIBLE"))
 	}
@@ -1076,6 +1076,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	if acceleratorConfig.AcceleratorCount > 0 {
 		logger.Debug("GPU requested, setting acceleratorConfig")
 		acceleratorConfigs = append(acceleratorConfigs, acceleratorConfig)
+		onHostMaintenance = "TERMINATE"
+	}
+
+	if p.ic.Preemptible == true && onHostMaintenance == "MIGRATE" {
+		// googleapi: Scheduling must have preemptible be false when OnHostMaintenance isn't TERMINATE.
+		// In other words: if preemptible is true, OnHostMaintenance must be TERMINATE.
+		logger.Warn("PREEMPTIBLE is set to true; forcing onHostMaintenance to TERMINATE")
 		onHostMaintenance = "TERMINATE"
 	}
 
