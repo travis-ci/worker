@@ -184,6 +184,10 @@ func (j *httpJob) createStateUpdateBody(curState, newState string) map[string]in
 		body["finished_at"] = j.finished.UTC().Format(time.RFC3339)
 	}
 
+	if j.Payload().Trace {
+		body["trace"] = true
+	}
+
 	return body
 }
 
