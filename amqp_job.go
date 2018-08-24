@@ -100,10 +100,11 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"state":      state,
-		"self":       "amqp_job",
-		"job_id":     j.Payload().Job.ID,
-		"repository": j.Payload().Repository.Slug,
+		"state":           state,
+		"self":            "amqp_job",
+		"job_id":          j.Payload().Job.ID,
+		"repository":      j.Payload().Repository.Slug,
+		"job_duration_ms": j.finished.Sub(j.started) * time.Millisecond,
 	}).Info("finishing job")
 
 	j.finished = time.Now()
