@@ -638,7 +638,7 @@ func (i *osInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRes
 }
 
 func (i *osInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
-	return nil, errors.New("DownloadTrace not implemented")
+	return nil, ErrDownloadTraceNotImplemented
 }
 
 func (i *osInstance) Stop(ctx gocontext.Context) error {

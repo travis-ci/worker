@@ -148,7 +148,7 @@ func (c *sshConnection) DownloadFile(path string) ([]byte, error) {
 
 	_, err = sftp.Lstat(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't stat file (it may be missing)")
+		return nil, errors.Wrap(err, "couldn't stat file")
 	}
 
 	f, err := sftp.OpenFile(path, os.O_RDONLY)
