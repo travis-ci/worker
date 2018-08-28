@@ -16,11 +16,12 @@ import (
 )
 
 type amqpLogPart struct {
-	JobID   uint64 `json:"id"`
-	Content string `json:"log"`
-	Number  int    `json:"number"`
-	UUID    string `json:"uuid"`
-	Final   bool   `json:"final"`
+	JobID      uint64     `json:"id"`
+	Content    string     `json:"log"`
+	Number     int        `json:"number"`
+	UUID       string     `json:"uuid"`
+	Final      bool       `json:"final"`
+	ReceivedAt *time.Time `json:"received_at,omitempty"`
 }
 
 type amqpLogWriter struct {
@@ -112,6 +113,10 @@ func (w *amqpLogWriter) Close() error {
 		JobID:  w.jobID,
 		Number: w.logPartNumber,
 		Final:  true,
+	}
+	if w.logPartNumber == 0 && w.ctx.Value("processedAt") != nil {
+		processedAt := w.ctx.Value("processedAt").(time.Time)
+		part.ReceivedAt = &processedAt
 	}
 	w.logPartNumber++
 

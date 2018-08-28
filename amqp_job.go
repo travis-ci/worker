@@ -184,7 +184,9 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	return err.(error)
 }
 
-func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context { return ctx }
+func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context {
+	return gocontext.WithValue(ctx, "processedAt", time.Now().UTC())
+}
 
 func (j *amqpJob) Name() string { return "amqp" }
 
