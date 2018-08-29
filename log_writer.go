@@ -4,6 +4,8 @@ import (
 	"errors"
 	"io"
 	"time"
+
+	gocontext "context"
 )
 
 var (
@@ -46,4 +48,5 @@ type LogWriter interface {
 	Timeout() <-chan time.Time
 	SetMaxLogLength(int)
 	SetJobStarted()
+	SetCancelFunc(gocontext.CancelFunc)
 }

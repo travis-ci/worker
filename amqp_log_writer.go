@@ -26,6 +26,7 @@ type amqpLogPart struct {
 
 type amqpLogWriter struct {
 	ctx         gocontext.Context
+	cancel 		gocontext.CancelFunc
 	jobID       uint64
 	jobQueuedAt *time.Time
 	sharded     bool
@@ -94,7 +95,9 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
 		}
-		return 0, ErrWrotePastMaxLogLength
+		gocontext.Canceled = ErrWrotePastMaxLogLength
+		w.cancel()
+		return 0, nil
 	}
 
 	w.bufferMutex.Lock()
@@ -133,6 +136,10 @@ func (w *amqpLogWriter) SetMaxLogLength(bytes int) {
 
 func (w *amqpLogWriter) SetJobStarted() {
 	w.jobStarted = true
+}
+
+func (w *amqpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
+	w.cancel = cancel
 }
 
 // WriteAndClose works like a Write followed by a Close, but ensures that no
