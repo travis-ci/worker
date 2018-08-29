@@ -100,7 +100,7 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	j.finished = time.Now()
-	
+
 	if j.received.IsZero() {
 		j.received = j.finished
 	}
@@ -108,7 +108,7 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	if j.started.IsZero() {
 		j.started = j.finished
 	}
-	
+
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"state":           state,
 		"self":            "amqp_job",
