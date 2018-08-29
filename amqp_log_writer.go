@@ -27,7 +27,7 @@ type amqpLogPart struct {
 type amqpLogWriter struct {
 	ctx         gocontext.Context
 	jobID       uint64
-	jobQueuedAt time.Time
+	jobQueuedAt *time.Time
 	sharded     bool
 
 	closeChan chan struct{}
@@ -47,7 +47,7 @@ type amqpLogWriter struct {
 	timeout time.Duration
 }
 
-func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, jobQueuedAt time.Time, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
+func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, jobQueuedAt *time.Time, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
 
 	writer := &amqpLogWriter{
 		ctx:         context.FromComponent(ctx, "log_writer"),
@@ -231,7 +231,7 @@ func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	part.UUID, _ = context.UUIDFromContext(w.ctx)
 
 	if w.jobStarted {
-		part.QueuedAt = &w.jobQueuedAt
+		part.QueuedAt = w.jobQueuedAt
 		w.jobStarted = false
 	}
 
