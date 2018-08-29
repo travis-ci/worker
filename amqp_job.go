@@ -104,7 +104,7 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 		"self":            "amqp_job",
 		"job_id":          j.Payload().Job.ID,
 		"repository":      j.Payload().Repository.Slug,
-		"job_duration_ms": j.finished.Sub(j.started) * time.Millisecond,
+		"job_duration_ms": j.finished.Sub(j.started).Seconds() * 1e3,
 	}).Info("finishing job")
 
 	j.finished = time.Now()
