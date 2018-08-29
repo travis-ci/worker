@@ -26,7 +26,7 @@ type amqpLogPart struct {
 
 type amqpLogWriter struct {
 	ctx         gocontext.Context
-	cancel 		gocontext.CancelFunc
+	cancel      gocontext.CancelFunc
 	jobID       uint64
 	jobQueuedAt *time.Time
 	sharded     bool
