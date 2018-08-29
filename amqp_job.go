@@ -134,7 +134,7 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, logTimeout, j.withLogSharding)
+	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, j.Payload().Job.QueuedAt, logTimeout, j.withLogSharding)
 }
 
 func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
@@ -186,7 +186,9 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 	return err.(error)
 }
 
-func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context { return ctx }
+func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context {
+	return ctx
+}
 
 func (j *amqpJob) Name() string { return "amqp" }
 

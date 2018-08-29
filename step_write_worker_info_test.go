@@ -32,6 +32,9 @@ func (w *byteBufferLogWriter) Timeout() <-chan time.Time {
 func (w *byteBufferLogWriter) SetMaxLogLength(m int) {
 }
 
+func (w *byteBufferLogWriter) SetJobStarted() {
+}
+
 func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *byteBufferLogWriter, multistep.StateBag) {
 	s := &stepWriteWorkerInfo{}
 
