@@ -99,15 +99,8 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"state":           state,
-		"self":            "amqp_job",
-		"job_id":          j.Payload().Job.ID,
-		"repository":      j.Payload().Repository.Slug,
-		"job_duration_ms": j.finished.Sub(j.started).Seconds() * 1e3,
-	}).Info("finishing job")
-
 	j.finished = time.Now()
+	
 	if j.received.IsZero() {
 		j.received = j.finished
 	}
@@ -115,6 +108,14 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	if j.started.IsZero() {
 		j.started = j.finished
 	}
+	
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"state":           state,
+		"self":            "amqp_job",
+		"job_id":          j.Payload().Job.ID,
+		"repository":      j.Payload().Repository.Slug,
+		"job_duration_ms": j.finished.Sub(j.started).Seconds() * 1e3,
+	}).Info("finishing job")
 
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 	metrics.Mark("travis.worker.job.finish")
