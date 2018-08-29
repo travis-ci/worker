@@ -230,6 +230,10 @@ func (w *amqpLogWriter) flush() {
 func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	part.UUID, _ = context.UUIDFromContext(w.ctx)
 
+	// we emit the queued_at field on the log part to indicate that
+	// this is when the job started running. downstream consumers of
+	// the log parts (travis-logs) can then use the timestamp to compute
+	// a "time to first log line" metric.
 	if w.jobStarted {
 		part.QueuedAt = w.jobQueuedAt
 		w.jobStarted = false
