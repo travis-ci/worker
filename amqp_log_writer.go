@@ -223,7 +223,7 @@ func (w *amqpLogWriter) flush() {
 func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	part.UUID, _ = context.UUIDFromContext(w.ctx)
 
-	if w.logPartNumber == 1 && w.ctx.Value("processedAt") != nil {
+	if part.Number == 0 && w.ctx.Value("processedAt") != nil {
 		processedAt := w.ctx.Value("processedAt").(time.Time)
 		part.ReceivedAt = &processedAt
 	}
