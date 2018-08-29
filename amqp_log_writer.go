@@ -16,24 +16,26 @@ import (
 )
 
 type amqpLogPart struct {
-	JobID      uint64     `json:"id"`
-	Content    string     `json:"log"`
-	Number     int        `json:"number"`
-	UUID       string     `json:"uuid"`
-	Final      bool       `json:"final"`
-	ReceivedAt *time.Time `json:"received_at,omitempty"`
+	JobID    uint64     `json:"id"`
+	Content  string     `json:"log"`
+	Number   int        `json:"number"`
+	UUID     string     `json:"uuid"`
+	Final    bool       `json:"final"`
+	QueuedAt *time.Time `json:"queued_at,omitempty"`
 }
 
 type amqpLogWriter struct {
-	ctx     gocontext.Context
-	jobID   uint64
-	sharded bool
+	ctx         gocontext.Context
+	jobID       uint64
+	jobQueuedAt time.Time
+	sharded     bool
 
 	closeChan chan struct{}
 
 	bufferMutex   sync.Mutex
 	buffer        *bytes.Buffer
 	logPartNumber int
+	jobStarted    bool
 
 	bytesWritten int
 	maxLength    int
@@ -45,17 +47,18 @@ type amqpLogWriter struct {
 	timeout time.Duration
 }
 
-func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
+func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, jobQueuedAt time.Time, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
 
 	writer := &amqpLogWriter{
-		ctx:       context.FromComponent(ctx, "log_writer"),
-		amqpChan:  logWriterChan,
-		jobID:     jobID,
-		closeChan: make(chan struct{}),
-		buffer:    new(bytes.Buffer),
-		timer:     time.NewTimer(time.Hour),
-		timeout:   timeout,
-		sharded:   sharded,
+		ctx:         context.FromComponent(ctx, "log_writer"),
+		amqpChan:    logWriterChan,
+		jobID:       jobID,
+		jobQueuedAt: jobQueuedAt,
+		closeChan:   make(chan struct{}),
+		buffer:      new(bytes.Buffer),
+		timer:       time.NewTimer(time.Hour),
+		timeout:     timeout,
+		sharded:     sharded,
 	}
 
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -126,6 +129,10 @@ func (w *amqpLogWriter) Timeout() <-chan time.Time {
 
 func (w *amqpLogWriter) SetMaxLogLength(bytes int) {
 	w.maxLength = bytes
+}
+
+func (w *amqpLogWriter) SetJobStarted() {
+	w.jobStarted = true
 }
 
 // WriteAndClose works like a Write followed by a Close, but ensures that no
@@ -223,9 +230,9 @@ func (w *amqpLogWriter) flush() {
 func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	part.UUID, _ = context.UUIDFromContext(w.ctx)
 
-	if part.Number == 0 && w.ctx.Value("processedAt") != nil {
-		processedAt := w.ctx.Value("processedAt").(time.Time)
-		part.ReceivedAt = &processedAt
+	if w.jobStarted {
+		part.QueuedAt = &w.jobQueuedAt
+		w.jobStarted = false
 	}
 
 	partBody, err := json.Marshal(part)
