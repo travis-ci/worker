@@ -95,6 +95,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if ctx.Err() == ErrWrotePastMaxLogLength {
 			logger.Info("wrote past maximum log length")
 			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
+			// Reset context.Canceled, since we it we override it by ErrWrotePastMaxLogLength when triggering this
+			gocontext.Canceled = errors.New("context canceled")
 			return multistep.ActionHalt
 		}
 
