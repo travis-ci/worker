@@ -118,7 +118,6 @@ func TestAMQPLogWriterClose(t *testing.T) {
 	}
 }
 
-
 func noCancel() {}
 
 func TestAMQPMaxLogLength(t *testing.T) {

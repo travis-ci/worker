@@ -33,10 +33,10 @@ type amqpLogWriter struct {
 
 	closeChan chan struct{}
 
-	bufferMutex   sync.Mutex
-	buffer        *bytes.Buffer
-	logPartNumber int
-	jobStarted    bool
+	bufferMutex      sync.Mutex
+	buffer           *bytes.Buffer
+	logPartNumber    int
+	jobStarted       bool
 	maxLengthReached bool
 
 	bytesWritten int
@@ -140,7 +140,7 @@ func (w *amqpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
 	w.cancel = cancel
 }
 
-func (w *amqpLogWriter) MaxLengthReached() bool{
+func (w *amqpLogWriter) MaxLengthReached() bool {
 	return w.maxLengthReached == true
 }
 

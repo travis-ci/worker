@@ -134,7 +134,7 @@ func (w *httpLogWriter) SetJobStarted() {}
 
 func (w *httpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {}
 
-func (w *httpLogWriter) MaxLengthReached() bool{
+func (w *httpLogWriter) MaxLengthReached() bool {
 	return false
 }
 
