@@ -745,7 +745,29 @@ func (i *dockerInstance) downloadTraceNative(ctx gocontext.Context) ([]byte, err
 		return nil, errors.Wrap(err, "couldn't copy trace from container")
 	}
 
-	buf, err := ioutil.ReadAll(r)
+	found := false
+
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, errors.Wrap(err, "couldn't parse tar")
+		}
+
+		if hdr.Name == "build.trace" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, errors.Wrap(err, "couldn't find trace in tar")
+	}
+
+	buf, err := ioutil.ReadAll(tr)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't read contents of file")
 	}
