@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"gopkg.in/urfave/cli.v1"
 )
@@ -29,6 +30,6 @@ func init() {
 }
 
 func customVersionPrinter(c *cli.Context) {
-	fmt.Printf("%v v=%v rev=%v d=%v\n", filepath.Base(c.App.Name),
-		VersionString, RevisionString, GeneratedString)
+	fmt.Printf("%v v=%v rev=%v d=%v go=%v\n", filepath.Base(c.App.Name),
+		VersionString, RevisionString, GeneratedString, runtime.Version())
 }
