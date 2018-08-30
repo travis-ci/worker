@@ -35,6 +35,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
 	ctx, cancel := gocontext.WithTimeout(ctx, s.hardTimeout)
 	logWriter.SetCancelFunc(cancel)
+	defer cancel()
 
 	logger.Info("running script")
 	defer logger.Info("finished script")
