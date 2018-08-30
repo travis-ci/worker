@@ -134,6 +134,10 @@ func (w *httpLogWriter) SetJobStarted() {}
 
 func (w *httpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {}
 
+func (w *httpLogWriter) MaxLengthReached() bool{
+	return false
+}
+
 func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {
 	if w.closed() {
 		return 0, fmt.Errorf("log already closed")

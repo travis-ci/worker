@@ -49,4 +49,5 @@ type LogWriter interface {
 	SetMaxLogLength(int)
 	SetJobStarted()
 	SetCancelFunc(gocontext.CancelFunc)
+	MaxLengthReached() bool
 }
