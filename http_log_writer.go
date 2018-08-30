@@ -20,6 +20,7 @@ type httpLogPart struct {
 
 type httpLogWriter struct {
 	ctx       gocontext.Context
+	cancel    gocontext.CancelFunc
 	jobID     uint64
 	authToken string
 
@@ -27,8 +28,9 @@ type httpLogWriter struct {
 
 	logPartNumber uint64
 
-	bytesWritten int
-	maxLength    int
+	bytesWritten     int
+	maxLength        int
+	maxLengthReached bool
 
 	lps *httpLogPartSink
 
@@ -69,11 +71,10 @@ func (w *httpLogWriter) Write(p []byte) (int, error) {
 
 	w.bytesWritten += len(p)
 	if w.bytesWritten > w.maxLength {
-		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
-		if err != nil {
-			logger.WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
-		}
-		return 0, ErrWrotePastMaxLogLength
+		logger.Info("wrote past maximum log length - cancelling context")
+		w.maxLengthReached = true
+		w.cancel()
+		return 0, nil
 	}
 
 	err := w.lps.Add(w.ctx, &httpLogPart{
@@ -132,10 +133,12 @@ func (w *httpLogWriter) SetMaxLogLength(bytes int) {
 
 func (w *httpLogWriter) SetJobStarted() {}
 
-func (w *httpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {}
+func (w *httpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
+	w.cancel = cancel
+}
 
 func (w *httpLogWriter) MaxLengthReached() bool {
-	return false
+	return w.maxLengthReached == true
 }
 
 func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {

@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"errors"
 	"io"
 	"time"
 
@@ -32,10 +31,6 @@ var (
 	// out the worst-case logs to be quite unlikely, so I'm willing to live
 	// with that. --Sarah
 	LogChunkSize = 1653
-
-	// ErrWrotePastMaxLogLength is returned by LogWriter.Write if the write
-	// caused the number of written bytes to go over the maximum log length.
-	ErrWrotePastMaxLogLength = errors.New("wrote past max length")
 )
 
 // LogWriter is primarily an io.Writer that will send all bytes to travis-logs
