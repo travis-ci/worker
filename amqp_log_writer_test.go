@@ -137,8 +137,11 @@ func TestAMQPMaxLogLength(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	if logWriter.ctx.Err() != nil {
+		t.Error("context should still be valid")
+	}
 	_, err = fmt.Fprintf(logWriter, "5")
-	if err == nil {
-		t.Error("expected error, but got nil")
+	if logWriter.ctx.Err() != ErrWrotePastMaxLogLength {
+		t.Error("expected context error to be ErrWrotePastMaxLogLength")
 	}
 }
