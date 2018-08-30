@@ -45,4 +45,5 @@ type LogWriter interface {
 	WriteAndClose([]byte) (int, error)
 	Timeout() <-chan time.Time
 	SetMaxLogLength(int)
+	SetJobStarted()
 }

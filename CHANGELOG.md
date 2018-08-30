@@ -8,9 +8,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 
-- trace: guard trace download step on the trace flag from the payload
-- trace: propagate the trace flag in state update message
-
 ### Deprecated
 
 ### Removed
@@ -18,6 +15,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.1.0] - 2018-08-30
+
+### Added
+
+- backend/jupiterbrain: override for CPU count and RAM in created instances
+
+### Changed
+
+- trace: guard trace download step on the trace flag from the payload
+- trace: propagate the trace flag in state update message
 
 ## [4.0.1] - 2018-08-22
 
@@ -748,7 +756,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.0.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.0...HEAD
+[4.1.0]: https://github.com/travis-ci/worker/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/travis-ci/worker/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/travis-ci/worker/compare/v3.12.0...v4.0.0
 [3.12.0]: https://github.com/travis-ci/worker/compare/v3.11.0...v3.12.0

@@ -44,6 +44,8 @@ func (w *fileLogWriter) SetMaxLogLength(n int) {
 	return
 }
 
+func (w *fileLogWriter) SetJobStarted() {}
+
 func (w *fileLogWriter) Timeout() <-chan time.Time {
 	return w.timer.C
 }

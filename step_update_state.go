@@ -17,6 +17,7 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
 	processedAt := state.Get("processedAt").(time.Time)
+	logWriter := state.Get("logWriter").(LogWriter)
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
 
@@ -25,6 +26,8 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 		ctx = context.FromInstanceID(ctx, instanceID)
 		state.Put("ctx", ctx)
 	}
+
+	logWriter.SetJobStarted()
 
 	err := buildJob.Started(ctx)
 	if err != nil {

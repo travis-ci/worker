@@ -146,3 +146,5 @@ func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 }
 
 func (flw *fakeLogWriter) SetMaxLogLength(_ int) {}
+
+func (flw *fakeLogWriter) SetJobStarted() {}
