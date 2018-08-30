@@ -118,6 +118,9 @@ func TestAMQPLogWriterClose(t *testing.T) {
 	}
 }
 
+
+func noCancel() {}
+
 func TestAMQPMaxLogLength(t *testing.T) {
 	amqpConn, amqpChan := setupAMQPConn(t)
 	defer amqpConn.Close()
@@ -132,16 +135,18 @@ func TestAMQPMaxLogLength(t *testing.T) {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(4)
+	logWriter.SetCancelFunc(noCancel)
 
 	_, err = fmt.Fprintf(logWriter, "1234")
 	if err != nil {
 		t.Error(err)
 	}
-	if logWriter.ctx.Err() != nil {
-		t.Error("context should still be valid")
+	if logWriter.MaxLengthReached() {
+		t.Error("max length should not be reached yet")
 	}
+
 	_, err = fmt.Fprintf(logWriter, "5")
-	if logWriter.ctx.Err() != ErrWrotePastMaxLogLength {
-		t.Error("expected context error to be ErrWrotePastMaxLogLength")
+	if !logWriter.MaxLengthReached() {
+		t.Error("expected MaxLengthReached to be true")
 	}
 }
