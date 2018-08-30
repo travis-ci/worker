@@ -94,7 +94,11 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 	if w.bytesWritten > w.maxLength {
 		logger.Info("wrote past maximum log length - cancelling context")
 		w.maxLengthReached = true
-		w.cancel()
+		if w.cancel == nil {
+			logger.Error("cancel function does not exist")
+		} else {
+			w.cancel()
+		}
 		return 0, nil
 	}
 
