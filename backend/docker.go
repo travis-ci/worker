@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -729,7 +730,64 @@ func (i *dockerInstance) runScriptSSH(ctx gocontext.Context, output io.Writer) (
 }
 
 func (i *dockerInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
-	return nil, ErrDownloadTraceNotImplemented
+	if i.runNative {
+		return i.downloadTraceNative(ctx)
+	}
+	return i.downloadTraceSSH(ctx)
+}
+
+func (i *dockerInstance) downloadTraceNative(ctx gocontext.Context) ([]byte, error) {
+	r, _, err := i.client.CopyFromContainer(ctx, i.container.ID, "/tmp/build.trace")
+	if r != nil {
+		defer r.Close()
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't copy trace from container")
+	}
+
+	found := false
+
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, errors.Wrap(err, "couldn't parse tar")
+		}
+
+		if hdr.Name == "build.trace" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return nil, errors.Wrap(err, "couldn't find trace in tar")
+	}
+
+	buf, err := ioutil.ReadAll(tr)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't read contents of file")
+	}
+
+	return buf, nil
+}
+
+func (i *dockerInstance) downloadTraceSSH(ctx gocontext.Context) ([]byte, error) {
+	conn, err := i.sshConnection(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't connect to SSH server")
+	}
+	defer conn.Close()
+
+	buf, err := conn.DownloadFile("/tmp/build.trace")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't download trace")
+	}
+
+	return buf, nil
 }
 
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {
