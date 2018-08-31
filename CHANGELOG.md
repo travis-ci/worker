@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- trace: build.sh trace download support for docker backend
 
 ### Changed
 
@@ -19,13 +20,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [4.1.0] - 2018-08-30
 
 ### Added
-
 - backend/jupiterbrain: override for CPU count and RAM in created instances
 
 ### Changed
-
 - trace: guard trace download step on the trace flag from the payload
 - trace: propagate the trace flag in state update message
+- processor: log duration of job execution
+- amqp_log_writer: tag first log line with queued_at timestamp for "time to first log line" metric
+
+### Fixed
+- backend/gce: fixed host maintenance behaviour when preemptible flag is enabled
 
 ## [4.0.1] - 2018-08-22
 
