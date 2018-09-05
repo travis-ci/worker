@@ -109,6 +109,7 @@ var (
 cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
+chown -R travis:travis ~travis/.ssh/
 `))
 
 	// FIXME: get rid of the need for this global goop
@@ -1328,29 +1329,6 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 }
 
 func (i *gceInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
-	var buf []byte
-	var err error
-
-	downloadedChan := make(chan error)
-
-	go func() {
-		buf, err = i.downloadTrace(ctx)
-		downloadedChan <- err
-	}()
-
-	select {
-	case err := <-downloadedChan:
-		return buf, err
-	case <-ctx.Done():
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-			"err":  ctx.Err(),
-			"self": "backend/gce_instance",
-		}).Info("stopping upload retries, error from last attempt")
-		return nil, ctx.Err()
-	}
-}
-
-func (i *gceInstance) downloadTrace(ctx gocontext.Context) ([]byte, error) {
 	conn, err := i.sshConnection(ctx)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't connect to SSH server")

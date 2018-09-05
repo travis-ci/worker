@@ -5,11 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- trace: build.sh trace download support for docker backend
 
 ### Changed
-
-- trace: guard trace download step on the trace flag from the payload
-- trace: propagate the trace flag in state update message
 
 ### Deprecated
 
@@ -18,6 +16,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.1.0] - 2018-08-30
+
+### Added
+- backend/jupiterbrain: override for CPU count and RAM in created instances
+
+### Changed
+- trace: guard trace download step on the trace flag from the payload
+- trace: propagate the trace flag in state update message
+- processor: log duration of job execution
+- amqp_log_writer: tag first log line with queued_at timestamp for "time to first log line" metric
+
+### Fixed
+- backend/gce: fixed host maintenance behaviour when preemptible flag is enabled
 
 ## [4.0.1] - 2018-08-22
 
@@ -748,7 +760,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.0.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.0...HEAD
+[4.1.0]: https://github.com/travis-ci/worker/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/travis-ci/worker/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/travis-ci/worker/compare/v3.12.0...v4.0.0
 [3.12.0]: https://github.com/travis-ci/worker/compare/v3.11.0...v3.12.0

@@ -1,4 +1,4 @@
-FROM golang:1.10.3 as builder
+FROM golang:1.10 as builder
 MAINTAINER Travis CI GmbH <support+travis-worker-docker-image@travis-ci.org>
 
 RUN go get -u github.com/FiloSottile/gvt
