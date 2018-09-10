@@ -1014,19 +1014,18 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 
 	}
 
-	/* TODO: We should do this only if we're using a custom zone to avoid unnecessary lookups. */
 	var machineType *compute.MachineType
 	if startAttributes.VMType == "premium" {
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
-			logger.WithField("err", err).Warn("failed to look up premium machine type")
+			return nil, errors.Wrap(err, "failed to look up premium machine type")
 		}
 		machineType = pic
 	} else {
 		p.apiRateLimit(ctx)
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
-			logger.WithField("err", err).Warn("failed to look up machine type")
+			return nil, errors.Wrap(err, "failed to look up machine type")
 		}
 		machineType = pic
 	}
