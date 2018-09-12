@@ -46,6 +46,12 @@ func (w *fileLogWriter) SetMaxLogLength(n int) {
 
 func (w *fileLogWriter) SetJobStarted() {}
 
+func (w *fileLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {}
+
+func (w *fileLogWriter) MaxLengthReached() bool {
+	return false
+}
+
 func (w *fileLogWriter) Timeout() <-chan time.Time {
 	return w.timer.C
 }

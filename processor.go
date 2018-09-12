@@ -163,13 +163,6 @@ func (p *Processor) Run() {
 			if buildJob.Payload().UUID != "" {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
-
-			logger.WithFields(logrus.Fields{
-				"hard_timeout": hardTimeout,
-				"job_id":       jobID,
-			}).Debug("getting wrapped context with timeout")
-			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
-
 			logger.WithFields(logrus.Fields{
 				"job_id": jobID,
 				"status": "processing",
@@ -184,7 +177,6 @@ func (p *Processor) Run() {
 				"status": "waiting",
 			}).Debug("updating processor status")
 			p.CurrentStatus = "waiting"
-			cancel()
 		case <-time.After(10 * time.Second):
 			logger.Debug("timeout waiting for job, shutdown, or context done")
 		}

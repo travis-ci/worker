@@ -148,3 +148,9 @@ func (flw *fakeLogWriter) Timeout() <-chan time.Time {
 func (flw *fakeLogWriter) SetMaxLogLength(_ int) {}
 
 func (flw *fakeLogWriter) SetJobStarted() {}
+
+func (flw *fakeLogWriter) SetCancelFunc(_ gocontext.CancelFunc) {}
+
+func (flw *fakeLogWriter) MaxLengthReached() bool {
+	return false
+}

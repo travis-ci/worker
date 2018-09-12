@@ -26,16 +26,18 @@ type amqpLogPart struct {
 
 type amqpLogWriter struct {
 	ctx         gocontext.Context
+	cancel      gocontext.CancelFunc
 	jobID       uint64
 	jobQueuedAt *time.Time
 	sharded     bool
 
 	closeChan chan struct{}
 
-	bufferMutex   sync.Mutex
-	buffer        *bytes.Buffer
-	logPartNumber int
-	jobStarted    bool
+	bufferMutex      sync.Mutex
+	buffer           *bytes.Buffer
+	logPartNumber    int
+	jobStarted       bool
+	maxLengthReached bool
 
 	bytesWritten int
 	maxLength    int
@@ -90,11 +92,14 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 
 	w.bytesWritten += len(p)
 	if w.bytesWritten > w.maxLength {
-		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
-		if err != nil {
-			logger.WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
+		logger.Info("wrote past maximum log length - cancelling context")
+		w.maxLengthReached = true
+		if w.cancel == nil {
+			logger.Error("cancel function does not exist")
+		} else {
+			w.cancel()
 		}
-		return 0, ErrWrotePastMaxLogLength
+		return 0, nil
 	}
 
 	w.bufferMutex.Lock()
@@ -133,6 +138,14 @@ func (w *amqpLogWriter) SetMaxLogLength(bytes int) {
 
 func (w *amqpLogWriter) SetJobStarted() {
 	w.jobStarted = true
+}
+
+func (w *amqpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
+	w.cancel = cancel
+}
+
+func (w *amqpLogWriter) MaxLengthReached() bool {
+	return w.maxLengthReached == true
 }
 
 // WriteAndClose works like a Write followed by a Close, but ensures that no
@@ -191,6 +204,8 @@ func (w *amqpLogWriter) flushRegularly(ctx gocontext.Context) {
 }
 
 func (w *amqpLogWriter) flush() {
+	w.bufferMutex.Lock()
+	defer w.bufferMutex.Unlock()
 	if w.buffer.Len() <= 0 {
 		return
 	}
@@ -202,9 +217,7 @@ func (w *amqpLogWriter) flush() {
 	})
 
 	for w.buffer.Len() > 0 {
-		w.bufferMutex.Lock()
 		n, err := w.buffer.Read(buf)
-		w.bufferMutex.Unlock()
 		if err != nil {
 			// According to documentation, err should only be non-nil if
 			// there's no data in the buffer. We've checked for this, so
