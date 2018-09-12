@@ -21,17 +21,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - trace: build.sh trace download support for docker backend
 
-### Changed
-
-### Deprecated
-
-### Removed
-
 ### Fixed
 - step-run-script: fix job termination in case of log maxsize or hard timeout
 - gce: ensure correct ssh permissions on build vms
-
-### Security
 
 ## [4.1.0] - 2018-08-30
 
