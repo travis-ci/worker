@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- trace: build.sh trace download support for docker backend
 
 ### Changed
 
@@ -16,6 +15,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.1.1] - 2018-09-13
+
+### Added
+- trace: build.sh trace download support for docker backend
+
+### Fixed
+- step-run-script: fix job termination in case of log maxsize or hard timeout
+- gce: ensure correct ssh permissions on build vms
+- gce: fix build instance on context timeout
 
 ## [4.1.0] - 2018-08-30
 
@@ -760,7 +769,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.1...HEAD
+[4.1.1]: https://github.com/travis-ci/worker/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/travis-ci/worker/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/travis-ci/worker/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/travis-ci/worker/compare/v3.12.0...v4.0.0
