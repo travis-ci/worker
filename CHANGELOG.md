@@ -16,6 +16,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [4.1.2] - 2018-09-13
+
+### Fixed
+- step-run-script: take into account custom job timeouts when checking for hard timeout
+
 ## [4.1.1] - 2018-09-13
 
 ### Added
@@ -769,7 +774,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.2...HEAD
+[4.1.2]: https://github.com/travis-ci/worker/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/travis-ci/worker/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/travis-ci/worker/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/travis-ci/worker/compare/v4.0.0...v4.0.1
