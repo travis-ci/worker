@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 - step-run-script: fix job termination in case of log maxsize or hard timeout
 - gce: ensure correct ssh permissions on build vms
+- gce: fix build instance on context timeout
 
 ## [4.1.0] - 2018-08-30
 
