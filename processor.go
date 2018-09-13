@@ -256,7 +256,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepCheckCancellation{},
 		&stepRunScript{
 			logTimeout:               logTimeout,
-			hardTimeout:              p.hardTimeout,
+			hardTimeout:              buildJob.StartAttributes().HardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
 		},
 		&stepDownloadTrace{
