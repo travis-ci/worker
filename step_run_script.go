@@ -33,6 +33,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	cancelChan := state.Get("cancelChan").(<-chan struct{})
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
+	ctx, cancel := gocontext.WithTimeout(ctx, s.hardTimeout)
+	logWriter.SetCancelFunc(cancel)
+	defer cancel()
 
 	logger.Info("running script")
 	defer logger.Info("finished script")
@@ -48,18 +51,16 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	select {
 	case r := <-resultChan:
-		if errors.Cause(r.err) == ErrWrotePastMaxLogLength {
-			logger.Info("wrote past maximum log length")
-			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
-			return multistep.ActionHalt
-		}
-
 		// We need to check for this since it's possible that the RunScript
 		// implementation returns with the error too quickly for the ctx.Done()
 		// case branch below to catch it.
 		if errors.Cause(r.err) == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
+			return multistep.ActionHalt
+		}
+		if logWriter.MaxLengthReached() {
+			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
@@ -93,6 +94,10 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
+			return multistep.ActionHalt
+		}
+		if logWriter.MaxLengthReached() {
+			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 

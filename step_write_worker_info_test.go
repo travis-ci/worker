@@ -35,6 +35,13 @@ func (w *byteBufferLogWriter) SetMaxLogLength(m int) {
 func (w *byteBufferLogWriter) SetJobStarted() {
 }
 
+func (w *byteBufferLogWriter) SetCancelFunc(_ gocontext.CancelFunc) {
+}
+
+func (w *byteBufferLogWriter) MaxLengthReached() bool {
+	return false
+}
+
 func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *byteBufferLogWriter, multistep.StateBag) {
 	s := &stepWriteWorkerInfo{}
 
