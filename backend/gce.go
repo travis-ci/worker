@@ -784,7 +784,15 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 }
 
 func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepAction {
-	inst := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
+	inst, err := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
+	if err != nil {
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not build instance",
+			State:   ProgressFailure,
+		})
+		c.errChan <- err
+		return multistep.ActionHalt
+	}
 
 	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
 		"self":     "backend/gce_provider",
@@ -986,7 +994,7 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 	}
 }
 
-func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
+func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) (*compute.Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 
 	var err error
@@ -997,7 +1005,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	if startAttributes.VMConfig.Zone != "" {
 		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
 		if err != nil {
-			logger.Warn(err)
+			return nil, err
 		}
 		logger.WithFields(logrus.Fields{
 			"disk_type": fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
@@ -1006,19 +1014,18 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 
 	}
 
-	/* TODO: We should do this only if we're using a custom zone to avoid unnecessary lookups. */
 	var machineType *compute.MachineType
 	if startAttributes.VMType == "premium" {
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
-			logger.WithField("err", err).Warn("failed to look up premium machine type")
+			return nil, errors.Wrap(err, "failed to look up premium machine type")
 		}
 		machineType = pic
 	} else {
 		p.apiRateLimit(ctx)
 		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
 		if err != nil {
-			logger.WithField("err", err).Warn("failed to look up machine type")
+			return nil, errors.Wrap(err, "failed to look up machine type")
 		}
 		machineType = pic
 	}
@@ -1124,7 +1131,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		Tags: &compute.Tags{
 			Items: tags,
 		},
-	}
+	}, nil
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
