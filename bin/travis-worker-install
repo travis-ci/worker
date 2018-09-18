@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# This script is used for Travis Enterprise installations.
+
 set -o errexit
 
 main() {

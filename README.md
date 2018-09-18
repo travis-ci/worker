@@ -186,6 +186,10 @@ or in Docker (FIXME):
 0. `docker build -t travis-worker .` # or `docker pull travisci/worker`
 0. `docker run --env-file ENV_FILE -ti travis-worker` # or `travisci/worker`
 
+Note: if you get permissions errors during `make build`, you may need to change some permissions, e.g.:
+
+`sudo chown -R $USER:$USER /usr/local/go`
+
 ### Testing
 
 Run `make test`. To run backend tests matching `Docker`, for example, run
