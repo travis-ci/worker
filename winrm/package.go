@@ -48,7 +48,7 @@ func (r *Remoter) UploadFile(path string, data []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return true, nil
+	return false, nil
 }
 
 func (r *Remoter) DownloadFile(path string) ([]byte, error) {
