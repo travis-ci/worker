@@ -1257,9 +1257,14 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 	var lastErr error
 
+	connType := "ssh"
+	if i.os == "windows" {
+		connType = "winrm"
+	}
+
 	waitStart := time.Now().UTC()
 	i.progresser.Progress(&ProgressEntry{
-		Message:   "waiting for ssh connectivity...",
+		Message:   fmt.Sprintf("waiting for %s connectivity...", connType),
 		State:     ProgressNeutral,
 		Continues: true,
 	})
@@ -1273,9 +1278,9 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 
 			err := i.uploadScriptAttempt(ctx, script)
 			if err == nil {
-				timeToSsh := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
+				timeToConn := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
 				i.progresser.Progress(&ProgressEntry{
-					Message:    fmt.Sprintf("ssh connectivity established (%s)", timeToSsh),
+					Message:    fmt.Sprintf("%s connectivity established (%s)", connType, timeToConn),
 					State:      ProgressSuccess,
 					Interrupts: true,
 				})
