@@ -233,7 +233,7 @@ var (
 			Usage: "deprecated flag",
 		}),
 		NewConfigDef("log-metrics", &cli.BoolFlag{
-			Usage: "periodically write metrics to the logs",
+			Usage: "periodically print metrics to the stdout",
 		}),
 		NewConfigDef("echo-config", &cli.BoolFlag{
 			Usage: "echo parsed config and exit",
