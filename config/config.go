@@ -230,7 +230,10 @@ var (
 			Usage: "username:password for http api basic auth",
 		}),
 		NewConfigDef("silence-metrics", &cli.BoolFlag{
-			Usage: "silence metrics logging in case no Librato creds have been provided",
+			Usage: "deprecated flag",
+		}),
+		NewConfigDef("log-metrics", &cli.BoolFlag{
+			Usage: "periodically write metrics to the logs",
 		}),
 		NewConfigDef("echo-config", &cli.BoolFlag{
 			Usage: "echo parsed config and exit",
