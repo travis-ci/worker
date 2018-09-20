@@ -1331,7 +1331,12 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 	}
 	defer conn.Close()
 
-	existed, err := conn.UploadFile("build.sh", script)
+	uploadDest := "build.sh"
+	if i.os == "windows" {
+		uploadDest = "c:/windows/temp/build.sh"
+	}
+
+	existed, err := conn.UploadFile(uploadDest, script)
 	if existed {
 		i.progresser.Progress(&ProgressEntry{
 			Message:    "existing script detected",
@@ -1399,7 +1404,11 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	defer conn.Close()
 	defer conn.Close()
 
-	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
+	bashCommand := "bash ~/build.sh"
+	if i.os == "windows" {
+		bashCommand = `"c:/program files/git/usr/bin/bash" c:/windows/temp/build.sh`
+	}
+	exitStatus, err := conn.RunCommand(bashCommand, output)
 
 	preempted, googleErr := i.isPreempted(ctx)
 	if googleErr != nil {
