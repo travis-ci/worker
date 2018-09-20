@@ -1,0 +1,20 @@
+#!/usr/bin/python3
+import pika
+import json
+
+def on_message(channel, method_frame, header_frame, body):
+    log_part = json.loads(body)
+    print(log_part['log'], end='')
+    if log_part['final']:
+        print()
+        print('---')
+        print()
+
+connection = pika.BlockingConnection()
+channel = connection.channel()
+channel.basic_consume(on_message, queue='reporting.jobs.logs', no_ack=True)
+try:
+    channel.start_consuming()
+except KeyboardInterrupt:
+    channel.stop_consuming()
+connection.close()

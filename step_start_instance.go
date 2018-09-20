@@ -20,8 +20,10 @@ type stepStartInstance struct {
 
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
+	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
+	logWriter := state.Get("logWriter").(LogWriter)
 
 	logger.Info("starting instance")
 
@@ -30,17 +32,26 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	startTime := time.Now()
 
-	instance, err := s.provider.Start(ctx, buildJob.StartAttributes())
-	if err != nil {
-		logger.WithField("err", err).Error("couldn't start instance")
-		context.CaptureError(ctx, err)
+	var (
+		instance backend.Instance
+		err      error
+	)
 
+	if s.provider.SupportsProgress() {
+		writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\r\n"))
+		defer writeFoldEnd(logWriter, "step_start_instance", []byte(""))
+
+		instance, err = s.provider.StartWithProgress(ctx, buildJob.StartAttributes(), backend.NewTextProgresser(logWriter))
+	} else {
+		instance, err = s.provider.Start(ctx, buildJob.StartAttributes())
+	}
+
+	if err != nil {
 		jobAbortErr, ok := errors.Cause(err).(workererrors.JobAbortError)
 		if ok {
-			logWriter := state.Get("logWriter").(LogWriter)
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
 
-			err = buildJob.Finish(ctx, FinishStateErrored)
+			err = buildJob.Finish(procCtx, FinishStateErrored)
 			if err != nil {
 				logger.WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
 			}
@@ -48,7 +59,13 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
-		err := buildJob.Requeue(ctx)
+		logger.WithFields(logrus.Fields{
+			"err":           err,
+			"start_timeout": s.startTimeout,
+		}).Error("couldn't start instance, attempting requeue")
+		context.CaptureError(ctx, err)
+
+		err := buildJob.Requeue(procCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
@@ -56,7 +73,12 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	logger.WithField("boot_time", time.Since(startTime)).Info("started instance")
+	logger.WithFields(logrus.Fields{
+		"boot_duration_ms": time.Since(startTime).Seconds() * 1e3,
+		"instance_id":      instance.ID(),
+		"image_name":       instance.ImageName(),
+		"version":          VersionString,
+	}).Info("started instance")
 
 	state.Put("instance", instance)
 

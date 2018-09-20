@@ -7,6 +7,7 @@ import (
 
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
@@ -17,8 +18,11 @@ type stepUploadScript struct {
 }
 
 func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
+	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
+	logWriter := state.Get("logWriter").(LogWriter)
+	processedAt := state.Get("processedAt").(time.Time)
 
 	instance := state.Get("instance").(backend.Instance)
 	script := state.Get("script").([]byte)
@@ -28,6 +32,11 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	ctx, cancel := gocontext.WithTimeout(ctx, s.uploadTimeout)
 	defer cancel()
 
+	if instance.SupportsProgress() {
+		writeFoldStart(logWriter, "step_upload_script", []byte("\033[33;1mUploading script\033[0m\r\n"))
+		defer writeFoldEnd(logWriter, "step_upload_script", []byte(""))
+	}
+
 	err := instance.UploadScript(ctx, script)
 	if err != nil {
 		errMetric := "worker.job.upload.error"
@@ -36,10 +45,13 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		metrics.Mark(errMetric)
 
-		logger.WithField("err", err).Error("couldn't upload script, attemping requeue")
+		logger.WithFields(logrus.Fields{
+			"err":            err,
+			"upload_timeout": s.uploadTimeout,
+		}).Error("couldn't upload script, attempting requeue")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue(ctx)
+		err := buildJob.Requeue(procCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
@@ -47,7 +59,9 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	}
 
-	logger.Info("uploaded script")
+	logger.WithFields(logrus.Fields{
+		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
+	}).Info("uploaded script")
 
 	return multistep.ActionContinue
 }

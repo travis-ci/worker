@@ -6,6 +6,7 @@ import (
 	gocontext "context"
 
 	"github.com/mitchellh/multistep"
+	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
 )
 
@@ -15,16 +16,28 @@ type stepOpenLogWriter struct {
 }
 
 func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
+	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
+	logWriterFactory := state.Get("logWriterFactory")
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_open_log_writer")
 
-	logWriter, err := buildJob.LogWriter(ctx, s.defaultLogTimeout)
+	var logWriter LogWriter
+	var err error
+
+	if logWriterFactory != nil {
+		logWriter, err = logWriterFactory.(LogWriterFactory).LogWriter(ctx, s.defaultLogTimeout, buildJob)
+	} else {
+		logWriter, err = buildJob.LogWriter(ctx, s.defaultLogTimeout)
+	}
 	if err != nil {
-		logger.WithField("err", err).Error("couldn't open a log writer")
+		logger.WithFields(logrus.Fields{
+			"err":         err,
+			"log_timeout": s.defaultLogTimeout,
+		}).Error("couldn't open a log writer, attempting requeue")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue(ctx)
+		err := buildJob.Requeue(procCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}

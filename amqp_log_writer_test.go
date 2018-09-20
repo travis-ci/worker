@@ -17,9 +17,10 @@ func TestAMQPLogWriterWrite(t *testing.T) {
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
+	queuedAt := time.Now()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, &queuedAt, time.Hour, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,9 +75,10 @@ func TestAMQPLogWriterClose(t *testing.T) {
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
+	queuedAt := time.Now()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, &queuedAt, time.Hour, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,26 +118,34 @@ func TestAMQPLogWriterClose(t *testing.T) {
 	}
 }
 
+func noCancel() {}
+
 func TestAMQPMaxLogLength(t *testing.T) {
 	amqpConn, amqpChan := setupAMQPConn(t)
 	defer amqpConn.Close()
 	defer amqpChan.Close()
 
 	uuid := uuid.NewRandom()
+	queuedAt := time.Now()
 	ctx := workerctx.FromUUID(context.TODO(), uuid.String())
 
-	logWriter, err := newAMQPLogWriter(ctx, amqpConn, 4, time.Hour)
+	logWriter, err := newAMQPLogWriter(ctx, amqpChan, 4, &queuedAt, time.Hour, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	logWriter.SetMaxLogLength(4)
+	logWriter.SetCancelFunc(noCancel)
 
 	_, err = fmt.Fprintf(logWriter, "1234")
 	if err != nil {
 		t.Error(err)
 	}
+	if logWriter.MaxLengthReached() {
+		t.Error("max length should not be reached yet")
+	}
+
 	_, err = fmt.Fprintf(logWriter, "5")
-	if err == nil {
-		t.Error("expected error, but got nil")
+	if !logWriter.MaxLengthReached() {
+		t.Error("expected MaxLengthReached to be true")
 	}
 }

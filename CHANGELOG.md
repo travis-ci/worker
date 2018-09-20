@@ -3,6 +3,7 @@
 The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ## [Unreleased]
+
 ### Added
 
 ### Changed
@@ -14,6 +15,224 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.1.2] - 2018-09-13
+
+### Fixed
+- step-run-script: take into account custom job timeouts when checking for hard timeout
+
+## [4.1.1] - 2018-09-13
+
+### Added
+- trace: build.sh trace download support for docker backend
+
+### Fixed
+- step-run-script: fix job termination in case of log maxsize or hard timeout
+- gce: ensure correct ssh permissions on build vms
+- gce: fix build instance on context timeout
+
+## [4.1.0] - 2018-08-30
+
+### Added
+- backend/jupiterbrain: override for CPU count and RAM in created instances
+
+### Changed
+- trace: guard trace download step on the trace flag from the payload
+- trace: propagate the trace flag in state update message
+- processor: log duration of job execution
+- amqp_log_writer: tag first log line with queued_at timestamp for "time to first log line" metric
+
+### Fixed
+- backend/gce: fixed host maintenance behaviour when preemptible flag is enabled
+
+## [4.0.1] - 2018-08-22
+
+### Added
+- backend/gce: build.sh trace persisting
+- backend/gce: make migration behavior on host maintenance events conditional on GPU usage
+
+## [4.0.0] - 2018-07-23
+
+### Added
+- amqp_log_writer: support separate AMQP connection for log writing
+
+### Changed
+- build: update all dependencies, build binaries via go 1.10.3
+- development: move tooling dependencies into the `deps` target
+- backend/gce: specify `"TERMINATE"` on host maintenance
+- processor: signature of `NewProcessor` to allow for log writer factory
+    injection
+
+### Fixed
+- backend/gce: use consistent zone value
+
+## [3.12.0] - 2018-07-18
+
+### Added
+- backend/docker: support for env-based image selection
+- processor: log entries recording time delta since start of processing
+
+## [3.11.0] - 2018-07-12
+
+### Added
+- backend/gce, backend/jupiterbrain: incremental progress reporting during
+    instance startup
+
+## [3.10.1] - 2018-07-06
+
+### Fixed
+- backend/gce: use default disk type when no zone is given via VM config
+
+## [3.10.0] - 2018-07-03
+
+### Added
+- backend/gce: support for GPU allocation via VM config
+
+## [3.9.0] - 2018-07-02
+
+### Added
+- support for a sharded logs queue (using the rabbitmq-sharding plugin)
+
+## [3.8.2] - 2018-06-21
+
+### Added
+- amqp-job-queue: support for setting priority when consuming jobs via
+  `x-priority` argument
+
+## [3.8.1] - 2018-06-20
+
+### Added
+- cli: create a LogQueue that connects to a separate AMQP server, to prepare for
+  splitting the build logs from the current JobQueue
+
+### Changed
+- cli: the connection to the AMQP server now uses a configurable AmqpHeartbeat
+  option
+- Makefile: log output from building or running the tests is now less verbose
+
+### Fixed
+- backend/docker_test: check for EOF instead of Nil for archive/tar errors 
+
+## [3.8.0] - 2018-05-31
+
+### Added
+- amqp-job-queue: pool state updates instead of creating an amqp channel per
+    processor
+
+### Fixed
+- backend/gce: disable automatic restart
+- backend/gce: pass context to all GCE API calls
+
+## [3.7.0] - 2018-04-17
+
+### Added
+- logging/metrics: include more fields, alter values in various log entries
+- packaging: add systemd service and wrapper script as expected by
+  [`tfw`](https://github.com/travis-ci/tfw).
+
+### Changed
+- backend: handle "map string" config values delimited by either spaces or
+  commas, with potentially URL-encoded parts
+- config: change default dist to `trusty`
+
+## [3.6.0] - 2018-03-02
+
+### Added
+- backend/docker: include arbitrary container labels from config
+
+### Changed
+- backend/gce: add a `no-ip` tag when allocating instance without public IP
+- build: support and build using Go 1.9.4
+
+## [3.5.0] - 2018-02-12
+
+### Changed
+- amqp-job-queue: create the logUpdates and stateUpdates AMQP channels once per
+  job queue instead of per each individual job to prevent channel churn.
+
+### Fixed
+- shellcheck test failures
+
+## [3.4.0] - 2017-11-08
+
+### Added
+- backend/docker: repo, job ID, and dist container labels
+
+### Changed
+- http-job-queue: use polling and refresh claim intervals from job delivery
+  responses, if available
+- backend/docker: make container inspection interval configurable via
+  `INSPECT_INTERVAL`, defaulting to 500ms
+
+### Fixed
+- backend/docker: disable cpu set allocation when CPUS is 0, as documented
+
+## [3.3.1] - 2017-11-01
+
+### Changed
+- processor: improved logging around requeue conditions
+
+## [3.3.0] - 2017-10-30
+
+### Added
+- amqp-job: include instance name in state update sent to hub
+
+### Changed
+- backend/gce: make deterministic hostname configurable, defaulting to
+  previous behavior
+
+### Fixed
+- backend: ensure generated hostnames do not contain `_` and are lowercase
+
+## [3.2.2] - 2017-10-24
+
+### Changed
+- packages: drop ubuntu precise, add xenial
+
+### Fixed
+- processor: use processor-level context when requeueing or erroring a job
+
+## [3.2.1] - 2017-10-24
+
+### Added
+- backend/docker: remove container by name if it already exists
+
+### Fixed
+- backend/docker: check cpu sets back in if starting the instance fails
+
+## [3.2.0] - 2017-10-18
+
+### Added
+- backend/docker: support for bind-mounted volumes via space-delimited,
+  colon-paired values in `TRAVIS_WORKER_DOCKER_BINDS`
+- http-job-queue: configurable new job polling interval
+- http-job: configurable job refresh claim interval
+
+### Changed
+- backend/gce: add site tag to job vms
+- cli: switch graceful shutdown + pausing from `SIGWINCH` to `SIGUSR2`
+- http-job:
+    - account for transitional states when handling state update conflicts
+    - delete self under various error conditions indicative of a requeue
+
+### Fixed
+- backend/docker: switch to container hostname with dashes instead of dots
+- http-job: conditional inclusion of state-related timestamps in state updates
+- step-run-script: mark job errored on unknown execution error such as poweroff
+
+## [3.1.0] - 2017-10-06
+
+### Changed
+- backend/docker:
+    - switch to official client library
+    - display original image tag instead of language alias in log output
+    - set container name based on repo and job ID
+- cli: increase log level to "warn" for messages about receiving certain
+  signals.
+- processor: use the processor context when sending "Finish" state update
+
+### Fixed
+- backend/docker: do not remove links on container removal
 
 ## [3.0.2] - 2017-09-12
 
@@ -146,9 +365,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [2.7.0] - 2017-02-08
 ### Added
 - backend: add "SSH dial timeout" to all backends, with a default of 5 seconds, configurable with `SSH_DIAL_TIMEOUT` backend setting
-- backend/docker: make the command to run the build script configurable with `BACKEND_DOCKER_EXEC_CMD` env var, default to `bash /home/travis/build.sh`
-- backend/gce: make it configurable whether to give a booted instance a "public" IP with `BACKEND_GCE_PUBLIC_IP`, defaults to `true`
-- backend/gce: make it configurable whether to connect to an instance's "public" IP with `BACKEND_GCE_PUBLIC_IP_CONNECT`, defaults to `true`
+- backend/docker: make the command to run the build script configurable with `TRAVIS_WORKER_DOCKER_EXEC_CMD` env var, default to `bash /home/travis/build.sh`
+- backend/gce: make it configurable whether to give a booted instance a "public" IP with `TRAVIS_WORKER_GCE_PUBLIC_IP`, defaults to `true`
+- backend/gce: make it configurable whether to connect to an instance's "public" IP with `TRAVIS_WORKER_GCE_PUBLIC_IP_CONNECT`, defaults to `true`
 - log when a job is finished, including its "finishing state" (passed, failed, errored, etc.)
 - log when a job is requeued
 
@@ -555,7 +774,30 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v3.0.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.2...HEAD
+[4.1.2]: https://github.com/travis-ci/worker/compare/v4.1.1...v4.1.2
+[4.1.1]: https://github.com/travis-ci/worker/compare/v4.1.0...v4.1.1
+[4.1.0]: https://github.com/travis-ci/worker/compare/v4.0.1...v4.1.0
+[4.0.1]: https://github.com/travis-ci/worker/compare/v4.0.0...v4.0.1
+[4.0.0]: https://github.com/travis-ci/worker/compare/v3.12.0...v4.0.0
+[3.12.0]: https://github.com/travis-ci/worker/compare/v3.11.0...v3.12.0
+[3.11.0]: https://github.com/travis-ci/worker/compare/v3.10.1...v3.11.0
+[3.10.1]: https://github.com/travis-ci/worker/compare/v3.10.0...v3.10.1
+[3.10.0]: https://github.com/travis-ci/worker/compare/v3.9.0...v3.10.0
+[3.9.0]: https://github.com/travis-ci/worker/compare/v3.8.2...v3.9.0
+[3.8.2]: https://github.com/travis-ci/worker/compare/v3.8.1...v3.8.2
+[3.8.1]: https://github.com/travis-ci/worker/compare/v3.8.0...v3.8.1
+[3.8.0]: https://github.com/travis-ci/worker/compare/v3.7.0...v3.8.0
+[3.7.0]: https://github.com/travis-ci/worker/compare/v3.6.0...v3.7.0
+[3.6.0]: https://github.com/travis-ci/worker/compare/v3.5.0...v3.6.0
+[3.5.0]: https://github.com/travis-ci/worker/compare/v3.4.0...v3.5.0
+[3.4.0]: https://github.com/travis-ci/worker/compare/v3.3.1...v3.4.0
+[3.3.1]: https://github.com/travis-ci/worker/compare/v3.3.0...v3.3.1
+[3.3.0]: https://github.com/travis-ci/worker/compare/v3.2.2...v3.3.0
+[3.2.2]: https://github.com/travis-ci/worker/compare/v3.2.1...v3.2.2
+[3.2.1]: https://github.com/travis-ci/worker/compare/v3.2.0...v3.2.1
+[3.2.0]: https://github.com/travis-ci/worker/compare/v3.1.0...v3.2.0
+[3.1.0]: https://github.com/travis-ci/worker/compare/v3.0.2...v3.1.0
 [3.0.2]: https://github.com/travis-ci/worker/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/travis-ci/worker/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/travis-ci/worker/compare/v2.11.0...v3.0.0

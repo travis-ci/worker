@@ -289,6 +289,14 @@ func (p *cbProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
+func (p *cbProvider) SupportsProgress() bool {
+	return false
+}
+
+func (p *cbProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
+	return p.Start(ctx, startAttributes)
+}
+
 func (p *cbProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/cloudbrain_provider")
 
@@ -501,6 +509,10 @@ func (i *cbInstance) refreshInstance(ctx gocontext.Context) error {
 	return nil
 }
 
+func (i *cbInstance) SupportsProgress() bool {
+	return false
+}
+
 func (i *cbInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 	var lastErr error
@@ -572,6 +584,10 @@ func (i *cbInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRes
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
+func (i *cbInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	return nil, ErrDownloadTraceNotImplemented
+}
+
 func (i *cbInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/cloudbrain_instance")
 	state := &multistep.BasicStateBag{}
@@ -622,7 +638,11 @@ func (i *cbInstance) stepWaitForInstanceDeleted(c *cbInstanceStopContext) multis
 }
 
 func (i *cbInstance) ID() string {
-	return fmt.Sprintf("%s:%s", i.instance.ID, i.imageName)
+	return i.instance.ID
+}
+
+func (i *cbInstance) ImageName() string {
+	return i.imageName
 }
 
 func (i *cbInstance) StartupDuration() time.Duration {

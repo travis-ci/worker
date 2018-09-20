@@ -50,8 +50,14 @@ __define_platform() {
   : "${PLATFORM:=${1}}"
   : "${PLATFORM_FAMILY:=${PLATFORM%%:*}}"
   : "${PLATFORM_RELEASE:=${PLATFORM##${PLATFORM_FAMILY}:}}"
+  PLATFORM_RELEASE_ALIAS="${PLATFORM_RELEASE}"
+  case "${PLATFORM_RELEASE}" in
+  14.04) PLATFORM_RELEASE_ALIAS=trusty ;;
+  16.04) PLATFORM_RELEASE_ALIAS=xenial ;;
+  esac
+
   "__define_platform_${PLATFORM_FAMILY}"
-  export PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE
+  export PLATFORM PLATFORM_FAMILY PLATFORM_RELEASE PLATFORM_RELEASE_ALIAS
 }
 
 __define_with_file_cache() {
@@ -77,8 +83,7 @@ __define_version() {
 
   if [[ "${CURRENT_SHA1}" != "${VERSION_SHA1}" ]]; then
     orig_ifs="${IFS}"
-    IFS=-
-    git_version_parts=(${GIT_DESCRIPTION})
+    IFS=- read -r -a git_version_parts <<<"$GIT_DESCRIPTION"
     IFS="${orig_ifs}"
     if [[ "${git_version_parts[1]}" ]]; then
       export VERSION="${VERSION}.dev.${git_version_parts[1]}-${CURRENT_SHA1}"

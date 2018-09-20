@@ -29,10 +29,13 @@ type Processor struct {
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
+	persister               BuildTracePersister
+	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
 
-	graceful  chan struct{}
-	terminate gocontext.CancelFunc
+	graceful   chan struct{}
+	terminate  gocontext.CancelFunc
+	shutdownAt time.Time
 
 	// ProcessedCount contains the number of jobs that has been processed
 	// by this Processor. This value should not be modified outside of the
@@ -57,13 +60,18 @@ type ProcessorConfig struct {
 	ScriptUploadTimeout     time.Duration
 	StartupTimeout          time.Duration
 	PayloadFilterExecutable string
+
+	BuildTraceEnabled     bool
+	BuildTraceS3Bucket    string
+	BuildTraceS3KeyPrefix string
+	BuildTraceS3Region    string
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	provider backend.Provider, generator BuildScriptGenerator, cancellationBroadcaster *CancellationBroadcaster,
+	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	processorID, _ := context.ProcessorFromContext(ctx)
@@ -93,7 +101,9 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		buildJobsChan:           buildJobsChan,
 		provider:                provider,
 		generator:               generator,
+		persister:               persister,
 		cancellationBroadcaster: cancellationBroadcaster,
+		logWriterFactory:        logWriterFactory,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -117,7 +127,7 @@ func (p *Processor) Run() {
 			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			logger.Info("processor is done, terminating")
+			logger.WithField("shutdown_duration_s", time.Since(p.shutdownAt).Seconds()).Info("processor is done, terminating")
 			p.terminate()
 			return
 		default:
@@ -128,7 +138,7 @@ func (p *Processor) Run() {
 			logger.Info("processor is done, terminating")
 			return
 		case <-p.graceful:
-			logger.Info("processor is done, terminating")
+			logger.WithField("shutdown_duration_s", time.Since(p.shutdownAt).Seconds()).Info("processor is done, terminating")
 			p.terminate()
 			return
 		case buildJob, ok := <-p.buildJobsChan:
@@ -153,13 +163,6 @@ func (p *Processor) Run() {
 			if buildJob.Payload().UUID != "" {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
 			}
-
-			logger.WithFields(logrus.Fields{
-				"hard_timeout": hardTimeout,
-				"job_id":       jobID,
-			}).Debug("getting wrapped context with timeout")
-			ctx, cancel := gocontext.WithTimeout(ctx, hardTimeout)
-
 			logger.WithFields(logrus.Fields{
 				"job_id": jobID,
 				"status": "processing",
@@ -174,7 +177,6 @@ func (p *Processor) Run() {
 				"status": "waiting",
 			}).Debug("updating processor status")
 			p.CurrentStatus = "waiting"
-			cancel()
 		case <-time.After(10 * time.Second):
 			logger.Debug("timeout waiting for job, shutdown, or context done")
 		}
@@ -193,6 +195,7 @@ func (p *Processor) GracefulShutdown() {
 		}
 	}()
 	logger.Info("processor initiating graceful shutdown")
+	p.shutdownAt = time.Now()
 	tryClose(p.graceful)
 }
 
@@ -206,7 +209,10 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
-	state.Put("ctx", ctx)
+	state.Put("logWriterFactory", p.logWriterFactory)
+	state.Put("procCtx", buildJob.SetupContext(p.ctx))
+	state.Put("ctx", buildJob.SetupContext(ctx))
+	state.Put("processedAt", time.Now().UTC())
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,
@@ -250,8 +256,11 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepCheckCancellation{},
 		&stepRunScript{
 			logTimeout:               logTimeout,
-			hardTimeout:              p.hardTimeout,
+			hardTimeout:              buildJob.StartAttributes().HardTimeout,
 			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
+		},
+		&stepDownloadTrace{
+			persister: p.persister,
 		},
 	}
 

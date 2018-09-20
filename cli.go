@@ -24,9 +24,9 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
-	"github.com/mihasya/go-metrics-librato"
+	librato "github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
@@ -52,10 +52,12 @@ type CLI struct {
 
 	Config                  *config.Config
 	BuildScriptGenerator    BuildScriptGenerator
+	BuildTracePersister     BuildTracePersister
 	BackendProvider         backend.Provider
 	ProcessorPool           *ProcessorPool
 	CancellationBroadcaster *CancellationBroadcaster
 	JobQueue                JobQueue
+	LogWriterFactory        LogWriterFactory
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
@@ -137,6 +139,15 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.BuildScriptGenerator = generator
 
+	persister := NewBuildTracePersister(i.Config)
+	logger.WithField("build_trace_persister", fmt.Sprintf("%#v", persister)).Debug("built")
+
+	i.BuildTracePersister = persister
+
+	if i.Config.TravisSite != "" {
+		i.Config.ProviderConfig.Set("TRAVIS_SITE", i.Config.TravisSite)
+	}
+
 	provider, err := backend.NewBackendProvider(i.Config.ProviderName, i.Config.ProviderConfig)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create backend provider")
@@ -166,7 +177,7 @@ func (i *CLI) Setup() (bool, error) {
 		PayloadFilterExecutable: i.Config.PayloadFilterExecutable,
 	}
 
-	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.CancellationBroadcaster)
+	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.BuildTracePersister, i.CancellationBroadcaster)
 
 	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
 	logger.WithField("pool", pool).Debug("built")
@@ -176,6 +187,12 @@ func (i *CLI) Setup() (bool, error) {
 	err = i.setupJobQueueAndCanceller()
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create job queue and canceller")
+		return false, err
+	}
+
+	err = i.setupLogWriterFactory()
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't create logs queue")
 		return false, err
 	}
 
@@ -200,15 +217,23 @@ func (i *CLI) Run() {
 	go i.signalHandler()
 
 	i.logger.WithFields(logrus.Fields{
-		"pool_size": i.Config.PoolSize,
-		"queue":     i.JobQueue,
+		"pool_size":         i.Config.PoolSize,
+		"queue":             i.JobQueue,
+		"logwriter_factory": i.LogWriterFactory,
 	}).Debug("running pool")
 
-	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue)
+	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogWriterFactory)
 
 	err := i.JobQueue.Cleanup()
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't clean up job queue")
+	}
+
+	if i.LogWriterFactory != nil {
+		err := i.LogWriterFactory.Cleanup()
+		if err != nil {
+			i.logger.WithField("err", err).Error("couldn't clean up logs queue")
+		}
 	}
 }
 
@@ -486,7 +511,7 @@ func (i *CLI) signalHandler() {
 	signal.Notify(signalChan,
 		syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1,
 		syscall.SIGTTIN, syscall.SIGTTOU,
-		syscall.SIGWINCH)
+		syscall.SIGUSR2)
 
 	for {
 		select {
@@ -504,8 +529,8 @@ func (i *CLI) signalHandler() {
 			case syscall.SIGTTOU:
 				i.logger.Info("SIGTTOU received, removing processor from pool")
 				i.ProcessorPool.Decr()
-			case syscall.SIGWINCH:
-				i.logger.Warn("SIGWINCH received, toggling graceful shutdown and pause")
+			case syscall.SIGUSR2:
+				i.logger.Warn("SIGUSR2 received, toggling graceful shutdown and pause")
 				i.ProcessorPool.GracefulShutdown(true)
 			case syscall.SIGUSR1:
 				i.logProcessorInfo("received SIGUSR1")
@@ -527,7 +552,7 @@ func (i *CLI) logProcessorInfo(msg string) {
 		"revision":        RevisionString,
 		"generated":       GeneratedString,
 		"boot_time":       i.bootTime.String(),
-		"uptime":          time.Since(i.bootTime),
+		"uptime_min":      time.Since(i.bootTime).Minutes(),
 		"pool_size":       i.ProcessorPool.Size(),
 		"total_processed": i.ProcessorPool.TotalProcessed(),
 	}).Info(msg)
@@ -601,14 +626,26 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 			}
 			cfg.RootCAs.AppendCertsFromPEM(cert)
 		}
-		amqpConn, err = amqp.DialTLS(i.Config.AmqpURI, cfg)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: cfg,
+			})
 	} else if i.Config.AmqpInsecure {
-		amqpConn, err = amqp.DialTLS(
+		amqpConn, err = amqp.DialConfig(
 			i.Config.AmqpURI,
-			&tls.Config{InsecureSkipVerify: true},
-		)
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			})
 	} else {
-		amqpConn, err = amqp.Dial(i.Config.AmqpURI)
+		amqpConn, err = amqp.DialConfig(i.Config.AmqpURI,
+			amqp.Config{
+				Heartbeat: i.Config.AmqpHeartbeat,
+				Locale:    "en_US",
+			})
 	}
 	if err != nil {
 		i.logger.WithField("err", err).Error("couldn't connect to AMQP")
@@ -622,7 +659,12 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 	canceller := NewAMQPCanceller(i.ctx, amqpConn, i.CancellationBroadcaster)
 	i.logger.WithField("canceller", fmt.Sprintf("%#v", canceller)).Debug("built")
 
-	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName)
+	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
+
+	// Set the consumer priority directly instead of altering the signature of
+	// NewAMQPJobQueue :sigh_cat:
+	jobQueue.priority = i.Config.AmqpConsumerPriority
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -641,9 +683,10 @@ func (i *CLI) buildHTTPJobQueue() (*HTTPJobQueue, error) {
 		return nil, errors.Wrap(err, "error parsing job board URL")
 	}
 
-	jobQueue, err := NewHTTPJobQueue(
+	jobQueue, err := NewHTTPJobQueueWithIntervals(
 		jobBoardURL, i.Config.TravisSite,
 		i.Config.ProviderName, i.Config.QueueName,
+		i.Config.HTTPPollingInterval, i.Config.HTTPRefreshClaimInterval,
 		i.CancellationBroadcaster)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating HTTP job queue")
@@ -658,7 +701,8 @@ func (i *CLI) buildHTTPJobQueue() (*HTTPJobQueue, error) {
 }
 
 func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
-	jobQueue, err := NewFileJobQueue(i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
+	jobQueue, err := NewFileJobQueue(
+		i.Config.BaseDir, i.Config.QueueName, i.Config.FilePollingInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -669,6 +713,72 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 	jobQueue.DefaultOS = i.Config.DefaultOS
 
 	return jobQueue, nil
+}
+
+func (i *CLI) setupLogWriterFactory() error {
+	if i.Config.LogsAmqpURI == "" {
+		// If no separate URI is set for LogsAMQP, use the JobsQueue to send log parts
+		return nil
+	}
+	logWriterFactory, err := i.buildAMQPLogWriterFactory()
+	if err != nil {
+		return err
+	}
+	i.LogWriterFactory = logWriterFactory
+	return nil
+}
+
+func (i *CLI) buildAMQPLogWriterFactory() (*AMQPLogWriterFactory, error) {
+	var amqpConn *amqp.Connection
+	var err error
+
+	if i.Config.LogsAmqpTlsCert != "" || i.Config.LogsAmqpTlsCertPath != "" {
+		cfg := new(tls.Config)
+		cfg.RootCAs = x509.NewCertPool()
+		if i.Config.LogsAmqpTlsCert != "" {
+			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.LogsAmqpTlsCert))
+		}
+		if i.Config.LogsAmqpTlsCertPath != "" {
+			cert, err := ioutil.ReadFile(i.Config.LogsAmqpTlsCertPath)
+			if err != nil {
+				return nil, err
+			}
+			cfg.RootCAs.AppendCertsFromPEM(cert)
+		}
+		amqpConn, err = amqp.DialConfig(i.Config.LogsAmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: cfg,
+			})
+	} else if i.Config.AmqpInsecure {
+		amqpConn, err = amqp.DialConfig(
+			i.Config.LogsAmqpURI,
+			amqp.Config{
+				Heartbeat:       i.Config.AmqpHeartbeat,
+				Locale:          "en_US",
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			})
+	} else {
+		amqpConn, err = amqp.DialConfig(i.Config.LogsAmqpURI,
+			amqp.Config{
+				Heartbeat: i.Config.AmqpHeartbeat,
+				Locale:    "en_US",
+			})
+	}
+	if err != nil {
+		i.logger.WithField("err", err).Error("couldn't connect to the logs AMQP server")
+		return nil, err
+	}
+
+	go i.amqpErrorWatcher(amqpConn)
+	i.logger.Debug("connected to the logs AMQP server")
+
+	logWriterFactory, err := NewAMQPLogWriterFactory(amqpConn, i.Config.RabbitMQSharding)
+	if err != nil {
+		return nil, err
+	}
+	return logWriterFactory, nil
 }
 
 func (i *CLI) amqpErrorWatcher(amqpConn *amqp.Connection) {

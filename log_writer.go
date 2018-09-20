@@ -1,9 +1,10 @@
 package worker
 
 import (
-	"errors"
 	"io"
 	"time"
+
+	gocontext "context"
 )
 
 var (
@@ -28,12 +29,8 @@ var (
 	// get errors if we go over 64-bit numbers, but I find the likeliness
 	// of that happening to both the sequence number, the ID, and us maxing
 	// out the worst-case logs to be quite unlikely, so I'm willing to live
-	// with that. --Henrik
+	// with that. --Sarah
 	LogChunkSize = 1653
-
-	// ErrWrotePastMaxLogLength is returned by LogWriter.Write if the write
-	// caused the number of written bytes to go over the maximum log length.
-	ErrWrotePastMaxLogLength = errors.New("wrote past max length")
 )
 
 // LogWriter is primarily an io.Writer that will send all bytes to travis-logs
@@ -45,4 +42,7 @@ type LogWriter interface {
 	WriteAndClose([]byte) (int, error)
 	Timeout() <-chan time.Time
 	SetMaxLogLength(int)
+	SetJobStarted()
+	SetCancelFunc(gocontext.CancelFunc)
+	MaxLengthReached() bool
 }

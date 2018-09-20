@@ -9,6 +9,8 @@ import (
 	"github.com/packer-community/winrmcp/winrmcp"
 )
 
+var errNotImplemented = fmt.Errorf("method not implemented")
+
 func New(host string, port int, username string, password string) (*Remoter, error) {
 
 	endpoint := winrm.NewEndpoint(host, port, true, true, nil, nil, nil, 0)
@@ -48,6 +50,11 @@ func (r *Remoter) UploadFile(path string, data []byte) (bool, error) {
 	}
 	return true, nil
 }
+
+func (r *Remoter) DownloadFile(path string) ([]byte, error) {
+	return nil, errNotImplemented
+}
+
 func (r *Remoter) RunCommand(command string, output io.Writer) (uint8, error) {
 	exitCode, err := r.winrmClient.Run(command, output, output)
 	return uint8(exitCode), err

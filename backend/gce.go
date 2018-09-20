@@ -58,6 +58,8 @@ const (
 	defaultGCEUploadRetrySleep   = 1 * time.Second
 	defaultGCEImageSelectorType  = "env"
 	defaultGCEImage              = "travis-ci.+"
+	defaultGCEGpuCount           = int64(0)
+	defaultGCEGpuType            = "nvidia-tesla-p100"
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 	defaultGCESSHDialTimeout     = 5 * time.Second
@@ -65,38 +67,41 @@ const (
 
 var (
 	gceHelp = map[string]string{
-		"ACCOUNT_JSON":          "[REQUIRED] account JSON config",
-		"AUTO_IMPLODE":          "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
-		"BOOT_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
-		"BOOT_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
-		"DEFAULT_LANGUAGE":      fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
-		"DISK_SIZE":             fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
-		"IMAGE_DEFAULT":         fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
-		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
-		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
-		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"MACHINE_TYPE":          fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
-		"NETWORK":               fmt.Sprintf("network name (default %q)", defaultGCENetwork),
-		"PREEMPTIBLE":           "boot job instances with preemptible flag enabled (default true)",
-		"PREMIUM_MACHINE_TYPE":  fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
-		"PROJECT_ID":            "[REQUIRED] GCE project id",
-		"PUBLIC_IP":             "boot job instances with a public ip, disable this for NAT (default true)",
-		"PUBLIC_IP_CONNECT":     "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
-		"IMAGE_PROJECT_ID":      "GCE project id to use for images, will use PROJECT_ID if not specified",
-		"RATE_LIMIT_PREFIX":     "prefix for the rate limit key in Redis",
-		"RATE_LIMIT_REDIS_URL":  "URL to Redis instance to use for rate limiting",
-		"RATE_LIMIT_MAX_CALLS":  fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
-		"RATE_LIMIT_DURATION":   fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
-		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
-		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
-		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
-		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
-		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
-		"SUBNETWORK":            fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
-		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
-		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"ACCOUNT_JSON":           "[REQUIRED] account JSON config",
+		"AUTO_IMPLODE":           "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
+		"BOOT_POLL_SLEEP":        fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":    fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
+		"DEFAULT_LANGUAGE":       fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
+		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEGpuCount),
+		"GPU_TYPE":               fmt.Sprintf("type of GPU to use (default %q)", defaultGCEGpuType),
+		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_DEFAULT":          fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
+		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_URL":     "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_[ALIAS_]{ALIAS}":  "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"MACHINE_TYPE":           fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"NETWORK":                fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PREEMPTIBLE":            "boot job instances with preemptible flag enabled (default false)",
+		"PREMIUM_MACHINE_TYPE":   fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
+		"PROJECT_ID":             "[REQUIRED] GCE project id",
+		"PUBLIC_IP":              "boot job instances with a public ip, disable this for NAT (default true)",
+		"PUBLIC_IP_CONNECT":      "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
+		"IMAGE_PROJECT_ID":       "GCE project id to use for images, will use PROJECT_ID if not specified",
+		"RATE_LIMIT_PREFIX":      "prefix for the rate limit key in Redis",
+		"RATE_LIMIT_REDIS_URL":   "URL to Redis instance to use for rate limiting",
+		"RATE_LIMIT_MAX_CALLS":   fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
+		"RATE_LIMIT_DURATION":    fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
+		"REGION":                 fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
+		"SKIP_STOP_POLL":         "immediately return after issuing first instance deletion request (default false)",
+		"SSH_DIAL_TIMEOUT":       fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
+		"STOP_POLL_SLEEP":        fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
+		"STOP_PRE_POLL_SLEEP":    fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
+		"SUBNETWORK":             fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
+		"UPLOAD_RETRIES":         fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":     fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"ZONE":                   fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
@@ -107,6 +112,7 @@ var (
 cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
+chown -R travis:travis ~travis/.ssh/
 `))
 
 	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
@@ -158,16 +164,19 @@ type gceProvider struct {
 	ic             *gceInstanceConfig
 	cfg            *config.ProviderConfig
 
-	imageSelectorType string
-	imageSelector     image.Selector
-	bootPollSleep     time.Duration
-	bootPrePollSleep  time.Duration
-	defaultLanguage   string
-	defaultImage      string
-	uploadRetries     uint64
-	uploadRetrySleep  time.Duration
-	sshDialer         ssh.Dialer
-	sshDialTimeout    time.Duration
+	deterministicHostname bool
+	imageSelectorType     string
+	imageSelector         image.Selector
+	bootPollSleep         time.Duration
+	bootPrePollSleep      time.Duration
+	defaultLanguage       string
+	defaultImage          string
+	defaultGpuCount       int64
+	defaultGpuType        string
+	uploadRetries         uint64
+	uploadRetrySleep      time.Duration
+	sshDialer             ssh.Dialer
+	sshDialTimeout        time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -181,6 +190,7 @@ type gceInstanceConfig struct {
 	Zone               *compute.Zone
 	Network            *compute.Network
 	Subnetwork         *compute.Subnetwork
+	AcceleratorConfig  *compute.AcceleratorConfig
 	DiskType           string
 	DiskSize           int64
 	SSHPubKey          string
@@ -192,6 +202,7 @@ type gceInstanceConfig struct {
 	Preemptible        bool
 	PublicIP           bool
 	PublicIPConnect    bool
+	Site               string
 }
 
 type gceStartMultistepWrapper struct {
@@ -206,23 +217,28 @@ func (gsmw *gceStartMultistepWrapper) Run(multistep.StateBag) multistep.StepActi
 func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
 
 type gceStartContext struct {
-	startAttributes  *StartAttributes
-	ctx              gocontext.Context
-	instChan         chan Instance
-	errChan          chan error
-	image            *compute.Image
-	script           string
-	bootStart        time.Time
-	instance         *compute.Instance
-	instanceInsertOp *compute.Operation
-	windowsPassword  string
+	startAttributes      *StartAttributes
+	progresser           Progresser
+	ctx                  gocontext.Context
+	instChan             chan Instance
+	errChan              chan error
+	image                *compute.Image
+	script               string
+	bootStart            time.Time
+	instance             *compute.Instance
+	instanceInsertOpName string
+	windowsPassword      string
+	zoneName             string
 }
 
 type gceInstance struct {
+	zoneName string
 	client   *compute.Service
 	provider *gceProvider
 	instance *compute.Instance
 	ic       *gceInstanceConfig
+
+	progresser Progresser
 
 	authUser     string
 	cachedIPAddr string
@@ -354,6 +370,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		skipStopPoll = ssp
 	}
 
+	site := ""
+	if cfg.IsSet("TRAVIS_SITE") {
+		site = cfg.Get("TRAVIS_SITE")
+	}
+
 	uploadRetries := defaultGCEUploadRetries
 	if cfg.IsSet("UPLOAD_RETRIES") {
 		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
@@ -380,6 +401,22 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	defaultImage := defaultGCEImage
 	if cfg.IsSet("IMAGE_DEFAULT") {
 		defaultImage = cfg.Get("IMAGE_DEFAULT")
+	}
+
+	defaultAcceleratorConfig := &compute.AcceleratorConfig{}
+
+	defaultAcceleratorConfig.AcceleratorType = defaultGCEGpuType
+	if cfg.IsSet("GPU_TYPE") {
+		defaultAcceleratorConfig.AcceleratorType = cfg.Get("GPU_TYPE")
+	}
+
+	defaultAcceleratorConfig.AcceleratorCount = defaultGCEGpuCount
+	if cfg.IsSet("GPU_COUNT") {
+		dgc, err := strconv.ParseInt(cfg.Get("GPU_COUNT"), 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		defaultAcceleratorConfig.AcceleratorCount = dgc
 	}
 
 	autoImplode := true
@@ -453,7 +490,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	preemptible := true
+	preemptible := false
 	if cfg.IsSet("PREEMPTIBLE") {
 		preemptible = asBool(cfg.Get("PREEMPTIBLE"))
 	}
@@ -468,6 +505,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		publicIPConnect = asBool(cfg.Get("PUBLIC_IP_CONNECT"))
 	}
 
+	deterministicHostname := false
+	if cfg.IsSet("DETERMINISTIC_HOSTNAME") {
+		deterministicHostname = asBool(cfg.Get("DETERMINISTIC_HOSTNAME"))
+	}
+
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -477,25 +519,28 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		sshDialTimeout: sshDialTimeout,
 
 		ic: &gceInstanceConfig{
-			Preemptible:      preemptible,
-			PublicIP:         publicIP,
-			PublicIPConnect:  publicIPConnect,
-			DiskSize:         diskSize,
-			SSHPubKey:        string(pubKey),
-			AutoImplode:      autoImplode,
-			StopPollSleep:    stopPollSleep,
-			StopPrePollSleep: stopPrePollSleep,
-			SkipStopPoll:     skipStopPoll,
+			Preemptible:       preemptible,
+			PublicIP:          publicIP,
+			PublicIPConnect:   publicIPConnect,
+			DiskSize:          diskSize,
+			SSHPubKey:         string(pubKey),
+			AutoImplode:       autoImplode,
+			StopPollSleep:     stopPollSleep,
+			StopPrePollSleep:  stopPrePollSleep,
+			SkipStopPoll:      skipStopPoll,
+			Site:              site,
+			AcceleratorConfig: defaultAcceleratorConfig,
 		},
 
-		imageSelector:     imageSelector,
-		imageSelectorType: imageSelectorType,
-		bootPollSleep:     bootPollSleep,
-		bootPrePollSleep:  bootPrePollSleep,
-		defaultLanguage:   defaultLanguage,
-		defaultImage:      defaultImage,
-		uploadRetries:     uploadRetries,
-		uploadRetrySleep:  uploadRetrySleep,
+		deterministicHostname: deterministicHostname,
+		imageSelector:         imageSelector,
+		imageSelectorType:     imageSelectorType,
+		bootPollSleep:         bootPollSleep,
+		bootPrePollSleep:      bootPrePollSleep,
+		defaultLanguage:       defaultLanguage,
+		defaultImage:          defaultImage,
+		uploadRetries:         uploadRetries,
+		uploadRetrySleep:      uploadRetrySleep,
 
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
@@ -542,7 +587,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	var err error
 
 	p.apiRateLimit(ctx)
-	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Do()
+	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -550,19 +595,19 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
 	p.apiRateLimit(ctx)
-	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Do()
+	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
 
 	p.apiRateLimit(ctx)
-	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Do()
+	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
 
 	p.apiRateLimit(ctx)
-	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Do()
+	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -573,7 +618,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	if p.cfg.IsSet("SUBNETWORK") {
-		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).Do()
+		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).Context(ctx).Do()
 		if err != nil {
 			return err
 		}
@@ -631,8 +676,26 @@ func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
 	return a, err
 }
 
-func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+func (p *gceProvider) SupportsProgress() bool {
+	return true
+}
+
+func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, progresser Progresser) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
+
+	var (
+		zone *compute.Zone
+		err  error
+	)
+	zone = p.ic.Zone
+	if startAttributes.VMConfig.Zone != "" {
+		logger.WithField("zone", startAttributes.VMConfig.Zone).Debug("setting zone from vm config")
+
+		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	state := &multistep.BasicStateBag{}
 
@@ -642,6 +705,8 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 	c := &gceStartContext{
 		startAttributes: startAttributes,
+		zoneName:        zone.Name,
+		progresser:      progresser,
 		ctx:             ctx,
 		instChan:        make(chan Instance),
 		errChan:         make(chan error),
@@ -662,11 +727,10 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	defer func(c *gceStartContext) {
 		if c.instance != nil && abandonedStart {
 			p.apiRateLimit(c.ctx)
-			_, _ = p.client.Instances.Delete(p.projectID, p.ic.Zone.Name, c.instance.Name).Do()
+			_, _ = p.client.Instances.Delete(p.projectID, c.zoneName, c.instance.Name).Do()
 		}
 	}(c)
 
-	logger.Info("starting instance")
 	go runner.Run(state)
 
 	logger.Debug("selecting over instance, error, and done channels")
@@ -680,19 +744,36 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.boot.timeout")
 		}
+		c.progresser.Progress(&ProgressEntry{
+			Message:    "timeout waiting for instance to be ready",
+			State:      ProgressFailure,
+			Interrupts: true,
+		})
 		abandonedStart = true
 		return nil, ctx.Err()
 	}
 }
 
+func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+	return p.StartWithProgress(ctx, startAttributes, NewTextProgresser(ioutil.Discard))
+}
+
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
 	if err != nil {
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not select image",
+			State:   ProgressFailure,
+		})
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.image = image
+	c.progresser.Progress(&ProgressEntry{
+		Message: fmt.Sprintf("selected image %q", image.Name),
+		State:   ProgressSuccess,
+	})
 	return multistep.ActionContinue
 }
 
@@ -723,16 +804,32 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 		err = gceStartupScript.Execute(&scriptBuf, scriptData)
 	}
 	if err != nil {
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not render startup script",
+			State:   ProgressFailure,
+		})
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.script = scriptBuf.String()
+	c.progresser.Progress(&ProgressEntry{
+		Message: "rendered startup script",
+		State:   ProgressSuccess,
+	})
 	return multistep.ActionContinue
 }
 
 func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepAction {
-	inst := p.buildInstance(c.startAttributes, c.image.SelfLink, c.script)
+	inst, err := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
+	if err != nil {
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not build instance",
+			State:   ProgressFailure,
+		})
+		c.errChan <- err
+		return multistep.ActionHalt
+	}
 
 	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
 		"self":     "backend/gce_provider",
@@ -742,14 +839,22 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	c.bootStart = time.Now().UTC()
 
 	p.apiRateLimit(c.ctx)
-	op, err := p.client.Instances.Insert(p.projectID, p.ic.Zone.Name, inst).Do()
+	op, err := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
 	if err != nil {
+		c.progresser.Progress(&ProgressEntry{
+			Message: "could not insert instance",
+			State:   ProgressFailure,
+		})
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
 	c.instance = inst
-	c.instanceInsertOp = op
+	c.instanceInsertOpName = op.Name
+	c.progresser.Progress(&ProgressEntry{
+		Message: "inserted instance",
+		State:   ProgressSuccess,
+	})
 	return multistep.ActionContinue
 }
 
@@ -757,46 +862,73 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
 	logger.WithField("duration", p.bootPrePollSleep).Debug("sleeping before first checking instance insert operation")
+	c.progresser.Progress(&ProgressEntry{
+		Message: fmt.Sprintf("sleeping %s before checking instance insert", p.bootPrePollSleep),
+		State:   ProgressNeutral,
+	})
 
 	time.Sleep(p.bootPrePollSleep)
 
-	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, p.ic.Zone.Name, c.instanceInsertOp.Name)
+	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(c.ctx)
 
+	c.progresser.Progress(&ProgressEntry{
+		Message:   "polling for instance insert completion...",
+		State:     ProgressNeutral,
+		Continues: true,
+	})
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
 		p.apiRateLimit(c.ctx)
 		newOp, err := zoneOpCall.Do()
 		if err != nil {
+			c.progresser.Progress(&ProgressEntry{
+				Message:    "could not check for instance insert",
+				State:      ProgressFailure,
+				Interrupts: true,
+			})
 			c.errChan <- err
 			return multistep.ActionHalt
 		}
 
 		if newOp.Status == "RUNNING" || newOp.Status == "DONE" {
 			if newOp.Error != nil {
+				c.progresser.Progress(&ProgressEntry{
+					Message:    "instance could not be inserted",
+					State:      ProgressFailure,
+					Interrupts: true,
+				})
 				c.errChan <- &gceOpError{Err: newOp.Error}
 				return multistep.ActionHalt
 			}
 
 			logger.WithFields(logrus.Fields{
 				"status": newOp.Status,
-				"name":   c.instanceInsertOp.Name,
+				"name":   c.instanceInsertOpName,
 			}).Debug("instance is ready")
 
+			startupDuration := time.Now().UTC().Sub(c.bootStart)
+			c.progresser.Progress(&ProgressEntry{
+				Message:    fmt.Sprintf("instance is ready (%s)", startupDuration.Truncate(time.Millisecond)),
+				State:      ProgressSuccess,
+				Interrupts: true,
+			})
 			c.instChan <- &gceInstance{
-				client:   p.client,
-				provider: p,
-				instance: c.instance,
-				ic:       p.ic,
+				zoneName:   c.zoneName,
+				client:     p.client,
+				provider:   p,
+				instance:   c.instance,
+				ic:         p.ic,
+				progresser: c.progresser,
 
 				authUser: "travis",
 
 				projectID: p.projectID,
 				imageName: c.image.Name,
 
-				startupDuration: time.Now().UTC().Sub(c.bootStart),
 				os:              c.startAttributes.OS,
 				windowsPassword: c.windowsPassword,
+				startupDuration: startupDuration,
 			}
 			return multistep.ActionContinue
 		}
@@ -804,19 +936,25 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		if newOp.Error != nil {
 			logger.WithFields(logrus.Fields{
 				"err":  newOp.Error,
-				"name": c.instanceInsertOp.Name,
+				"name": c.instanceInsertOpName,
 			}).Error("encountered an error while waiting for instance insert operation")
 
+			c.progresser.Progress(&ProgressEntry{
+				Message:    "error while waiting for instance insert",
+				State:      ProgressFailure,
+				Interrupts: true,
+			})
 			c.errChan <- &gceOpError{Err: newOp.Error}
 			return multistep.ActionHalt
 		}
 
 		logger.WithFields(logrus.Fields{
 			"status":   newOp.Status,
-			"name":     c.instanceInsertOp.Name,
+			"name":     c.instanceInsertOpName,
 			"duration": p.bootPollSleep,
 		}).Debug("sleeping before checking instance insert operation")
 
+		c.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 		time.Sleep(p.bootPollSleep)
 	}
 }
@@ -824,7 +962,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
 	p.apiRateLimit(ctx)
 	// TODO: add some TTL cache in here maybe?
-	images, err := p.client.Images.List(p.imageProjectID).Filter(filter).Do()
+	images, err := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
 	if err != nil {
 		return nil, err
 	}
@@ -895,13 +1033,50 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 	}
 }
 
-func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink, startupScript string) *compute.Instance {
+func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) (*compute.Instance, error) {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+
+	var err error
+
+	zone := p.ic.Zone
+	diskType := p.ic.DiskType
+
+	if startAttributes.VMConfig.Zone != "" {
+		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
+		if err != nil {
+			return nil, err
+		}
+		logger.WithFields(logrus.Fields{
+			"disk_type": fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
+		}).Info("setting disk type based on zone in vm config")
+		diskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name)
+
+	}
+
 	var machineType *compute.MachineType
-	switch startAttributes.VMType {
-	case "premium":
-		machineType = p.ic.PremiumMachineType
-	default:
-		machineType = p.ic.MachineType
+	if startAttributes.VMType == "premium" {
+		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to look up premium machine type")
+		}
+		machineType = pic
+	} else {
+		p.apiRateLimit(ctx)
+		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to look up machine type")
+		}
+		machineType = pic
+	}
+
+	// Set accelerator config based on number and type of requested GPUs (empty if none)
+	acceleratorConfig := &compute.AcceleratorConfig{}
+	if startAttributes.VMConfig.GpuCount > 0 {
+		acceleratorConfig.AcceleratorCount = startAttributes.VMConfig.GpuCount
+		acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
+			p.projectID,
+			startAttributes.VMConfig.Zone,
+			startAttributes.VMConfig.GpuType)
 	}
 
 	var subnetwork string
@@ -909,6 +1084,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 		subnetwork = p.ic.Subnetwork.SelfLink
 	}
 
+	tags := []string{"testing"}
 	var networkInterface *compute.NetworkInterface
 	if p.ic.PublicIP {
 		networkInterface = &compute.NetworkInterface{
@@ -922,6 +1098,7 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			Subnetwork: subnetwork,
 		}
 	} else {
+		tags = append(tags, "no-ip")
 		networkInterface = &compute.NetworkInterface{
 			Network:    p.ic.Network.SelfLink,
 			Subnetwork: subnetwork,
@@ -931,6 +1108,34 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 	startupKey := "startup-script"
 	if startAttributes.OS == "windows" {
 		startupKey = "windows-startup-script-ps1"
+	}
+
+	if p.ic.Site != "" {
+		tags = append(tags, p.ic.Site)
+	}
+
+	hostname := ""
+	if p.deterministicHostname {
+		hostname = hostnameFromContext(ctx)
+	} else {
+		hostname = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
+	}
+
+	var onHostMaintenance string
+	onHostMaintenance = "MIGRATE"
+
+	acceleratorConfigs := []*compute.AcceleratorConfig{}
+	if acceleratorConfig.AcceleratorCount > 0 {
+		logger.Debug("GPU requested, setting acceleratorConfig")
+		acceleratorConfigs = append(acceleratorConfigs, acceleratorConfig)
+		onHostMaintenance = "TERMINATE"
+	}
+
+	if p.ic.Preemptible == true && onHostMaintenance == "MIGRATE" {
+		// googleapi: Scheduling must have preemptible be false when OnHostMaintenance isn't TERMINATE.
+		// In other words: if preemptible is true, OnHostMaintenance must be TERMINATE.
+		logger.Warn("PREEMPTIBLE is set to true; forcing onHostMaintenance to TERMINATE")
+		onHostMaintenance = "TERMINATE"
 	}
 
 	return &compute.Instance{
@@ -943,16 +1148,19 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 				AutoDelete: true,
 				InitializeParams: &compute.AttachedDiskInitializeParams{
 					SourceImage: imageLink,
-					DiskType:    p.ic.DiskType,
+					DiskType:    diskType,
 					DiskSizeGb:  p.ic.DiskSize,
 				},
 			},
 		},
+		GuestAccelerators: acceleratorConfigs,
 		Scheduling: &compute.Scheduling{
-			Preemptible: p.ic.Preemptible,
+			Preemptible:       p.ic.Preemptible,
+			AutomaticRestart:  googleapi.Bool(false),
+			OnHostMaintenance: onHostMaintenance,
 		},
 		MachineType: machineType.SelfLink,
-		Name:        fmt.Sprintf("testing-gce-%s", uuid.NewRandom()),
+		Name:        hostname,
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
@@ -965,11 +1173,9 @@ func (p *gceProvider) buildInstance(startAttributes *StartAttributes, imageLink,
 			networkInterface,
 		},
 		Tags: &compute.Tags{
-			Items: []string{
-				"testing",
-			},
+			Items: tags,
 		},
-	}
+	}, nil
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
@@ -1034,7 +1240,7 @@ func (i *gceInstance) getIP() string {
 
 func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	i.provider.apiRateLimit(ctx)
-	inst, err := i.client.Instances.Get(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
+	inst, err := i.client.Instances.Get(i.projectID, i.zoneName, i.instance.Name).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -1043,9 +1249,20 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	return nil
 }
 
+func (i *gceInstance) SupportsProgress() bool {
+	return true
+}
+
 func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 	var lastErr error
+
+	waitStart := time.Now().UTC()
+	i.progresser.Progress(&ProgressEntry{
+		Message:   "waiting for ssh connectivity...",
+		State:     ProgressNeutral,
+		Continues: true,
+	})
 
 	go func() {
 		var errCount uint64
@@ -1056,6 +1273,16 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 
 			err := i.uploadScriptAttempt(ctx, script)
 			if err == nil {
+				timeToSsh := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
+				i.progresser.Progress(&ProgressEntry{
+					Message:    fmt.Sprintf("ssh connectivity established (%s)", timeToSsh),
+					State:      ProgressSuccess,
+					Interrupts: true,
+				})
+				i.progresser.Progress(&ProgressEntry{
+					Message: "uploaded script",
+					State:   ProgressSuccess,
+				})
 				uploadedChan <- nil
 				return
 			}
@@ -1068,6 +1295,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 				return
 			}
 
+			i.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 			time.Sleep(i.provider.uploadRetrySleep)
 		}
 	}()
@@ -1100,6 +1328,11 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 
 	existed, err := conn.UploadFile("build.sh", script)
 	if existed {
+		i.progresser.Progress(&ProgressEntry{
+			Message:    "existing script detected",
+			State:      ProgressFailure,
+			Interrupts: true,
+		})
 		return ErrStaleVM
 	}
 	if err != nil {
@@ -1115,7 +1348,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 	}
 
 	listOpCall := i.provider.client.GlobalOperations.AggregatedList(i.provider.projectID).
-		Filter(fmt.Sprintf("targetId eq %d", i.instance.Id))
+		Filter(fmt.Sprintf("targetId eq %d", i.instance.Id)).Context(ctx)
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = 1 * time.Second
@@ -1181,6 +1414,29 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
+func (i *gceInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
+	var conn remote.Remoter
+	var err error
+
+	if i.os == "windows" {
+		conn, err = i.winrmRemoter(ctx)
+	} else {
+		conn, err = i.sshConnection(ctx)
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't connect to remote server to download trace")
+	}
+	defer conn.Close()
+
+	buf, err := conn.DownloadFile("/tmp/build.trace")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't download trace")
+	}
+
+	return buf, nil
+}
+
 func (i *gceInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 	state := &multistep.BasicStateBag{}
@@ -1213,7 +1469,7 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 }
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
-	op, err := i.client.Instances.Delete(i.projectID, i.ic.Zone.Name, i.instance.Name).Do()
+	op, err := i.client.Instances.Delete(i.projectID, i.zoneName, i.instance.Name).Do()
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
@@ -1239,7 +1495,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	time.Sleep(i.ic.StopPrePollSleep)
 
 	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
-		i.ic.Zone.Name, c.instanceDeleteOp.Name)
+		i.zoneName, c.instanceDeleteOp.Name)
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = i.ic.StopPollSleep
@@ -1274,7 +1530,11 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 }
 
 func (i *gceInstance) ID() string {
-	return fmt.Sprintf("%s:%s", i.instance.Name, i.imageName)
+	return i.instance.Name
+}
+
+func (i *gceInstance) ImageName() string {
+	return i.imageName
 }
 
 func (i *gceInstance) StartupDuration() time.Duration {

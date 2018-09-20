@@ -49,3 +49,5 @@ vendor/**
 build/
 .write-test
 .envrc
+
+builds.*/

@@ -7,6 +7,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/Jeffail/tunny"
 	"github.com/bitly/go-simplejson"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -17,6 +18,8 @@ import (
 
 type amqpJob struct {
 	conn            *amqp.Connection
+	stateUpdatePool *tunny.Pool
+	logWriterChan   *amqp.Channel
 	delivery        amqp.Delivery
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
@@ -25,6 +28,7 @@ type amqpJob struct {
 	started         time.Time
 	finished        time.Time
 	stateCount      uint
+	withLogSharding bool
 }
 
 func (j *amqpJob) GoString() string {
@@ -59,7 +63,12 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *amqpJob) Requeue(ctx gocontext.Context) error {
-	context.LoggerFromContext(ctx).WithField("self", "amqp_job").Info("requeueing job")
+	context.LoggerFromContext(ctx).WithFields(
+		logrus.Fields{
+			"self":       "amqp_job",
+			"job_id":     j.Payload().Job.ID,
+			"repository": j.Payload().Repository.Slug,
+		}).Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
 
@@ -90,12 +99,8 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
-	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"state": state,
-		"self":  "amqp_job",
-	}).Info("finishing job")
-
 	j.finished = time.Now()
+
 	if j.received.IsZero() {
 		j.received = j.finished
 	}
@@ -103,6 +108,14 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	if j.started.IsZero() {
 		j.started = j.finished
 	}
+
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"state":           state,
+		"self":            "amqp_job",
+		"job_id":          j.Payload().Job.ID,
+		"repository":      j.Payload().Repository.Slug,
+		"job_duration_ms": j.finished.Sub(j.started).Seconds() * 1e3,
+	}).Info("finishing job")
 
 	metrics.Mark(fmt.Sprintf("travis.worker.job.finish.%s", state))
 	metrics.Mark("travis.worker.job.finish")
@@ -121,16 +134,20 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, j.conn, j.payload.Job.ID, logTimeout)
+	return newAMQPLogWriter(ctx, j.logWriterChan, j.payload.Job.ID, j.Payload().Job.QueuedAt, logTimeout, j.withLogSharding)
 }
 
-func (j *amqpJob) createStateUpdateBody(state string) map[string]interface{} {
+func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
 	body := map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": state,
 		"meta": map[string]interface{}{
 			"state_update_count": j.stateCount,
 		},
+	}
+
+	if instanceID, ok := context.InstanceIDFromContext(ctx); ok {
+		body["meta"].(map[string]interface{})["instance_id"] = instanceID
 	}
 
 	if j.Payload().Job.QueuedAt != nil {
@@ -146,44 +163,98 @@ func (j *amqpJob) createStateUpdateBody(state string) map[string]interface{} {
 		body["finished_at"] = j.finished.UTC().Format(time.RFC3339)
 	}
 
+	if j.Payload().Trace {
+		body["trace"] = true
+	}
+
 	return body
 }
 
 func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
+	err := j.stateUpdatePool.Process(&amqpStateUpdatePayload{
+		job:   j,
+		ctx:   ctx,
+		event: event,
+		state: state,
+		body:  j.createStateUpdateBody(ctx, state),
+	})
+
+	if err == nil {
+		return nil
+	}
+
+	return err.(error)
+}
+
+func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context {
+	return ctx
+}
+
+func (j *amqpJob) Name() string { return "amqp" }
+
+type amqpStateUpdatePayload struct {
+	job   *amqpJob
+	ctx   gocontext.Context
+	event string
+	state string
+	body  map[string]interface{}
+}
+
+type amqpStateUpdateWorker struct {
+	stateUpdateChan *amqp.Channel
+	ctx             gocontext.Context
+	cancel          gocontext.CancelFunc
+}
+
+func (w *amqpStateUpdateWorker) Process(payload interface{}) interface{} {
+	p := payload.(*amqpStateUpdatePayload)
+	ctx, cancel := gocontext.WithCancel(p.ctx)
+
+	w.ctx = ctx
+	w.cancel = cancel
+
+	return w.sendStateUpdate(p)
+}
+
+func (w *amqpStateUpdateWorker) BlockUntilReady() {
+	// we do not need to perform any warm-up before processing jobs.
+	// Process() will block for the duration of the job itself.
+}
+
+func (w *amqpStateUpdateWorker) Interrupt() {
+	w.cancel()
+}
+
+func (w *amqpStateUpdateWorker) Terminate() {
+	err := w.stateUpdateChan.Close()
+	if err != nil {
+		time.Sleep(time.Minute)
+		logrus.WithFields(logrus.Fields{
+			"self": "amqp_state_update_worker",
+			"err":  err,
+		}).Panic("timed out waiting for shutdown after amqp connection error")
+	}
+}
+
+func (w *amqpStateUpdateWorker) sendStateUpdate(payload *amqpStateUpdatePayload) error {
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-w.ctx.Done():
+		return w.ctx.Err()
 	default:
 	}
 
-	amqpChan, err := j.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer amqpChan.Close()
+	payload.job.stateCount++
 
-	j.stateCount++
-	body := j.createStateUpdateBody(state)
-
-	bodyBytes, err := json.Marshal(body)
+	bodyBytes, err := json.Marshal(payload.body)
 	if err != nil {
 		return err
 	}
 
-	_, err = amqpChan.QueueDeclare("reporting.jobs.builds", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
-
-	return amqpChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
+	return w.stateUpdateChan.Publish("", "reporting.jobs.builds", false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now().UTC(),
-		Type:         event,
+		Type:         payload.event,
 		Body:         bodyBytes,
 	})
-}
-
-func (j *amqpJob) Name() string {
-	return "amqp"
 }

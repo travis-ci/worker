@@ -1,3 +1,5 @@
+SHELL := bash
+
 PACKAGE_CHECKOUT := $(shell echo ${PWD})
 PACKAGE := github.com/travis-ci/worker
 ALL_PACKAGES := $(PACKAGE) $(shell script/list-packages) $(PACKAGE)/cmd/...
@@ -19,6 +21,7 @@ DOCKER ?= docker
 GO ?= go
 GVT ?= gvt
 GOPATH := $(shell echo $${GOPATH%%:*})
+GOPATH_BIN := $(GOPATH)/bin
 GOBUILD_LDFLAGS ?= \
 	-extldflags '-static' \
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
@@ -39,9 +42,11 @@ CROSSBUILD_BINARIES := \
 	build/darwin/amd64/travis-worker \
 	build/linux/amd64/travis-worker
 
+SHFMT_URL := https://github.com/mvdan/sh/releases/download/v2.5.0/shfmt_v2.5.0_linux_amd64
+
 %-coverage.coverprofile:
-	$(GO) test -v -covermode=count -coverprofile=$@ \
-		-tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" \
+	$(GO) test -covermode=count -coverprofile=$@ \
+		-tags netgo -ldflags "$(GOBUILD_LDFLAGS)" \
 		$(PACKAGE)/$(subst -,/,$(subst root,,$(subst -coverage.coverprofile,,$@)))
 
 .PHONY: %
@@ -52,11 +57,11 @@ CROSSBUILD_BINARIES := \
 all: clean test
 
 .PHONY: test
-test: deps lintall build fmtpolice test-no-cover coverage.html
+test: vendor/.deps-fetched lintall build fmtpolice test-no-cover coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
-	$(GO) test -v -race -tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
+	$(GO) test -race -tags netgo -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 coverage.html: coverage.coverprofile
 	$(GO) tool cover -html=$^ -o $@
@@ -66,11 +71,11 @@ coverage.coverprofile: $(COVERPROFILES)
 	$(GO) tool cover -func=$@
 
 .PHONY: build
-build: deps
-	$(GO) install -tags netgo -x -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
+build: vendor/.deps-fetched
+	$(GO) install -tags netgo -ldflags "$(GOBUILD_LDFLAGS)" $(ALL_PACKAGES)
 
 .PHONY: crossbuild
-crossbuild: deps $(CROSSBUILD_BINARIES)
+crossbuild: vendor/.deps-fetched $(CROSSBUILD_BINARIES)
 
 .PHONY: docker-build
 docker-build: $(CROSSBUILD_BINARIES)
@@ -89,11 +94,32 @@ distclean: clean
 	rm -f vendor/.deps-fetched
 
 .PHONY: deps
-deps: vendor/.deps-fetched
+deps: .ensure-shfmt .ensure-gometalinter .ensure-gvt vendor/.deps-fetched
 
 vendor/.deps-fetched: vendor/manifest
 	$(GVT) rebuild
 	touch $@
+
+.PHONY: .ensure-shfmt
+.ensure-shfmt:
+	if ! shfmt -version 2>/dev/null; then \
+		curl -o $(GOPATH_BIN)/shfmt -sSL $(SHFMT_URL); \
+		chmod +x $(GOPATH_BIN)/shfmt; \
+		shfmt -version; \
+	fi
+
+.PHONY: .ensure-gometalinter
+.ensure-gometalinter:
+	if ! command -v gometalinter &>/dev/null; then \
+		go get -u github.com/alecthomas/gometalinter; \
+		gometalinter --install; \
+	fi
+
+.PHONY: .ensure-gvt
+.ensure-gvt:
+	if ! command -v gvt &>/dev/null; then \
+		go get -u github.com/FiloSottile/gvt; \
+	fi
 
 .PHONY: annotations
 annotations:

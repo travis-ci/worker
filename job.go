@@ -14,8 +14,11 @@ const (
 	VMTypePremium = "premium"
 )
 
+var VMConfigDefault = backend.VmConfig{GpuCount: 0, GpuType: ""}
+
 type jobPayloadStartAttrs struct {
-	Config *backend.StartAttributes `json:"config"`
+	Config   *backend.StartAttributes `json:"config"`
+	VmConfig *backend.VmConfig        `json:"vm_config"`
 }
 
 type httpJobPayloadStartAttrs struct {
@@ -32,7 +35,9 @@ type JobPayload struct {
 	Config     map[string]interface{} `json:"config"`
 	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
 	VMType     string                 `json:"vm_type"`
+	VMConfig   backend.VmConfig       `json:"vm_config"`
 	Meta       JobMetaPayload         `json:"meta"`
+	Trace      bool                   `json:"trace"`
 }
 
 // JobMetaPayload contains meta information about the job.
@@ -93,4 +98,5 @@ type Job interface {
 
 	LogWriter(gocontext.Context, time.Duration) (LogWriter, error)
 	Name() string
+	SetupContext(gocontext.Context) gocontext.Context
 }

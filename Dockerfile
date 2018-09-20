@@ -1,4 +1,4 @@
-FROM golang:1.9 as builder
+FROM golang:1.10 as builder
 MAINTAINER Travis CI GmbH <support+travis-worker-docker-image@travis-ci.org>
 
 RUN go get -u github.com/FiloSottile/gvt
@@ -9,14 +9,12 @@ RUN make deps
 ENV CGO_ENABLED 0
 RUN make build
 
-#################################
-### linux/amd64/travis-worker ###
-#################################
-
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates curl bash
 
 COPY --from=builder /go/bin/travis-worker /usr/local/bin/travis-worker
+COPY --from=builder /go/src/github.com/travis-ci/worker/systemd.service /app/systemd.service
+COPY --from=builder /go/src/github.com/travis-ci/worker/systemd-wrapper /app/systemd-wrapper
 COPY --from=builder /go/src/github.com/travis-ci/worker/.docker-entrypoint.sh /docker-entrypoint.sh
 
 VOLUME ["/var/tmp"]

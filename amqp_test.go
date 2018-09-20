@@ -17,20 +17,29 @@ func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {
 		t.Fatal(err)
 	}
 
-	amqpChan, err := amqpConn.Channel()
+	logChan, err := amqpConn.Channel()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = amqpChan.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
+	err = logChan.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
+	if err != nil {
+		return nil, nil
+	}
+	_, err = logChan.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = amqpChan.QueuePurge("reporting.jobs.logs", false)
+	err = logChan.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
+	if err != nil {
+		return nil, nil
+	}
+
+	_, err = logChan.QueuePurge("reporting.jobs.logs", false)
 	if err != nil {
 		t.Error(err)
 	}
 
-	return amqpConn, amqpChan
+	return amqpConn, logChan
 }

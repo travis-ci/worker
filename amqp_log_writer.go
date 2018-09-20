@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -15,23 +16,28 @@ import (
 )
 
 type amqpLogPart struct {
-	JobID   uint64 `json:"id"`
-	Content string `json:"log"`
-	Number  int    `json:"number"`
-	UUID    string `json:"uuid"`
-	Final   bool   `json:"final"`
+	JobID    uint64     `json:"id"`
+	Content  string     `json:"log"`
+	Number   int        `json:"number"`
+	UUID     string     `json:"uuid"`
+	Final    bool       `json:"final"`
+	QueuedAt *time.Time `json:"queued_at,omitempty"`
 }
 
 type amqpLogWriter struct {
-	ctx      gocontext.Context
-	amqpConn *amqp.Connection
-	jobID    uint64
+	ctx         gocontext.Context
+	cancel      gocontext.CancelFunc
+	jobID       uint64
+	jobQueuedAt *time.Time
+	sharded     bool
 
 	closeChan chan struct{}
 
-	bufferMutex   sync.Mutex
-	buffer        *bytes.Buffer
-	logPartNumber int
+	bufferMutex      sync.Mutex
+	buffer           *bytes.Buffer
+	logPartNumber    int
+	jobStarted       bool
+	maxLengthReached bool
 
 	bytesWritten int
 	maxLength    int
@@ -43,36 +49,18 @@ type amqpLogWriter struct {
 	timeout time.Duration
 }
 
-func newAMQPLogWriter(ctx gocontext.Context, conn *amqp.Connection, jobID uint64, timeout time.Duration) (*amqpLogWriter, error) {
-	channel, err := conn.Channel()
-	if err != nil {
-		return nil, err
-	}
-
-	err = channel.ExchangeDeclare("reporting", "topic", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = channel.QueueDeclare("reporting.jobs.logs", true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	err = channel.QueueBind("reporting.jobs.logs", "reporting.jobs.logs", "reporting", false, nil)
-	if err != nil {
-		return nil, err
-	}
+func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, jobQueuedAt *time.Time, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
 
 	writer := &amqpLogWriter{
-		ctx:       context.FromComponent(ctx, "log_writer"),
-		amqpConn:  conn,
-		amqpChan:  channel,
-		jobID:     jobID,
-		closeChan: make(chan struct{}),
-		buffer:    new(bytes.Buffer),
-		timer:     time.NewTimer(time.Hour),
-		timeout:   timeout,
+		ctx:         context.FromComponent(ctx, "log_writer"),
+		amqpChan:    logWriterChan,
+		jobID:       jobID,
+		jobQueuedAt: jobQueuedAt,
+		closeChan:   make(chan struct{}),
+		buffer:      new(bytes.Buffer),
+		timer:       time.NewTimer(time.Hour),
+		timeout:     timeout,
+		sharded:     sharded,
 	}
 
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -104,11 +92,14 @@ func (w *amqpLogWriter) Write(p []byte) (int, error) {
 
 	w.bytesWritten += len(p)
 	if w.bytesWritten > w.maxLength {
-		_, err := w.WriteAndClose([]byte(fmt.Sprintf("\n\nThe log length has exceeded the limit of %d MB (this usually means that the test suite is raising the same exception over and over).\n\nThe job has been terminated\n", w.maxLength/1000/1000)))
-		if err != nil {
-			logger.WithField("err", err).Error("couldn't write 'log length exceeded' error message to log")
+		logger.Info("wrote past maximum log length - cancelling context")
+		w.maxLengthReached = true
+		if w.cancel == nil {
+			logger.Error("cancel function does not exist")
+		} else {
+			w.cancel()
 		}
-		return 0, ErrWrotePastMaxLogLength
+		return 0, nil
 	}
 
 	w.bufferMutex.Lock()
@@ -134,7 +125,6 @@ func (w *amqpLogWriter) Close() error {
 	w.logPartNumber++
 
 	err := w.publishLogPart(part)
-	_ = w.amqpChan.Close()
 	return err
 }
 
@@ -144,6 +134,18 @@ func (w *amqpLogWriter) Timeout() <-chan time.Time {
 
 func (w *amqpLogWriter) SetMaxLogLength(bytes int) {
 	w.maxLength = bytes
+}
+
+func (w *amqpLogWriter) SetJobStarted() {
+	w.jobStarted = true
+}
+
+func (w *amqpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
+	w.cancel = cancel
+}
+
+func (w *amqpLogWriter) MaxLengthReached() bool {
+	return w.maxLengthReached == true
 }
 
 // WriteAndClose works like a Write followed by a Close, but ensures that no
@@ -174,7 +176,6 @@ func (w *amqpLogWriter) WriteAndClose(p []byte) (int, error) {
 	w.logPartNumber++
 
 	err = w.publishLogPart(part)
-	_ = w.amqpChan.Close()
 	return n, err
 }
 
@@ -203,6 +204,8 @@ func (w *amqpLogWriter) flushRegularly(ctx gocontext.Context) {
 }
 
 func (w *amqpLogWriter) flush() {
+	w.bufferMutex.Lock()
+	defer w.bufferMutex.Unlock()
 	if w.buffer.Len() <= 0 {
 		return
 	}
@@ -214,9 +217,7 @@ func (w *amqpLogWriter) flush() {
 	})
 
 	for w.buffer.Len() > 0 {
-		w.bufferMutex.Lock()
 		n, err := w.buffer.Read(buf)
-		w.bufferMutex.Unlock()
 		if err != nil {
 			// According to documentation, err should only be non-nil if
 			// there's no data in the buffer. We've checked for this, so
@@ -234,19 +235,7 @@ func (w *amqpLogWriter) flush() {
 
 		err = w.publishLogPart(part)
 		if err != nil {
-			switch err.(type) {
-			case *amqp.Error:
-				if w.reopenChannel() != nil {
-					logger.WithField("err", err).Error("couldn't publish log part and couldn't reopen channel")
-					// Close or something
-					return
-				}
-
-				err = w.publishLogPart(part)
-				logger.WithField("err", err).Error("couldn't publish log part, even after reopening channel")
-			default:
-				logger.WithField("err", err).Error("couldn't publish log part")
-			}
+			logger.WithField("err", err).Error("couldn't publish log part")
 		}
 	}
 }
@@ -254,13 +243,31 @@ func (w *amqpLogWriter) flush() {
 func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	part.UUID, _ = context.UUIDFromContext(w.ctx)
 
+	// we emit the queued_at field on the log part to indicate that
+	// this is when the job started running. downstream consumers of
+	// the log parts (travis-logs) can then use the timestamp to compute
+	// a "time to first log line" metric.
+	if w.jobStarted {
+		part.QueuedAt = w.jobQueuedAt
+		w.jobStarted = false
+	}
+
 	partBody, err := json.Marshal(part)
 	if err != nil {
 		return err
 	}
 
 	w.amqpChanMutex.RLock()
-	err = w.amqpChan.Publish("reporting", "reporting.jobs.logs", false, false, amqp.Publishing{
+	var exchange string
+	var routingKey string
+	if w.sharded {
+		exchange = "reporting.jobs.logs_sharded"
+		routingKey = strconv.FormatUint(w.jobID, 10)
+	} else {
+		exchange = "reporting"
+		routingKey = "reporting.jobs.logs"
+	}
+	err = w.amqpChan.Publish(exchange, routingKey, false, false, amqp.Publishing{
 		ContentType:  "application/json",
 		DeliveryMode: amqp.Persistent,
 		Timestamp:    time.Now(),
@@ -270,23 +277,4 @@ func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	w.amqpChanMutex.RUnlock()
 
 	return err
-}
-
-func (w *amqpLogWriter) reopenChannel() error {
-	w.amqpChanMutex.Lock()
-	defer w.amqpChanMutex.Unlock()
-
-	amqpChan, err := w.amqpConn.Channel()
-	if err != nil {
-		return err
-	}
-
-	// reopenChannel() shouldn't be called if the channel isn't already closed.
-	// but we're closing the channel again, just in case, to avoid leaking
-	// channels.
-	_ = w.amqpChan.Close()
-
-	w.amqpChan = amqpChan
-
-	return nil
 }

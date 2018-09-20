@@ -14,12 +14,14 @@ import (
 )
 
 var (
-	defaultAmqpURI                = "amqp://"
-	defaultBaseDir                = "."
-	defaultFilePollingInterval, _ = time.ParseDuration("5s")
-	defaultPoolSize               = 1
-	defaultProviderName           = "docker"
-	defaultQueueType              = "amqp"
+	defaultAmqpURI                     = "amqp://"
+	defaultBaseDir                     = "."
+	defaultFilePollingInterval, _      = time.ParseDuration("5s")
+	defaultHTTPPollingInterval, _      = time.ParseDuration("3s")
+	defaultHTTPRefreshClaimInterval, _ = time.ParseDuration("5s")
+	defaultPoolSize                    = 1
+	defaultProviderName                = "docker"
+	defaultQueueType                   = "amqp"
 
 	defaultHardTimeout, _         = time.ParseDuration("50m")
 	defaultInitialSleep, _        = time.ParseDuration("1s")
@@ -33,7 +35,7 @@ var (
 
 	defaultHostname, _ = os.Hostname()
 	defaultLanguage    = "default"
-	defaultDist        = "precise"
+	defaultDist        = "trusty"
 	defaultGroup       = "stable"
 	defaultOS          = "linux"
 
@@ -48,18 +50,35 @@ var (
 			Value: defaultQueueType,
 			Usage: `The name of the queue type to use ("amqp", "http", or "file")`,
 		}),
+		NewConfigDef("AmqpHeartbeat", &cli.DurationFlag{
+			Value: 10 * time.Second,
+			Usage: "The heartbeat timeout value defines after what time the peer TCP connection should be considered unreachable",
+		}),
+		NewConfigDef("AmqpConsumerPriority", &cli.IntFlag{
+			Value: 0,
+			Usage: "The consumer priority to set when consuming jobs",
+		}),
 		NewConfigDef("AmqpURI", &cli.StringFlag{
 			Value: defaultAmqpURI,
 			Usage: `The URI to the AMQP server to connect to (only valid for "amqp" queue type)`,
+		}),
+		NewConfigDef("LogsAmqpURI", &cli.StringFlag{
+			Usage: `The URI to the Logs AMQP server to connect to (only valid for "amqp" queue type)`,
 		}),
 		NewConfigDef("AmqpInsecure", &cli.BoolFlag{
 			Usage: `Whether to connect to the AMQP server without verifying TLS certificates (only valid for "amqp" queue type)`,
 		}),
 		NewConfigDef("AmqpTlsCert", &cli.StringFlag{
-			Usage: `The TLS certificate used to connet to the AMQP server`,
+			Usage: `The TLS certificate used to connet to the jobs AMQP server`,
 		}),
 		NewConfigDef("AmqpTlsCertPath", &cli.StringFlag{
-			Usage: `Path to the TLS certificate used to connet to the AMQP server`,
+			Usage: `Path to the TLS certificate used to connet to the jobs AMQP server`,
+		}),
+		NewConfigDef("LogsAmqpTlsCert", &cli.StringFlag{
+			Usage: `The TLS certificate used to connet to the logs AMQP server`,
+		}),
+		NewConfigDef("LogsAmqpTlsCertPath", &cli.StringFlag{
+			Usage: `Path to the TLS certificate used to connet to the logs AMQP server`,
 		}),
 		NewConfigDef("BaseDir", &cli.StringFlag{
 			Value: defaultBaseDir,
@@ -78,6 +97,14 @@ var (
 		}),
 		NewConfigDef("QueueName", &cli.StringFlag{
 			Usage: "The AMQP queue to subscribe to for jobs",
+		}),
+		NewConfigDef("HTTPPollingInterval", &cli.DurationFlag{
+			Value: defaultHTTPPollingInterval,
+			Usage: `Sleep interval between new job requests (only valid for "http" queue type)`,
+		}),
+		NewConfigDef("HTTPRefreshClaimInterval", &cli.DurationFlag{
+			Value: defaultHTTPRefreshClaimInterval,
+			Usage: `Sleep interval between job claim refresh requests (only valid for "http" queue type)`,
 		}),
 		NewConfigDef("LibratoEmail", &cli.StringFlag{
 			Usage: "Librato metrics account email",
@@ -145,6 +172,17 @@ var (
 		NewConfigDef("TravisSite", &cli.StringFlag{
 			Usage: "Either 'org' or 'com', used for job-board",
 		}),
+		NewConfigDef("StateUpdatePoolSize", &cli.IntFlag{
+			Usage: "The pool size for state update workers",
+			Value: 3,
+		}),
+		NewConfigDef("LogPoolSize", &cli.IntFlag{
+			Usage: "The pool size for log workers",
+			Value: 3,
+		}),
+		NewConfigDef("RabbitMQSharding", &cli.BoolFlag{
+			Usage: "Enable sharding for the logs AMQP queue",
+		}),
 
 		// build script generator flags
 		NewConfigDef("BuildCacheFetchTimeout", &cli.DurationFlag{
@@ -164,6 +202,13 @@ var (
 		NewConfigDef("BuildCacheS3Bucket", &cli.StringFlag{}),
 		NewConfigDef("BuildCacheS3AccessKeyID", &cli.StringFlag{}),
 		NewConfigDef("BuildCacheS3SecretAccessKey", &cli.StringFlag{}),
+
+		NewConfigDef("BuildTraceEnabled", &cli.BoolFlag{
+			Usage: "Enable downloading build traces",
+		}),
+		NewConfigDef("BuildTraceS3Bucket", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3KeyPrefix", &cli.StringFlag{}),
+		NewConfigDef("BuildTraceS3Region", &cli.StringFlag{}),
 
 		// non-config and special case flags
 		NewConfigDef("PayloadFilterExecutable", &cli.StringFlag{
@@ -295,29 +340,40 @@ func NewConfigDef(fieldName string, flag cli.Flag) *ConfigDef {
 
 // Config contains all the configuration needed to run the worker.
 type Config struct {
-	ProviderName    string `config:"provider-name"`
-	QueueType       string `config:"queue-type"`
-	AmqpURI         string `config:"amqp-uri"`
-	AmqpInsecure    bool   `config:"amqp-insecure"`
-	AmqpTlsCert     string `config:"amqp-tls-cert"`
-	AmqpTlsCertPath string `config:"amqp-tls-cert-path"`
-	BaseDir         string `config:"base-dir"`
-	PoolSize        int    `config:"pool-size"`
-	BuildAPIURI     string `config:"build-api-uri"`
-	QueueName       string `config:"queue-name"`
-	LibratoEmail    string `config:"librato-email"`
-	LibratoToken    string `config:"librato-token"`
-	LibratoSource   string `config:"librato-source"`
-	SentryDSN       string `config:"sentry-dsn"`
-	Hostname        string `config:"hostname"`
-	DefaultLanguage string `config:"default-language"`
-	DefaultDist     string `config:"default-dist"`
-	DefaultGroup    string `config:"default-group"`
-	DefaultOS       string `config:"default-os"`
-	JobBoardURL     string `config:"job-board-url"`
-	TravisSite      string `config:"travis-site"`
+	ProviderName         string        `config:"provider-name"`
+	QueueType            string        `config:"queue-type"`
+	AmqpURI              string        `config:"amqp-uri"`
+	AmqpInsecure         bool          `config:"amqp-insecure"`
+	AmqpTlsCert          string        `config:"amqp-tls-cert"`
+	AmqpTlsCertPath      string        `config:"amqp-tls-cert-path"`
+	AmqpHeartbeat        time.Duration `config:"amqp-heartbeat"`
+	AmqpConsumerPriority int           `config:"amqp-consumer-priority"`
+	BaseDir              string        `config:"base-dir"`
+	PoolSize             int           `config:"pool-size"`
+	BuildAPIURI          string        `config:"build-api-uri"`
+	QueueName            string        `config:"queue-name"`
+	LibratoEmail         string        `config:"librato-email"`
+	LibratoToken         string        `config:"librato-token"`
+	LibratoSource        string        `config:"librato-source"`
+	LogsAmqpURI          string        `config:"logs-amqp-uri"`
+	LogsAmqpTlsCert      string        `config:"logs-amqp-tls-cert"`
+	LogsAmqpTlsCertPath  string        `config:"logs-amqp-tls-cert-path"`
+	SentryDSN            string        `config:"sentry-dsn"`
+	Hostname             string        `config:"hostname"`
+	DefaultLanguage      string        `config:"default-language"`
+	DefaultDist          string        `config:"default-dist"`
+	DefaultGroup         string        `config:"default-group"`
+	DefaultOS            string        `config:"default-os"`
+	JobBoardURL          string        `config:"job-board-url"`
+	TravisSite           string        `config:"travis-site"`
+	RabbitMQSharding     bool          `config:"rabbitmq-sharding"`
 
-	FilePollingInterval time.Duration `config:"file-polling-interval"`
+	StateUpdatePoolSize int `config:"state-update-pool-size"`
+	LogPoolSize         int `config:"log-pool-size"`
+
+	FilePollingInterval      time.Duration `config:"file-polling-interval"`
+	HTTPPollingInterval      time.Duration `config:"http-polling-interval"`
+	HTTPRefreshClaimInterval time.Duration `config:"http-refresh-claim-interval"`
 
 	HardTimeout         time.Duration `config:"hard-timeout"`
 	InitialSleep        time.Duration `config:"initial-sleep"`
@@ -325,6 +381,11 @@ type Config struct {
 	MaxLogLength        int           `config:"max-log-length"`
 	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
 	StartupTimeout      time.Duration `config:"startup-timeout"`
+
+	BuildTraceEnabled     bool   `config:"build-trace-enabled"`
+	BuildTraceS3Bucket    string `config:"build-trace-s3-bucket"`
+	BuildTraceS3KeyPrefix string `config:"build-trace-s3-key-prefix"`
+	BuildTraceS3Region    string `config:"build-trace-s3-region"`
 
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`

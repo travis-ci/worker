@@ -19,6 +19,7 @@ func buildTestHTTPLogWriter() (gocontext.CancelFunc, *httpLogWriter, error) {
 		time.Second)
 
 	hlw.SetMaxLogLength(100)
+	hlw.SetCancelFunc(noCancel)
 
 	return cancel, hlw, err
 }
@@ -51,7 +52,8 @@ func TestHTTPLogWriter_Write_HitsMaxLogLength(t *testing.T) {
 	hlw.bytesWritten = 1000
 
 	n, err := hlw.Write([]byte("there's a strong wind blowing"))
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
+	assert.True(t, hlw.MaxLengthReached())
 	assert.Equal(t, 0, n)
 }
 
@@ -67,7 +69,8 @@ func TestHTTPLogWriter_Write_HitsMaxLogLength_CannotWriteAndClose(t *testing.T) 
 	defer func() { hlw.lps.maxBufferSize = mbs }()
 
 	n, err := hlw.Write([]byte("looks like rain mmm hmm"))
-	assert.NotNil(t, err)
+	assert.Nil(t, err)
+	assert.True(t, hlw.MaxLengthReached())
 	assert.Equal(t, 0, n)
 }
 
