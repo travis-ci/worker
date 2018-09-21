@@ -1333,7 +1333,7 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 
 	uploadDest := "build.sh"
 	if i.os == "windows" {
-		uploadDest = "c:/windows/temp/build.sh"
+		uploadDest = "c:/users/travis/build.sh"
 	}
 
 	existed, err := conn.UploadFile(uploadDest, script)
@@ -1406,7 +1406,7 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 
 	bashCommand := "bash ~/build.sh"
 	if i.os == "windows" {
-		bashCommand = `"c:/program files/git/usr/bin/bash" c:/windows/temp/build.sh`
+		bashCommand = `& 'c:/program files/git/usr/bin/bash' -c 'export PATH=$PATH:/bin:/usr/bin; exec bash /c/users/travis/build.sh'`
 	}
 	exitStatus, err := conn.RunCommand(bashCommand, output)
 
