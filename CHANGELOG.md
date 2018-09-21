@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- config: replace `silence-metrics` option with `log-metrics`, changing log metrics from opt-out to opt-in
 
 ### Deprecated
 
@@ -111,7 +112,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - Makefile: log output from building or running the tests is now less verbose
 
 ### Fixed
-- backend/docker_test: check for EOF instead of Nil for archive/tar errors 
+- backend/docker_test: check for EOF instead of Nil for archive/tar errors
 
 ## [3.8.0] - 2018-05-31
 
