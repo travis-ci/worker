@@ -11,40 +11,36 @@ import (
 
 var errNotImplemented = fmt.Errorf("method not implemented")
 
-func New(host string, port int, username string, password string) (*Remoter, error) {
+func New(host string, port int, username, password string) (*Remoter, error) {
 
 	endpoint := winrm.NewEndpoint(host, port, true, true, nil, nil, nil, 0)
 	winrmClient, err := winrm.NewClient(endpoint, username, password)
 	if err != nil {
 		return nil, err
 	}
-	winrmcpClient, err := winrmcp.New(fmt.Sprintf("%s:%v", host, port), &winrmcp.Config{
-		Auth: winrmcp.Auth{
-			User:     username,
-			Password: password,
-		},
-		Https:                 true,
-		Insecure:              true,
-		OperationTimeout:      180,
-		MaxOperationsPerShell: 15,
-		TransportDecorator:    nil})
-	if err != nil {
-		return nil, err
-	}
+
 	return &Remoter{
-		winrmClient:   winrmClient,
-		winrmcpClient: winrmcpClient,
+		username:    username,
+		password:    password,
+		winrmClient: winrmClient,
+		endpoint:    endpoint,
 	}, nil
 }
 
 type Remoter struct {
-	winrmClient   *winrm.Client
-	winrmcpClient *winrmcp.Winrmcp
-	endpoint      *winrm.Endpoint
+	username    string
+	password    string
+	winrmClient *winrm.Client
+	endpoint    *winrm.Endpoint
 }
 
 func (r *Remoter) UploadFile(path string, data []byte) (bool, error) {
-	err := r.winrmcpClient.Write(path, bytes.NewReader(data))
+	wcp, err := r.newCopyClient()
+	if err != nil {
+		return false, err
+	}
+
+	err = wcp.Write(path, bytes.NewReader(data))
 	return false, err
 }
 
@@ -59,4 +55,22 @@ func (r *Remoter) RunCommand(command string, output io.Writer) (uint8, error) {
 
 func (r *Remoter) Close() error {
 	return nil
+}
+
+func (r *Remoter) newCopyClient() (*winrmcp.Winrmcp, error) {
+	addr := fmt.Sprintf("%s:%d", r.endpoint.Host, r.endpoint.Port)
+
+	config := &winrmcp.Config{
+		Auth: winrmcp.Auth{
+			User:     r.username,
+			Password: r.password,
+		},
+		Https:                 true,
+		Insecure:              true,
+		OperationTimeout:      180,
+		MaxOperationsPerShell: 15,
+		TransportDecorator:    nil,
+	}
+
+	return winrmcp.New(addr, config)
 }

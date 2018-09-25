@@ -1412,7 +1412,6 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 		}, errors.Wrap(err, "couldn't connect to remote server for script run")
 	}
 	defer conn.Close()
-	defer conn.Close()
 
 	bashCommand := "bash ~/build.sh"
 	if i.os == "windows" {
