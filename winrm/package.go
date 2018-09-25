@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/masterzen/winrm"
 	"github.com/packer-community/winrmcp/winrmcp"
@@ -13,9 +14,28 @@ var errNotImplemented = fmt.Errorf("method not implemented")
 
 func New(host string, port int, username, password string) (*Remoter, error) {
 
-	endpoint := winrm.NewEndpoint(host, port, true, true, nil, nil, nil, 0)
-	winrmClient, err := winrm.NewClient(endpoint, username, password)
+	endpoint := &winrm.Endpoint{
+		Host:     host,
+		Port:     port,
+		HTTPS:    true,
+		Insecure: true,
+	}
+
+	params := *winrm.DefaultParameters
+	params.Timeout = "PT2H"
+
+	winrmClient, err := winrm.NewClientWithParameters(
+		endpoint, username, password, &params)
 	if err != nil {
+		return nil, err
+	}
+
+	shell, err := winrmClient.CreateShell()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := shell.Close(); err != nil {
 		return nil, err
 	}
 
@@ -67,8 +87,8 @@ func (r *Remoter) newCopyClient() (*winrmcp.Winrmcp, error) {
 		},
 		Https:                 true,
 		Insecure:              true,
-		OperationTimeout:      180,
-		MaxOperationsPerShell: 15,
+		OperationTimeout:      180 * time.Second,
+		MaxOperationsPerShell: 30,
 		TransportDecorator:    nil,
 	}
 
