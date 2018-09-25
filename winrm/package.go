@@ -45,10 +45,7 @@ type Remoter struct {
 
 func (r *Remoter) UploadFile(path string, data []byte) (bool, error) {
 	err := r.winrmcpClient.Write(path, bytes.NewReader(data))
-	if err != nil {
-		return false, err
-	}
-	return false, nil
+	return false, err
 }
 
 func (r *Remoter) DownloadFile(path string) ([]byte, error) {

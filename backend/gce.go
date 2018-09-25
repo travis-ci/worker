@@ -117,6 +117,7 @@ chown -R travis:travis ~travis/.ssh/
 
 	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
 shutdown -s -t {{ .HardTimeoutSeconds }}
+net localgroup administrators travis /add
 $pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
 Set-LocalUser -Name travis -Password $pw
 `))
@@ -798,7 +799,10 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 	var err error
 	if c.startAttributes.OS == "windows" {
 		scriptData.WindowsPassword = c.windowsPassword
-		//TODO: handle this error
+		context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+			"self":             "backend/gce_provider",
+			"windows_password": c.windowsPassword,
+		}).Debug("rendering startup script with password")
 		err = gceWindowsStartupScript.Execute(&scriptBuf, scriptData)
 	} else {
 		err = gceStartupScript.Execute(&scriptBuf, scriptData)
@@ -1336,6 +1340,12 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 		uploadDest = "c:/users/travis/build.sh"
 	}
 
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"dest":       uploadDest,
+		"script_len": len(script),
+		"self":       "backend/gce_instance",
+	}).Debug("uploading script")
+
 	existed, err := conn.UploadFile(uploadDest, script)
 	if existed {
 		i.progresser.Progress(&ProgressEntry{
@@ -1406,7 +1416,7 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 
 	bashCommand := "bash ~/build.sh"
 	if i.os == "windows" {
-		bashCommand = `& 'c:/program files/git/usr/bin/bash' -c 'export PATH=$PATH:/bin:/usr/bin; exec bash /c/users/travis/build.sh'`
+		bashCommand = `powershell -Command "& 'c:/program files/git/usr/bin/bash' -c 'export PATH=/bin:/usr/bin:$PATH; bash /c/users/travis/build.sh'"`
 	}
 	exitStatus, err := conn.RunCommand(bashCommand, output)
 
