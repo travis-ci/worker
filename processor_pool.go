@@ -28,7 +28,7 @@ type ProcessorPool struct {
 	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
 	MaxLogLength                                                               int
 
-	PayloadFilterExecutable string
+	PayloadFilterExecutable, ProgressType string
 
 	SkipShutdownOnLogTimeout bool
 
@@ -48,7 +48,7 @@ type ProcessorPoolConfig struct {
 	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
 	MaxLogLength                                                               int
 
-	PayloadFilterExecutable string
+	PayloadFilterExecutable, ProgressType string
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -72,6 +72,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Persister:               persister,
 		CancellationBroadcaster: cancellationBroadcaster,
 		PayloadFilterExecutable: ppc.PayloadFilterExecutable,
+		ProgressType:            ppc.ProgressType,
 	}
 }
 
@@ -197,6 +198,7 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 			ScriptUploadTimeout:     p.ScriptUploadTimeout,
 			StartupTimeout:          p.StartupTimeout,
 			PayloadFilterExecutable: p.PayloadFilterExecutable,
+			ProgressType:            p.ProgressType,
 		})
 
 	if err != nil {

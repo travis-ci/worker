@@ -32,3 +32,7 @@ type ProgressEntry struct {
 type Progresser interface {
 	Progress(*ProgressEntry)
 }
+
+type NullProgresser struct{}
+
+func (np *NullProgresser) Progress(_ *ProgressEntry) {}

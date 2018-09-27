@@ -220,6 +220,9 @@ var (
 		NewConfigDef("BuildAPIInsecureSkipVerify", &cli.BoolFlag{
 			Usage: "Skip build API TLS verification (useful for Enterprise and testing)",
 		}),
+		NewConfigDef("ProgressType", &cli.StringFlag{
+			Usage: "Report progress for supported backends (valid values \"text\" or unset)",
+		}),
 		NewConfigDef("pprof-port", &cli.StringFlag{
 			Usage: "enable pprof http endpoint (and internal http api) at port",
 		}),
@@ -412,6 +415,7 @@ type Config struct {
 	BuildCacheS3SecretAccessKey string `config:"build-cache-s3-secret-access-key"`
 
 	PayloadFilterExecutable string `config:"payload-filter-executable"`
+	ProgressType            string `config:"progress-type"`
 
 	ProviderConfig *ProviderConfig
 }

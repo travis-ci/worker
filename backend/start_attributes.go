@@ -31,6 +31,10 @@ type StartAttributes struct {
 	// HardTimeout isn't stored in the config directly, but is injected
 	// from the processor
 	HardTimeout time.Duration `json:"-"`
+
+	// ProgressType isn't stored in the config directly, but is injected from
+	// the processor
+	ProgressType string `json:"-"`
 }
 
 // SetDefaults sets any missing required attributes to the default values provided
