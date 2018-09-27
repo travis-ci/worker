@@ -24,6 +24,7 @@ type Processor struct {
 	scriptUploadTimeout     time.Duration
 	startupTimeout          time.Duration
 	payloadFilterExecutable string
+	progressType            string
 
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
@@ -60,6 +61,7 @@ type ProcessorConfig struct {
 	ScriptUploadTimeout     time.Duration
 	StartupTimeout          time.Duration
 	PayloadFilterExecutable string
+	ProgressType            string
 
 	BuildTraceEnabled     bool
 	BuildTraceS3Bucket    string
@@ -96,6 +98,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		startupTimeout:          config.StartupTimeout,
 		maxLogLength:            config.MaxLogLength,
 		payloadFilterExecutable: config.PayloadFilterExecutable,
+		progressType:            config.ProgressType,
 
 		ctx:                     ctx,
 		buildJobsChan:           buildJobsChan,
@@ -146,6 +149,8 @@ func (p *Processor) Run() {
 				p.terminate()
 				return
 			}
+
+			buildJob.StartAttributes().ProgressType = p.progressType
 
 			jobID := buildJob.Payload().Job.ID
 
