@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 - config: replace `silence-metrics` option with `log-metrics`, changing log metrics from opt-out to opt-in
+- backend/gce: support start attributes with `OS` value of `"windows"`
 
 ### Deprecated
 
