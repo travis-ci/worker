@@ -7,7 +7,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- config: replace `silence-metrics` option with `log-metrics`, changing log metrics from opt-out to opt-in
 
 ### Deprecated
 
@@ -16,6 +15,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.2.0] - 2018-10-01
+
+### Changed
+- config: replace `silence-metrics` option with `log-metrics`, changing log metrics from opt-out to opt-in
+- backend/gce: support start attributes with `OS` value of `"windows"`
 
 ## [4.1.2] - 2018-09-13
 
@@ -775,7 +780,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.2.0...HEAD
+[4.2.0]: https://github.com/travis-ci/worker/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/travis-ci/worker/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/travis-ci/worker/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/travis-ci/worker/compare/v4.0.1...v4.1.0
