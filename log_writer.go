@@ -33,6 +33,14 @@ var (
 	LogChunkSize = 1653
 )
 
+// JobStartedMeta is metadata that is useful for computing time to first
+// log line downstream, and breaking it down into further dimensions.
+type JobStartedMeta struct {
+	QueuedAt *time.Time
+	Repo     string
+	Infra    string
+}
+
 // LogWriter is primarily an io.Writer that will send all bytes to travis-logs
 // for processing, and also has some utility methods for timeouts and log length
 // limiting. Each LogWriter is tied to a given job, and can be gotten by calling
@@ -42,7 +50,7 @@ type LogWriter interface {
 	WriteAndClose([]byte) (int, error)
 	Timeout() <-chan time.Time
 	SetMaxLogLength(int)
-	SetJobStarted()
+	SetJobStarted(meta *JobStartedMeta)
 	SetCancelFunc(gocontext.CancelFunc)
 	MaxLengthReached() bool
 }

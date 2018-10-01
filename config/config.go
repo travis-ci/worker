@@ -259,6 +259,9 @@ var (
 		NewConfigDef("heartbeat-url-auth-token", &cli.StringFlag{
 			Usage: "auth token for health check and/or supervisor check URL (may be \"file://path/to/file\")",
 		}),
+		NewConfigDef("infra", &cli.StringFlag{
+			Usage: "infra tag, e.g. gce or ec2",
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
@@ -416,6 +419,7 @@ type Config struct {
 
 	PayloadFilterExecutable string `config:"payload-filter-executable"`
 	ProgressType            string `config:"progress-type"`
+	Infra                   string `config:"infra"`
 
 	ProviderConfig *ProviderConfig
 }

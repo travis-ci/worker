@@ -50,7 +50,7 @@ func (l *AMQPLogWriterFactory) LogWriter(ctx gocontext.Context, defaultLogTimeou
 		logTimeout = defaultLogTimeout
 	}
 
-	return newAMQPLogWriter(ctx, l.logWriterChan, job.Payload().Job.ID, job.Payload().Job.QueuedAt, logTimeout, l.withLogSharding)
+	return newAMQPLogWriter(ctx, l.logWriterChan, job.Payload().Job.ID, logTimeout, l.withLogSharding)
 }
 
 func (l *AMQPLogWriterFactory) Cleanup() error {
