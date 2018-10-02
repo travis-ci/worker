@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- amqp_log_writer: propagate more job metadata with "time to first log line" event
 
 ### Deprecated
 
