@@ -44,7 +44,7 @@ func (w *fileLogWriter) SetMaxLogLength(n int) {
 	return
 }
 
-func (w *fileLogWriter) SetJobStarted() {}
+func (w *fileLogWriter) SetJobStarted(meta *JobStartedMeta) {}
 
 func (w *fileLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {}
 

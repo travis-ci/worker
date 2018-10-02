@@ -29,6 +29,7 @@ type ProcessorPool struct {
 	MaxLogLength                                                               int
 
 	PayloadFilterExecutable, ProgressType string
+	Infra                                 string
 
 	SkipShutdownOnLogTimeout bool
 
@@ -49,6 +50,7 @@ type ProcessorPoolConfig struct {
 	MaxLogLength                                                               int
 
 	PayloadFilterExecutable, ProgressType string
+	Infra                                 string
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -73,6 +75,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		CancellationBroadcaster: cancellationBroadcaster,
 		PayloadFilterExecutable: ppc.PayloadFilterExecutable,
 		ProgressType:            ppc.ProgressType,
+		Infra:                   ppc.Infra,
 	}
 }
 
@@ -199,6 +202,7 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 			StartupTimeout:          p.StartupTimeout,
 			PayloadFilterExecutable: p.PayloadFilterExecutable,
 			ProgressType:            p.ProgressType,
+			Infra:                   p.Infra,
 		})
 
 	if err != nil {

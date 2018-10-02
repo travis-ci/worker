@@ -27,7 +27,12 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 		state.Put("ctx", ctx)
 	}
 
-	logWriter.SetJobStarted()
+	logWriter.SetJobStarted(&JobStartedMeta{
+		QueuedAt: buildJob.Payload().Job.QueuedAt,
+		Repo:     buildJob.Payload().Repository.Slug,
+		Queue:    buildJob.Payload().Queue,
+		Infra:    state.Get("infra").(string),
+	})
 
 	err := buildJob.Started(ctx)
 	if err != nil {

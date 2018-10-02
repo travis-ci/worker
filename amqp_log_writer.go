@@ -16,20 +16,19 @@ import (
 )
 
 type amqpLogPart struct {
-	JobID    uint64     `json:"id"`
-	Content  string     `json:"log"`
-	Number   int        `json:"number"`
-	UUID     string     `json:"uuid"`
-	Final    bool       `json:"final"`
-	QueuedAt *time.Time `json:"queued_at,omitempty"`
+	JobID   uint64          `json:"id"`
+	Content string          `json:"log"`
+	Number  int             `json:"number"`
+	UUID    string          `json:"uuid"`
+	Final   bool            `json:"final"`
+	Meta    *JobStartedMeta `json:"meta,omitempty"`
 }
 
 type amqpLogWriter struct {
-	ctx         gocontext.Context
-	cancel      gocontext.CancelFunc
-	jobID       uint64
-	jobQueuedAt *time.Time
-	sharded     bool
+	ctx     gocontext.Context
+	cancel  gocontext.CancelFunc
+	jobID   uint64
+	sharded bool
 
 	closeChan chan struct{}
 
@@ -37,6 +36,7 @@ type amqpLogWriter struct {
 	buffer           *bytes.Buffer
 	logPartNumber    int
 	jobStarted       bool
+	jobStartedMeta   *JobStartedMeta
 	maxLengthReached bool
 
 	bytesWritten int
@@ -49,18 +49,16 @@ type amqpLogWriter struct {
 	timeout time.Duration
 }
 
-func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, jobQueuedAt *time.Time, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
-
+func newAMQPLogWriter(ctx gocontext.Context, logWriterChan *amqp.Channel, jobID uint64, timeout time.Duration, sharded bool) (*amqpLogWriter, error) {
 	writer := &amqpLogWriter{
-		ctx:         context.FromComponent(ctx, "log_writer"),
-		amqpChan:    logWriterChan,
-		jobID:       jobID,
-		jobQueuedAt: jobQueuedAt,
-		closeChan:   make(chan struct{}),
-		buffer:      new(bytes.Buffer),
-		timer:       time.NewTimer(time.Hour),
-		timeout:     timeout,
-		sharded:     sharded,
+		ctx:       context.FromComponent(ctx, "log_writer"),
+		amqpChan:  logWriterChan,
+		jobID:     jobID,
+		closeChan: make(chan struct{}),
+		buffer:    new(bytes.Buffer),
+		timer:     time.NewTimer(time.Hour),
+		timeout:   timeout,
+		sharded:   sharded,
 	}
 
 	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
@@ -136,8 +134,9 @@ func (w *amqpLogWriter) SetMaxLogLength(bytes int) {
 	w.maxLength = bytes
 }
 
-func (w *amqpLogWriter) SetJobStarted() {
+func (w *amqpLogWriter) SetJobStarted(meta *JobStartedMeta) {
 	w.jobStarted = true
+	w.jobStartedMeta = meta
 }
 
 func (w *amqpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
@@ -248,7 +247,7 @@ func (w *amqpLogWriter) publishLogPart(part amqpLogPart) error {
 	// the log parts (travis-logs) can then use the timestamp to compute
 	// a "time to first log line" metric.
 	if w.jobStarted {
-		part.QueuedAt = w.jobQueuedAt
+		part.Meta = w.jobStartedMeta
 		w.jobStarted = false
 	}
 
