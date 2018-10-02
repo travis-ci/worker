@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 - amqp_log_writer: propagate more job metadata with "time to first log line" event
+- config: refactor config propagation to pass config struct directly
 
 ### Deprecated
 
