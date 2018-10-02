@@ -36,9 +36,9 @@ var (
 // JobStartedMeta is metadata that is useful for computing time to first
 // log line downstream, and breaking it down into further dimensions.
 type JobStartedMeta struct {
-	QueuedAt *time.Time
-	Repo     string
-	Infra    string
+	QueuedAt *time.Time `json:"queued_at"`
+	Repo     string     `json:"repo"`
+	Infra    string     `json:"infra"`
 }
 
 // LogWriter is primarily an io.Writer that will send all bytes to travis-logs
