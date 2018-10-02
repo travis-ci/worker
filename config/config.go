@@ -259,7 +259,7 @@ var (
 		NewConfigDef("heartbeat-url-auth-token", &cli.StringFlag{
 			Usage: "auth token for health check and/or supervisor check URL (may be \"file://path/to/file\")",
 		}),
-		NewConfigDef("infra", &cli.StringFlag{
+		NewConfigDef("Infra", &cli.StringFlag{
 			Usage: "infra tag, e.g. gce or ec2",
 		}),
 	}
