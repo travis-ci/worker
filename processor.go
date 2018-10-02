@@ -25,6 +25,7 @@ type Processor struct {
 	startupTimeout          time.Duration
 	payloadFilterExecutable string
 	progressType            string
+	infra                   string
 
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
@@ -62,6 +63,7 @@ type ProcessorConfig struct {
 	StartupTimeout          time.Duration
 	PayloadFilterExecutable string
 	ProgressType            string
+	Infra                   string
 
 	BuildTraceEnabled     bool
 	BuildTraceS3Bucket    string
@@ -99,6 +101,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		maxLogLength:            config.MaxLogLength,
 		payloadFilterExecutable: config.PayloadFilterExecutable,
 		progressType:            config.ProgressType,
+		infra:                   config.Infra,
 
 		ctx:                     ctx,
 		buildJobsChan:           buildJobsChan,
@@ -218,6 +221,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("procCtx", buildJob.SetupContext(p.ctx))
 	state.Put("ctx", buildJob.SetupContext(ctx))
 	state.Put("processedAt", time.Now().UTC())
+	state.Put("infra", p.infra)
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,

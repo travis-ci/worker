@@ -176,6 +176,7 @@ func (i *CLI) Setup() (bool, error) {
 		StartupTimeout:          i.Config.StartupTimeout,
 		PayloadFilterExecutable: i.Config.PayloadFilterExecutable,
 		ProgressType:            i.Config.ProgressType,
+		Infra:                   i.Config.Infra,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.BuildTracePersister, i.CancellationBroadcaster)
