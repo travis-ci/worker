@@ -38,6 +38,7 @@ var (
 type JobStartedMeta struct {
 	QueuedAt *time.Time `json:"queued_at"`
 	Repo     string     `json:"repo"`
+	Queue    string     `json:"queue"`
 	Infra    string     `json:"infra"`
 }
 

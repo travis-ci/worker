@@ -30,6 +30,7 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter.SetJobStarted(&JobStartedMeta{
 		QueuedAt: buildJob.Payload().Job.QueuedAt,
 		Repo:     buildJob.Payload().Repository.Slug,
+		Queue:    buildJob.Payload().Queue,
 		Infra:    state.Get("infra").(string),
 	})
 
