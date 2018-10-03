@@ -38,13 +38,12 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	)
 
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
-		writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\r\n"))
-		defer writeFoldEnd(logWriter, "step_start_instance", []byte(""))
-
 		var progresser backend.Progresser
 		switch buildJob.StartAttributes().ProgressType {
 		case "text":
 			progresser = backend.NewTextProgresser(logWriter)
+			writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\r\n"))
+			defer writeFoldEnd(logWriter, "step_start_instance", []byte(""))
 		default:
 			logger.WithField("progress_type", buildJob.StartAttributes().ProgressType).Warn("unknown progress type")
 			progresser = &backend.NullProgresser{}

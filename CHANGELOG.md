@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- progress: omit text progress folds when progress type is not "text"
 
 ### Security
 
