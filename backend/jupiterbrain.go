@@ -469,7 +469,18 @@ func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer
 }
 
 func (i *jupiterBrainInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
-	return nil, ErrDownloadTraceNotImplemented
+	conn, err := i.sshConnection()
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't connect to SSH server")
+	}
+	defer conn.Close()
+
+	buf, err := conn.DownloadFile("/tmp/build.trace")
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't download trace")
+	}
+
+	return buf, nil
 }
 
 func (i *jupiterBrainInstance) Stop(ctx gocontext.Context) error {
