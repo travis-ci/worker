@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- config: replace `silence-metrics` option with `log-metrics`, changing log metrics from opt-out to opt-in
+- config: refactor config propagation to pass config struct directly
 
 ### Deprecated
 
@@ -16,6 +16,20 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.3.0] - 2018-10-03
+
+### Changed
+- amqp_log_writer: propagate more job metadata with "time to first log line" event
+
+### Fixed
+- progress: omit text progress folds when progress type is not "text"
+
+## [4.2.0] - 2018-10-01
+
+### Changed
+- config: replace `silence-metrics` option with `log-metrics`, changing log metrics from opt-out to opt-in
+- backend/gce: support start attributes with `OS` value of `"windows"`
 
 ## [4.1.2] - 2018-09-13
 
@@ -775,7 +789,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.1.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.3.0...HEAD
+[4.3.0]: https://github.com/travis-ci/worker/compare/v4.2.0...v4.3.0
+[4.2.0]: https://github.com/travis-ci/worker/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/travis-ci/worker/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/travis-ci/worker/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/travis-ci/worker/compare/v4.0.1...v4.1.0

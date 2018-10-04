@@ -5,7 +5,7 @@
 			"importpath": "cloud.google.com/go/bigquery",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "bigquery",
 			"notests": true
@@ -14,7 +14,7 @@
 			"importpath": "cloud.google.com/go/civil",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "civil",
 			"notests": true
@@ -23,7 +23,7 @@
 			"importpath": "cloud.google.com/go/compute/metadata",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a55dfc0b29d5e9df654f451579bb012d9417b14b",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "/compute/metadata",
 			"notests": true
@@ -32,7 +32,7 @@
 			"importpath": "cloud.google.com/go/datastore",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "datastore",
 			"notests": true
@@ -41,7 +41,7 @@
 			"importpath": "cloud.google.com/go/iam",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "iam",
 			"notests": true
@@ -50,7 +50,7 @@
 			"importpath": "cloud.google.com/go/internal",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "internal",
 			"notests": true
@@ -59,7 +59,7 @@
 			"importpath": "cloud.google.com/go/logging",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "logging",
 			"notests": true
@@ -68,7 +68,7 @@
 			"importpath": "cloud.google.com/go/longrunning",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "longrunning",
 			"notests": true
@@ -77,7 +77,7 @@
 			"importpath": "cloud.google.com/go/monitoring/apiv3",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "monitoring/apiv3",
 			"notests": true
@@ -86,7 +86,7 @@
 			"importpath": "cloud.google.com/go/pubsub",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "pubsub",
 			"notests": true
@@ -95,7 +95,7 @@
 			"importpath": "cloud.google.com/go/spanner",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "spanner",
 			"notests": true
@@ -104,7 +104,7 @@
 			"importpath": "cloud.google.com/go/storage",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "/storage",
 			"notests": true
@@ -113,7 +113,7 @@
 			"importpath": "cloud.google.com/go/trace/apiv2",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "a267b3d005e3a0f5886bf298bd27330332cb55a3",
+			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
 			"branch": "master",
 			"path": "trace/apiv2",
 			"notests": true
@@ -122,16 +122,32 @@
 			"importpath": "git.apache.org/thrift.git/lib/go/thrift",
 			"repository": "https://git.apache.org/thrift.git",
 			"vcs": "git",
-			"revision": "f2867c24984aa53edec54a138c03db934221bdea",
+			"revision": "cbcfb2573f924cb051b7678b5cb4f7ef7138be49",
 			"branch": "master",
 			"path": "/lib/go/thrift",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/Azure/go-ntlmssp",
+			"repository": "https://github.com/Azure/go-ntlmssp",
+			"vcs": "git",
+			"revision": "4a21cbd618b459155f8b8ee7f4491cd54f5efa77",
+			"branch": "master",
 			"notests": true
 		},
 		{
 			"importpath": "github.com/BurntSushi/toml",
 			"repository": "https://github.com/BurntSushi/toml",
 			"vcs": "git",
-			"revision": "a368813c5e648fee92e5f6c30e3944ff9d5e8895",
+			"revision": "3012a1dbe2e4bd1391d42b32f0577cb7bbc7f005",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/ChrisTrenkamp/goxpath",
+			"repository": "https://github.com/ChrisTrenkamp/goxpath",
+			"vcs": "git",
+			"revision": "c385f95c6022e7756e91beac5f5510872f7dcb7d",
 			"branch": "master",
 			"notests": true
 		},
@@ -147,7 +163,7 @@
 			"importpath": "github.com/Microsoft/go-winio",
 			"repository": "https://github.com/Microsoft/go-winio",
 			"vcs": "git",
-			"revision": "67921128fb397dd80339870d2193d6b1e6856fd4",
+			"revision": "97e4973ce50b2ff5f09635a57e2b88a037aae829",
 			"branch": "master",
 			"notests": true
 		},
@@ -155,7 +171,7 @@
 			"importpath": "github.com/Shopify/sarama",
 			"repository": "https://github.com/Shopify/sarama",
 			"vcs": "git",
-			"revision": "22114655baec1a3d72fc99e95968c9e97b226b22",
+			"revision": "a6144ae922fd99dd0ea5046c8137acfb7fab0914",
 			"branch": "master",
 			"notests": true
 		},
@@ -163,7 +179,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/aws",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "aws",
 			"notests": true
@@ -172,7 +188,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/awstesting/unit",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "awstesting/unit",
 			"notests": true
@@ -181,7 +197,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/internal/sdkio",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "internal/sdkio",
 			"notests": true
@@ -190,7 +206,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/internal/sdkrand",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "internal/sdkrand",
 			"notests": true
@@ -199,7 +215,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/internal/sdkuri",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "internal/sdkuri",
 			"notests": true
@@ -208,7 +224,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/internal/shareddefaults",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "internal/shareddefaults",
 			"notests": true
@@ -217,7 +233,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/private/protocol",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "private/protocol",
 			"notests": true
@@ -226,7 +242,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/service/kms",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "service/kms",
 			"notests": true
@@ -235,7 +251,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/service/s3",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "/service/s3",
 			"notests": true
@@ -244,7 +260,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/service/sts",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "service/sts",
 			"notests": true
@@ -253,7 +269,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/vendor/github.com/go-ini/ini",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "vendor/github.com/go-ini/ini",
 			"notests": true
@@ -262,7 +278,7 @@
 			"importpath": "github.com/aws/aws-sdk-go/vendor/github.com/jmespath/go-jmespath",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
-			"revision": "dd706c0d8202acb4e3d9c0a852198a32276d7487",
+			"revision": "4ed008bd93d2726ed5a36029f62769bf37319bf7",
 			"branch": "master",
 			"path": "vendor/github.com/jmespath/go-jmespath",
 			"notests": true
@@ -288,7 +304,7 @@
 			"importpath": "github.com/cenk/backoff",
 			"repository": "https://github.com/cenk/backoff",
 			"vcs": "git",
-			"revision": "f756bc9a37f808627c8c1b26d2d6ea40c468440b",
+			"revision": "b7325b0f3f1097c6546ea5e83c4a23267e58ad71",
 			"branch": "master",
 			"notests": true
 		},
@@ -296,7 +312,7 @@
 			"importpath": "github.com/certifi/gocertifi",
 			"repository": "https://github.com/certifi/gocertifi",
 			"vcs": "git",
-			"revision": "deb3ae2ef2610fde3330947281941c562861188b",
+			"revision": "ee1a9a0726d2ae45f54118cac878c990d4016ded",
 			"branch": "master",
 			"notests": true
 		},
@@ -304,7 +320,7 @@
 			"importpath": "github.com/davecgh/go-spew/spew",
 			"repository": "https://github.com/davecgh/go-spew",
 			"vcs": "git",
-			"revision": "8991bc29aa16c548c550c7ff78260e27b9ab7c73",
+			"revision": "d8f796af33cc11cb798c1aaeb27a4ebc5099927d",
 			"branch": "master",
 			"path": "/spew",
 			"notests": true
@@ -313,7 +329,7 @@
 			"importpath": "github.com/docker/docker",
 			"repository": "https://github.com/docker/docker",
 			"vcs": "git",
-			"revision": "7f91801cc86ea6be117fad9c11080fe1702ad96f",
+			"revision": "5d848e66df951faffad93d70d8d31470af4cc5b0",
 			"branch": "master",
 			"notests": true,
 			"allfiles": true
@@ -322,7 +338,7 @@
 			"importpath": "github.com/docker/go-connections/tlsconfig",
 			"repository": "https://github.com/docker/go-connections",
 			"vcs": "git",
-			"revision": "7395e3f8aa162843a74ed6d48e79627d9792ac55",
+			"revision": "97c2040d34dfae1d1b1275fa3a78dbdd2f41cf7e",
 			"branch": "master",
 			"path": "/tlsconfig",
 			"notests": true
@@ -344,6 +360,14 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/dylanmei/iso8601",
+			"repository": "https://github.com/dylanmei/iso8601",
+			"vcs": "git",
+			"revision": "2075bf119b58e5576c6ed9f867b8f3d17f2e54d4",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/eapache/go-resiliency/breaker",
 			"repository": "https://github.com/eapache/go-resiliency",
 			"vcs": "git",
@@ -356,7 +380,7 @@
 			"importpath": "github.com/eapache/go-xerial-snappy",
 			"repository": "https://github.com/eapache/go-xerial-snappy",
 			"vcs": "git",
-			"revision": "040cc1a32f578808623071247fdbd5cc43f37f5f",
+			"revision": "776d5712da21bc4762676d614db1d8a64f4238b0",
 			"branch": "master",
 			"notests": true
 		},
@@ -390,7 +414,7 @@
 			"importpath": "github.com/getsentry/raven-go",
 			"repository": "https://github.com/getsentry/raven-go",
 			"vcs": "git",
-			"revision": "ed7bcb39ff10f39ab08e317ce16df282845852fa",
+			"revision": "084a9de9eb0361fbd5ded14b55c84e5493a5d7f6",
 			"branch": "master",
 			"notests": true
 		},
@@ -406,7 +430,7 @@
 			"importpath": "github.com/golang/mock/gomock",
 			"repository": "https://github.com/golang/mock",
 			"vcs": "git",
-			"revision": "22bbf0ddf08105dfa364d0a2fa619dfa71014af5",
+			"revision": "600781dde9cca80734169b9e969d9054ccc57937",
 			"branch": "master",
 			"path": "/gomock",
 			"notests": true
@@ -415,7 +439,7 @@
 			"importpath": "github.com/golang/protobuf/proto",
 			"repository": "https://github.com/golang/protobuf",
 			"vcs": "git",
-			"revision": "14aad3d5ea4c323bcd7a2137e735da24a76e814c",
+			"revision": "7716a980bceefe9a0213654823d9ea62d23b87a2",
 			"branch": "master",
 			"path": "/proto",
 			"notests": true
@@ -424,7 +448,7 @@
 			"importpath": "github.com/golang/protobuf/protoc-gen-go/descriptor",
 			"repository": "https://github.com/golang/protobuf",
 			"vcs": "git",
-			"revision": "14aad3d5ea4c323bcd7a2137e735da24a76e814c",
+			"revision": "7716a980bceefe9a0213654823d9ea62d23b87a2",
 			"branch": "master",
 			"path": "/protoc-gen-go/descriptor",
 			"notests": true
@@ -433,7 +457,7 @@
 			"importpath": "github.com/golang/protobuf/ptypes",
 			"repository": "https://github.com/golang/protobuf",
 			"vcs": "git",
-			"revision": "14aad3d5ea4c323bcd7a2137e735da24a76e814c",
+			"revision": "7716a980bceefe9a0213654823d9ea62d23b87a2",
 			"branch": "master",
 			"path": "ptypes",
 			"notests": true
@@ -450,9 +474,17 @@
 			"importpath": "github.com/google/go-cmp/cmp",
 			"repository": "https://github.com/google/go-cmp",
 			"vcs": "git",
-			"revision": "5411ab924f9ffa6566244a9e504bc347edacffd3",
+			"revision": "875f8df8b7965f1eac1098d36d677f807ac0b49e",
 			"branch": "master",
 			"path": "/cmp",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/google/uuid",
+			"repository": "https://github.com/google/uuid",
+			"vcs": "git",
+			"revision": "9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8",
+			"branch": "master",
 			"notests": true
 		},
 		{
@@ -475,7 +507,7 @@
 			"importpath": "github.com/gorilla/mux",
 			"repository": "https://github.com/gorilla/mux",
 			"vcs": "git",
-			"revision": "cb4698366aa625048f3b815af6a0dea8aef9280a",
+			"revision": "9e1f5955c0d22b55d9e20d6faa28589f83b2faca",
 			"branch": "master",
 			"notests": true
 		},
@@ -483,7 +515,7 @@
 			"importpath": "github.com/hashicorp/go-cleanhttp",
 			"repository": "https://github.com/hashicorp/go-cleanhttp",
 			"vcs": "git",
-			"revision": "d5fe4b57a186c716b0e00b8c301cbd9b4182694d",
+			"revision": "e8ab9daed8d1ddd2d3c4efba338fe2eeae2e4f18",
 			"branch": "master",
 			"notests": true
 		},
@@ -500,6 +532,41 @@
 			"repository": "https://github.com/kr/fs",
 			"vcs": "git",
 			"revision": "1455def202f6e05b95cc7bfc7e8ae67ae5141eba",
+			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/masterzen/azure-sdk-for-go/core/http",
+			"repository": "https://github.com/masterzen/azure-sdk-for-go",
+			"vcs": "git",
+			"revision": "ee4f0065d00cd12b542f18f5bc45799e88163b12",
+			"branch": "master",
+			"path": "core/http",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/masterzen/azure-sdk-for-go/core/tls",
+			"repository": "https://github.com/masterzen/azure-sdk-for-go",
+			"vcs": "git",
+			"revision": "ee4f0065d00cd12b542f18f5bc45799e88163b12",
+			"branch": "master",
+			"path": "/core/tls",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/masterzen/simplexml/dom",
+			"repository": "https://github.com/masterzen/simplexml",
+			"vcs": "git",
+			"revision": "4572e39b1ab9fe03ee513ce6fc7e289e98482190",
+			"branch": "master",
+			"path": "/dom",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/masterzen/winrm",
+			"repository": "https://github.com/masterzen/winrm",
+			"vcs": "git",
+			"revision": "58761a495ca409c3941183d0c63c51dfabc31806",
 			"branch": "master",
 			"notests": true
 		},
@@ -524,7 +591,7 @@
 			"importpath": "github.com/mitchellh/mapstructure",
 			"repository": "https://github.com/mitchellh/mapstructure",
 			"vcs": "git",
-			"revision": "f15292f7a699fcc1a38a80977f80a046874ba8ac",
+			"revision": "fa473d140ef3c6adf42d6b391fe76707f1f243c8",
 			"branch": "master",
 			"notests": true
 		},
@@ -537,18 +604,35 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/nu7hatch/gouuid",
+			"repository": "https://github.com/nu7hatch/gouuid",
+			"vcs": "git",
+			"revision": "179d4d0c4d8d407a32af483c2354df1d2c91e6c3",
+			"branch": "master",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/openzipkin/zipkin-go",
 			"repository": "https://github.com/openzipkin/zipkin-go",
 			"vcs": "git",
-			"revision": "8a54c368aafc1d1e936c8c33a17dda2ec42e675b",
+			"revision": "fd5e965815aa63e72bc1729e357a2ff638932f64",
 			"branch": "master",
+			"notests": true
+		},
+		{
+			"importpath": "github.com/packer-community/winrmcp/winrmcp",
+			"repository": "https://github.com/packer-community/winrmcp",
+			"vcs": "git",
+			"revision": "81144009af586de8e7729b829266f09dd0d59701",
+			"branch": "master",
+			"path": "/winrmcp",
 			"notests": true
 		},
 		{
 			"importpath": "github.com/pborman/uuid",
 			"repository": "https://github.com/pborman/uuid",
 			"vcs": "git",
-			"revision": "c65b2f87fee37d1c7854c9164a450713c28d50cd",
+			"revision": "8b1b92947f46224e3b97bb1a3a5b0382be00d31e",
 			"branch": "master",
 			"notests": true
 		},
@@ -556,7 +640,7 @@
 			"importpath": "github.com/pierrec/lz4",
 			"repository": "https://github.com/pierrec/lz4",
 			"vcs": "git",
-			"revision": "6b9367c9ff401dbc54fabce3fb8d972e799b702d",
+			"revision": "1f6e18d34f6790fc0afea6f13a5fe3d9ab1770af",
 			"branch": "master",
 			"notests": true
 		},
@@ -564,7 +648,7 @@
 			"importpath": "github.com/pkg/errors",
 			"repository": "https://github.com/pkg/errors",
 			"vcs": "git",
-			"revision": "816c9085562cd7ee03e7f8188a1cfd942858cded",
+			"revision": "c059e472caf75dbe73903f6521a20abac245b17f",
 			"branch": "master",
 			"notests": true
 		},
@@ -572,7 +656,7 @@
 			"importpath": "github.com/pkg/profile",
 			"repository": "https://github.com/pkg/profile",
 			"vcs": "git",
-			"revision": "5b67d428864e92711fcbd2f8629456121a56d91f",
+			"revision": "057bc52a47ec3c79498dda63f4a6f8298725e976",
 			"branch": "master",
 			"notests": true
 		},
@@ -580,7 +664,7 @@
 			"importpath": "github.com/pkg/sftp",
 			"repository": "https://github.com/pkg/sftp",
 			"vcs": "git",
-			"revision": "57673e38ea946592a59c26592b7e6fbda646975b",
+			"revision": "08de04f133f27844173471167014e1a753655ac8",
 			"branch": "master",
 			"notests": true
 		},
@@ -588,7 +672,7 @@
 			"importpath": "github.com/prometheus/client_golang/prometheus",
 			"repository": "https://github.com/prometheus/client_golang",
 			"vcs": "git",
-			"revision": "bcbbc08eb2ddff3af83bbf11e7ec13b4fd730b6e",
+			"revision": "73edb9af667d9467d99b2001722770062a0086c3",
 			"branch": "master",
 			"path": "/prometheus",
 			"notests": true
@@ -606,7 +690,7 @@
 			"importpath": "github.com/prometheus/common/expfmt",
 			"repository": "https://github.com/prometheus/common",
 			"vcs": "git",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revision": "c7de2306084e37d54b8be01f3541a8464345e9a5",
 			"branch": "master",
 			"path": "/expfmt",
 			"notests": true
@@ -615,7 +699,7 @@
 			"importpath": "github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg",
 			"repository": "https://github.com/prometheus/common",
 			"vcs": "git",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revision": "c7de2306084e37d54b8be01f3541a8464345e9a5",
 			"branch": "master",
 			"path": "internal/bitbucket.org/ww/goautoneg",
 			"notests": true
@@ -624,7 +708,7 @@
 			"importpath": "github.com/prometheus/common/model",
 			"repository": "https://github.com/prometheus/common",
 			"vcs": "git",
-			"revision": "7600349dcfe1abd18d72d3a1770870d9800a7801",
+			"revision": "c7de2306084e37d54b8be01f3541a8464345e9a5",
 			"branch": "master",
 			"path": "model",
 			"notests": true
@@ -633,7 +717,7 @@
 			"importpath": "github.com/prometheus/procfs",
 			"repository": "https://github.com/prometheus/procfs",
 			"vcs": "git",
-			"revision": "ae68e2d4c00fed4943b5f6698d504a5fe083da8a",
+			"revision": "418d78d0b9a7b7de3a6bbc8a23def624cc977bb2",
 			"branch": "master",
 			"notests": true
 		},
@@ -657,7 +741,7 @@
 			"importpath": "github.com/sirupsen/logrus",
 			"repository": "https://github.com/sirupsen/logrus",
 			"vcs": "git",
-			"revision": "92052687f8ec598ff0da626d2909478cfd1e3a3c",
+			"revision": "33a1e118e113c7d1dd24a80f80670864cd598519",
 			"branch": "master",
 			"notests": true
 		},
@@ -673,7 +757,7 @@
 			"importpath": "github.com/streadway/amqp",
 			"repository": "https://github.com/streadway/amqp",
 			"vcs": "git",
-			"revision": "e5adc2ada8b8efff032bf61173a233d143e9318e",
+			"revision": "70e15c650864f4fc47f5d3c82ea117285480895d",
 			"branch": "master",
 			"notests": true
 		},
@@ -717,7 +801,7 @@
 			"importpath": "go.opencensus.io",
 			"repository": "https://github.com/census-instrumentation/opencensus-go",
 			"vcs": "git",
-			"revision": "824f6a62b825d737557c28c68ab9a05310341cd2",
+			"revision": "572ae0b6fd8649e8c977bf23283f20b8beb607ce",
 			"branch": "master",
 			"notests": true
 		},
@@ -725,7 +809,7 @@
 			"importpath": "go4.org/syncutil/singleflight",
 			"repository": "https://github.com/go4org/go4",
 			"vcs": "git",
-			"revision": "9599cf28b011184741f249bd9f9330756b506cbc",
+			"revision": "417644f6feb5ed3a356ca5d6d8e3a3fac7dfd33f",
 			"branch": "master",
 			"path": "/syncutil/singleflight",
 			"notests": true
@@ -734,7 +818,7 @@
 			"importpath": "golang.org/x/build/autocertcache",
 			"repository": "https://go.googlesource.com/build",
 			"vcs": "git",
-			"revision": "9e3b83b06d155ee6fce008d9b842cf5e49797ae2",
+			"revision": "0eda5f7a6a2ccf5464a4682cd0845750157461fb",
 			"branch": "master",
 			"path": "/autocertcache",
 			"notests": true
@@ -743,7 +827,7 @@
 			"importpath": "golang.org/x/crypto/acme",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
 			"branch": "master",
 			"path": "acme",
 			"notests": true
@@ -752,7 +836,7 @@
 			"importpath": "golang.org/x/crypto/curve25519",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "650f4a345ab4e5b245a3034b110ebc7299e68186",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
 			"branch": "master",
 			"path": "curve25519",
 			"notests": true
@@ -761,7 +845,7 @@
 			"importpath": "golang.org/x/crypto/ed25519",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
 			"branch": "master",
 			"path": "ed25519",
 			"notests": true
@@ -770,7 +854,7 @@
 			"importpath": "golang.org/x/crypto/internal/chacha20",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
 			"branch": "master",
 			"path": "internal/chacha20",
 			"notests": true
@@ -779,16 +863,25 @@
 			"importpath": "golang.org/x/crypto/internal/subtle",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
 			"branch": "master",
 			"path": "internal/subtle",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/crypto/md4",
+			"repository": "https://go.googlesource.com/crypto",
+			"vcs": "git",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
+			"branch": "master",
+			"path": "/md4",
 			"notests": true
 		},
 		{
 			"importpath": "golang.org/x/crypto/poly1305",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
 			"branch": "master",
 			"path": "poly1305",
 			"notests": true
@@ -797,7 +890,7 @@
 			"importpath": "golang.org/x/crypto/ssh",
 			"repository": "https://go.googlesource.com/crypto",
 			"vcs": "git",
-			"revision": "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9",
+			"revision": "0e37d006457bf46f9e6692014ba72ef82c33022c",
 			"branch": "master",
 			"path": "/ssh",
 			"notests": true
@@ -806,16 +899,25 @@
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "8887df42c721e930089d31b28391090a10a497d7",
+			"revision": "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2",
 			"branch": "master",
 			"path": "/context",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/net/html",
+			"repository": "https://go.googlesource.com/net",
+			"vcs": "git",
+			"revision": "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2",
+			"branch": "master",
+			"path": "html",
 			"notests": true
 		},
 		{
 			"importpath": "golang.org/x/net/http/httpguts",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "81d44fd177a98d09fe3bc40a5a78d495d3f042ea",
+			"revision": "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2",
 			"branch": "master",
 			"path": "http/httpguts",
 			"notests": true
@@ -824,7 +926,7 @@
 			"importpath": "golang.org/x/net/http2",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "81d44fd177a98d09fe3bc40a5a78d495d3f042ea",
+			"revision": "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2",
 			"branch": "master",
 			"path": "/http2",
 			"notests": true
@@ -833,7 +935,7 @@
 			"importpath": "golang.org/x/net/idna",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "81d44fd177a98d09fe3bc40a5a78d495d3f042ea",
+			"revision": "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2",
 			"branch": "master",
 			"path": "idna",
 			"notests": true
@@ -842,7 +944,7 @@
 			"importpath": "golang.org/x/net/internal/timeseries",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "81d44fd177a98d09fe3bc40a5a78d495d3f042ea",
+			"revision": "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2",
 			"branch": "master",
 			"path": "internal/timeseries",
 			"notests": true
@@ -851,7 +953,7 @@
 			"importpath": "golang.org/x/net/trace",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "81d44fd177a98d09fe3bc40a5a78d495d3f042ea",
+			"revision": "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2",
 			"branch": "master",
 			"path": "trace",
 			"notests": true
@@ -860,7 +962,7 @@
 			"importpath": "golang.org/x/oauth2",
 			"repository": "https://go.googlesource.com/oauth2",
 			"vcs": "git",
-			"revision": "ef147856a6ddbb60760db74283d2424e98c87bff",
+			"revision": "d2e6202438beef2727060aa7cabdd924d92ebfd9",
 			"branch": "master",
 			"notests": true
 		},
@@ -886,7 +988,7 @@
 			"importpath": "golang.org/x/sys/unix",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
-			"revision": "ac767d655b305d4e9612f5f6e33120b9176c4ad4",
+			"revision": "d641721ec2dead6fe5ca284096fe4b1fcd49e427",
 			"branch": "master",
 			"path": "/unix",
 			"notests": true
@@ -895,7 +997,7 @@
 			"importpath": "golang.org/x/sys/windows",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
-			"revision": "ac767d655b305d4e9612f5f6e33120b9176c4ad4",
+			"revision": "d641721ec2dead6fe5ca284096fe4b1fcd49e427",
 			"branch": "master",
 			"path": "/windows",
 			"notests": true
@@ -904,16 +1006,25 @@
 			"importpath": "golang.org/x/text/collate",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "collate",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/text/encoding",
+			"repository": "https://go.googlesource.com/text",
+			"vcs": "git",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
+			"branch": "master",
+			"path": "/encoding",
 			"notests": true
 		},
 		{
 			"importpath": "golang.org/x/text/internal/colltab",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "internal/colltab",
 			"notests": true
@@ -922,7 +1033,7 @@
 			"importpath": "golang.org/x/text/internal/format",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "internal/format",
 			"notests": true
@@ -931,7 +1042,7 @@
 			"importpath": "golang.org/x/text/internal/gen",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "internal/gen",
 			"notests": true
@@ -940,7 +1051,7 @@
 			"importpath": "golang.org/x/text/internal/language",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "internal/language",
 			"notests": true
@@ -949,7 +1060,7 @@
 			"importpath": "golang.org/x/text/internal/tag",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "internal/tag",
 			"notests": true
@@ -958,7 +1069,7 @@
 			"importpath": "golang.org/x/text/internal/triegen",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "internal/triegen",
 			"notests": true
@@ -967,25 +1078,43 @@
 			"importpath": "golang.org/x/text/internal/ucd",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "internal/ucd",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/text/internal/utf8internal",
+			"repository": "https://go.googlesource.com/text",
+			"vcs": "git",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
+			"branch": "master",
+			"path": "internal/utf8internal",
 			"notests": true
 		},
 		{
 			"importpath": "golang.org/x/text/language",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "language",
+			"notests": true
+		},
+		{
+			"importpath": "golang.org/x/text/runes",
+			"repository": "https://go.googlesource.com/text",
+			"vcs": "git",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
+			"branch": "master",
+			"path": "runes",
 			"notests": true
 		},
 		{
 			"importpath": "golang.org/x/text/secure/bidirule",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "secure/bidirule",
 			"notests": true
@@ -994,7 +1123,7 @@
 			"importpath": "golang.org/x/text/transform",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "transform",
 			"notests": true
@@ -1003,7 +1132,7 @@
 			"importpath": "golang.org/x/text/unicode/bidi",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "unicode/bidi",
 			"notests": true
@@ -1012,7 +1141,7 @@
 			"importpath": "golang.org/x/text/unicode/cldr",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "unicode/cldr",
 			"notests": true
@@ -1021,7 +1150,7 @@
 			"importpath": "golang.org/x/text/unicode/norm",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "/unicode/norm",
 			"notests": true
@@ -1030,7 +1159,7 @@
 			"importpath": "golang.org/x/text/unicode/rangetable",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "0605a8320aceb4207a5fb3521281e17ec2075476",
+			"revision": "905a57155faa8230500121607930ebb9dd8e139c",
 			"branch": "master",
 			"path": "unicode/rangetable",
 			"notests": true
@@ -1048,7 +1177,7 @@
 			"importpath": "google.golang.org/api/bigquery/v2",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "efcb5f25ac56eae06c8b5672456c0b7767522685",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "bigquery/v2",
 			"notests": true
@@ -1057,7 +1186,7 @@
 			"importpath": "google.golang.org/api/compute/v1",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "0025a57598c017c1b9f7bc916c4fb8ae77315f9c",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "/compute/v1",
 			"notests": true
@@ -1066,7 +1195,7 @@
 			"importpath": "google.golang.org/api/gensupport",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "0025a57598c017c1b9f7bc916c4fb8ae77315f9c",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "gensupport",
 			"notests": true
@@ -1075,7 +1204,7 @@
 			"importpath": "google.golang.org/api/googleapi",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "0025a57598c017c1b9f7bc916c4fb8ae77315f9c",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "googleapi",
 			"notests": true
@@ -1084,7 +1213,7 @@
 			"importpath": "google.golang.org/api/internal",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "efcb5f25ac56eae06c8b5672456c0b7767522685",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "internal",
 			"notests": true
@@ -1093,7 +1222,7 @@
 			"importpath": "google.golang.org/api/iterator",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "efcb5f25ac56eae06c8b5672456c0b7767522685",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "iterator",
 			"notests": true
@@ -1102,7 +1231,7 @@
 			"importpath": "google.golang.org/api/option",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "efcb5f25ac56eae06c8b5672456c0b7767522685",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "option",
 			"notests": true
@@ -1111,7 +1240,7 @@
 			"importpath": "google.golang.org/api/storage/v1",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "efcb5f25ac56eae06c8b5672456c0b7767522685",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "storage/v1",
 			"notests": true
@@ -1120,7 +1249,7 @@
 			"importpath": "google.golang.org/api/support/bundler",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "efcb5f25ac56eae06c8b5672456c0b7767522685",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "support/bundler",
 			"notests": true
@@ -1129,7 +1258,7 @@
 			"importpath": "google.golang.org/api/transport",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
-			"revision": "efcb5f25ac56eae06c8b5672456c0b7767522685",
+			"revision": "19ff8768a5c0b8e46ea281065664787eefc24121",
 			"branch": "master",
 			"path": "transport",
 			"notests": true
@@ -1138,7 +1267,7 @@
 			"importpath": "google.golang.org/appengine",
 			"repository": "https://github.com/golang/appengine",
 			"vcs": "git",
-			"revision": "b1f26356af11148e710935ed1ac8a7f5702c7612",
+			"revision": "ae0ab99deb4dc413a2b4bd6c8bdd0eb67f1e4d06",
 			"branch": "master",
 			"notests": true
 		},
@@ -1146,7 +1275,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/api/annotations",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/api/annotations",
 			"notests": true
@@ -1155,7 +1284,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/api/distribution",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/api/distribution",
 			"notests": true
@@ -1164,7 +1293,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/api/label",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/api/label",
 			"notests": true
@@ -1173,7 +1302,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/api/metric",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/api/metric",
 			"notests": true
@@ -1182,7 +1311,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/api/monitoredres",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/api/monitoredres",
 			"notests": true
@@ -1191,7 +1320,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/appengine/logging/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/appengine/logging/v1",
 			"notests": true
@@ -1200,7 +1329,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/bytestream",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/bytestream",
 			"notests": true
@@ -1209,7 +1338,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/cloud/audit",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/cloud/audit",
 			"notests": true
@@ -1218,7 +1347,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/cloud/bigquery/datatransfer/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/cloud/bigquery/datatransfer/v1",
 			"notests": true
@@ -1227,7 +1356,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/datastore/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/datastore/v1",
 			"notests": true
@@ -1236,7 +1365,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/devtools/cloudtrace/v2",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/devtools/cloudtrace/v2",
 			"notests": true
@@ -1245,7 +1374,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/iam/admin/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/iam/admin/v1",
 			"notests": true
@@ -1254,7 +1383,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/iam/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/iam/v1",
 			"notests": true
@@ -1263,7 +1392,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/logging/type",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/logging/type",
 			"notests": true
@@ -1272,7 +1401,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/logging/v2",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/logging/v2",
 			"notests": true
@@ -1281,7 +1410,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/longrunning",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/longrunning",
 			"notests": true
@@ -1290,7 +1419,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/monitoring/v3",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/monitoring/v3",
 			"notests": true
@@ -1299,7 +1428,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/pubsub/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/pubsub/v1",
 			"notests": true
@@ -1308,7 +1437,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/rpc/code",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/rpc/code",
 			"notests": true
@@ -1317,7 +1446,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/rpc/errdetails",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "/googleapis/rpc/errdetails",
 			"notests": true
@@ -1326,7 +1455,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/rpc/status",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/rpc/status",
 			"notests": true
@@ -1335,7 +1464,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/spanner/admin/database/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/spanner/admin/database/v1",
 			"notests": true
@@ -1344,7 +1473,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/spanner/admin/instance/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/spanner/admin/instance/v1",
 			"notests": true
@@ -1353,7 +1482,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/spanner/v1",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/spanner/v1",
 			"notests": true
@@ -1362,7 +1491,7 @@
 			"importpath": "google.golang.org/genproto/googleapis/type/latlng",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/type/latlng",
 			"notests": true
@@ -1371,7 +1500,7 @@
 			"importpath": "google.golang.org/genproto/protobuf/field_mask",
 			"repository": "https://github.com/google/go-genproto",
 			"vcs": "git",
-			"revision": "fedd2861243fd1a8152376292b921b394c7bef7e",
+			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "protobuf/field_mask",
 			"notests": true
@@ -1380,7 +1509,7 @@
 			"importpath": "google.golang.org/grpc",
 			"repository": "https://github.com/grpc/grpc-go",
 			"vcs": "git",
-			"revision": "5562178a5206f11cb3ad0264d31583fec81472b4",
+			"revision": "8ce7e6babb5ad539d8448d25aaba0708af2626ed",
 			"branch": "master",
 			"notests": true
 		},

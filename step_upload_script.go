@@ -32,7 +32,7 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	ctx, cancel := gocontext.WithTimeout(ctx, s.uploadTimeout)
 	defer cancel()
 
-	if instance.SupportsProgress() {
+	if instance.SupportsProgress() && buildJob.StartAttributes().ProgressType == "text" {
 		writeFoldStart(logWriter, "step_upload_script", []byte("\033[33;1mUploading script\033[0m\r\n"))
 		defer writeFoldEnd(logWriter, "step_upload_script", []byte(""))
 	}

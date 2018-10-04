@@ -135,7 +135,7 @@ func (w *httpLogWriter) SetMaxLogLength(bytes int) {
 	w.maxLength = bytes
 }
 
-func (w *httpLogWriter) SetJobStarted() {}
+func (w *httpLogWriter) SetJobStarted(meta *JobStartedMeta) {}
 
 func (w *httpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
 	w.cancel = cancel

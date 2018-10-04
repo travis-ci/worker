@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -31,7 +32,9 @@ import (
 	"github.com/travis-ci/worker/image"
 	"github.com/travis-ci/worker/metrics"
 	"github.com/travis-ci/worker/ratelimit"
+	"github.com/travis-ci/worker/remote"
 	"github.com/travis-ci/worker/ssh"
+	"github.com/travis-ci/worker/winrm"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
@@ -112,6 +115,13 @@ EOF
 chown -R travis:travis ~travis/.ssh/
 `))
 
+	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
+shutdown -s -t {{ .HardTimeoutSeconds }}
+net localgroup administrators travis /add
+$pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
+Set-LocalUser -Name travis -Password $pw
+`))
+
 	// FIXME: get rid of the need for this global goop
 	gceCustomHTTPTransport     http.RoundTripper
 	gceCustomHTTPTransportLock sync.Mutex
@@ -121,6 +131,8 @@ type gceStartupScriptData struct {
 	AutoImplode        bool
 	HardTimeoutMinutes int64
 	SSHPubKey          string
+	HardTimeoutSeconds int64
+	WindowsPassword    string
 }
 
 func init() {
@@ -216,6 +228,7 @@ type gceStartContext struct {
 	bootStart            time.Time
 	instance             *compute.Instance
 	instanceInsertOpName string
+	windowsPassword      string
 	zoneName             string
 }
 
@@ -235,6 +248,8 @@ type gceInstance struct {
 	imageName string
 
 	startupDuration time.Duration
+	os              string
+	windowsPassword string
 }
 
 type gceInstanceStopContext struct {
@@ -685,6 +700,10 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 
 	state := &multistep.BasicStateBag{}
 
+	wp, err := makeWindowsPassword()
+	if err != nil {
+		return nil, err
+	}
 	c := &gceStartContext{
 		startAttributes: startAttributes,
 		zoneName:        zone.Name,
@@ -692,6 +711,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 		ctx:             ctx,
 		instChan:        make(chan Instance),
 		errChan:         make(chan error),
+		windowsPassword: wp,
 	}
 
 	runner := &multistep.BasicRunner{
@@ -758,14 +778,35 @@ func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
 	return multistep.ActionContinue
 }
 
+func makeWindowsPassword() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s?!?!?_:-[", base64.StdEncoding.EncodeToString(b)), nil
+}
+
 func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
 	scriptBuf := bytes.Buffer{}
 	scriptData := gceStartupScriptData{
 		AutoImplode:        p.ic.AutoImplode,
 		HardTimeoutMinutes: int64(c.startAttributes.HardTimeout.Minutes()) + 10,
 		SSHPubKey:          p.ic.SSHPubKey,
+		HardTimeoutSeconds: int64(c.startAttributes.HardTimeout.Seconds()) + 600,
 	}
-	err := gceStartupScript.Execute(&scriptBuf, scriptData)
+
+	var err error
+	if c.startAttributes.OS == "windows" {
+		scriptData.WindowsPassword = c.windowsPassword
+		context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+			"self":             "backend/gce_provider",
+			"windows_password": c.windowsPassword,
+		}).Debug("rendering startup script with password")
+		err = gceWindowsStartupScript.Execute(&scriptBuf, scriptData)
+	} else {
+		err = gceStartupScript.Execute(&scriptBuf, scriptData)
+	}
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
 			Message: "could not render startup script",
@@ -889,6 +930,8 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				projectID: p.projectID,
 				imageName: c.image.Name,
 
+				os:              c.startAttributes.OS,
+				windowsPassword: c.windowsPassword,
 				startupDuration: startupDuration,
 			}
 			return multistep.ActionContinue
@@ -1066,6 +1109,11 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		}
 	}
 
+	startupKey := "startup-script"
+	if startAttributes.OS == "windows" {
+		startupKey = "windows-startup-script-ps1"
+	}
+
 	if p.ic.Site != "" {
 		tags = append(tags, p.ic.Site)
 	}
@@ -1120,7 +1168,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
-					Key:   "startup-script",
+					Key:   startupKey,
 					Value: googleapi.String(startupScript),
 				},
 			},
@@ -1134,22 +1182,40 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}, nil
 }
 
-func (i *gceInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
-	if i.cachedIPAddr == "" {
-		err := i.refreshInstance(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		ipAddr := i.getIP()
-		if ipAddr == "" {
-			return nil, errGCEMissingIPAddressError
-		}
-
-		i.cachedIPAddr = ipAddr
+func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
+	ip, err := i.getCachedIP(ctx)
+	if err != nil {
+		return nil, err
 	}
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.cachedIPAddr), i.authUser, i.provider.sshDialTimeout)
+	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
+}
+
+func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {
+	ip, err := i.getCachedIP(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return winrm.New(ip, 5986, "travis", i.windowsPassword)
+}
+
+func (i *gceInstance) getCachedIP(ctx gocontext.Context) (string, error) {
+	if i.cachedIPAddr != "" {
+		return i.cachedIPAddr, nil
+	}
+
+	err := i.refreshInstance(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	ipAddr := i.getIP()
+	if ipAddr == "" {
+		return "", errGCEMissingIPAddressError
+	}
+
+	i.cachedIPAddr = ipAddr
+	return i.cachedIPAddr, nil
 }
 
 func (i *gceInstance) getIP() string {
@@ -1195,9 +1261,14 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	uploadedChan := make(chan error)
 	var lastErr error
 
+	connType := "ssh"
+	if i.os == "windows" {
+		connType = "winrm"
+	}
+
 	waitStart := time.Now().UTC()
 	i.progresser.Progress(&ProgressEntry{
-		Message:   "waiting for ssh connectivity...",
+		Message:   fmt.Sprintf("waiting for %s connectivity...", connType),
 		State:     ProgressNeutral,
 		Continues: true,
 	})
@@ -1211,9 +1282,9 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 
 			err := i.uploadScriptAttempt(ctx, script)
 			if err == nil {
-				timeToSsh := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
+				timeToConn := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
 				i.progresser.Progress(&ProgressEntry{
-					Message:    fmt.Sprintf("ssh connectivity established (%s)", timeToSsh),
+					Message:    fmt.Sprintf("%s connectivity established (%s)", connType, timeToConn),
 					State:      ProgressSuccess,
 					Interrupts: true,
 				})
@@ -1251,13 +1322,31 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 }
 
 func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
-	conn, err := i.sshConnection(ctx)
+	var conn remote.Remoter
+	var err error
+
+	if i.os == "windows" {
+		conn, err = i.winrmRemoter(ctx)
+	} else {
+		conn, err = i.sshConnection(ctx)
+	}
 	if err != nil {
-		return errors.Wrap(err, "couldn't connect to SSH server")
+		return errors.Wrap(err, "couldn't connect to remote server for script upload")
 	}
 	defer conn.Close()
 
-	existed, err := conn.UploadFile("build.sh", script)
+	uploadDest := "build.sh"
+	if i.os == "windows" {
+		uploadDest = "c:/users/travis/build.sh"
+	}
+
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"dest":       uploadDest,
+		"script_len": len(script),
+		"self":       "backend/gce_instance",
+	}).Debug("uploading script")
+
+	existed, err := conn.UploadFile(uploadDest, script)
 	if existed {
 		i.progresser.Progress(&ProgressEntry{
 			Message:    "existing script detected",
@@ -1309,13 +1398,26 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 }
 
 func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	conn, err := i.sshConnection(ctx)
+	var conn remote.Remoter
+	var err error
+
+	if i.os == "windows" {
+		conn, err = i.winrmRemoter(ctx)
+	} else {
+		conn, err = i.sshConnection(ctx)
+	}
 	if err != nil {
-		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
+		return &RunResult{
+			Completed: false,
+		}, errors.Wrap(err, "couldn't connect to remote server for script run")
 	}
 	defer conn.Close()
 
-	exitStatus, err := conn.RunCommand("bash ~/build.sh", output)
+	bashCommand := "bash ~/build.sh"
+	if i.os == "windows" {
+		bashCommand = `powershell -Command "& 'c:/program files/git/usr/bin/bash' -c 'export PATH=/bin:/usr/bin:$PATH; bash /c/users/travis/build.sh'"`
+	}
+	exitStatus, err := conn.RunCommand(bashCommand, output)
 
 	preempted, googleErr := i.isPreempted(ctx)
 	if googleErr != nil {
@@ -1336,9 +1438,17 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 }
 
 func (i *gceInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
-	conn, err := i.sshConnection(ctx)
+	var conn remote.Remoter
+	var err error
+
+	if i.os == "windows" {
+		conn, err = i.winrmRemoter(ctx)
+	} else {
+		conn, err = i.sshConnection(ctx)
+	}
+
 	if err != nil {
-		return nil, errors.Wrap(err, "couldn't connect to SSH server")
+		return nil, errors.Wrap(err, "couldn't connect to remote server to download trace")
 	}
 	defer conn.Close()
 

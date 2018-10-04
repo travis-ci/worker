@@ -32,7 +32,7 @@ func (w *byteBufferLogWriter) Timeout() <-chan time.Time {
 func (w *byteBufferLogWriter) SetMaxLogLength(m int) {
 }
 
-func (w *byteBufferLogWriter) SetJobStarted() {
+func (w *byteBufferLogWriter) SetJobStarted(meta *JobStartedMeta) {
 }
 
 func (w *byteBufferLogWriter) SetCancelFunc(_ gocontext.CancelFunc) {

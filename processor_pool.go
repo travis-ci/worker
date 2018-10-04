@@ -5,13 +5,13 @@ import (
 	"os"
 	"sort"
 	"sync"
-	"time"
 
 	gocontext "context"
 
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 )
 
@@ -24,13 +24,7 @@ type ProcessorPool struct {
 	Persister               BuildTracePersister
 	CancellationBroadcaster *CancellationBroadcaster
 	Hostname                string
-
-	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
-	MaxLogLength                                                               int
-
-	PayloadFilterExecutable, ProgressType string
-
-	SkipShutdownOnLogTimeout bool
+	Config                  *config.Config
 
 	queue            JobQueue
 	logWriterFactory LogWriterFactory
@@ -44,11 +38,7 @@ type ProcessorPool struct {
 type ProcessorPoolConfig struct {
 	Hostname string
 	Context  gocontext.Context
-
-	HardTimeout, InitialSleep, LogTimeout, ScriptUploadTimeout, StartupTimeout time.Duration
-	MaxLogLength                                                               int
-
-	PayloadFilterExecutable, ProgressType string
+	Config   *config.Config
 }
 
 // NewProcessorPool creates a new processor pool using the given arguments.
@@ -59,20 +49,12 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 	return &ProcessorPool{
 		Hostname: ppc.Hostname,
 		Context:  ppc.Context,
-
-		HardTimeout:         ppc.HardTimeout,
-		InitialSleep:        ppc.InitialSleep,
-		LogTimeout:          ppc.LogTimeout,
-		ScriptUploadTimeout: ppc.ScriptUploadTimeout,
-		StartupTimeout:      ppc.StartupTimeout,
-		MaxLogLength:        ppc.MaxLogLength,
+		Config:   ppc.Config,
 
 		Provider:                provider,
 		Generator:               generator,
 		Persister:               persister,
 		CancellationBroadcaster: cancellationBroadcaster,
-		PayloadFilterExecutable: ppc.PayloadFilterExecutable,
-		ProgressType:            ppc.ProgressType,
 	}
 }
 
@@ -191,14 +173,7 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 	proc, err := NewProcessor(ctx, p.Hostname,
 		queue, logWriterFactory, p.Provider, p.Generator, p.Persister, p.CancellationBroadcaster,
 		ProcessorConfig{
-			HardTimeout:             p.HardTimeout,
-			InitialSleep:            p.InitialSleep,
-			LogTimeout:              p.LogTimeout,
-			MaxLogLength:            p.MaxLogLength,
-			ScriptUploadTimeout:     p.ScriptUploadTimeout,
-			StartupTimeout:          p.StartupTimeout,
-			PayloadFilterExecutable: p.PayloadFilterExecutable,
-			ProgressType:            p.ProgressType,
+			Config: p.Config,
 		})
 
 	if err != nil {
@@ -208,8 +183,6 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 		}).Error("couldn't create processor")
 		return err
 	}
-
-	proc.SkipShutdownOnLogTimeout = p.SkipShutdownOnLogTimeout
 
 	p.processorsLock.Lock()
 	p.processors = append(p.processors, proc)
