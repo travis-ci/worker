@@ -8,6 +8,7 @@ import (
 	"github.com/mitchellh/multistep"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
 )
 
@@ -16,16 +17,7 @@ import (
 type Processor struct {
 	ID       string
 	hostname string
-
-	hardTimeout             time.Duration
-	initialSleep            time.Duration
-	logTimeout              time.Duration
-	maxLogLength            int
-	scriptUploadTimeout     time.Duration
-	startupTimeout          time.Duration
-	payloadFilterExecutable string
-	progressType            string
-	infra                   string
+	config   *config.Config
 
 	ctx                     gocontext.Context
 	buildJobsChan           <-chan Job
@@ -50,25 +42,10 @@ type Processor struct {
 
 	// LastJobID contains the ID of the last job the processor processed.
 	LastJobID uint64
-
-	SkipShutdownOnLogTimeout bool
 }
 
 type ProcessorConfig struct {
-	HardTimeout             time.Duration
-	InitialSleep            time.Duration
-	LogTimeout              time.Duration
-	MaxLogLength            int
-	ScriptUploadTimeout     time.Duration
-	StartupTimeout          time.Duration
-	PayloadFilterExecutable string
-	ProgressType            string
-	Infra                   string
-
-	BuildTraceEnabled     bool
-	BuildTraceS3Bucket    string
-	BuildTraceS3KeyPrefix string
-	BuildTraceS3Region    string
+	Config *config.Config
 }
 
 // NewProcessor creates a new processor that will run the build jobs on the
@@ -92,16 +69,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 	return &Processor{
 		ID:       processorID,
 		hostname: hostname,
-
-		initialSleep:            config.InitialSleep,
-		hardTimeout:             config.HardTimeout,
-		logTimeout:              config.LogTimeout,
-		scriptUploadTimeout:     config.ScriptUploadTimeout,
-		startupTimeout:          config.StartupTimeout,
-		maxLogLength:            config.MaxLogLength,
-		payloadFilterExecutable: config.PayloadFilterExecutable,
-		progressType:            config.ProgressType,
-		infra:                   config.Infra,
+		config:   config.Config,
 
 		ctx:                     ctx,
 		buildJobsChan:           buildJobsChan,
@@ -153,11 +121,11 @@ func (p *Processor) Run() {
 				return
 			}
 
-			buildJob.StartAttributes().ProgressType = p.progressType
+			buildJob.StartAttributes().ProgressType = p.config.ProgressType
 
 			jobID := buildJob.Payload().Job.ID
 
-			hardTimeout := p.hardTimeout
+			hardTimeout := p.config.HardTimeout
 			if buildJob.Payload().Timeouts.HardLimit != 0 {
 				hardTimeout = time.Duration(buildJob.Payload().Timeouts.HardLimit) * time.Second
 			}
@@ -221,14 +189,14 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("procCtx", buildJob.SetupContext(p.ctx))
 	state.Put("ctx", buildJob.SetupContext(ctx))
 	state.Put("processedAt", time.Now().UTC())
-	state.Put("infra", p.infra)
+	state.Put("infra", p.config.Infra)
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,
 		"self":   "processor",
 	})
 
-	logTimeout := p.logTimeout
+	logTimeout := p.config.LogTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
 		logTimeout = time.Duration(buildJob.Payload().Timeouts.LogSilence) * time.Second
 	}
@@ -238,26 +206,26 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			cancellationBroadcaster: p.cancellationBroadcaster,
 		},
 		&stepTransformBuildJSON{
-			payloadFilterExecutable: p.payloadFilterExecutable,
+			payloadFilterExecutable: p.config.PayloadFilterExecutable,
 		},
 		&stepGenerateScript{
 			generator: p.generator,
 		},
 		&stepSendReceived{},
-		&stepSleep{duration: p.initialSleep},
+		&stepSleep{duration: p.config.InitialSleep},
 		&stepCheckCancellation{},
 		&stepOpenLogWriter{
-			maxLogLength:      p.maxLogLength,
-			defaultLogTimeout: p.logTimeout,
+			maxLogLength:      p.config.MaxLogLength,
+			defaultLogTimeout: p.config.LogTimeout,
 		},
 		&stepCheckCancellation{},
 		&stepStartInstance{
 			provider:     p.provider,
-			startTimeout: p.startupTimeout,
+			startTimeout: p.config.StartupTimeout,
 		},
 		&stepCheckCancellation{},
 		&stepUploadScript{
-			uploadTimeout: p.scriptUploadTimeout,
+			uploadTimeout: p.config.ScriptUploadTimeout,
 		},
 		&stepCheckCancellation{},
 		&stepUpdateState{},
@@ -266,7 +234,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepRunScript{
 			logTimeout:               logTimeout,
 			hardTimeout:              buildJob.StartAttributes().HardTimeout,
-			skipShutdownOnLogTimeout: p.SkipShutdownOnLogTimeout,
+			skipShutdownOnLogTimeout: p.config.SkipShutdownOnLogTimeout,
 		},
 		&stepDownloadTrace{
 			persister: p.persister,
