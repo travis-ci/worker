@@ -262,6 +262,9 @@ var (
 		NewConfigDef("Infra", &cli.StringFlag{
 			Usage: "infra tag, e.g. gce or ec2",
 		}),
+		NewConfigDef("stackdriver-trace-account-json", &cli.StringFlag{
+			Usage: "file path or JSON to stackdriver trace on Google Cloud  ",
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
@@ -417,9 +420,10 @@ type Config struct {
 	BuildCacheS3AccessKeyID     string `config:"build-cache-s3-access-key-id"`
 	BuildCacheS3SecretAccessKey string `config:"build-cache-s3-secret-access-key"`
 
-	PayloadFilterExecutable string `config:"payload-filter-executable"`
-	ProgressType            string `config:"progress-type"`
-	Infra                   string `config:"infra"`
+	PayloadFilterExecutable     string `config:"payload-filter-executable"`
+	ProgressType                string `config:"progress-type"`
+	Infra                       string `config:"infra"`
+	StackdriverTraceAccountJSON string `config:"stackdriver-trace-account-json"`
 
 	ProviderConfig *ProviderConfig
 }
