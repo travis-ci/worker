@@ -167,21 +167,11 @@ func (i *CLI) Setup() (bool, error) {
 	ppc := &ProcessorPoolConfig{
 		Hostname: i.Config.Hostname,
 		Context:  ctx,
-
-		HardTimeout:             i.Config.HardTimeout,
-		InitialSleep:            i.Config.InitialSleep,
-		LogTimeout:              i.Config.LogTimeout,
-		MaxLogLength:            i.Config.MaxLogLength,
-		ScriptUploadTimeout:     i.Config.ScriptUploadTimeout,
-		StartupTimeout:          i.Config.StartupTimeout,
-		PayloadFilterExecutable: i.Config.PayloadFilterExecutable,
-		ProgressType:            i.Config.ProgressType,
-		Infra:                   i.Config.Infra,
+		Config:   i.Config,
 	}
 
 	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.BuildTracePersister, i.CancellationBroadcaster)
 
-	pool.SkipShutdownOnLogTimeout = i.Config.SkipShutdownOnLogTimeout
 	logger.WithField("pool", pool).Debug("built")
 
 	i.ProcessorPool = pool
