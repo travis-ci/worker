@@ -7,7 +7,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- amqp_log_writer: propagate more job metadata with "time to first log line" event
 - config: refactor config propagation to pass config struct directly
 
 ### Deprecated
@@ -15,9 +14,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
-- progress: omit text progress folds when progress type is not "text"
 
 ### Security
+
+## [4.3.0] - 2018-10-03
+
+### Changed
+- amqp_log_writer: propagate more job metadata with "time to first log line" event
+
+### Fixed
+- progress: omit text progress folds when progress type is not "text"
 
 ## [4.2.0] - 2018-10-01
 
@@ -783,7 +789,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.3.0...HEAD
+[4.3.0]: https://github.com/travis-ci/worker/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/travis-ci/worker/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/travis-ci/worker/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/travis-ci/worker/compare/v4.1.0...v4.1.1
