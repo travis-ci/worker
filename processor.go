@@ -10,6 +10,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 // A Processor gets jobs off the job queue and coordinates running it with other
@@ -90,6 +91,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 // terminated, either by calling the GracefulShutdown or Terminate methods, or
 // if the build jobs channel is closed.
 func (p *Processor) Run() {
+
 	logger := context.LoggerFromContext(p.ctx).WithField("self", "processor")
 	logger.Info("starting processor")
 	defer logger.Info("processor done")
@@ -182,6 +184,10 @@ func (p *Processor) Terminate() {
 }
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
+
+	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
+	defer span.End()
+
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)

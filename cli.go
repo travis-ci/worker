@@ -139,7 +139,12 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.setupSentry()
 	i.setupMetrics()
-	i.setupOpenCensus("stackdriver-trace-account-json")
+	err := i.setupOpenCensus("stackdriver-trace-account-json")
+
+	if err != nil {
+		logger.WithField("err", err).Error("failed to set up opencensus")
+		return false, err
+	}
 
 	generator := NewBuildScriptGenerator(i.Config)
 	logger.WithField("build_script_generator", fmt.Sprintf("%#v", generator)).Debug("built")
