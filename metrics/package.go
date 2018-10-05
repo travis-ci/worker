@@ -9,7 +9,7 @@ import (
 
 // Mark increases the meter metric with the given name by 1
 func Mark(name string) {
-	metrics.GetOrRegisterMeter(name, metrics.DefaultRegistry).Mark(1)
+	metrics.GetOrRegisterCounter(name, metrics.DefaultRegistry).Inc(1)
 }
 
 // TimeSince increases the timer metric with the given name by the time since the given time
