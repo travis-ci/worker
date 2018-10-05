@@ -110,12 +110,21 @@
 			"notests": true
 		},
 		{
-			"importpath": "cloud.google.com/go/trace/apiv2",
+			"importpath": "cloud.google.com/go/trace",
 			"repository": "https://code.googlesource.com/gocloud",
 			"vcs": "git",
-			"revision": "e0c17b1c932efccf9d30ca4beca8bcf215ea7762",
+			"revision": "9d56e3b4a0c5a8476fda83c058e458cc4748de00",
 			"branch": "master",
-			"path": "trace/apiv2",
+			"path": "/trace",
+			"notests": true
+		},
+		{
+			"importpath": "contrib.go.opencensus.io/exporter/stackdriver/propagation",
+			"repository": "https://github.com/census-ecosystem/opencensus-go-exporter-stackdriver",
+			"vcs": "git",
+			"revision": "857ff689ec3b8d8ebb64827938f1ff602eee59a9",
+			"branch": "master",
+			"path": "/propagation",
 			"notests": true
 		},
 		{
@@ -1183,6 +1192,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "google.golang.org/api/cloudtrace/v1",
+			"repository": "https://code.googlesource.com/google-api-go-client",
+			"vcs": "git",
+			"revision": "f5c49d98d21cc639f7ba8c7e4b127e88ee2af7ed",
+			"branch": "master",
+			"path": "/cloudtrace/v1",
+			"notests": true
+		},
+		{
 			"importpath": "google.golang.org/api/compute/v1",
 			"repository": "https://code.googlesource.com/google-api-go-client",
 			"vcs": "git",
@@ -1359,6 +1377,15 @@
 			"revision": "c3f76f3b92d1ffa4c58a9ff842a58b8877655e0f",
 			"branch": "master",
 			"path": "googleapis/datastore/v1",
+			"notests": true
+		},
+		{
+			"importpath": "google.golang.org/genproto/googleapis/devtools/cloudtrace/v1",
+			"repository": "https://github.com/google/go-genproto",
+			"vcs": "git",
+			"revision": "af9cb2a35e7f169ec875002c1829c9b315cddc04",
+			"branch": "master",
+			"path": "/googleapis/devtools/cloudtrace/v1",
 			"notests": true
 		},
 		{

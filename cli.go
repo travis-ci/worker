@@ -22,6 +22,12 @@ import (
 
 	gocontext "context"
 
+	googlecloudtrace "cloud.google.com/go/trace"
+	"contrib.go.opencensus.io/exporter/stackdriver"
+	"go.opencensus.io/trace"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/option"
+
 	"github.com/cenk/backoff"
 	"github.com/getsentry/raven-go"
 	librato "github.com/mihasya/go-metrics-librato"
@@ -133,6 +139,7 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.setupSentry()
 	i.setupMetrics()
+	i.setupOpenCensus("stackdriver-trace-account-json")
 
 	generator := NewBuildScriptGenerator(i.Config)
 	logger.WithField("build_script_generator", fmt.Sprintf("%#v", generator)).Debug("built")
@@ -338,6 +345,61 @@ func (i *CLI) setupMetrics() {
 		go metrics.Log(metrics.DefaultRegistry, time.Minute,
 			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
 	}
+}
+
+func loadStackdriverTraceJSON(ctx gocontext.Context, StackdriverTraceAccountJSON string) (*google.Credentials, error) {
+	credBytes, err := loadBytes(StackdriverTraceAccountJSON)
+	if err != nil {
+		return nil, err
+	}
+	creds, err := google.CredentialsFromJSON(ctx, credBytes, googlecloudtrace.ScopeTraceAppend)
+	if err != nil {
+		return nil, err
+	}
+	return creds, nil
+}
+
+func loadBytes(filenameOrJSON string) ([]byte, error) {
+	var (
+		bytes []byte
+		err   error
+	)
+
+	if strings.HasPrefix(strings.TrimSpace(filenameOrJSON), "{") {
+		bytes = []byte(filenameOrJSON)
+	} else {
+		bytes, err = ioutil.ReadFile(filenameOrJSON)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return bytes, nil
+}
+
+func (i *CLI) setupOpenCensus(StackdriverTraceAccountJSON string) error {
+
+	creds, err := loadStackdriverTraceJSON(gocontext.TODO(), StackdriverTraceAccountJSON)
+	if err != nil {
+		return err
+	}
+	sd, err := stackdriver.NewExporter(stackdriver.Options{
+		ProjectID: os.Getenv("GCLOUD_PROJECT"),
+		TraceClientOptions: []option.ClientOption{
+			option.WithCredentials(creds),
+		},
+		MonitoringClientOptions: []option.ClientOption{
+			option.WithCredentials(creds),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	defer sd.Flush()
+	// Register/enable the trace exporter
+	trace.RegisterExporter(sd)
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
+	return nil
 }
 
 func (i *CLI) heartbeatHandler(heartbeatURL, heartbeatAuthToken string) {
