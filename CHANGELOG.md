@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- trace: build.sh trace download support for jupiterbrain backend
 
 ### Changed
 - config: refactor config propagation to pass config struct directly
