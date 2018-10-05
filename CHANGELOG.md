@@ -5,10 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- trace: build.sh trace download support for jupiterbrain backend
 
 ### Changed
-- config: refactor config propagation to pass config struct directly
 
 ### Deprecated
 
@@ -17,6 +15,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.3.1] - 2018-10-05
+
+### Added
+- trace: build.sh trace download support for jupiterbrain backend
+
+### Changed
+- config: refactor config propagation to pass config struct directly
 
 ## [4.3.0] - 2018-10-03
 
@@ -790,7 +796,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.3.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.3.1...HEAD
+[4.3.1]: https://github.com/travis-ci/worker/compare/v4.3.0...v4.3.1
 [4.3.0]: https://github.com/travis-ci/worker/compare/v4.2.0...v4.3.0
 [4.2.0]: https://github.com/travis-ci/worker/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/travis-ci/worker/compare/v4.1.1...v4.1.2
