@@ -62,7 +62,7 @@ travis-worker --help
 
 ### Environment-based image selection configuration
 
-Some backend providers supports image selection based on environment variables.
+Some backend providers support image selection based on environment variables.
 The required format uses keys that are prefixed with the provider-specific
 prefix:
 
