@@ -262,8 +262,8 @@ var (
 		NewConfigDef("Infra", &cli.StringFlag{
 			Usage: "infra tag, e.g. gce or ec2",
 		}),
-		NewConfigDef("stackdriver-trace-account-json", &cli.StringFlag{
-			Usage: "file path or JSON to stackdriver trace on Google Cloud  ",
+		NewConfigDef("StackdriverTraceAccountJSON", &cli.StringFlag{
+			Usage: "file path or JSON to stackdriver trace on Google Cloud",
 		}),
 	}
 

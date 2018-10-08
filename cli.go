@@ -139,7 +139,8 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.setupSentry()
 	i.setupMetrics()
-	err := i.setupOpenCensus("stackdriver-trace-account-json")
+
+	err := i.setupOpenCensus(i.Config.StackdriverTraceAccountJSON)
 
 	if err != nil {
 		logger.WithField("err", err).Error("failed to set up opencensus")
@@ -357,6 +358,7 @@ func loadStackdriverTraceJSON(ctx gocontext.Context, StackdriverTraceAccountJSON
 	if err != nil {
 		return nil, err
 	}
+
 	creds, err := google.CredentialsFromJSON(ctx, credBytes, googlecloudtrace.ScopeTraceAppend)
 	if err != nil {
 		return nil, err
@@ -383,13 +385,12 @@ func loadBytes(filenameOrJSON string) ([]byte, error) {
 }
 
 func (i *CLI) setupOpenCensus(StackdriverTraceAccountJSON string) error {
-
 	creds, err := loadStackdriverTraceJSON(gocontext.TODO(), StackdriverTraceAccountJSON)
 	if err != nil {
 		return err
 	}
 	sd, err := stackdriver.NewExporter(stackdriver.Options{
-		ProjectID: os.Getenv("GCLOUD_PROJECT"),
+		ProjectID: os.Getenv("TRAVIS_WORKER_GCE_PROJECT_ID"),
 		TraceClientOptions: []option.ClientOption{
 			option.WithCredentials(creds),
 		},
