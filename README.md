@@ -205,7 +205,7 @@ travis-worker --echo-config
 ## Stopping Travis Worker
 
 Travis Worker has two shutdown modes: Graceful and immediate. The graceful
-shutdown will tell the worker to not start any additional jobs, but finish the
+shutdown will tell the worker to not start any additional jobs but finish the
 jobs it is currently running before it shuts down. The immediate shutdown will
 make the worker stop the jobs it's working on, requeue them, and clean up any
 open resources (shut down VMs, cleanly close connections, etc.)
