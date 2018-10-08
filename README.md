@@ -14,7 +14,7 @@ updates to [travis-hub](https://github.com/travis-ci/travis-hub).
 
 Find the version you wish to install on the [GitHub Releases
 page](https://github.com/travis-ci/worker/releases) and download either the
-`darwin-amd64` binary for OS X or the `linux-amd64` binary for Linux. No other
+`darwin-amd64` binary for macOS or the `linux-amd64` binary for Linux. No other
 operating systems or architectures have pre-built binaries at this time.
 
 ### from package
