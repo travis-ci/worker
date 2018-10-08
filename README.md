@@ -103,8 +103,8 @@ Ensure you've defined the necessary environment variables (see `.example.env`).
 ### Pull Docker images
 
 ```
-$ docker pull travisci/ci-amethyst:packer-1504724461
-$ docker tag travisci/ci-amethyst:packer-1504724461 travis:default
+docker pull travisci/ci-amethyst:packer-1504724461
+docker tag travisci/ci-amethyst:packer-1504724461 travis:default
 ```
 
 ### Configuration
@@ -150,7 +150,7 @@ don't have to mess around with RabbitMQ.
 
 You can generate a payload via the `generate-job-payload.rb` script on travis-scheduler:
 
-`$ heroku run -a travis-scheduler-staging script/generate-job-payload.rb <job id> > payload.json`
+`heroku run -a travis-scheduler-staging script/generate-job-payload.rb <job id> > payload.json`
 
 Place the file in the `$TRAVIS_WORKER_QUEUE_NAME/10-created.d/` directory, where
 it will be picked up by the worker.
@@ -168,7 +168,7 @@ The web interface is accessible at http://localhost:15672/
 
 To verify your messages are being published, try:
 
-`$ rabbitmqadmin get queue=reporting.jobs.builds`
+`rabbitmqadmin get queue=reporting.jobs.builds`
 
 Note: You will first need to install `rabbitmqadmin`. See http://localhost:15672/cli
 
@@ -247,8 +247,8 @@ Once you've decided what the next version number should be, update the [changelo
 Once the changelog has been updated and merged to `master`, the merge commit needs to be signed and manually tagged with the version number. To do this, run:
 
 ```
-$ git tag --sign -a vX.X.X -m "Worker version vX.X.X"
-$ git push origin vX.X.X
+git tag --sign -a vX.X.X -m "Worker version vX.X.X"
+git push origin vX.X.X
 ```
 
 The Travis build corresponding to this push should build and upload a worker image with the new tag to [Dockerhub](https://hub.docker.com/r/travisci/worker/tags/).
