@@ -141,7 +141,7 @@ export TRAVIS_WORKER_DOCKER_PRIVILEGED="false"                          # option
 export TRAVIS_WORKER_DOCKER_CERT_PATH="/etc/secret-docker-cert-stuff"   # optional
 ```
 
-#### Queue configuration
+### Queue configuration
 
 #### File-based queue
 
