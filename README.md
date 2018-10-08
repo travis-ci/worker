@@ -226,7 +226,7 @@ To work with the dependencies you need to do the following first
 
 ### Updating existing vendored dependencies
 
-To update and existing vendored dependency, do the following in *this directory*:
+To update an existing vendored dependency, do the following in *this directory*:
 
 - `gvt update name/of/dependency` e.g. `gvt update github.com/pkg/sftp`
 
