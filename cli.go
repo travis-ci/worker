@@ -353,8 +353,8 @@ func (i *CLI) setupMetrics() {
 	}
 }
 
-func loadStackdriverTraceJSON(ctx gocontext.Context, StackdriverTraceAccountJSON string) (*google.Credentials, error) {
-	credBytes, err := loadBytes(StackdriverTraceAccountJSON)
+func loadStackdriverTraceJSON(ctx gocontext.Context, stackdriverTraceAccountJSON string) (*google.Credentials, error) {
+	credBytes, err := loadBytes(stackdriverTraceAccountJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -384,8 +384,8 @@ func loadBytes(filenameOrJSON string) ([]byte, error) {
 	return bytes, nil
 }
 
-func (i *CLI) setupOpenCensus(StackdriverTraceAccountJSON string) error {
-	creds, err := loadStackdriverTraceJSON(gocontext.TODO(), StackdriverTraceAccountJSON)
+func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
+	creds, err := loadStackdriverTraceJSON(gocontext.TODO(), stackdriverTraceAccountJSON)
 	if err != nil {
 		return err
 	}
