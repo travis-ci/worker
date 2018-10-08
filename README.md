@@ -4,7 +4,7 @@ Worker is the component of Travis CI that will run a CI job on some form of
 compute instance. It's responsible for getting the bash script from
 [travis-build](https://github.com/travis-ci/travis-build), spinning up the
 compute instance (VM, Docker container, or maybe something different),
-uploading the bash script, running it and streaming the logs back to
+uploading the bash script, running it, and streaming the logs back to
 [travis-logs](https://github.com/travis-ci/travis-logs). It also sends state
 updates to [travis-hub](https://github.com/travis-ci/travis-hub).
 
@@ -207,7 +207,7 @@ travis-worker --echo-config
 Travis Worker has two shutdown modes: Graceful and immediate. The graceful
 shutdown will tell the worker to not start any additional jobs, but finish the
 jobs it is currently running before it shuts down. The immediate shutdown will
-make the worker stop the jobs it's working on and requeue them, and clean up any
+make the worker stop the jobs it's working on, requeue them, and clean up any
 open resources (shut down VMs, cleanly close connections, etc.)
 
 To start a graceful shutdown, send an INT signal to the worker (for example
@@ -216,7 +216,7 @@ worker (for example using `kill -TERM`).
 
 ## Go dependency management
 
-Travis Worker is built via the standard `go` commands, and dependencies managed
+Travis Worker is built via the standard `go` commands and dependencies managed
 by [`gvt`](https://github.com/FiloSottile/gvt).
 
 To work with the dependencies you need to do the following first
