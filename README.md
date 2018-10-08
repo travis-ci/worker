@@ -2,9 +2,9 @@
 
 Worker is the component of Travis CI that will run a CI job on some form of
 compute instance. It's responsible for getting the bash script from
-[travis-build](https://github.com/travis-ci/travis-build), spin up the compute
-instance (VM, Docker container, or maybe something different), upload the bash
-script, run it and stream the logs back to
+[travis-build](https://github.com/travis-ci/travis-build), spinning up the
+compute instance (VM, Docker container, or maybe something different),
+uploading the bash script, running it and streaming the logs back to
 [travis-logs](https://github.com/travis-ci/travis-logs). It also sends state
 updates to [travis-hub](https://github.com/travis-ci/travis-hub).
 
