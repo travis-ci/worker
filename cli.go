@@ -385,7 +385,8 @@ func loadBytes(filenameOrJSON string) ([]byte, error) {
 }
 
 func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
-	opencensusEnabled := i.c.Bool("opencensus-tracing-enabled")
+
+	opencensusEnabled := i.Config.OpencensusTracingEnabled
 
 	if !opencensusEnabled {
 		return nil
@@ -415,7 +416,15 @@ func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
 	// Register/enable the trace exporter
 	trace.RegisterExporter(sd)
 
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
+	traceSampleRate := i.Config.OpencensusSamplingRate
+	if traceSampleRate <= 0 {
+		i.logger.WithFields(logrus.Fields{
+			"trace_sample_rate": traceSampleRate,
+		}).Error("trace sample rate must be positive")
+		return errors.New("invalid trace sample rate")
+	}
+
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0 / float64(traceSampleRate))})
 	return nil
 }
 

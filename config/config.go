@@ -265,8 +265,12 @@ var (
 		NewConfigDef("StackdriverTraceAccountJSON", &cli.StringFlag{
 			Usage: "file path or JSON to stackdriver trace on Google Cloud",
 		}),
-		NewConfigDef("opencensus-tracing-enabled", &cli.StringFlag{
+		NewConfigDef("OpencensusTracingEnabled", &cli.BoolFlag{
 			Usage: "enable tracing for worker with google stackdriver client",
+		}),
+		NewConfigDef("OpencensusSamplingRate", &cli.IntFlag{
+			Usage: "sample rate for trace as an inverse fraction - for sample rate n, every nth event will be sampled",
+			Value: 1,
 		}),
 	}
 
@@ -428,6 +432,7 @@ type Config struct {
 	Infra                       string `config:"infra"`
 	StackdriverTraceAccountJSON string `config:"stackdriver-trace-account-json"`
 	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
+	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
 
 	ProviderConfig *ProviderConfig
 }
