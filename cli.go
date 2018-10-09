@@ -398,7 +398,7 @@ func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
 	}
 
 	sd, err := stackdriver.NewExporter(stackdriver.Options{
-		ProjectID: os.Getenv("TRAVIS_WORKER_GCE_PROJECT_ID"),
+		ProjectID: i.Config.StackdriverProjectID,
 		TraceClientOptions: []option.ClientOption{
 			option.WithCredentials(creds),
 		},

@@ -265,6 +265,9 @@ var (
 		NewConfigDef("StackdriverTraceAccountJSON", &cli.StringFlag{
 			Usage: "file path or JSON to stackdriver trace on Google Cloud",
 		}),
+		NewConfigDef("StackdriverProjectID", &cli.StringFlag{
+			Usage: "google cloud project ID where where traces are exported and viewed",
+		}),
 		NewConfigDef("OpencensusTracingEnabled", &cli.BoolFlag{
 			Usage: "enable tracing for worker with google stackdriver client",
 		}),
@@ -431,6 +434,7 @@ type Config struct {
 	ProgressType                string `config:"progress-type"`
 	Infra                       string `config:"infra"`
 	StackdriverTraceAccountJSON string `config:"stackdriver-trace-account-json"`
+	StackdriverProjectID        string `config:"stackdriver-project-ID"`
 	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
 	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
 
