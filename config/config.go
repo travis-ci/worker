@@ -265,6 +265,9 @@ var (
 		NewConfigDef("StackdriverTraceAccountJSON", &cli.StringFlag{
 			Usage: "file path or JSON to stackdriver trace on Google Cloud",
 		}),
+		NewConfigDef("opencensus-tracing-enabled", &cli.StringFlag{
+			Usage: "enable tracing for worker with google stackdriver client",
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
@@ -424,6 +427,7 @@ type Config struct {
 	ProgressType                string `config:"progress-type"`
 	Infra                       string `config:"infra"`
 	StackdriverTraceAccountJSON string `config:"stackdriver-trace-account-json"`
+	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
 
 	ProviderConfig *ProviderConfig
 }

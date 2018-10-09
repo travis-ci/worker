@@ -203,6 +203,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/aws/aws-sdk-go/internal/s3err",
+			"repository": "https://github.com/aws/aws-sdk-go",
+			"vcs": "git",
+			"revision": "111e32cc8572b4efc1e01cfc9a26313bf329d86e",
+			"branch": "master",
+			"path": "/internal/s3err",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/aws/aws-sdk-go/internal/sdkio",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",

@@ -385,10 +385,17 @@ func loadBytes(filenameOrJSON string) ([]byte, error) {
 }
 
 func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
+	opencensusEnabled := i.c.Bool("opencensus-tracing-enabled")
+
+	if !opencensusEnabled {
+		return nil
+	}
+
 	creds, err := loadStackdriverTraceJSON(gocontext.TODO(), stackdriverTraceAccountJSON)
 	if err != nil {
 		return err
 	}
+
 	sd, err := stackdriver.NewExporter(stackdriver.Options{
 		ProjectID: os.Getenv("TRAVIS_WORKER_GCE_PROJECT_ID"),
 		TraceClientOptions: []option.ClientOption{
@@ -398,12 +405,16 @@ func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
 			option.WithCredentials(creds),
 		},
 	})
+
 	if err != nil {
 		return err
 	}
+
 	defer sd.Flush()
+
 	// Register/enable the trace exporter
 	trace.RegisterExporter(sd)
+
 	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(1.0)})
 	return nil
 }
