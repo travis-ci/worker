@@ -186,6 +186,10 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
 	defer span.End()
 
+	span.AddAttributes(
+		trace.StringAttribute("app", "worker"),
+	)
+
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
