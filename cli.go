@@ -385,7 +385,6 @@ func loadBytes(filenameOrJSON string) ([]byte, error) {
 }
 
 func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
-
 	opencensusEnabled := i.Config.OpencensusTracingEnabled
 
 	if !opencensusEnabled {

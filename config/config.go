@@ -434,7 +434,7 @@ type Config struct {
 	ProgressType                string `config:"progress-type"`
 	Infra                       string `config:"infra"`
 	StackdriverTraceAccountJSON string `config:"stackdriver-trace-account-json"`
-	StackdriverProjectID        string `config:"stackdriver-project-ID"`
+	StackdriverProjectID        string `config:"stackdriver-project-id"`
 	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
 	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
 
