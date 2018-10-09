@@ -119,12 +119,11 @@
 			"notests": true
 		},
 		{
-			"importpath": "contrib.go.opencensus.io/exporter/stackdriver/propagation",
+			"importpath": "contrib.go.opencensus.io/exporter/stackdriver",
 			"repository": "https://github.com/census-ecosystem/opencensus-go-exporter-stackdriver",
 			"vcs": "git",
 			"revision": "857ff689ec3b8d8ebb64827938f1ff602eee59a9",
 			"branch": "master",
-			"path": "/propagation",
 			"notests": true
 		},
 		{
