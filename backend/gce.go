@@ -1266,6 +1266,10 @@ func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance)
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode != 200 {
+		return "", errors.Errorf("expected 200 response code from warmer, got %v", res.StatusCode)
+	}
+
 	warmerRes := &warmerResponse{}
 
 	err = json.NewDecoder(res.Body).Decode(warmerRes)
