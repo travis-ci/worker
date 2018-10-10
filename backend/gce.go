@@ -101,6 +101,7 @@ var (
 		"SUBNETWORK":             fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
 		"UPLOAD_RETRIES":         fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":     fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"WARMER_URL":             "URL for warmer service",
 		"ZONE":                   fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
@@ -183,6 +184,8 @@ type gceProvider struct {
 	rateLimitMaxCalls   uint64
 	rateLimitDuration   time.Duration
 	rateLimitQueueDepth uint64
+
+	warmerUrl *url.URL
 }
 
 type gceInstanceConfig struct {
@@ -228,6 +231,7 @@ type gceStartContext struct {
 	bootStart            time.Time
 	instance             *compute.Instance
 	instanceInsertOpName string
+	instanceWarmedIP     string
 	windowsPassword      string
 	zoneName             string
 }
@@ -450,6 +454,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimiter = ratelimit.NewNullRateLimiter()
 	}
 
+	var warmerUrl *url.URL
+	if cfg.IsSet("WARMER_URL") {
+		warmerUrl, err = url.Parse(cfg.Get("WARMER_URL"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	rateLimitMaxCalls := defaultGCERateLimitMaxCalls
 	if cfg.IsSet("RATE_LIMIT_MAX_CALLS") {
 		mc, err := strconv.ParseUint(cfg.Get("RATE_LIMIT_MAX_CALLS"), 10, 64)
@@ -546,6 +558,8 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
 		rateLimitDuration: rateLimitDuration,
+
+		warmerUrl: warmerUrl,
 	}, nil
 }
 
@@ -825,6 +839,8 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 }
 
 func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
+
 	inst, err := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
@@ -841,6 +857,29 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	}).Debug("inserting instance")
 
 	c.bootStart = time.Now().UTC()
+
+	if p.warmerUrl != nil {
+		warmedIP, err := p.warmerRequestInstance(c.zoneName, inst)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err": err,
+			}).Warn("could not obtain instance from warmer")
+		} else {
+			// success case
+			logger.WithFields(logrus.Fields{
+				"ip": warmedIP,
+			}).Debug("got instance from warmer")
+
+			c.instance = inst
+			c.instanceWarmedIP = warmedIP
+			c.progresser.Progress(&ProgressEntry{
+				Message: "obtained instance",
+				State:   ProgressSuccess,
+			})
+
+			return multistep.ActionContinue
+		}
+	}
 
 	p.apiRateLimit(c.ctx)
 	op, err := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
@@ -864,6 +903,11 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
+
+	if c.instanceWarmedIP != "" {
+		logger.Debug("pre-warmed instance present, skipping boot poll")
+		return multistep.ActionContinue
+	}
 
 	logger.WithField("duration", p.bootPrePollSleep).Debug("sleeping before first checking instance insert operation")
 	c.progresser.Progress(&ProgressEntry{
@@ -1180,6 +1224,67 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			Items: tags,
 		},
 	}, nil
+}
+
+func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance) (string, error) {
+	if len(inst.Disks) == 0 {
+		return "", errors.New("missing disk in instance description")
+	}
+
+	warmerReq := &warmerRequest{
+		Zone:        zone,
+		ImageName:   inst.Disks[0].InitializeParams.SourceImage,
+		MachineType: inst.MachineType,
+	}
+
+	reqBody, err := json.Marshal(warmerReq)
+	if err != nil {
+		return "", err
+	}
+
+	b := bytes.NewBuffer(reqBody)
+	req, err := http.NewRequest(
+		"POST",
+		p.warmerUrl.String()+"/request-instance",
+		b,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	if p.warmerUrl.User != nil {
+		if pw, ok := p.warmerUrl.User.Password(); ok {
+			req.SetBasicAuth(p.warmerUrl.User.Username(), pw)
+		}
+	}
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	warmerRes := &warmerResponse{}
+
+	err = json.NewDecoder(res.Body).Decode(warmerRes)
+	if err != nil {
+		return "", err
+	}
+
+	return warmerRes.IP, nil
+}
+
+type warmerRequest struct {
+	Zone        string `json:"zone"`
+	ImageName   string `json:"image_name"`
+	MachineType string `json:"machine_type"`
+}
+
+type warmerResponse struct {
+	IP   string `json:"ip"`
+	Name string `json:"name"`
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
