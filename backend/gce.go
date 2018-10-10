@@ -1239,7 +1239,7 @@ func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance)
 
 	reqBody, err := json.Marshal(warmerReq)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "could not encode request body")
 	}
 
 	b := bytes.NewBuffer(reqBody)
@@ -1249,7 +1249,7 @@ func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance)
 		b,
 	)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "could not create http request")
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -1262,7 +1262,7 @@ func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance)
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "could not perform http request")
 	}
 	defer res.Body.Close()
 
@@ -1274,7 +1274,7 @@ func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance)
 
 	err = json.NewDecoder(res.Body).Decode(warmerRes)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "could not decode response body")
 	}
 
 	return warmerRes.IP, nil
