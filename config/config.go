@@ -262,6 +262,19 @@ var (
 		NewConfigDef("Infra", &cli.StringFlag{
 			Usage: "infra tag, e.g. gce or ec2",
 		}),
+		NewConfigDef("StackdriverTraceAccountJSON", &cli.StringFlag{
+			Usage: "file path or JSON to stackdriver trace on Google Cloud",
+		}),
+		NewConfigDef("StackdriverProjectID", &cli.StringFlag{
+			Usage: "google cloud project ID where where traces are exported and viewed",
+		}),
+		NewConfigDef("OpencensusTracingEnabled", &cli.BoolFlag{
+			Usage: "enable tracing for worker with google stackdriver client",
+		}),
+		NewConfigDef("OpencensusSamplingRate", &cli.IntFlag{
+			Usage: "sample rate for trace as an inverse fraction - for sample rate n, every nth event will be sampled",
+			Value: 1,
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
@@ -417,9 +430,13 @@ type Config struct {
 	BuildCacheS3AccessKeyID     string `config:"build-cache-s3-access-key-id"`
 	BuildCacheS3SecretAccessKey string `config:"build-cache-s3-secret-access-key"`
 
-	PayloadFilterExecutable string `config:"payload-filter-executable"`
-	ProgressType            string `config:"progress-type"`
-	Infra                   string `config:"infra"`
+	PayloadFilterExecutable     string `config:"payload-filter-executable"`
+	ProgressType                string `config:"progress-type"`
+	Infra                       string `config:"infra"`
+	StackdriverTraceAccountJSON string `config:"stackdriver-trace-account-json"`
+	StackdriverProjectID        string `config:"stackdriver-project-id"`
+	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
+	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
 
 	ProviderConfig *ProviderConfig
 }

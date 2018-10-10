@@ -10,6 +10,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 // A Processor gets jobs off the job queue and coordinates running it with other
@@ -182,6 +183,13 @@ func (p *Processor) Terminate() {
 }
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
+	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
+	defer span.End()
+
+	span.AddAttributes(
+		trace.StringAttribute("app", "worker"),
+	)
+
 	state := new(multistep.BasicStateBag)
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
