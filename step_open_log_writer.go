@@ -8,6 +8,7 @@ import (
 	"github.com/mitchellh/multistep"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 type stepOpenLogWriter struct {
@@ -21,6 +22,9 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	logWriterFactory := state.Get("logWriterFactory")
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_open_log_writer")
+
+	ctx, span := trace.StartSpan(ctx, "stepOpenLogWriter")
+	defer span.End()
 
 	var logWriter LogWriter
 	var err error
@@ -51,6 +55,11 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 }
 
 func (s *stepOpenLogWriter) Cleanup(state multistep.StateBag) {
+	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "stepOpenLogWriterCleanup")
+	defer span.End()
+
 	logWriter, ok := state.Get("logWriter").(LogWriter)
 	if ok {
 		logWriter.Close()

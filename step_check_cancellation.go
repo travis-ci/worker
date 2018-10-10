@@ -5,12 +5,18 @@ import (
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 type stepCheckCancellation struct{}
 
 func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepAction {
 	cancelChan := state.Get("cancelChan").(<-chan struct{})
+
+	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "stepCheckCancellation")
+	defer span.End()
 
 	select {
 	case <-cancelChan:
@@ -36,6 +42,10 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 func (s *stepCheckCancellation) Cleanup(state multistep.StateBag) {}
 
 func (s *stepCheckCancellation) writeLogAndFinishWithState(procCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
+
+	ctx, span := trace.StartSpan(ctx, "writeLogAndFinishWithState")
+	defer span.End()
+
 	_, err := logWriter.WriteAndClose([]byte(logMessage))
 	if err != nil {
 		context.LoggerFromContext(ctx).WithField("err", err).Error("couldn't write final log message")

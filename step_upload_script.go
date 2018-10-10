@@ -11,6 +11,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
+	"go.opencensus.io/trace"
 )
 
 type stepUploadScript struct {
@@ -28,6 +29,9 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	script := state.Get("script").([]byte)
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_upload_script")
+
+	ctx, span := trace.StartSpan(ctx, "stepUploadScript")
+	defer span.End()
 
 	ctx, cancel := gocontext.WithTimeout(ctx, s.uploadTimeout)
 	defer cancel()

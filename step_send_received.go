@@ -6,6 +6,7 @@ import (
 	"github.com/mitchellh/multistep"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 type stepSendReceived struct{}
@@ -13,6 +14,9 @@ type stepSendReceived struct{}
 func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "stepSendReceived")
+	defer span.End()
 
 	err := buildJob.Received(ctx)
 	if err != nil {
@@ -25,4 +29,9 @@ func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 	return multistep.ActionContinue
 }
 
-func (s *stepSendReceived) Cleanup(state multistep.StateBag) {}
+func (s *stepSendReceived) Cleanup(state multistep.StateBag) {
+	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "stepSendReceived_cleanup")
+	defer span.End()
+}

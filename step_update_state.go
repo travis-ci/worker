@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 type stepUpdateState struct{}
@@ -20,6 +21,9 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
+
+	ctx, span := trace.StartSpan(ctx, "stepUpdateState")
+	defer span.End()
 
 	instanceID := instance.ID()
 	if instanceID != "" {
@@ -56,6 +60,9 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	processedAt := state.Get("processedAt").(time.Time)
+
+	ctx, span := trace.StartSpan(ctx, "stepUpdateStateCleanup")
+	defer span.End()
 
 	instance := state.Get("instance").(backend.Instance)
 	instanceID := instance.ID()

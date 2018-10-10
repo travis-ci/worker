@@ -1,9 +1,11 @@
 package worker
 
 import (
+	gocontext "context"
 	"time"
 
 	"github.com/mitchellh/multistep"
+	"go.opencensus.io/trace"
 )
 
 type stepSleep struct {
@@ -11,6 +13,11 @@ type stepSleep struct {
 }
 
 func (s *stepSleep) Run(state multistep.StateBag) multistep.StepAction {
+	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "stepSleep")
+	defer span.End()
+
 	time.Sleep(s.duration)
 
 	return multistep.ActionContinue

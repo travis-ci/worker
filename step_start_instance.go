@@ -11,6 +11,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	workererrors "github.com/travis-ci/worker/errors"
+	"go.opencensus.io/trace"
 )
 
 type stepStartInstance struct {
@@ -24,6 +25,9 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 	logWriter := state.Get("logWriter").(LogWriter)
+
+	ctx, span := trace.StartSpan(ctx, "stepStartInstance")
+	defer span.End()
 
 	logger.Info("starting instance")
 
@@ -95,6 +99,10 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "stepStartInstanceCleanup")
+	defer span.End()
+
 	instance, ok := state.Get("instance").(backend.Instance)
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 	if !ok {

@@ -1,11 +1,13 @@
 package worker
 
 import (
+	gocontext "context"
 	"fmt"
 	"strings"
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/backend"
+	"go.opencensus.io/trace"
 )
 
 type stepWriteWorkerInfo struct {
@@ -15,6 +17,10 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 	logWriter := state.Get("logWriter").(LogWriter)
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
+	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "stepWriteWorkerInfo")
+	defer span.End()
 
 	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
 		_, _ = writeFold(logWriter, "worker_info", []byte(strings.Join([]string{
