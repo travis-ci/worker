@@ -36,6 +36,7 @@ jobs:
         - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
         - make send-docker-hub-trigger
     - script:
+      - make build
       - make http-job-test
 
 addons:
