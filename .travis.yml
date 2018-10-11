@@ -42,16 +42,10 @@ jobs:
             - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
             - travis-ci/worker/$(git describe --always --dirty --tags)
             - travis-ci/worker/$TRAVIS_BRANCH
-    - name: "macos"
-      os: osx
+    - name: "crossbuild"
       script:
         - travis_retry make deps
-        - make lintall
-        - make build
-        - make test
-        - make smoke
-        - mkdir -p build/darwin/amd64
-        - cp $GOPATH/bin/travis-worker build/darwin/amd64
+        - make build/darwin/amd64/travis-worker
       addons:
         artifacts:
           paths:
