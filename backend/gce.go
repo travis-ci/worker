@@ -871,7 +871,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	c.bootStart = time.Now().UTC()
 
 	if c.startAttributes.Warmer && p.warmerUrl != nil {
-		warmedIP, err := p.warmerRequestInstance(c.zoneName, inst)
+		warmedIP, err := p.warmerRequestInstance(c.ctx, c.zoneName, inst)
 		if err != nil {
 			logger.WithFields(logrus.Fields{
 				"err": err,
@@ -1238,7 +1238,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}, nil
 }
 
-func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance) (string, error) {
+func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, inst *compute.Instance) (string, error) {
 	if len(inst.Disks) == 0 {
 		return "", errors.New("missing disk in instance description")
 	}
@@ -1270,6 +1270,7 @@ func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance)
 			req.SetBasicAuth(p.warmerUrl.User.Username(), pw)
 		}
 	}
+	req = req.WithContext(ctx)
 
 	client := &http.Client{
 		Timeout: p.warmerTimeout,
