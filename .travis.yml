@@ -45,10 +45,10 @@ jobs:
           paths:
             - ./build/linux/amd64/travis-worker
             - ./build/darwin/amd64/travis-worker
-            target_paths:
-              - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
-              - travis-ci/worker/$(git describe --always --dirty --tags)
-              - travis-ci/worker/$TRAVIS_BRANCH
+          target_paths:
+            - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+            - travis-ci/worker/$(git describe --always --dirty --tags)
+            - travis-ci/worker/$TRAVIS_BRANCH
     - name: "http-job-test"
       script:
         - travis_retry make deps
