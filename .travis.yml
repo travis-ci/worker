@@ -38,8 +38,6 @@ jobs:
     - script:
       - make http-job-test
 
-script:
-
 addons:
   artifacts:
     paths:
