@@ -12,6 +12,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
+	"go.opencensus.io/trace"
 )
 
 type stepDownloadTrace struct {
@@ -24,6 +25,10 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 	}
 
 	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "DownloadTrace.Run")
+	defer span.End()
+
 	buildJob := state.Get("buildJob").(Job)
 	processedAt := state.Get("processedAt").(time.Time)
 

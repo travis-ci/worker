@@ -58,6 +58,7 @@ func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *byteBufferLogWriter, mul
 	}
 
 	state := &multistep.BasicStateBag{}
+	state.Put("ctx", ctx)
 	state.Put("logWriter", logWriter)
 	state.Put("instance", instance)
 	state.Put("hostname", "frizzlefry.example.local")

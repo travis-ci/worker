@@ -8,6 +8,7 @@ import (
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 type stepGenerateScript struct {
@@ -18,6 +19,9 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "GenerateScript.Run")
+	defer span.End()
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_generate_script")
 
