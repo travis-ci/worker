@@ -916,8 +916,36 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
+	gceInst := &gceInstance{
+		zoneName:   c.zoneName,
+		client:     p.client,
+		provider:   p,
+		instance:   c.instance,
+		ic:         p.ic,
+		progresser: c.progresser,
+
+		authUser: "travis",
+
+		projectID: p.projectID,
+		imageName: c.image.Name,
+
+		os:              c.startAttributes.OS,
+		windowsPassword: c.windowsPassword,
+	}
+
 	if c.instanceWarmedIP != "" {
 		logger.Debug("pre-warmed instance present, skipping boot poll")
+
+		startupDuration := time.Now().UTC().Sub(c.bootStart)
+		c.progresser.Progress(&ProgressEntry{
+			Message:    fmt.Sprintf("instance is ready (%s)", startupDuration.Truncate(time.Millisecond)),
+			State:      ProgressSuccess,
+			Interrupts: true,
+		})
+
+		gceInst.startupDuration = startupDuration
+		c.instChan <- gceInst
+
 		return multistep.ActionContinue
 	}
 
@@ -973,23 +1001,10 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				State:      ProgressSuccess,
 				Interrupts: true,
 			})
-			c.instChan <- &gceInstance{
-				zoneName:   c.zoneName,
-				client:     p.client,
-				provider:   p,
-				instance:   c.instance,
-				ic:         p.ic,
-				progresser: c.progresser,
 
-				authUser: "travis",
+			gceInst.startupDuration = startupDuration
+			c.instChan <- gceInst
 
-				projectID: p.projectID,
-				imageName: c.image.Name,
-
-				os:              c.startAttributes.OS,
-				windowsPassword: c.windowsPassword,
-				startupDuration: startupDuration,
-			}
 			return multistep.ActionContinue
 		}
 
