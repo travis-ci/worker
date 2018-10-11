@@ -4,6 +4,10 @@ sudo: required
 dist: trusty
 group: edge
 
+cache:
+  directories:
+    - vendor
+
 services:
 - rabbitmq
 - docker
