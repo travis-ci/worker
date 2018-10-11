@@ -70,6 +70,10 @@ func newLocalInstance(p *localProvider) (*localInstance, error) {
 	}, nil
 }
 
+func (i *localInstance) Warmer() bool {
+	return false
+}
+
 func (i *localInstance) SupportsProgress() bool {
 	return false
 }

@@ -106,6 +106,9 @@ type Instance interface {
 
 	// SupportsProgress allows for querying of progress support, yeah!
 	SupportsProgress() bool
+
+	// Check if this instance came from the warmer service
+	Warmer() bool
 }
 
 // RunResult represents the result of running a script with Instance.RunScript.
