@@ -458,7 +458,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	if cfg.IsSet("WARMER_URL") {
 		warmerUrl, err = url.Parse(cfg.Get("WARMER_URL"))
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "could not parse WARMER_URL")
 		}
 	}
 
