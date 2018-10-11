@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -187,7 +188,10 @@ func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, err := NewAPISelector(u).Select(&Params{})
+	as := NewAPISelector(u)
+	as.SetMaxInterval(time.Millisecond)
+	as.SetMaxElapsedTime(10 * time.Millisecond)
+	actual, err := as.Select(&Params{})
 	assert.Equal(t, actual, "default")
 	assert.EqualError(t, err, "expected 200 status code from job-board, received status=500 body=\"\"")
 }
