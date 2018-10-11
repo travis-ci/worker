@@ -42,6 +42,7 @@ jobs:
             - travis-ci/worker/$(git describe --always --dirty --tags)
             - travis-ci/worker/$TRAVIS_BRANCH
     - name: "macos"
+      os: osx
       script:
         - travis_retry make deps
         - make lintall
