@@ -21,6 +21,7 @@ env:
 jobs:
   include:
     - stage: test
+      name: "build and ship"
       script:
         - travis_retry make deps
         - make lintall
@@ -35,9 +36,10 @@ jobs:
         - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
         - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
         - make send-docker-hub-trigger
-    - script:
-      - make build
-      - make http-job-test
+    - name: "http-job-test"
+      script:
+        - make build
+        - make http-job-test
 
 addons:
   artifacts:
