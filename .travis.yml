@@ -53,4 +53,6 @@ jobs:
       script:
         - travis_retry make deps
         - make build
+        - mkdir -p build/linux/amd64
+        - cp $GOPATH/build/linux/amd64/travis-worker build/linux/amd64
         - make http-job-test
