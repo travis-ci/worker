@@ -2,26 +2,9 @@
 set -o errexit
 
 main() {
-  if [[ -f "${DOCKER_ENV_FILE}" ]]; then
-    # shellcheck source=/dev/null
-    source "${DOCKER_ENV_FILE}"
-  fi
-
-  unset DOCKER_LOGIN_PASSWORD
-  unset DOCKER_LOGIN_USERNAME
-
   if [[ $DEBUG ]]; then
     set -o xtrace
   fi
-
-  unset TRAVIS_WORKER_DOCKER_CREDS
-  unset TRAVIS_WORKER_DOCKER_DEST
-  unset TRAVIS_WORKER_DOCKER_LOGIN_PASSWORD
-  unset TRAVIS_WORKER_DOCKER_LOGIN_USERNAME
-  unset DOCKER_CREDS
-  unset DOCKER_DEST
-  unset DOCKER_LOGIN_PASSWORD
-  unset DOCKER_LOGIN_USERNAME
 
   : "${OS:=$(go env GOHOSTOS)}"
   : "${ARCH:=$(go env GOHOSTARCH)}"
@@ -43,10 +26,6 @@ main() {
     --provider-name=foo | grep "^export TRAVIS_WORKER_FOO_N=\"${N}\"\$"
   "./build/${OS}/${ARCH}/travis-worker" --echo-config
   "./build/${OS}/${ARCH}/travis-worker" --list-backend-providers
-  docker run --rm -i -t \
-    -v "${PWD}:/app" \
-    'alpine:3.4' \
-    /app/build/linux/amd64/travis-worker --version
 }
 
 main "$@"
