@@ -8,6 +8,7 @@ import (
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 	gocontext "golang.org/x/net/context"
 )
 
@@ -24,6 +25,9 @@ type EnvVar struct {
 func (s *stepTransformBuildJSON) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
+
+	ctx, span := trace.StartSpan(ctx, "TransformBuildJSON.Run")
+	defer span.End()
 
 	if s.payloadFilterExecutable == "" {
 		context.LoggerFromContext(ctx).Info("skipping json transformation, no filter executable defined")

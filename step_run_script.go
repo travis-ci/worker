@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
+	"go.opencensus.io/trace"
 )
 
 type runScriptReturn struct {
@@ -31,6 +32,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	instance := state.Get("instance").(backend.Instance)
 	logWriter := state.Get("logWriter").(LogWriter)
 	cancelChan := state.Get("cancelChan").(<-chan struct{})
+
+	ctx, span := trace.StartSpan(ctx, "RunScript.Run")
+	defer span.End()
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
 	ctx, cancel := gocontext.WithTimeout(ctx, s.hardTimeout)
@@ -119,6 +123,9 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 }
 
 func (s *stepRunScript) writeLogAndFinishWithState(procCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
+	ctx, span := trace.StartSpan(ctx, "WriteLogAndFinishWithState.RunScript")
+	defer span.End()
+
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
 	_, err := logWriter.WriteAndClose([]byte(logMessage))
 	if err != nil {
