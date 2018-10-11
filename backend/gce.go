@@ -858,7 +858,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	c.bootStart = time.Now().UTC()
 
-	if p.warmerUrl != nil {
+	if c.startAttributes.Warmer && p.warmerUrl != nil {
 		warmedIP, err := p.warmerRequestInstance(c.zoneName, inst)
 		if err != nil {
 			logger.WithFields(logrus.Fields{
