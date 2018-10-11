@@ -38,6 +38,7 @@ jobs:
         - make send-docker-hub-trigger
     - name: "http-job-test"
       script:
+        - travis_retry make deps
         - make build
         - make http-job-test
 
