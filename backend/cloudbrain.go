@@ -509,7 +509,7 @@ func (i *cbInstance) refreshInstance(ctx gocontext.Context) error {
 	return nil
 }
 
-func (i *cbInstance) Warmer() bool {
+func (i *cbInstance) Warmed() bool {
 	return false
 }
 

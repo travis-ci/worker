@@ -381,7 +381,7 @@ func (p *jupiterBrainProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
-func (i *jupiterBrainInstance) Warmer() bool {
+func (i *jupiterBrainInstance) Warmed() bool {
 	return false
 }
 

@@ -108,7 +108,7 @@ type Instance interface {
 	SupportsProgress() bool
 
 	// Check if this instance came from the warmer service
-	Warmer() bool
+	Warmed() bool
 }
 
 // RunResult represents the result of running a script with Instance.RunScript.

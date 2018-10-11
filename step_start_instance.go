@@ -86,7 +86,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		"instance_id":      instance.ID(),
 		"image_name":       instance.ImageName(),
 		"version":          VersionString,
-		"warmer":           instance.Warmer(),
+		"warmed":           instance.Warmed(),
 	}).Info("started instance")
 
 	state.Put("instance", instance)

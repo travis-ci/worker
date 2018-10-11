@@ -55,7 +55,7 @@ type fakeInstance struct {
 	startupDuration time.Duration
 }
 
-func (i *fakeInstance) Warmer() bool {
+func (i *fakeInstance) Warmed() bool {
 	return false
 }
 

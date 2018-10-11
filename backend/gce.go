@@ -258,7 +258,7 @@ type gceInstance struct {
 	os              string
 	windowsPassword string
 
-	warmer bool
+	warmed bool
 }
 
 type gceInstanceStopContext struct {
@@ -946,7 +946,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		})
 
 		gceInst.startupDuration = startupDuration
-		gceInst.warmer = true
+		gceInst.warmed = true
 		c.instChan <- gceInst
 
 		return multistep.ActionContinue
@@ -1396,8 +1396,8 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	return nil
 }
 
-func (i *gceInstance) Warmer() bool {
-	return i.warmer
+func (i *gceInstance) Warmed() bool {
+	return i.warmed
 }
 
 func (i *gceInstance) SupportsProgress() bool {

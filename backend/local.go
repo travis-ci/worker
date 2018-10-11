@@ -70,7 +70,7 @@ func newLocalInstance(p *localProvider) (*localInstance, error) {
 	}, nil
 }
 
-func (i *localInstance) Warmer() bool {
+func (i *localInstance) Warmed() bool {
 	return false
 }
 

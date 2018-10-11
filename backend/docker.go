@@ -593,7 +593,7 @@ func (i *dockerInstance) sshConnection(ctx gocontext.Context) (ssh.Connection, e
 	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.container.NetworkSettings.IPAddress), "travis", i.provider.sshDialTimeout)
 }
 
-func (i *dockerInstance) Warmer() bool {
+func (i *dockerInstance) Warmed() bool {
 	return false
 }
 

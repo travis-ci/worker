@@ -599,7 +599,7 @@ func (i *osInstance) sshConnection() (ssh.Connection, error) {
 	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", i.ipAddr), i.ic.AuthUser, i.provider.sshDialTimeout)
 }
 
-func (i *osInstance) Warmer() bool {
+func (i *osInstance) Warmed() bool {
 	return false
 }
 
