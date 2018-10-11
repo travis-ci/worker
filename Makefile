@@ -78,7 +78,7 @@ build: vendor/.deps-fetched
 crossbuild: vendor/.deps-fetched $(CROSSBUILD_BINARIES)
 
 .PHONY: docker-build
-docker-build: $(CROSSBUILD_BINARIES)
+docker-build:
 	$(DOCKER) build -t $(DOCKER_DEST) .
 
 $(CROSSBUILD_BINARIES):
