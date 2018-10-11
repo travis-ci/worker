@@ -29,6 +29,7 @@ jobs:
       script:
         - travis_retry make deps
         - make lintall
+        - make build
         - make test
         - make smoke
         - mkdir -p build/linux/amd64
@@ -46,6 +47,7 @@ jobs:
       script:
         - travis_retry make deps
         - make lintall
+        - make build
         - make test
         - make smoke
         - mkdir -p build/darwin/amd64
