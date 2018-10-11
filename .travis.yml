@@ -28,10 +28,10 @@ jobs:
         - make crossbuild
         - make smoke
         - if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-        sudo apt-get update;
-        sudo apt-get -y install docker-ce;
-        make docker-build smoke-docker docker-push;
-        fi
+            sudo apt-get update;
+            sudo apt-get -y install docker-ce;
+            make docker-build smoke-docker docker-push;
+          fi
         - echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
         - echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
         - make send-docker-hub-trigger
