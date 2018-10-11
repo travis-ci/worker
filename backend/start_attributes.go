@@ -28,7 +28,7 @@ type StartAttributes struct {
 	// the job payload, see the worker.JobPayload struct.
 	VMConfig VmConfig `json:"-"`
 
-	// The VMConfig isn't stored in the config directly, but in the top level of
+	// Warmer isn't stored in the config directly, but in the top level of
 	// the job payload, see the worker.JobPayload struct.
 	Warmer bool `json:"-"`
 
