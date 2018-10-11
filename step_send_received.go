@@ -29,9 +29,4 @@ func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 	return multistep.ActionContinue
 }
 
-func (s *stepSendReceived) Cleanup(state multistep.StateBag) {
-	ctx := state.Get("ctx").(gocontext.Context)
-
-	ctx, span := trace.StartSpan(ctx, "stepSendReceived_cleanup")
-	defer span.End()
-}
+func (s *stepSendReceived) Cleanup(state multistep.StateBag) {}

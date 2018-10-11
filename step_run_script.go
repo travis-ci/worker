@@ -123,7 +123,6 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 }
 
 func (s *stepRunScript) writeLogAndFinishWithState(procCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
-
 	ctx, span := trace.StartSpan(ctx, "stepWriteLogAndFinishWithState")
 	defer span.End()
 
