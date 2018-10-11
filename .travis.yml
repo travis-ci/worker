@@ -30,10 +30,10 @@ jobs:
         - travis_retry make deps
         - make lintall
         - make build
-        - make test
-        - make smoke
         - mkdir -p build/linux/amd64
         - cp $GOPATH/bin/travis-worker build/linux/amd64
+        - make test
+        - make smoke
       addons:
         artifacts:
           paths:
