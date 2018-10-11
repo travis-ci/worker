@@ -1262,6 +1262,7 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 	}
 
 	warmerReq := &warmerRequest{
+		Site:        p.ic.Site,
 		Zone:        zone,
 		ImageName:   inst.Disks[0].InitializeParams.SourceImage,
 		MachineType: inst.MachineType,
@@ -1315,6 +1316,7 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 }
 
 type warmerRequest struct {
+	Site        string `json:"site"`
 	Zone        string `json:"zone"`
 	ImageName   string `json:"image_name"`
 	MachineType string `json:"machine_type"`
