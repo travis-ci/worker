@@ -15,7 +15,7 @@ func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "stepSendReceived")
+	ctx, span := trace.StartSpan(ctx, "SendReceived.Run")
 	defer span.End()
 
 	err := buildJob.Received(ctx)

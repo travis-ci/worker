@@ -26,7 +26,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 	logWriter := state.Get("logWriter").(LogWriter)
 
-	ctx, span := trace.StartSpan(ctx, "stepStartInstance")
+	ctx, span := trace.StartSpan(ctx, "StartInstance.Run")
 	defer span.End()
 
 	logger.Info("starting instance")
@@ -100,7 +100,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "stepStartInstanceCleanup")
+	ctx, span := trace.StartSpan(ctx, "StartInstance.Cleanup")
 	defer span.End()
 
 	instance, ok := state.Get("instance").(backend.Instance)

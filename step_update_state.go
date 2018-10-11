@@ -22,7 +22,7 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
 
-	ctx, span := trace.StartSpan(ctx, "stepUpdateState")
+	ctx, span := trace.StartSpan(ctx, "UpdateState.Run")
 	defer span.End()
 
 	instanceID := instance.ID()
@@ -61,7 +61,7 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
 	processedAt := state.Get("processedAt").(time.Time)
 
-	ctx, span := trace.StartSpan(ctx, "stepUpdateStateCleanup")
+	ctx, span := trace.StartSpan(ctx, "UpdateState.Cleanup")
 	defer span.End()
 
 	instance := state.Get("instance").(backend.Instance)

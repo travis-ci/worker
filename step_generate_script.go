@@ -20,7 +20,7 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "stepGenerateScript")
+	ctx, span := trace.StartSpan(ctx, "GenerateScript.Run")
 	defer span.End()
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_generate_script")

@@ -42,8 +42,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 func (s *stepCheckCancellation) Cleanup(state multistep.StateBag) {}
 
 func (s *stepCheckCancellation) writeLogAndFinishWithState(procCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
-
-	ctx, span := trace.StartSpan(ctx, "writeLogAndFinishWithState")
+	ctx, span := trace.StartSpan(ctx, "WriteLogAndFinishWithState.CheckCancellation")
 	defer span.End()
 
 	_, err := logWriter.WriteAndClose([]byte(logMessage))

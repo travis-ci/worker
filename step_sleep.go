@@ -15,7 +15,7 @@ type stepSleep struct {
 func (s *stepSleep) Run(state multistep.StateBag) multistep.StepAction {
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "stepSleep")
+	ctx, span := trace.StartSpan(ctx, "Sleep.Run")
 	defer span.End()
 
 	time.Sleep(s.duration)

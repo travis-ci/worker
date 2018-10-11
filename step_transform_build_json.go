@@ -26,7 +26,7 @@ func (s *stepTransformBuildJSON) Run(state multistep.StateBag) multistep.StepAct
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "stepTransformBuildJSON")
+	ctx, span := trace.StartSpan(ctx, "TransformBuildJSON.Run")
 	defer span.End()
 
 	if s.payloadFilterExecutable == "" {

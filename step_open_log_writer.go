@@ -23,7 +23,7 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 	logWriterFactory := state.Get("logWriterFactory")
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_open_log_writer")
 
-	ctx, span := trace.StartSpan(ctx, "stepOpenLogWriter")
+	ctx, span := trace.StartSpan(ctx, "OpenLogWriter.Run")
 	defer span.End()
 
 	var logWriter LogWriter
@@ -57,7 +57,7 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 func (s *stepOpenLogWriter) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "stepOpenLogWriterCleanup")
+	ctx, span := trace.StartSpan(ctx, "OpenLogWriter.Cleanup")
 	defer span.End()
 
 	logWriter, ok := state.Get("logWriter").(LogWriter)
