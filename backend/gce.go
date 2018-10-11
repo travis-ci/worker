@@ -63,6 +63,7 @@ const (
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 	defaultGCESSHDialTimeout     = 5 * time.Second
+	defaultGCEWarmerTimeout      = 5 * time.Second
 )
 
 var (
@@ -102,6 +103,7 @@ var (
 		"UPLOAD_RETRIES":         fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":     fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
 		"WARMER_URL":             "URL for warmer service",
+		"WARMER_TIMEOUT":         fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
 		"ZONE":                   fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
@@ -185,7 +187,8 @@ type gceProvider struct {
 	rateLimitDuration   time.Duration
 	rateLimitQueueDepth uint64
 
-	warmerUrl *url.URL
+	warmerUrl     *url.URL
+	warmerTimeout time.Duration
 }
 
 type gceInstanceConfig struct {
@@ -462,6 +465,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	warmerTimeout := defaultGCEWarmerTimeout
+	if cfg.IsSet("WARMER_TIMEOUT") {
+		warmerTimeout, err = time.ParseDuration(cfg.Get("WARMER_TIMEOUT"))
+		if err != nil {
+			return nil, errors.Wrap(err, "could not parse WARMER_TIMEOUT")
+		}
+	}
+
 	rateLimitMaxCalls := defaultGCERateLimitMaxCalls
 	if cfg.IsSet("RATE_LIMIT_MAX_CALLS") {
 		mc, err := strconv.ParseUint(cfg.Get("RATE_LIMIT_MAX_CALLS"), 10, 64)
@@ -559,7 +570,8 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimitMaxCalls: rateLimitMaxCalls,
 		rateLimitDuration: rateLimitDuration,
 
-		warmerUrl: warmerUrl,
+		warmerUrl:     warmerUrl,
+		warmerTimeout: warmerTimeout,
 	}, nil
 }
 
@@ -1259,7 +1271,10 @@ func (p *gceProvider) warmerRequestInstance(zone string, inst *compute.Instance)
 		}
 	}
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: p.warmerTimeout,
+	}
+
 	res, err := client.Do(req)
 	if err != nil {
 		return "", errors.Wrap(err, "could not perform http request")
