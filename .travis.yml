@@ -25,17 +25,33 @@ env:
 jobs:
   include:
     - stage: test
-      name: "build and ship"
+      name: "linux"
       script:
         - travis_retry make deps
         - make lintall
         - make test
-        - make crossbuild
         - make smoke
+        - mkdir -p build/linux/amd64
+        - cp $GOPATH/bin/travis-worker build/linux/amd64
       addons:
         artifacts:
           paths:
             - ./build/linux/amd64/travis-worker
+          target_paths:
+            - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+            - travis-ci/worker/$(git describe --always --dirty --tags)
+            - travis-ci/worker/$TRAVIS_BRANCH
+    - name: "macos"
+      script:
+        - travis_retry make deps
+        - make lintall
+        - make test
+        - make smoke
+        - mkdir -p build/darwin/amd64
+        - cp $GOPATH/bin/travis-worker build/darwin/amd64
+      addons:
+        artifacts:
+          paths:
             - ./build/darwin/amd64/travis-worker
           target_paths:
             - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
