@@ -78,13 +78,15 @@ build: vendor/.deps-fetched
 crossbuild: vendor/.deps-fetched $(CROSSBUILD_BINARIES)
 
 .PHONY: docker-build
-docker-build: $(CROSSBUILD_BINARIES)
+docker-build:
 	$(DOCKER) build -t $(DOCKER_DEST) .
 
-$(CROSSBUILD_BINARIES):
+build/darwin/amd64/travis-worker:
 	GOARCH=amd64 GOOS=darwin CGO_ENABLED=0 \
 		$(GO) build -o build/darwin/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
+
+build/linux/amd64/travis-worker:
 	GOARCH=amd64 GOOS=linux CGO_ENABLED=0 \
 		$(GO) build -o build/linux/amd64/travis-worker \
 		-ldflags "$(GOBUILD_LDFLAGS)" $(PACKAGE)/cmd/travis-worker
