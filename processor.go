@@ -194,7 +194,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	span.AddAttributes(
 
 		trace.StringAttribute("app", "worker"),
-		trace.Int64Attribute("JobID", (int64(job_id))),
+		trace.Int64Attribute("job_id", (int64(job_id))),
 		trace.StringAttribute("repo", repo),
 		trace.StringAttribute("infra", infra),
 		trace.StringAttribute("site", site),
