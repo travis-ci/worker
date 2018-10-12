@@ -4,6 +4,10 @@ sudo: required
 dist: trusty
 group: edge
 
+cache:
+  directories:
+    - vendor
+
 services:
 - rabbitmq
 - docker
@@ -18,27 +22,54 @@ env:
   - GO15VENDOREXPERIMENT='1'
   - REDIS_URL="redis://"
 
-script:
-- travis_retry make deps
-- make lintall
-- make test
-- make crossbuild
-- make http-job-test
-- make smoke
-- if [[ $TRAVIS_PULL_REQUEST = 'false' && $DOCKER_LOGIN_PASSWORD && $DOCKER_LOGIN_USERNAME ]]; then
-    sudo apt-get update;
-    sudo apt-get -y install docker-ce;
-    make docker-build smoke-docker docker-push;
-  fi
-- echo "TRAVIS_PULL_REQUEST=${TRAVIS_PULL_REQUEST}"
-- echo "TRAVIS_BRANCH=${TRAVIS_BRANCH}"
-- make send-docker-hub-trigger
-addons:
-  artifacts:
-    paths:
-    - ./build/linux/amd64/travis-worker
-    - ./build/darwin/amd64/travis-worker
-    target_paths:
-    - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
-    - travis-ci/worker/$(git describe --always --dirty --tags)
-    - travis-ci/worker/$TRAVIS_BRANCH
+jobs:
+  include:
+    - stage: test
+      name: "linux"
+      script:
+        - travis_retry make deps
+        - make lintall
+        - make build
+        - mkdir -p build/linux/amd64
+        - cp $GOPATH/bin/travis-worker build/linux/amd64
+        - make test
+        - make smoke
+      addons:
+        artifacts:
+          paths:
+            - ./build/linux/amd64/travis-worker
+          target_paths:
+            - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+            - travis-ci/worker/$(git describe --always --dirty --tags)
+            - travis-ci/worker/$TRAVIS_BRANCH
+    - name: "crossbuild"
+      script:
+        - travis_retry make deps
+        - make build/darwin/amd64/travis-worker
+      addons:
+        artifacts:
+          paths:
+            - ./build/darwin/amd64/travis-worker
+          target_paths:
+            - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+            - travis-ci/worker/$(git describe --always --dirty --tags)
+            - travis-ci/worker/$TRAVIS_BRANCH
+    - name: "docker"
+      if: type != 'pull_request' && env(DOCKER_LOGIN_PASSWORD) is present && env(DOCKER_LOGIN_USERNAME) is present
+      script:
+        - make docker-build
+        - make smoke-docker
+        - make docker-push
+        - make send-docker-hub-trigger
+      addons:
+        apt:
+          update: true
+          packages:
+            - docker-ce
+    - name: "http-job-test"
+      script:
+        - travis_retry make deps
+        - make build
+        - mkdir -p build/linux/amd64
+        - cp $GOPATH/bin/travis-worker build/linux/amd64
+        - make http-job-test

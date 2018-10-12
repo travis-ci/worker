@@ -35,6 +35,14 @@ func NewAPISelector(u *url.URL) *APISelector {
 	}
 }
 
+func (as *APISelector) SetMaxInterval(maxInterval time.Duration) {
+	as.maxInterval = maxInterval
+}
+
+func (as *APISelector) SetMaxElapsedTime(maxElapsedTime time.Duration) {
+	as.maxElapsedTime = maxElapsedTime
+}
+
 func (as *APISelector) Select(params *Params) (string, error) {
 	tagSets, err := as.buildCandidateTags(params)
 	if err != nil {
@@ -106,8 +114,8 @@ func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*
 	var responseBody []byte
 
 	b := backoff.NewExponentialBackOff()
-	b.MaxInterval = 10 * time.Second
-	b.MaxElapsedTime = time.Minute
+	b.MaxInterval = as.maxInterval
+	b.MaxElapsedTime = as.maxElapsedTime
 
 	err := backoff.Retry(func() error {
 		resp, err := http.Post(urlString, imageAPIRequestContentType,
