@@ -55,6 +55,10 @@ type fakeInstance struct {
 	startupDuration time.Duration
 }
 
+func (i *fakeInstance) Warmed() bool {
+	return false
+}
+
 func (i *fakeInstance) SupportsProgress() bool {
 	return false
 }

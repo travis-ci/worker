@@ -509,6 +509,10 @@ func (i *cbInstance) refreshInstance(ctx gocontext.Context) error {
 	return nil
 }
 
+func (i *cbInstance) Warmed() bool {
+	return false
+}
+
 func (i *cbInstance) SupportsProgress() bool {
 	return false
 }
