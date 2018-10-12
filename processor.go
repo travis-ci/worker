@@ -186,7 +186,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
 	defer span.End()
 
-	jobID := buildJob.Payload().Job.ID
+	job_id := buildJob.Payload().Job.ID
 	repo := buildJob.Payload().Repository.Slug
 	infra := p.config.ProviderName
 	site := p.config.TravisSite
@@ -194,7 +194,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	span.AddAttributes(
 
 		trace.StringAttribute("app", "worker"),
-		trace.Int64Attribute("JobID", (int64(jobID))),
+		trace.Int64Attribute("JobID", (int64(job_id))),
 		trace.StringAttribute("repo", repo),
 		trace.StringAttribute("infra", infra),
 		trace.StringAttribute("site", site),
