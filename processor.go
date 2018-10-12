@@ -186,18 +186,13 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
 	defer span.End()
 
-	job_id := buildJob.Payload().Job.ID
-	repo := buildJob.Payload().Repository.Slug
-	infra := p.config.ProviderName
-	site := p.config.TravisSite
-
 	span.AddAttributes(
 
 		trace.StringAttribute("app", "worker"),
-		trace.Int64Attribute("job_id", (int64(job_id))),
-		trace.StringAttribute("repo", repo),
-		trace.StringAttribute("infra", infra),
-		trace.StringAttribute("site", site),
+		trace.Int64Attribute("job_id", (int64(buildJob.Payload().Job.ID))),
+		trace.StringAttribute("repo", (string(buildJob.Payload().Repository.Slug))),
+		trace.StringAttribute("infra", (string(p.config.ProviderName))),
+		trace.StringAttribute("site", (string(p.config.TravisSite))),
 	)
 
 	state := new(multistep.BasicStateBag)
