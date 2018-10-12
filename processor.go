@@ -187,12 +187,11 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	defer span.End()
 
 	span.AddAttributes(
-
 		trace.StringAttribute("app", "worker"),
 		trace.Int64Attribute("job_id", int64(buildJob.Payload().Job.ID)),
-		trace.StringAttribute("repo", string(buildJob.Payload().Repository.Slug)),
-		trace.StringAttribute("infra", string(p.config.ProviderName)),
-		trace.StringAttribute("site", string(p.config.TravisSite)),
+		trace.StringAttribute("repo", buildJob.Payload().Repository.Slug),
+		trace.StringAttribute("infra", p.config.ProviderName),
+		trace.StringAttribute("site", p.config.TravisSite),
 	)
 
 	state := new(multistep.BasicStateBag)
