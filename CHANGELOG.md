@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- backend/gce: preliminary support for obtaining pre-warmed instances from the warmer service
 
 ### Changed
 
@@ -21,6 +20,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Added
 - trace: opencensus stackdriver trace for worker
+- backend/gce: preliminary support for obtaining pre-warmed instances from the warmer service
 
 ## [4.4.0] - 2018-10-05
 
