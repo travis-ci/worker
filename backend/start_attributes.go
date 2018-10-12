@@ -28,6 +28,10 @@ type StartAttributes struct {
 	// the job payload, see the worker.JobPayload struct.
 	VMConfig VmConfig `json:"-"`
 
+	// Warmer isn't stored in the config directly, but in the top level of
+	// the job payload, see the worker.JobPayload struct.
+	Warmer bool `json:"-"`
+
 	// HardTimeout isn't stored in the config directly, but is injected
 	// from the processor
 	HardTimeout time.Duration `json:"-"`

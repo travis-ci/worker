@@ -63,6 +63,7 @@ const (
 	defaultGCERateLimitMaxCalls  = uint64(10)
 	defaultGCERateLimitDuration  = time.Second
 	defaultGCESSHDialTimeout     = 5 * time.Second
+	defaultGCEWarmerTimeout      = 5 * time.Second
 )
 
 var (
@@ -101,6 +102,8 @@ var (
 		"SUBNETWORK":             fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
 		"UPLOAD_RETRIES":         fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
 		"UPLOAD_RETRY_SLEEP":     fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"WARMER_URL":             "URL for warmer service",
+		"WARMER_TIMEOUT":         fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
 		"ZONE":                   fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
@@ -183,6 +186,9 @@ type gceProvider struct {
 	rateLimitMaxCalls   uint64
 	rateLimitDuration   time.Duration
 	rateLimitQueueDepth uint64
+
+	warmerUrl     *url.URL
+	warmerTimeout time.Duration
 }
 
 type gceInstanceConfig struct {
@@ -228,6 +234,7 @@ type gceStartContext struct {
 	bootStart            time.Time
 	instance             *compute.Instance
 	instanceInsertOpName string
+	instanceWarmedIP     string
 	windowsPassword      string
 	zoneName             string
 }
@@ -250,6 +257,8 @@ type gceInstance struct {
 	startupDuration time.Duration
 	os              string
 	windowsPassword string
+
+	warmed bool
 }
 
 type gceInstanceStopContext struct {
@@ -450,6 +459,22 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimiter = ratelimit.NewNullRateLimiter()
 	}
 
+	var warmerUrl *url.URL
+	if cfg.IsSet("WARMER_URL") {
+		warmerUrl, err = url.Parse(cfg.Get("WARMER_URL"))
+		if err != nil {
+			return nil, errors.Wrap(err, "could not parse WARMER_URL")
+		}
+	}
+
+	warmerTimeout := defaultGCEWarmerTimeout
+	if cfg.IsSet("WARMER_TIMEOUT") {
+		warmerTimeout, err = time.ParseDuration(cfg.Get("WARMER_TIMEOUT"))
+		if err != nil {
+			return nil, errors.Wrap(err, "could not parse WARMER_TIMEOUT")
+		}
+	}
+
 	rateLimitMaxCalls := defaultGCERateLimitMaxCalls
 	if cfg.IsSet("RATE_LIMIT_MAX_CALLS") {
 		mc, err := strconv.ParseUint(cfg.Get("RATE_LIMIT_MAX_CALLS"), 10, 64)
@@ -546,6 +571,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
 		rateLimitDuration: rateLimitDuration,
+
+		warmerUrl:     warmerUrl,
+		warmerTimeout: warmerTimeout,
 	}, nil
 }
 
@@ -825,6 +853,8 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 }
 
 func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
+
 	inst, err := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
@@ -841,6 +871,29 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	}).Debug("inserting instance")
 
 	c.bootStart = time.Now().UTC()
+
+	if c.startAttributes.Warmer && p.warmerUrl != nil {
+		warmedIP, err := p.warmerRequestInstance(c.ctx, c.zoneName, inst)
+		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err": err,
+			}).Warn("could not obtain instance from warmer")
+		} else {
+			// success case
+			logger.WithFields(logrus.Fields{
+				"ip": warmedIP,
+			}).Debug("got instance from warmer")
+
+			c.instance = inst
+			c.instanceWarmedIP = warmedIP
+			c.progresser.Progress(&ProgressEntry{
+				Message: "obtained instance",
+				State:   ProgressSuccess,
+			})
+
+			return multistep.ActionContinue
+		}
+	}
 
 	p.apiRateLimit(c.ctx)
 	op, err := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
@@ -864,6 +917,40 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
+
+	gceInst := &gceInstance{
+		zoneName:   c.zoneName,
+		client:     p.client,
+		provider:   p,
+		instance:   c.instance,
+		ic:         p.ic,
+		progresser: c.progresser,
+
+		authUser: "travis",
+
+		projectID: p.projectID,
+		imageName: c.image.Name,
+
+		os:              c.startAttributes.OS,
+		windowsPassword: c.windowsPassword,
+	}
+
+	if c.instanceWarmedIP != "" {
+		logger.Debug("pre-warmed instance present, skipping boot poll")
+
+		startupDuration := time.Now().UTC().Sub(c.bootStart)
+		c.progresser.Progress(&ProgressEntry{
+			Message:    fmt.Sprintf("instance is ready (%s)", startupDuration.Truncate(time.Millisecond)),
+			State:      ProgressSuccess,
+			Interrupts: true,
+		})
+
+		gceInst.startupDuration = startupDuration
+		gceInst.warmed = true
+		c.instChan <- gceInst
+
+		return multistep.ActionContinue
+	}
 
 	logger.WithField("duration", p.bootPrePollSleep).Debug("sleeping before first checking instance insert operation")
 	c.progresser.Progress(&ProgressEntry{
@@ -917,23 +1004,10 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				State:      ProgressSuccess,
 				Interrupts: true,
 			})
-			c.instChan <- &gceInstance{
-				zoneName:   c.zoneName,
-				client:     p.client,
-				provider:   p,
-				instance:   c.instance,
-				ic:         p.ic,
-				progresser: c.progresser,
 
-				authUser: "travis",
+			gceInst.startupDuration = startupDuration
+			c.instChan <- gceInst
 
-				projectID: p.projectID,
-				imageName: c.image.Name,
-
-				os:              c.startAttributes.OS,
-				windowsPassword: c.windowsPassword,
-				startupDuration: startupDuration,
-			}
 			return multistep.ActionContinue
 		}
 
@@ -1182,6 +1256,77 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}, nil
 }
 
+func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, inst *compute.Instance) (string, error) {
+	if len(inst.Disks) == 0 {
+		return "", errors.New("missing disk in instance description")
+	}
+
+	warmerReq := &warmerRequest{
+		Site:        p.ic.Site,
+		Zone:        zone,
+		ImageName:   inst.Disks[0].InitializeParams.SourceImage,
+		MachineType: inst.MachineType,
+	}
+
+	reqBody, err := json.Marshal(warmerReq)
+	if err != nil {
+		return "", errors.Wrap(err, "could not encode request body")
+	}
+
+	b := bytes.NewBuffer(reqBody)
+	req, err := http.NewRequest(
+		"POST",
+		p.warmerUrl.String()+"/request-instance",
+		b,
+	)
+	if err != nil {
+		return "", errors.Wrap(err, "could not create http request")
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+	if p.warmerUrl.User != nil {
+		if pw, ok := p.warmerUrl.User.Password(); ok {
+			req.SetBasicAuth(p.warmerUrl.User.Username(), pw)
+		}
+	}
+	req = req.WithContext(ctx)
+
+	client := &http.Client{
+		Timeout: p.warmerTimeout,
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", errors.Wrap(err, "could not perform http request")
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		return "", errors.Errorf("expected 200 response code from warmer, got %v", res.StatusCode)
+	}
+
+	warmerRes := &warmerResponse{}
+
+	err = json.NewDecoder(res.Body).Decode(warmerRes)
+	if err != nil {
+		return "", errors.Wrap(err, "could not decode response body")
+	}
+
+	return warmerRes.IP, nil
+}
+
+type warmerRequest struct {
+	Site        string `json:"site"`
+	Zone        string `json:"zone"`
+	ImageName   string `json:"image_name"`
+	MachineType string `json:"machine_type"`
+}
+
+type warmerResponse struct {
+	IP   string `json:"ip"`
+	Name string `json:"name"`
+}
+
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
 	ip, err := i.getCachedIP(ctx)
 	if err != nil {
@@ -1251,6 +1396,10 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 
 	i.instance = inst
 	return nil
+}
+
+func (i *gceInstance) Warmed() bool {
+	return i.warmed
 }
 
 func (i *gceInstance) SupportsProgress() bool {
