@@ -873,19 +873,19 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	c.bootStart = time.Now().UTC()
 
 	if c.startAttributes.Warmer && p.warmerUrl != nil {
-		warmedIP, err := p.warmerRequestInstance(c.ctx, c.zoneName, inst)
+		warmerResponse, err := p.warmerRequestInstance(c.ctx, c.zoneName, inst)
 		if err != nil {
-			logger.WithFields(logrus.Fields{
-				"err": err,
-			}).Warn("could not obtain instance from warmer")
+			logger.WithError(err).Warn("could not obtain instance from warmer")
 		} else {
 			// success case
 			logger.WithFields(logrus.Fields{
-				"ip": warmedIP,
-			}).Debug("got instance from warmer")
+				"ip":   warmerResponse.IP,
+				"name": warmerResponse.Name,
+			}).Info("got instance from warmer")
 
+			inst.Name = warmerResponse.Name
 			c.instance = inst
-			c.instanceWarmedIP = warmedIP
+			c.instanceWarmedIP = warmerResponse.IP
 			c.progresser.Progress(&ProgressEntry{
 				Message: "obtained instance",
 				State:   ProgressSuccess,
@@ -946,6 +946,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		})
 
 		gceInst.startupDuration = startupDuration
+		gceInst.cachedIPAddr = c.instanceWarmedIP
 		gceInst.warmed = true
 		c.instChan <- gceInst
 
@@ -1256,9 +1257,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}, nil
 }
 
-func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, inst *compute.Instance) (string, error) {
+func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, inst *compute.Instance) (*warmerResponse, error) {
 	if len(inst.Disks) == 0 {
-		return "", errors.New("missing disk in instance description")
+		return nil, errors.New("missing disk in instance description")
 	}
 
 	warmerReq := &warmerRequest{
@@ -1270,7 +1271,7 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 
 	reqBody, err := json.Marshal(warmerReq)
 	if err != nil {
-		return "", errors.Wrap(err, "could not encode request body")
+		return nil, errors.Wrap(err, "could not encode request body")
 	}
 
 	b := bytes.NewBuffer(reqBody)
@@ -1280,7 +1281,7 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 		b,
 	)
 	if err != nil {
-		return "", errors.Wrap(err, "could not create http request")
+		return nil, errors.Wrap(err, "could not create http request")
 	}
 
 	req.Header.Add("Content-Type", "application/json")
@@ -1297,22 +1298,22 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 
 	res, err := client.Do(req)
 	if err != nil {
-		return "", errors.Wrap(err, "could not perform http request")
+		return nil, errors.Wrap(err, "could not perform http request")
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		return "", errors.Errorf("expected 200 response code from warmer, got %v", res.StatusCode)
+		return nil, errors.Errorf("expected 200 response code from warmer, got %v", res.StatusCode)
 	}
 
 	warmerRes := &warmerResponse{}
 
 	err = json.NewDecoder(res.Body).Decode(warmerRes)
 	if err != nil {
-		return "", errors.Wrap(err, "could not decode response body")
+		return nil, errors.Wrap(err, "could not decode response body")
 	}
 
-	return warmerRes.IP, nil
+	return warmerRes, nil
 }
 
 type warmerRequest struct {
@@ -1407,6 +1408,8 @@ func (i *gceInstance) SupportsProgress() bool {
 }
 
 func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+
 	uploadedChan := make(chan error)
 	var lastErr error
 
@@ -1430,7 +1433,9 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 			}
 
 			err := i.uploadScriptAttempt(ctx, script)
-			if err == nil {
+			if err != nil {
+				logger.WithError(err).Debug("upload script attempt errored")
+			} else {
 				timeToConn := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
 				i.progresser.Progress(&ProgressEntry{
 					Message:    fmt.Sprintf("%s connectivity established (%s)", connType, timeToConn),
