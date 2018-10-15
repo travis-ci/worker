@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- backend/gce: propagate warmed instance name and ip correctly
 
 ### Deprecated
 
