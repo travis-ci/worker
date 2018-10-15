@@ -96,7 +96,7 @@ build/linux/amd64/travis-worker:
 
 .PHONY: distclean
 distclean: clean
-	rm -f vendor/.deps-fetched
+	rm -rf vendor/.deps-fetched build/
 
 .PHONY: deps
 deps: .ensure-shfmt .ensure-gometalinter .ensure-gvt vendor/.deps-fetched
