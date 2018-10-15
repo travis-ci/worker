@@ -44,7 +44,7 @@ jobs:
     - make lintall
     - make build
     - mkdir -p build/linux/amd64
-    - cp $GOPATH/bin/travis-worker build/linux/amd64
+    - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make test-no-cover
     - make test-cover
     - make smoke
@@ -83,5 +83,5 @@ jobs:
     script:
     - make build
     - mkdir -p build/linux/amd64
-    - cp $GOPATH/bin/travis-worker build/linux/amd64
+    - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make http-job-test
