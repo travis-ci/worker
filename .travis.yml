@@ -6,7 +6,8 @@ group: edge
 
 cache:
   directories:
-    - vendor
+  - vendor
+  - $HOME/gopath/bin
 
 services:
 - rabbitmq
