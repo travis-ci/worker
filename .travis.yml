@@ -27,6 +27,9 @@ stages:
 - cache-warm
 - test
 
+before_cache:
+- make clean
+
 jobs:
   include:
   - stage: cache-warm
@@ -42,7 +45,8 @@ jobs:
     - make build
     - mkdir -p build/linux/amd64
     - cp $GOPATH/bin/travis-worker build/linux/amd64
-    - make test
+    - make test-no-cover
+    - make test-cover
     - make smoke
     addons:
       artifacts:

@@ -57,7 +57,10 @@ SHFMT_URL := https://github.com/mvdan/sh/releases/download/v2.5.0/shfmt_v2.5.0_l
 all: clean test
 
 .PHONY: test
-test: vendor/.deps-fetched lintall build fmtpolice test-no-cover coverage.html
+test: vendor/.deps-fetched lintall build fmtpolice test-no-cover test-cover
+
+.PHONY: test-cover
+test-cover: coverage.html
 
 .PHONY: test-no-cover
 test-no-cover:
