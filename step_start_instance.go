@@ -26,6 +26,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 	logWriter := state.Get("logWriter").(LogWriter)
 
+	defer context.TimeSince(ctx, "step_start_instance_run", time.Now())
+
 	ctx, span := trace.StartSpan(ctx, "StartInstance.Run")
 	defer span.End()
 

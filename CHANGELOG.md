@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- processor: track cumulative per-job timings
 
 ### Changed
 - backend/gce: propagate warmed instance name and ip correctly

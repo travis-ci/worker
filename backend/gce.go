@@ -582,6 +582,8 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	startWait := time.Now()
 	defer metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
 
+	defer context.TimeSince(ctx, "gce_api_rate_limit", time.Now())
+
 	atomic.AddUint64(&p.rateLimitQueueDepth, 1)
 	// This decrements the counter, see the docs for atomic.AddUint64
 	defer atomic.AddUint64(&p.rateLimitQueueDepth, ^uint64(0))
@@ -916,6 +918,8 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 }
 
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
+	defer context.TimeSince(c.ctx, "gce_boot_poll", time.Now())
+
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
 	gceInst := &gceInstance{

@@ -30,6 +30,8 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_upload_script")
 
+	defer context.TimeSince(ctx, "step_upload_script_run", time.Now())
+
 	ctx, span := trace.StartSpan(ctx, "UploadScript.Run")
 	defer span.End()
 
