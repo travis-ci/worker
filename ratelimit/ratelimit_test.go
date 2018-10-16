@@ -18,7 +18,7 @@ func TestRateLimit(t *testing.T) {
 
 	rateLimiter := NewRateLimiter(os.Getenv("REDIS_URL"), fmt.Sprintf("worker-test-rl-%d", os.Getpid()))
 
-	ok, err := rateLimiter.RateLimit("slow", 2, time.Hour)
+	ok, err := rateLimiter.RateLimit(ctx, "slow", 2, time.Hour)
 	if err != nil {
 		t.Fatalf("rate limiter error: %v", err)
 	}
@@ -26,7 +26,7 @@ func TestRateLimit(t *testing.T) {
 		t.Fatal("expected to not get rate limited, but was limited")
 	}
 
-	ok, err = rateLimiter.RateLimit("slow", 2, time.Hour)
+	ok, err = rateLimiter.RateLimit(ctx, "slow", 2, time.Hour)
 	if err != nil {
 		t.Fatalf("rate limiter error: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestRateLimit(t *testing.T) {
 		t.Fatal("expected to not get rate limited, but was limited")
 	}
 
-	ok, err = rateLimiter.RateLimit("slow", 2, time.Hour)
+	ok, err = rateLimiter.RateLimit(ctx, "slow", 2, time.Hour)
 	if err != nil {
 		t.Fatalf("rate limiter error: %v", err)
 	}
