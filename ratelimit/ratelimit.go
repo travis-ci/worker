@@ -127,6 +127,6 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 	return true, nil
 }
 
-func (rl nullRateLimiter) RateLimit(cxt gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
+func (rl nullRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
 	return true, nil
 }
