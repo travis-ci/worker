@@ -9,7 +9,6 @@ main() {
   rm -rvf \
     "${GOPATH%%:*}/bin/travis-worker" \
     ./*coverage.coverprofile \
-    ./build \
     ./tmp/deb \
     ./tmp/output \
     .docker.env \

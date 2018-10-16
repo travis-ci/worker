@@ -1,12 +1,13 @@
 language: go
-go: 1.10.x
+go: 1.11.x
 sudo: required
 dist: trusty
 group: edge
 
 cache:
   directories:
-    - vendor
+  - vendor
+  - $HOME/gopath/bin
 
 services:
 - rabbitmq
@@ -22,54 +23,65 @@ env:
   - GO15VENDOREXPERIMENT='1'
   - REDIS_URL="redis://"
 
+stages:
+- cache-warm
+- test
+
+before_cache:
+- make clean
+
 jobs:
   include:
-    - stage: test
-      name: "linux"
-      script:
-        - travis_retry make deps
-        - make lintall
-        - make build
-        - mkdir -p build/linux/amd64
-        - cp $GOPATH/bin/travis-worker build/linux/amd64
-        - make test
-        - make smoke
-      addons:
-        artifacts:
-          paths:
-            - ./build/linux/amd64/travis-worker
-          target_paths:
-            - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
-            - travis-ci/worker/$(git describe --always --dirty --tags)
-            - travis-ci/worker/$TRAVIS_BRANCH
-    - name: "crossbuild"
-      script:
-        - travis_retry make deps
-        - make build/darwin/amd64/travis-worker
-      addons:
-        artifacts:
-          paths:
-            - ./build/darwin/amd64/travis-worker
-          target_paths:
-            - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
-            - travis-ci/worker/$(git describe --always --dirty --tags)
-            - travis-ci/worker/$TRAVIS_BRANCH
-    - name: "docker"
-      if: type != 'pull_request' && env(DOCKER_LOGIN_PASSWORD) is present && env(DOCKER_LOGIN_USERNAME) is present
-      script:
-        - make docker-build
-        - make smoke-docker
-        - make docker-push
-        - make send-docker-hub-trigger
-      addons:
-        apt:
-          update: true
-          packages:
-            - docker-ce
-    - name: "http-job-test"
-      script:
-        - travis_retry make deps
-        - make build
-        - mkdir -p build/linux/amd64
-        - cp $GOPATH/bin/travis-worker build/linux/amd64
-        - make http-job-test
+  - stage: cache-warm
+    name: cache warm
+    script:
+    - git checkout -- vendor/
+    - make distclean
+    - travis_retry make deps
+  - stage: test
+    name: linux
+    script:
+    - make lintall
+    - make build
+    - mkdir -p build/linux/amd64
+    - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
+    - make test-no-cover
+    - make test-cover
+    - make smoke
+    addons:
+      artifacts:
+        paths:
+        - ./build/linux/amd64/travis-worker
+        target_paths:
+        - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+        - travis-ci/worker/$(git describe --always --dirty --tags)
+        - travis-ci/worker/$TRAVIS_BRANCH
+  - name: crossbuild
+    script:
+    - make build/darwin/amd64/travis-worker
+    addons:
+      artifacts:
+        paths:
+        - ./build/darwin/amd64/travis-worker
+        target_paths:
+        - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
+        - travis-ci/worker/$(git describe --always --dirty --tags)
+        - travis-ci/worker/$TRAVIS_BRANCH
+  - name: docker
+    if: type != 'pull_request' && env(DOCKER_LOGIN_PASSWORD) is present && env(DOCKER_LOGIN_USERNAME) is present
+    script:
+    - make docker-build
+    - make smoke-docker
+    - make docker-push
+    - make send-docker-hub-trigger
+    addons:
+      apt:
+        update: true
+        packages:
+        - docker-ce
+  - name: http-job-test
+    script:
+    - make build
+    - mkdir -p build/linux/amd64
+    - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
+    - make http-job-test
