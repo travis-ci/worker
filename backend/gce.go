@@ -2,9 +2,13 @@ package backend
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -104,6 +108,7 @@ var (
 		"UPLOAD_RETRY_SLEEP":     fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
 		"WARMER_URL":             "URL for warmer service",
 		"WARMER_TIMEOUT":         fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
+		"WARMER_SSH_PASSPHRASE":  fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
 		"ZONE":                   fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
@@ -187,8 +192,9 @@ type gceProvider struct {
 	rateLimitDuration   time.Duration
 	rateLimitQueueDepth uint64
 
-	warmerUrl     *url.URL
-	warmerTimeout time.Duration
+	warmerUrl           *url.URL
+	warmerTimeout       time.Duration
+	warmerSSHPassphrase string
 }
 
 type gceInstanceConfig struct {
@@ -227,6 +233,7 @@ type gceStartContext struct {
 	startAttributes      *StartAttributes
 	progresser           Progresser
 	ctx                  gocontext.Context
+	sshDialer            ssh.Dialer
 	instChan             chan Instance
 	errChan              chan error
 	image                *compute.Image
@@ -247,6 +254,7 @@ type gceInstance struct {
 	ic       *gceInstanceConfig
 
 	progresser Progresser
+	sshDialer  ssh.Dialer
 
 	authUser     string
 	cachedIPAddr string
@@ -475,6 +483,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	var warmerSSHPassphrase string
+	if cfg.IsSet("WARMER_SSH_PASSPHRASE") {
+		warmerSSHPassphrase = cfg.Get("WARMER_SSH_PASSPHRASE")
+	}
+
 	rateLimitMaxCalls := defaultGCERateLimitMaxCalls
 	if cfg.IsSet("RATE_LIMIT_MAX_CALLS") {
 		mc, err := strconv.ParseUint(cfg.Get("RATE_LIMIT_MAX_CALLS"), 10, 64)
@@ -572,8 +585,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		rateLimitMaxCalls: rateLimitMaxCalls,
 		rateLimitDuration: rateLimitDuration,
 
-		warmerUrl:     warmerUrl,
-		warmerTimeout: warmerTimeout,
+		warmerUrl:           warmerUrl,
+		warmerTimeout:       warmerTimeout,
+		warmerSSHPassphrase: warmerSSHPassphrase,
 	}, nil
 }
 
@@ -736,6 +750,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 		startAttributes: startAttributes,
 		zoneName:        zone.Name,
 		progresser:      progresser,
+		sshDialer:       p.sshDialer,
 		ctx:             ctx,
 		instChan:        make(chan Instance),
 		errChan:         make(chan error),
@@ -891,6 +906,39 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 				State:   ProgressSuccess,
 			})
 
+			// we need to decrypt the instance SSH key in order to create the dialer
+			data := []byte(warmerResponse.SSHPrivateKey)
+			hasher := md5.New()
+			hasher.Write([]byte(p.warmerSSHPassphrase))
+			key := []byte(hex.EncodeToString(hasher.Sum(nil)))
+			block, err := aes.NewCipher(key)
+			if err != nil {
+				c.errChan <- err
+				return multistep.ActionHalt
+			}
+			gcm, err := cipher.NewGCM(block)
+			if err != nil {
+				c.errChan <- err
+				return multistep.ActionHalt
+			}
+			nonceSize := gcm.NonceSize()
+			nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+			decryptedKey, err := gcm.Open(nil, nonce, ciphertext, nil)
+			if err != nil {
+				c.errChan <- err
+				return multistep.ActionHalt
+			}
+			sshDialer, err := ssh.NewDialerWithKeyWithoutPassPhrase(decryptedKey)
+			if err != nil {
+				c.progresser.Progress(&ProgressEntry{
+					Message: "could not create ssh dialer for instance",
+					State:   ProgressFailure,
+				})
+				c.errChan <- err
+				return multistep.ActionHalt
+			}
+			c.sshDialer = sshDialer
+
 			return multistep.ActionContinue
 		}
 	}
@@ -925,6 +973,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		instance:   c.instance,
 		ic:         p.ic,
 		progresser: c.progresser,
+		sshDialer:  c.sshDialer,
 
 		authUser: "travis",
 
@@ -1324,8 +1373,9 @@ type warmerRequest struct {
 }
 
 type warmerResponse struct {
-	IP   string `json:"ip"`
-	Name string `json:"name"`
+	IP            string `json:"ip"`
+	Name          string `json:"name"`
+	SSHPrivateKey string `json:"ssh_private_key"`
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
@@ -1334,7 +1384,7 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, erro
 		return nil, err
 	}
 
-	return i.provider.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
+	return i.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
 }
 
 func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {
