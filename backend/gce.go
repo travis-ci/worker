@@ -589,7 +589,7 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	errCount := 0
 
 	for {
-		ok, err := p.rateLimiter.RateLimit("gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
+		ok, err := p.rateLimiter.RateLimit(ctx, "gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
 		if err != nil {
 			errCount++
 			if errCount >= 5 {

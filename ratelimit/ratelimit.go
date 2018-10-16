@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	gocontext "context"
+
 	"github.com/garyburd/redigo/redis"
+	"go.opencensus.io/trace"
 )
 
 const (
@@ -31,10 +34,11 @@ type RateLimiter interface {
 	// met, and you should sleep for a bit and try again.
 	//
 	// In case an error happens, (false, err) is returned.
-	RateLimit(name string, maxCalls uint64, per time.Duration) (bool, error)
+	RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error)
 }
 
 type redisRateLimiter struct {
+	ctx    gocontext.Context
 	pool   *redis.Pool
 	prefix string
 }
@@ -73,9 +77,12 @@ func NewNullRateLimiter() RateLimiter {
 // requests when there are many clients talking to the same Redis. The reason
 // for this is unknown, but it's probably wise to limit the number of clients
 // to 5 or 6 for the time being.
-func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Duration) (bool, error) {
+func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
 	conn := rl.pool.Get()
 	defer conn.Close()
+
+	ctx, span := trace.StartSpan(ctx, "Redis.RateLimit")
+	defer span.End()
 
 	now := time.Now()
 	timestamp := now.Unix() - (now.Unix() % int64(per.Seconds()))
@@ -120,6 +127,6 @@ func (rl *redisRateLimiter) RateLimit(name string, maxCalls uint64, per time.Dur
 	return true, nil
 }
 
-func (rl nullRateLimiter) RateLimit(name string, maxCalls uint64, per time.Duration) (bool, error) {
+func (rl nullRateLimiter) RateLimit(cxt gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
 	return true, nil
 }
