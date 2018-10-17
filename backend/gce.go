@@ -918,7 +918,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 }
 
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
-	defer context.TimeSince(c.ctx, "gce_boot_poll", time.Now())
+	defer context.TimeSince(c.ctx, "boot_poll_ip", time.Now())
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
@@ -1416,6 +1416,8 @@ func (i *gceInstance) SupportsProgress() bool {
 }
 
 func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+	defer context.TimeSince(ctx, "boot_poll_ssh", time.Now())
+
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 
 	uploadedChan := make(chan error)
