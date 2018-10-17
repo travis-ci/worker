@@ -35,6 +35,7 @@ import (
 	"github.com/travis-ci/worker/remote"
 	"github.com/travis-ci/worker/ssh"
 	"github.com/travis-ci/worker/winrm"
+	"go.opencensus.io/trace"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
@@ -578,6 +579,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
+	ctx, span := trace.StartSpan(ctx, "apiRateLimit")
+	defer span.End()
+
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()
 	defer metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
