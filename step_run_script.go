@@ -33,6 +33,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
 	cancelChan := state.Get("cancelChan").(<-chan struct{})
 
+	defer context.TimeSince(ctx, "step_run_script_run", time.Now())
+
 	ctx, span := trace.StartSpan(ctx, "RunScript.Run")
 	defer span.End()
 

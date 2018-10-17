@@ -2,6 +2,7 @@ package worker
 
 import (
 	gocontext "context"
+	"time"
 
 	"github.com/mitchellh/multistep"
 	"github.com/sirupsen/logrus"
@@ -14,6 +15,8 @@ type stepSendReceived struct{}
 func (s *stepSendReceived) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
+
+	defer context.TimeSince(ctx, "step_send_received_run", time.Now())
 
 	ctx, span := trace.StartSpan(ctx, "SendReceived.Run")
 	defer span.End()

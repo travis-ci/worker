@@ -529,6 +529,8 @@ func (i *jupiterBrainInstance) sshConnection() (ssh.Connection, error) {
 }
 
 func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttributes *StartAttributes) (string, error) {
+	defer context.TimeSince(ctx, "image_select", time.Now())
+
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
 
@@ -545,6 +547,8 @@ func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttribut
 }
 
 func (p *jupiterBrainProvider) waitForIP(ctx gocontext.Context, id string, progresser Progresser) (net.IP, *jupiterBrainInstancePayload, error) {
+	defer context.TimeSince(ctx, "boot_poll_ip", time.Now())
+
 	for {
 		if ctx.Err() != nil {
 			progresser.Progress(&ProgressEntry{
@@ -582,6 +586,8 @@ func (p *jupiterBrainProvider) waitForIP(ctx gocontext.Context, id string, progr
 }
 
 func (p *jupiterBrainProvider) waitForSSH(ctx gocontext.Context, ip net.IP, progresser Progresser) error {
+	defer context.TimeSince(ctx, "boot_poll_ssh", time.Now())
+
 	for {
 		if ctx.Err() != nil {
 			return errors.Errorf("cancelling waiting for instance to boot, was waiting for SSH to come up")

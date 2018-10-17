@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/getsentry/raven-go"
 	"github.com/sirupsen/logrus"
@@ -27,6 +28,7 @@ const (
 	repositoryKey
 	jwtKey
 	instanceIDKey
+	timingsKey
 )
 
 // FromUUID generates a new context with the given context as its parent and
@@ -76,6 +78,25 @@ func FromRepository(ctx context.Context, repository string) context.Context {
 // can be retrieved again using InstanceIDFromContext.
 func FromInstanceID(ctx context.Context, instanceID string) context.Context {
 	return context.WithValue(ctx, instanceIDKey, instanceID)
+}
+
+// WithTimings initializes the timings map in the context, to be mutated
+// by TimeSince for accumulated timings per request
+func WithTimings(ctx context.Context) context.Context {
+	return context.WithValue(ctx, timingsKey, make(map[string]time.Duration))
+}
+
+// TimeSince accumulates timing over the course of a request,
+// it returns "total time this request spent doing X"
+func TimeSince(ctx context.Context, name string, since time.Time) {
+	if timings, ok := ctx.Value(timingsKey).(map[string]time.Duration); ok {
+		elapsed := time.Since(since)
+		if _, ok := timings[name]; ok {
+			timings[name] += elapsed
+		} else {
+			timings[name] = elapsed
+		}
+	}
 }
 
 // UUIDFromContext returns the UUID stored in the context with FromUUID. If no
@@ -132,6 +153,25 @@ func RepositoryFromContext(ctx context.Context) (string, bool) {
 func InstanceIDFromContext(ctx context.Context) (string, bool) {
 	instanceID, ok := ctx.Value(instanceIDKey).(string)
 	return instanceID, ok
+}
+
+// TimingsFromContext returns the timings stored within the context
+func TimingsFromContext(ctx context.Context) (map[string]time.Duration, bool) {
+	timings, ok := ctx.Value(timingsKey).(map[string]time.Duration)
+	return timings, ok
+}
+
+// LoggerTimingsFromContext returns a set of logrus fields
+func LoggerTimingsFromContext(ctx context.Context) logrus.Fields {
+	fields := make(logrus.Fields)
+	timings, ok := TimingsFromContext(ctx)
+	if !ok {
+		return fields
+	}
+	for k, v := range timings {
+		fields[k+"_ms"] = int64(v.Seconds() * 1e3)
+	}
+	return fields
 }
 
 // LoggerFromContext returns a logrus.Entry with the PID of the current process
