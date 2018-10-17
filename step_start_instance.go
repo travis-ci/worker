@@ -103,6 +103,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
 
+	defer context.TimeSince(ctx, "step_start_instance_cleanup", time.Now())
+
 	ctx, span := trace.StartSpan(ctx, "StartInstance.Cleanup")
 	defer span.End()
 
