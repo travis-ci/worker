@@ -261,7 +261,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	runner.Run(state)
 
 	logger.WithFields(
-		context.FormattedTimingsFromContext(ctx),
+		context.LoggerTimingsFromContext(ctx),
 	).Info("finished job")
 
 	p.ProcessedCount++

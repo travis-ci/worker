@@ -161,8 +161,8 @@ func TimingsFromContext(ctx context.Context) (map[string]time.Duration, bool) {
 	return timings, ok
 }
 
-// FormattedTimingsFromContext returns a set of logrus fields
-func FormattedTimingsFromContext(ctx context.Context) logrus.Fields {
+// LoggerTimingsFromContext returns a set of logrus fields
+func LoggerTimingsFromContext(ctx context.Context) logrus.Fields {
 	fields := make(logrus.Fields)
 	timings, ok := TimingsFromContext(ctx)
 	if !ok {
