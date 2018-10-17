@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- processor: track cumulative per-job timings
 
 ### Changed
 - build: update all dependencies, build binaries via go 1.11.1

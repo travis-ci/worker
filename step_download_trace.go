@@ -26,6 +26,8 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx := state.Get("ctx").(gocontext.Context)
 
+	defer context.TimeSince(ctx, "step_download_trace_run", time.Now())
+
 	ctx, span := trace.StartSpan(ctx, "DownloadTrace.Run")
 	defer span.End()
 

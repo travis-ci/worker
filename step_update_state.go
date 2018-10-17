@@ -22,6 +22,8 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_update_state")
 
+	defer context.TimeSince(ctx, "step_update_state_run", time.Now())
+
 	ctx, span := trace.StartSpan(ctx, "UpdateState.Run")
 	defer span.End()
 
@@ -60,6 +62,8 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	processedAt := state.Get("processedAt").(time.Time)
+
+	defer context.TimeSince(ctx, "step_update_state_cleanup", time.Now())
 
 	ctx, span := trace.StartSpan(ctx, "UpdateState.Cleanup")
 	defer span.End()

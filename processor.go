@@ -186,6 +186,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
 	defer span.End()
 
+	ctx = context.WithTimings(ctx)
+
 	span.AddAttributes(
 		trace.StringAttribute("app", "worker"),
 		trace.Int64Attribute("job_id", int64(buildJob.Payload().Job.ID)),
@@ -257,6 +259,10 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	logger.Info("starting job")
 	runner.Run(state)
-	logger.Info("finished job")
+
+	logger.WithFields(
+		context.LoggerTimingsFromContext(ctx),
+	).Info("finished job")
+
 	p.ProcessedCount++
 }
