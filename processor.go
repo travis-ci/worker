@@ -183,10 +183,10 @@ func (p *Processor) Terminate() {
 }
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
+	ctx = context.WithTimings(ctx)
+
 	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
 	defer span.End()
-
-	ctx = context.WithTimings(ctx)
 
 	span.AddAttributes(
 		trace.StringAttribute("app", "worker"),
