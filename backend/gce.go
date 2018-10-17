@@ -2,14 +2,12 @@ package backend
 
 import (
 	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -907,28 +905,24 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			})
 
 			// we need to decrypt the instance SSH key in order to create the dialer
-			data := []byte(warmerResponse.SSHPrivateKey)
-			hasher := md5.New()
-			hasher.Write([]byte(p.warmerSSHPassphrase))
-			key := []byte(hex.EncodeToString(hasher.Sum(nil)))
-			block, err := aes.NewCipher(key)
-			if err != nil {
-				c.errChan <- err
+			block, _ := pem.Decode([]byte(warmerResponse.SSHPrivateKey))
+			if block == nil {
+				c.errChan <- errors.Wrap(err, "ssh key does not contain a valid PEM block")
 				return multistep.ActionHalt
 			}
-			gcm, err := cipher.NewGCM(block)
+			der, err := x509.DecryptPEMBlock(block, []byte(p.warmerSSHPassphrase))
 			if err != nil {
-				c.errChan <- err
+				c.errChan <- errors.Wrap(err, "couldn't decrypt SSH key")
 				return multistep.ActionHalt
 			}
-			nonceSize := gcm.NonceSize()
-			nonce, ciphertext := data[:nonceSize], data[nonceSize:]
-			decryptedKey, err := gcm.Open(nil, nonce, ciphertext, nil)
+
+			decryptedKey, err := x509.ParsePKCS1PrivateKey(der)
 			if err != nil {
-				c.errChan <- err
+				c.errChan <- errors.Wrap(err, "couldn't parse SSH key")
 				return multistep.ActionHalt
 			}
-			sshDialer, err := ssh.NewDialerWithKeyWithoutPassPhrase(decryptedKey)
+
+			sshDialer, err := ssh.NewDialerWithKey(decryptedKey)
 			if err != nil {
 				c.progresser.Progress(&ProgressEntry{
 					Message: "could not create ssh dialer for instance",
