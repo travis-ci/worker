@@ -183,6 +183,8 @@ func (p *Processor) Terminate() {
 }
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
+	ctx = context.WithTimings(ctx)
+
 	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
 	defer span.End()
 
@@ -257,6 +259,10 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	logger.Info("starting job")
 	runner.Run(state)
-	logger.Info("finished job")
+
+	logger.WithFields(
+		context.LoggerTimingsFromContext(ctx),
+	).Info("finished job")
+
 	p.ProcessedCount++
 }

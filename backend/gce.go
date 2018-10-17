@@ -582,6 +582,8 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	startWait := time.Now()
 	defer metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
 
+	defer context.TimeSince(ctx, "gce_api_rate_limit", time.Now())
+
 	atomic.AddUint64(&p.rateLimitQueueDepth, 1)
 	// This decrements the counter, see the docs for atomic.AddUint64
 	defer atomic.AddUint64(&p.rateLimitQueueDepth, ^uint64(0))
@@ -916,6 +918,8 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 }
 
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
+	defer context.TimeSince(c.ctx, "boot_poll_ip", time.Now())
+
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
 	gceInst := &gceInstance{
@@ -1063,6 +1067,8 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 }
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	defer context.TimeSince(ctx, "image_select", time.Now())
+
 	var (
 		imageName string
 		err       error
@@ -1258,6 +1264,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 }
 
 func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, inst *compute.Instance) (*warmerResponse, error) {
+	defer context.TimeSince(ctx, "warmer_request_instance", time.Now())
+
 	if len(inst.Disks) == 0 {
 		return nil, errors.New("missing disk in instance description")
 	}
@@ -1408,6 +1416,8 @@ func (i *gceInstance) SupportsProgress() bool {
 }
 
 func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
+	defer context.TimeSince(ctx, "boot_poll_ssh", time.Now())
+
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 
 	uploadedChan := make(chan error)
