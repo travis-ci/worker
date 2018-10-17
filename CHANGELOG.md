@@ -19,6 +19,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [4.5.1] - 2018-10-17
+
+### Added
+- processor: track cumulative per-job timings
+
+### Changed
+- build: update all dependencies, build binaries via go 1.11.1
+- backend/gce: propagate warmed instance name and ip correctly
+
 ## [4.5.0] - 2018-10-12
 
 ### Added
@@ -805,7 +814,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.5.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.5.1...HEAD
+[4.5.1]: https://github.com/travis-ci/worker/compare/v4.5.0...v4.5.1
 [4.5.0]: https://github.com/travis-ci/worker/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/travis-ci/worker/compare/v4.3.0...v4.4.0
 [4.3.0]: https://github.com/travis-ci/worker/compare/v4.2.0...v4.3.0
