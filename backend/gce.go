@@ -1067,6 +1067,8 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 }
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	defer context.TimeSince(ctx, "image_select", time.Now())
+
 	var (
 		imageName string
 		err       error
@@ -1262,6 +1264,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 }
 
 func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, inst *compute.Instance) (*warmerResponse, error) {
+	defer context.TimeSince(ctx, "warmer_request_instance", time.Now())
+
 	if len(inst.Disks) == 0 {
 		return nil, errors.New("missing disk in instance description")
 	}
