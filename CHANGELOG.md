@@ -5,11 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- processor: track cumulative per-job timings
 
 ### Changed
-- build: update all dependencies, build binaries via go 1.11.1
-- backend/gce: propagate warmed instance name and ip correctly
+- trace: expanded set of trace functions for stackdriver trace
+    * ratelimit (redis and GCE API rate limiting)
+    * backend/gce
+    * amqp_job
 
 ### Deprecated
 
