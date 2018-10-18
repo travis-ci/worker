@@ -354,8 +354,8 @@ func (i *CLI) setupMetrics() {
 
 func loadStackdriverTraceJSON(ctx gocontext.Context, stackdriverTraceAccountJSON string) (*google.Credentials, error) {
 	if stackdriverTraceAccountJSON == "" {
-		client, err := google.FindDefaultCredentials(gocontext.TODO(), googlecloudtrace.ScopeTraceAppend)
-		return client, errors.Wrap(err, "could not build default client")
+		creds, err := google.FindDefaultCredentials(gocontext.TODO(), googlecloudtrace.ScopeTraceAppend)
+		return creds, errors.Wrap(err, "could not build default client")
 	}
 
 	credBytes, err := loadBytes(stackdriverTraceAccountJSON)
