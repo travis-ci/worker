@@ -1374,6 +1374,7 @@ type warmerResponse struct {
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
 	ctx, span := trace.StartSpan(ctx, "GCE.sshConnection")
 	defer span.End()
+
 	ip, err := i.getCachedIP(ctx)
 	if err != nil {
 		return nil, err

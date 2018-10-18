@@ -103,6 +103,7 @@ func (j *amqpJob) Received(ctx gocontext.Context) error {
 func (j *amqpJob) Started(ctx gocontext.Context) error {
 	ctx, span := trace.StartSpan(ctx, "amqpJob.Started")
 	defer span.End()
+
 	j.started = time.Now()
 
 	metrics.TimeSince("travis.worker.job.start_time", j.received)
@@ -113,6 +114,7 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	ctx, span := trace.StartSpan(ctx, "amqpJob.Finished")
 	defer span.End()
+
 	j.finished = time.Now()
 
 	if j.received.IsZero() {
