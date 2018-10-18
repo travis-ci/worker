@@ -37,6 +37,7 @@ import (
 	"github.com/travis-ci/worker/remote"
 	"github.com/travis-ci/worker/ssh"
 	"github.com/travis-ci/worker/winrm"
+	"go.opencensus.io/trace"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
@@ -590,6 +591,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
+	ctx, span := trace.StartSpan(ctx, "apiRateLimit")
+	defer span.End()
+
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()
 	defer metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
@@ -603,7 +607,7 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	errCount := 0
 
 	for {
-		ok, err := p.rateLimiter.RateLimit("gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
+		ok, err := p.rateLimiter.RateLimit(ctx, "gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
 		if err != nil {
 			errCount++
 			if errCount >= 5 {
@@ -803,6 +807,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
+	ctx := c.ctx
+
+	ctx, span := trace.StartSpan(ctx, "GCE.GetImage")
+	defer span.End()
+
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
@@ -831,6 +840,11 @@ func makeWindowsPassword() (string, error) {
 }
 
 func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
+	ctx := c.ctx
+
+	ctx, span := trace.StartSpan(ctx, "GCE.RenderScript")
+	defer span.End()
+
 	scriptBuf := bytes.Buffer{}
 	scriptData := gceStartupScriptData{
 		AutoImplode:        p.ic.AutoImplode,
@@ -868,6 +882,11 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 }
 
 func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepAction {
+	ctx := c.ctx
+
+	ctx, span := trace.StartSpan(ctx, "GCE.InsertInstance")
+	defer span.End()
+
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
 	inst, err := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
@@ -960,6 +979,11 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 }
 
 func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAction {
+	ctx := c.ctx
+
+	ctx, span := trace.StartSpan(ctx, "GCE.WaitForInstanceIP")
+	defer span.End()
+
 	defer context.TimeSince(c.ctx, "boot_poll_ip", time.Now())
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
@@ -1086,6 +1110,9 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 }
 
 func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.imageByFilter")
+	defer span.End()
+
 	p.apiRateLimit(ctx)
 	// TODO: add some TTL cache in here maybe?
 	images, err := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
@@ -1110,6 +1137,9 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 }
 
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.imageSelect")
+	defer span.End()
+
 	defer context.TimeSince(ctx, "image_select", time.Now())
 
 	var (
@@ -1162,6 +1192,8 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 }
 
 func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) (*compute.Instance, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.buildinstance")
+	defer span.End()
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 
 	var err error
@@ -1307,6 +1339,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 }
 
 func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, inst *compute.Instance) (*warmerResponse, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.warmerRequestInstance")
+	defer span.End()
+
 	defer context.TimeSince(ctx, "warmer_request_instance", time.Now())
 
 	if len(inst.Disks) == 0 {
@@ -1381,6 +1416,9 @@ type warmerResponse struct {
 }
 
 func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.sshConnection")
+	defer span.End()
+
 	ip, err := i.getCachedIP(ctx)
 	if err != nil {
 		return nil, err
@@ -1390,6 +1428,9 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, erro
 }
 
 func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.winrmRemoter")
+	defer span.End()
+
 	ip, err := i.getCachedIP(ctx)
 	if err != nil {
 		return nil, err
@@ -1441,6 +1482,9 @@ func (i *gceInstance) getIP() string {
 }
 
 func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
+	ctx, span := trace.StartSpan(ctx, "GCE.refreshInstance")
+	defer span.End()
+
 	i.provider.apiRateLimit(ctx)
 	inst, err := i.client.Instances.Get(i.projectID, i.zoneName, i.instance.Name).Context(ctx).Do()
 	if err != nil {

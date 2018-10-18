@@ -14,6 +14,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"github.com/travis-ci/worker/metrics"
+	"go.opencensus.io/trace"
 )
 
 type amqpJob struct {
@@ -49,6 +50,9 @@ func (j *amqpJob) StartAttributes() *backend.StartAttributes {
 }
 
 func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
+	ctx, span := trace.StartSpan(ctx, "amqpJob.Error")
+	defer span.End()
+
 	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
 		return err
@@ -63,6 +67,9 @@ func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
 }
 
 func (j *amqpJob) Requeue(ctx gocontext.Context) error {
+	ctx, span := trace.StartSpan(ctx, "amqpJob.Requeue")
+	defer span.End()
+
 	context.LoggerFromContext(ctx).WithFields(
 		logrus.Fields{
 			"self":       "amqp_job",
@@ -81,6 +88,9 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 }
 
 func (j *amqpJob) Received(ctx gocontext.Context) error {
+	ctx, span := trace.StartSpan(ctx, "amqpJob.Received")
+	defer span.End()
+
 	j.received = time.Now()
 
 	if j.payload.Job.QueuedAt != nil {
@@ -91,6 +101,9 @@ func (j *amqpJob) Received(ctx gocontext.Context) error {
 }
 
 func (j *amqpJob) Started(ctx gocontext.Context) error {
+	ctx, span := trace.StartSpan(ctx, "amqpJob.Started")
+	defer span.End()
+
 	j.started = time.Now()
 
 	metrics.TimeSince("travis.worker.job.start_time", j.received)
@@ -99,6 +112,9 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 }
 
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
+	ctx, span := trace.StartSpan(ctx, "amqpJob.Finished")
+	defer span.End()
+
 	j.finished = time.Now()
 
 	if j.received.IsZero() {
@@ -171,6 +187,9 @@ func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map
 }
 
 func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) error {
+	ctx, span := trace.StartSpan(ctx, "amqpJob.sendStateUpdate")
+	defer span.End()
+
 	err := j.stateUpdatePool.Process(&amqpStateUpdatePayload{
 		job:   j,
 		ctx:   ctx,
