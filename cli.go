@@ -140,7 +140,7 @@ func (i *CLI) Setup() (bool, error) {
 	i.setupSentry()
 	i.setupMetrics()
 
-	err := i.setupOpenCensus
+	err := i.setupOpenCensus()
 	if err != nil {
 		logger.WithField("err", err).Error("failed to set up opencensus")
 		return false, err
