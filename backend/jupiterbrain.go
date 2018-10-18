@@ -534,7 +534,7 @@ func (p *jupiterBrainProvider) getImageName(ctx gocontext.Context, startAttribut
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
 
-	return p.imageSelector.Select(&image.Params{
+	return p.imageSelector.Select(ctx, &image.Params{
 		Infra:    "jupiterbrain",
 		Language: startAttributes.Language,
 		OsxImage: startAttributes.OsxImage,

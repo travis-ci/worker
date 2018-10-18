@@ -360,7 +360,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
-		selectedImageID, err := p.imageSelector.Select(&image.Params{
+		selectedImageID, err := p.imageSelector.Select(ctx, &image.Params{
 			Language: startAttributes.Language,
 			Infra:    "docker",
 		})
@@ -836,8 +836,8 @@ func (i *dockerInstance) StartupDuration() time.Duration {
 	return i.startBooting.Sub(containerCreated)
 }
 
-func (s *dockerTagImageSelector) Select(params *image.Params) (string, error) {
-	images, err := s.client.ImageList(gocontext.TODO(), dockertypes.ImageListOptions{All: true})
+func (s *dockerTagImageSelector) Select(ctx gocontext.Context, params *image.Params) (string, error) {
+	images, err := s.client.ImageList(ctx, dockertypes.ImageListOptions{All: true})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list docker images")
 	}

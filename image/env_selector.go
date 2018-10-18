@@ -1,6 +1,7 @@
 package image
 
 import (
+	gocontext "context"
 	"strings"
 
 	"github.com/travis-ci/worker/config"
@@ -32,7 +33,7 @@ func (es *EnvSelector) buildLookup() {
 	es.lookup = lookup
 }
 
-func (es *EnvSelector) Select(params *Params) (string, error) {
+func (es *EnvSelector) Select(ctx gocontext.Context, params *Params) (string, error) {
 	imageName := "default"
 
 	for _, key := range es.buildCandidateKeys(params) {
