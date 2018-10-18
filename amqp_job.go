@@ -143,9 +143,6 @@ func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 }
 
 func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Duration) (LogWriter, error) {
-	ctx, span := trace.StartSpan(ctx, "amqpJob.LogWriter")
-	defer span.End()
-
 	logTimeout := time.Duration(j.payload.Timeouts.LogSilence) * time.Second
 	if logTimeout == 0 {
 		logTimeout = defaultLogTimeout
@@ -155,9 +152,6 @@ func (j *amqpJob) LogWriter(ctx gocontext.Context, defaultLogTimeout time.Durati
 }
 
 func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map[string]interface{} {
-	ctx, span := trace.StartSpan(ctx, "amqpJob.createStateUpdateBody")
-	defer span.End()
-
 	body := map[string]interface{}{
 		"id":    j.Payload().Job.ID,
 		"state": state,
@@ -210,9 +204,6 @@ func (j *amqpJob) sendStateUpdate(ctx gocontext.Context, event, state string) er
 }
 
 func (j *amqpJob) SetupContext(ctx gocontext.Context) gocontext.Context {
-	ctx, span := trace.StartSpan(ctx, "amqpJob.SetupContext")
-	defer span.End()
-
 	return ctx
 }
 
