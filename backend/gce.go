@@ -39,6 +39,7 @@ import (
 	"github.com/travis-ci/worker/winrm"
 	"go.opencensus.io/trace"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -676,7 +677,11 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
 	if !cfg.IsSet("ACCOUNT_JSON") {
-		return nil, fmt.Errorf("missing ACCOUNT_JSON")
+		client, err := google.DefaultClient(gocontext.TODO(), compute.DevstorageFullControlScope, compute.ComputeScope)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not build default client")
+		}
+		return compute.New(client)
 	}
 
 	a, err := loadGoogleAccountJSON(cfg.Get("ACCOUNT_JSON"))
