@@ -81,8 +81,11 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 	conn := rl.pool.Get()
 	defer conn.Close()
 
-	ctx, span := trace.StartSpan(ctx, "Redis.RateLimit")
-	defer span.End()
+	if trace.FromContext(ctx) != nil {
+		var span *trace.Span
+		ctx, span = trace.StartSpan(ctx, "Redis.RateLimit")
+		defer span.End()
+	}
 
 	now := time.Now()
 	timestamp := now.Unix() - (now.Unix() % int64(per.Seconds()))
