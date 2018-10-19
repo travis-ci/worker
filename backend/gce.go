@@ -24,6 +24,7 @@ import (
 
 	gocontext "context"
 
+	"cloud.google.com/go/compute/metadata"
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
@@ -296,18 +297,29 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	if !cfg.IsSet("PROJECT_ID") {
+	projectID := cfg.Get("PROJECT_ID")
+	if metadata.OnGCE() {
+		projectID, err = metadata.ProjectID()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get project id from metadata api")
+		}
+	}
+	if projectID == "" {
 		return nil, fmt.Errorf("missing PROJECT_ID")
 	}
 
-	projectID := cfg.Get("PROJECT_ID")
-	imageProjectID := cfg.Get("PROJECT_ID")
-
+	imageProjectID := projectID
 	if cfg.IsSet("IMAGE_PROJECT_ID") {
 		imageProjectID = cfg.Get("IMAGE_PROJECT_ID")
 	}
 
 	zoneName := defaultGCEZone
+	if metadata.OnGCE() {
+		zoneName, err = metadata.Zone()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get zone from metadata api")
+		}
+	}
 	if cfg.IsSet("ZONE") {
 		zoneName = cfg.Get("ZONE")
 	}
@@ -661,6 +673,9 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	region := defaultGCERegion
+	if metadata.OnGCE() {
+		region = p.ic.Zone.Region
+	}
 	if p.cfg.IsSet("REGION") {
 		region = p.cfg.Get("REGION")
 	}
