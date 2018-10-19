@@ -59,7 +59,6 @@ func (s *stepUpdateState) Run(state multistep.StateBag) multistep.StepAction {
 
 func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 	buildJob := state.Get("buildJob").(Job)
-	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	processedAt := state.Get("processedAt").(time.Time)
 
@@ -90,11 +89,11 @@ func (s *stepUpdateState) Cleanup(state multistep.StateBag) {
 
 		switch result.ExitCode {
 		case 0:
-			err = buildJob.Finish(procCtx, FinishStatePassed)
+			err = buildJob.Finish(ctx, FinishStatePassed)
 		case 1:
-			err = buildJob.Finish(procCtx, FinishStateFailed)
+			err = buildJob.Finish(ctx, FinishStateFailed)
 		default:
-			err = buildJob.Finish(procCtx, FinishStateErrored)
+			err = buildJob.Finish(ctx, FinishStateErrored)
 		}
 
 		if err != nil {
