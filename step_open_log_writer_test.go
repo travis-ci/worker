@@ -37,7 +37,6 @@ func setupStepOpenLogWriter() (*stepOpenLogWriter, multistep.StateBag) {
 
 	state := &multistep.BasicStateBag{}
 	state.Put("ctx", ctx)
-	state.Put("procCtx", ctx)
 	state.Put("buildJob", job)
 
 	return s, state

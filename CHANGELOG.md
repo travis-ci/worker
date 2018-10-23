@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
     * ratelimit (redis and GCE API rate limiting)
     * backend/gce
     * amqp_job
+- google: support loading default credentials
 
 ### Deprecated
 

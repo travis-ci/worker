@@ -24,6 +24,7 @@ import (
 
 	gocontext "context"
 
+	"cloud.google.com/go/compute/metadata"
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
@@ -39,6 +40,7 @@ import (
 	"github.com/travis-ci/worker/winrm"
 	"go.opencensus.io/trace"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -295,18 +297,29 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	if !cfg.IsSet("PROJECT_ID") {
+	projectID := cfg.Get("PROJECT_ID")
+	if metadata.OnGCE() {
+		projectID, err = metadata.ProjectID()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get project id from metadata api")
+		}
+	}
+	if projectID == "" {
 		return nil, fmt.Errorf("missing PROJECT_ID")
 	}
 
-	projectID := cfg.Get("PROJECT_ID")
-	imageProjectID := cfg.Get("PROJECT_ID")
-
+	imageProjectID := projectID
 	if cfg.IsSet("IMAGE_PROJECT_ID") {
 		imageProjectID = cfg.Get("IMAGE_PROJECT_ID")
 	}
 
 	zoneName := defaultGCEZone
+	if metadata.OnGCE() {
+		zoneName, err = metadata.Zone()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get zone from metadata api")
+		}
+	}
 	if cfg.IsSet("ZONE") {
 		zoneName = cfg.Get("ZONE")
 	}
@@ -591,8 +604,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
-	ctx, span := trace.StartSpan(ctx, "apiRateLimit")
-	defer span.End()
+	if trace.FromContext(ctx) != nil {
+		var span *trace.Span
+		ctx, span = trace.StartSpan(ctx, "apiRateLimit")
+		defer span.End()
+	}
 
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()
@@ -660,6 +676,9 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	region := defaultGCERegion
+	if metadata.OnGCE() {
+		region = p.ic.Zone.Region
+	}
 	if p.cfg.IsSet("REGION") {
 		region = p.cfg.Get("REGION")
 	}
@@ -676,7 +695,11 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
 	if !cfg.IsSet("ACCOUNT_JSON") {
-		return nil, fmt.Errorf("missing ACCOUNT_JSON")
+		client, err := google.DefaultClient(gocontext.TODO(), compute.DevstorageFullControlScope, compute.ComputeScope)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not build default client")
+		}
+		return compute.New(client)
 	}
 
 	a, err := loadGoogleAccountJSON(cfg.Get("ACCOUNT_JSON"))

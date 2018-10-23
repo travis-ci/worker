@@ -21,10 +21,10 @@ type stepStartInstance struct {
 
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
-	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
-	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 	logWriter := state.Get("logWriter").(LogWriter)
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 
 	defer context.TimeSince(ctx, "step_start_instance_run", time.Now())
 
@@ -32,6 +32,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	defer span.End()
 
 	logger.Info("starting instance")
+
+	preTimeoutCtx := ctx
 
 	ctx, cancel := gocontext.WithTimeout(ctx, s.startTimeout)
 	defer cancel()
@@ -65,7 +67,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		if ok {
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
 
-			err = buildJob.Finish(procCtx, FinishStateErrored)
+			err = buildJob.Finish(preTimeoutCtx, FinishStateErrored)
 			if err != nil {
 				logger.WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
 			}
@@ -79,7 +81,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		}).Error("couldn't start instance, attempting requeue")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue(procCtx)
+		err := buildJob.Requeue(preTimeoutCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
