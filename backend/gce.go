@@ -920,6 +920,9 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			inst.Name = warmerResponse.Name
 			c.instance = inst
 			c.instanceWarmedIP = warmerResponse.IP
+			if p.ic.PublicIPConnect && warmerResponse.PublicIP != "" {
+				c.instanceWarmedIP = warmerResponse.PublicIP
+			}
 			c.progresser.Progress(&ProgressEntry{
 				Message: "obtained instance",
 				State:   ProgressSuccess,
@@ -1412,8 +1415,9 @@ type warmerRequest struct {
 }
 
 type warmerResponse struct {
-	IP            string `json:"ip"`
 	Name          string `json:"name"`
+	IP            string `json:"ip"`
+	PublicIP      string `json:"public_ip"`
 	SSHPrivateKey string `json:"ssh_private_key"`
 }
 
