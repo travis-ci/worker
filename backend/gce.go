@@ -591,8 +591,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
-	ctx, span := trace.StartSpan(ctx, "apiRateLimit")
-	defer span.End()
+	if trace.FromContext(ctx) != nil {
+		var span *trace.Span
+		ctx, span = trace.StartSpan(ctx, "apiRateLimit")
+		defer span.End()
+	}
 
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()

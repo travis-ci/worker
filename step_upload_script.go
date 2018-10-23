@@ -19,7 +19,6 @@ type stepUploadScript struct {
 }
 
 func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
-	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	logWriter := state.Get("logWriter").(LogWriter)
@@ -34,6 +33,8 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx, span := trace.StartSpan(ctx, "UploadScript.Run")
 	defer span.End()
+
+	preTimeoutCtx := ctx
 
 	ctx, cancel := gocontext.WithTimeout(ctx, s.uploadTimeout)
 	defer cancel()
@@ -57,7 +58,7 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		}).Error("couldn't upload script, attempting requeue")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue(procCtx)
+		err := buildJob.Requeue(preTimeoutCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}

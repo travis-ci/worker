@@ -17,7 +17,6 @@ type stepOpenLogWriter struct {
 }
 
 func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
-	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	logWriterFactory := state.Get("logWriterFactory")
@@ -41,7 +40,7 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 		}).Error("couldn't open a log writer, attempting requeue")
 		context.CaptureError(ctx, err)
 
-		err := buildJob.Requeue(procCtx)
+		err := buildJob.Requeue(ctx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
