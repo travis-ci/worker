@@ -1356,6 +1356,7 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 		Zone:        zone,
 		ImageName:   inst.Disks[0].InitializeParams.SourceImage,
 		MachineType: inst.MachineType,
+		PublicIP:    p.ic.PublicIP,
 	}
 
 	reqBody, err := json.Marshal(warmerReq)
@@ -1410,6 +1411,7 @@ type warmerRequest struct {
 	Zone        string `json:"zone"`
 	ImageName   string `json:"image_name"`
 	MachineType string `json:"machine_type"`
+	PublicIP    bool   `json:"public_ip"`
 }
 
 type warmerResponse struct {
