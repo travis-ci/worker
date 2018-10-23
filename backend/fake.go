@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 
@@ -12,6 +13,7 @@ func init() {
 	Register("fake", "Fake", map[string]string{
 		"LOG_OUTPUT": "faked log output to write",
 		"RUN_SLEEP":  "faked runtime sleep duration",
+		"ERROR":      "error out all jobs (useful for testing requeue storms)",
 	}, newFakeProvider)
 }
 
@@ -68,6 +70,10 @@ func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 }
 
 func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunResult, error) {
+	if i.p.cfg.Get("ERROR") == "true" {
+		return &RunResult{Completed: false}, errors.New("fake provider is configured to error all jobs")
+	}
+
 	if i.p.cfg.IsSet("RUN_SLEEP") {
 		rs, err := time.ParseDuration(i.p.cfg.Get("RUN_SLEEP"))
 		if err != nil {
