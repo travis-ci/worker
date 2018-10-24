@@ -1453,7 +1453,15 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, erro
 		return nil, err
 	}
 
-	return i.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
+	conn, err := i.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
+	if err != nil {
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: err.Error(),
+		})
+	}
+
+	return conn, err
 }
 
 func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {
