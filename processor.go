@@ -260,9 +260,13 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	logger.Info("starting job")
 	runner.Run(state)
 
-	logger.WithFields(
-		context.LoggerTimingsFromContext(ctx),
-	).Info("finished job")
+	fields := context.LoggerTimingsFromContext(ctx)
+	instance := state.Get("instance").(backend.Instance)
+	if instance != nil {
+		fields["instance_id"] = instance.ID()
+		fields["image_name"] = instance.ImageName()
+	}
+	logger.WithFields(fields).Info("finished job")
 
 	p.ProcessedCount++
 }

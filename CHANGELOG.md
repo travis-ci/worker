@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
     * backend/gce
     * amqp_job
 - google: support loading default credentials
+- processor: log image name in job finished summary
 
 ### Deprecated
 
