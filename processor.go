@@ -261,8 +261,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	runner.Run(state)
 
 	fields := context.LoggerTimingsFromContext(ctx)
-	instance := state.Get("instance").(backend.Instance)
-	if instance != nil {
+	instance, ok := state.Get("instance").(backend.Instance)
+	if ok {
 		fields["instance_id"] = instance.ID()
 		fields["image_name"] = instance.ImageName()
 	}
