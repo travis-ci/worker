@@ -7,12 +7,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- trace: expanded set of trace functions for stackdriver trace
-    * ratelimit (redis and GCE API rate limiting)
-    * backend/gce
-    * amqp_job
-- google: support loading default credentials
-- processor: log image name in job finished summary
 
 ### Deprecated
 
@@ -21,6 +15,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 
 ### Security
+
+## [4.5.2] - 2018-10-24
+
+### Changed
+- trace: expanded set of trace functions for stackdriver trace
+    * ratelimit (redis and GCE API rate limiting)
+    * backend/gce
+    * amqp_job
+- google: support loading default credentials
+- processor: log image name in job finished summary
 
 ## [4.5.1] - 2018-10-17
 
@@ -817,7 +821,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.5.1...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.5.2...HEAD
+[4.5.1]: https://github.com/travis-ci/worker/compare/v4.5.1...v4.5.2
 [4.5.1]: https://github.com/travis-ci/worker/compare/v4.5.0...v4.5.1
 [4.5.0]: https://github.com/travis-ci/worker/compare/v4.4.0...v4.5.0
 [4.4.0]: https://github.com/travis-ci/worker/compare/v4.3.0...v4.4.0
