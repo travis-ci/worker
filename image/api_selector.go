@@ -134,7 +134,7 @@ func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string,
 		}
 
 		req.Header.Add("Content-Type", imageAPIRequestContentType)
-		req.WithContext(ctx)
+		req = req.WithContext(ctx)
 		resp, err := client.Do(req)
 		if err != nil {
 			return err
