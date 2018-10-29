@@ -1,6 +1,7 @@
 package image
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -79,7 +80,7 @@ func TestEnvSelector_Select(t *testing.T) {
 		}
 
 		for _, tc := range tesm.O {
-			actual, _ := es.Select(tc.P)
+			actual, _ := es.Select(context.TODO(), tc.P)
 			assert.Equal(t, tc.E, actual, fmt.Sprintf("%#v %q", tc.P, tc.E))
 		}
 	}
