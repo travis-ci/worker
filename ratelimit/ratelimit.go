@@ -38,7 +38,6 @@ type RateLimiter interface {
 }
 
 type redisRateLimiter struct {
-	ctx    gocontext.Context
 	pool   *redis.Pool
 	prefix string
 }

@@ -1179,7 +1179,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
-		imageName, err = p.imageSelector.Select(&image.Params{
+		imageName, err = p.imageSelector.Select(ctx, &image.Params{
 			Infra:    "gce",
 			Language: startAttributes.Language,
 			OsxImage: startAttributes.OsxImage,

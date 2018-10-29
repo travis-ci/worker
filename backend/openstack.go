@@ -572,7 +572,7 @@ func (p *osProvider) getImageName(ctx gocontext.Context, startAttributes *StartA
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
 
-	imageName, err := p.imageSelector.Select(&image.Params{
+	imageName, err := p.imageSelector.Select(ctx, &image.Params{
 		Infra:    "openstack",
 		Language: startAttributes.Language,
 		OsxImage: startAttributes.OsxImage,

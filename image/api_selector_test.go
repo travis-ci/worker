@@ -1,6 +1,7 @@
 package image
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -160,7 +161,7 @@ func TestAPISelector_Select(t *testing.T) {
 
 	as := NewAPISelector(u)
 
-	actual, _ := as.Select(&Params{
+	actual, _ := as.Select(context.TODO(), &Params{
 		Infra:    "test",
 		Language: "ruby",
 		OsxImage: "meow",
@@ -177,7 +178,7 @@ func TestAPISelector_SelectDefault(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, err := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(context.TODO(), &Params{})
 	assert.Equal(t, actual, "default")
 	assert.NoError(t, err)
 }
@@ -191,7 +192,7 @@ func TestAPISelector_SelectDefaultWhenBadResponse(t *testing.T) {
 	as := NewAPISelector(u)
 	as.SetMaxInterval(time.Millisecond)
 	as.SetMaxElapsedTime(10 * time.Millisecond)
-	actual, err := as.Select(&Params{})
+	actual, err := as.Select(context.TODO(), &Params{})
 	assert.Equal(t, actual, "default")
 	assert.EqualError(t, err, "expected 200 status code from job-board, received status=500 body=\"\"")
 }
@@ -202,7 +203,7 @@ func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
-	actual, err := NewAPISelector(u).Select(&Params{})
+	actual, err := NewAPISelector(u).Select(context.TODO(), &Params{})
 	assert.Equal(t, actual, "default")
 	assert.EqualError(t, err, "unexpected end of JSON input")
 }
@@ -217,7 +218,7 @@ func TestAPISelector_SelectTrailingComma(t *testing.T) {
 
 	as := NewAPISelector(u)
 
-	actual, err := as.Select(&Params{
+	actual, err := as.Select(context.TODO(), &Params{
 		Infra:    "test,",
 		Language: "ruby,",
 		OsxImage: "meow,",

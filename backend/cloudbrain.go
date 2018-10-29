@@ -440,7 +440,7 @@ func (p *cbProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAt
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
 
-	imageName, err := p.imageSelector.Select(&image.Params{
+	imageName, err := p.imageSelector.Select(ctx, &image.Params{
 		Infra:    p.imageSelectorInfra,
 		Language: startAttributes.Language,
 		OsxImage: startAttributes.OsxImage,

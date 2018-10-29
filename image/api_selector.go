@@ -10,9 +10,13 @@ import (
 	"strings"
 	"time"
 
+	gocontext "context"
+
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
 	workererrors "github.com/travis-ci/worker/errors"
+	"go.opencensus.io/plugin/ochttp"
+	"go.opencensus.io/trace"
 )
 
 const (
@@ -28,8 +32,7 @@ type APISelector struct {
 
 func NewAPISelector(u *url.URL) *APISelector {
 	return &APISelector{
-		baseURL: u,
-
+		baseURL:        u,
 		maxInterval:    10 * time.Second,
 		maxElapsedTime: time.Minute,
 	}
@@ -43,13 +46,13 @@ func (as *APISelector) SetMaxElapsedTime(maxElapsedTime time.Duration) {
 	as.maxElapsedTime = maxElapsedTime
 }
 
-func (as *APISelector) Select(params *Params) (string, error) {
+func (as *APISelector) Select(ctx gocontext.Context, params *Params) (string, error) {
 	tagSets, err := as.buildCandidateTags(params)
 	if err != nil {
 		return "default", err
 	}
 
-	imageName, err := as.queryWithTags(params.Infra, tagSets)
+	imageName, err := as.queryWithTags(ctx, params.Infra, tagSets)
 	if err != nil {
 		return "default", err
 	}
@@ -61,7 +64,10 @@ func (as *APISelector) Select(params *Params) (string, error) {
 	return "default", nil
 }
 
-func (as *APISelector) queryWithTags(infra string, tags []*tagSet) (string, error) {
+func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags []*tagSet) (string, error) {
+	ctx, span := trace.StartSpan(ctx, "APISelector.querywithTags")
+	defer span.End()
+
 	bodyLines := []string{}
 	lastJobID := uint64(0)
 	lastRepo := ""
@@ -98,7 +104,7 @@ func (as *APISelector) queryWithTags(infra string, tags []*tagSet) (string, erro
 		return "", err
 	}
 
-	imageResp, err := as.makeImageRequest(u.String(), bodyLines)
+	imageResp, err := as.makeImageRequest(ctx, u.String(), bodyLines)
 	if err != nil {
 		return "", err
 	}
@@ -110,17 +116,26 @@ func (as *APISelector) queryWithTags(infra string, tags []*tagSet) (string, erro
 	return imageResp.Data[0].Name, nil
 }
 
-func (as *APISelector) makeImageRequest(urlString string, bodyLines []string) (*apiSelectorImageResponse, error) {
+func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string, bodyLines []string) (*apiSelectorImageResponse, error) {
 	var responseBody []byte
 
 	b := backoff.NewExponentialBackOff()
 	b.MaxInterval = as.maxInterval
 	b.MaxElapsedTime = as.maxElapsedTime
 
-	err := backoff.Retry(func() error {
-		resp, err := http.Post(urlString, imageAPIRequestContentType,
-			strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
+	client := &http.Client{
+		Transport: &ochttp.Transport{},
+	}
 
+	err := backoff.Retry(func() error {
+		req, err := http.NewRequest("POST", urlString, strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
+		if err != nil {
+			return err
+		}
+
+		req.Header.Add("Content-Type", imageAPIRequestContentType)
+		req = req.WithContext(ctx)
+		resp, err := client.Do(req)
 		if err != nil {
 			return err
 		}
