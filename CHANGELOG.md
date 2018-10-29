@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+-trace:
+    * image/selector, api_selector, env_selector for all backends
 
 ### Deprecated
 
