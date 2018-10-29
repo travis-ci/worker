@@ -24,6 +24,7 @@ import (
 
 	gocontext "context"
 
+	"cloud.google.com/go/compute/metadata"
 	"github.com/cenk/backoff"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
@@ -39,6 +40,7 @@ import (
 	"github.com/travis-ci/worker/winrm"
 	"go.opencensus.io/trace"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
@@ -295,18 +297,29 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	if !cfg.IsSet("PROJECT_ID") {
+	projectID := cfg.Get("PROJECT_ID")
+	if metadata.OnGCE() {
+		projectID, err = metadata.ProjectID()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get project id from metadata api")
+		}
+	}
+	if projectID == "" {
 		return nil, fmt.Errorf("missing PROJECT_ID")
 	}
 
-	projectID := cfg.Get("PROJECT_ID")
-	imageProjectID := cfg.Get("PROJECT_ID")
-
+	imageProjectID := projectID
 	if cfg.IsSet("IMAGE_PROJECT_ID") {
 		imageProjectID = cfg.Get("IMAGE_PROJECT_ID")
 	}
 
 	zoneName := defaultGCEZone
+	if metadata.OnGCE() {
+		zoneName, err = metadata.Zone()
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get zone from metadata api")
+		}
+	}
 	if cfg.IsSet("ZONE") {
 		zoneName = cfg.Get("ZONE")
 	}
@@ -591,8 +604,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 }
 
 func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
-	ctx, span := trace.StartSpan(ctx, "apiRateLimit")
-	defer span.End()
+	if trace.FromContext(ctx) != nil {
+		var span *trace.Span
+		ctx, span = trace.StartSpan(ctx, "apiRateLimit")
+		defer span.End()
+	}
 
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()
@@ -660,6 +676,9 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	region := defaultGCERegion
+	if metadata.OnGCE() {
+		region = p.ic.Zone.Region
+	}
 	if p.cfg.IsSet("REGION") {
 		region = p.cfg.Get("REGION")
 	}
@@ -676,7 +695,11 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
 	if !cfg.IsSet("ACCOUNT_JSON") {
-		return nil, fmt.Errorf("missing ACCOUNT_JSON")
+		client, err := google.DefaultClient(gocontext.TODO(), compute.DevstorageFullControlScope, compute.ComputeScope)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not build default client")
+		}
+		return compute.New(client)
 	}
 
 	a, err := loadGoogleAccountJSON(cfg.Get("ACCOUNT_JSON"))
@@ -920,6 +943,9 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			inst.Name = warmerResponse.Name
 			c.instance = inst
 			c.instanceWarmedIP = warmerResponse.IP
+			if p.ic.PublicIPConnect && warmerResponse.PublicIP != "" {
+				c.instanceWarmedIP = warmerResponse.PublicIP
+			}
 			c.progresser.Progress(&ProgressEntry{
 				Message: "obtained instance",
 				State:   ProgressSuccess,
@@ -1353,6 +1379,7 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 		Zone:        zone,
 		ImageName:   inst.Disks[0].InitializeParams.SourceImage,
 		MachineType: inst.MachineType,
+		PublicIP:    p.ic.PublicIP,
 	}
 
 	reqBody, err := json.Marshal(warmerReq)
@@ -1407,11 +1434,13 @@ type warmerRequest struct {
 	Zone        string `json:"zone"`
 	ImageName   string `json:"image_name"`
 	MachineType string `json:"machine_type"`
+	PublicIP    bool   `json:"public_ip"`
 }
 
 type warmerResponse struct {
-	IP            string `json:"ip"`
 	Name          string `json:"name"`
+	IP            string `json:"ip"`
+	PublicIP      string `json:"public_ip"`
 	SSHPrivateKey string `json:"ssh_private_key"`
 }
 
@@ -1424,7 +1453,15 @@ func (i *gceInstance) sshConnection(ctx gocontext.Context) (remote.Remoter, erro
 		return nil, err
 	}
 
-	return i.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
+	conn, err := i.sshDialer.Dial(fmt.Sprintf("%s:22", ip), i.authUser, i.provider.sshDialTimeout)
+	if err != nil {
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: err.Error(),
+		})
+	}
+
+	return conn, err
 }
 
 func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error) {

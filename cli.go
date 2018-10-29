@@ -140,8 +140,7 @@ func (i *CLI) Setup() (bool, error) {
 	i.setupSentry()
 	i.setupMetrics()
 
-	err := i.setupOpenCensus(i.Config.StackdriverTraceAccountJSON)
-
+	err := i.setupOpenCensus()
 	if err != nil {
 		logger.WithField("err", err).Error("failed to set up opencensus")
 		return false, err
@@ -354,6 +353,11 @@ func (i *CLI) setupMetrics() {
 }
 
 func loadStackdriverTraceJSON(ctx gocontext.Context, stackdriverTraceAccountJSON string) (*google.Credentials, error) {
+	if stackdriverTraceAccountJSON == "" {
+		creds, err := google.FindDefaultCredentials(gocontext.TODO(), googlecloudtrace.ScopeTraceAppend)
+		return creds, errors.Wrap(err, "could not build default client")
+	}
+
 	credBytes, err := loadBytes(stackdriverTraceAccountJSON)
 	if err != nil {
 		return nil, err
@@ -384,14 +388,14 @@ func loadBytes(filenameOrJSON string) ([]byte, error) {
 	return bytes, nil
 }
 
-func (i *CLI) setupOpenCensus(stackdriverTraceAccountJSON string) error {
+func (i *CLI) setupOpenCensus() error {
 	opencensusEnabled := i.Config.OpencensusTracingEnabled
 
 	if !opencensusEnabled {
 		return nil
 	}
 
-	creds, err := loadStackdriverTraceJSON(gocontext.TODO(), stackdriverTraceAccountJSON)
+	creds, err := loadStackdriverTraceJSON(gocontext.TODO(), i.Config.StackdriverTraceAccountJSON)
 	if err != nil {
 		return err
 	}

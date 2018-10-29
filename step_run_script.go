@@ -26,7 +26,6 @@ type stepRunScript struct {
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
-	procCtx := state.Get("procCtx").(gocontext.Context)
 	ctx := state.Get("ctx").(gocontext.Context)
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
@@ -37,6 +36,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx, span := trace.StartSpan(ctx, "RunScript.Run")
 	defer span.End()
+
+	preTimeoutCtx := ctx
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
 	ctx, cancel := gocontext.WithTimeout(ctx, s.hardTimeout)
@@ -62,11 +63,11 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		// case branch below to catch it.
 		if errors.Cause(r.err) == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
-			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
+			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 		if logWriter.MaxLengthReached() {
-			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
+			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
@@ -78,13 +79,13 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 				}).Error("couldn't run script, attempting requeue")
 				context.CaptureError(ctx, r.err)
 
-				err := buildJob.Requeue(procCtx)
+				err := buildJob.Requeue(preTimeoutCtx)
 				if err != nil {
 					logger.WithField("err", err).Error("couldn't requeue job")
 				}
 			} else {
 				logger.WithField("err", r.err).WithField("completed", r.result.Completed).Error("couldn't run script")
-				err := buildJob.Finish(procCtx, FinishStateErrored)
+				err := buildJob.Finish(preTimeoutCtx, FinishStateErrored)
 				if err != nil {
 					logger.WithField("err", err).Error("couldn't mark job errored")
 				}
@@ -99,22 +100,22 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
-			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
+			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 		if logWriter.MaxLengthReached() {
-			s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
+			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
 			return multistep.ActionHalt
 		}
 
 		logger.Info("context was cancelled, stopping job")
 		return multistep.ActionHalt
 	case <-cancelChan:
-		s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
+		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
 
 		return multistep.ActionHalt
 	case <-logWriter.Timeout():
-		s.writeLogAndFinishWithState(procCtx, ctx, logWriter, buildJob, FinishStateErrored, fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\nCheck the details on how to adjust your build configuration on: https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received\n\nThe build has been terminated\n\n", s.logTimeout))
+		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\nCheck the details on how to adjust your build configuration on: https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received\n\nThe build has been terminated\n\n", s.logTimeout))
 
 		if s.skipShutdownOnLogTimeout {
 			state.Put("skipShutdown", true)
@@ -124,7 +125,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	}
 }
 
-func (s *stepRunScript) writeLogAndFinishWithState(procCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
+func (s *stepRunScript) writeLogAndFinishWithState(preTimeoutCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
 	ctx, span := trace.StartSpan(ctx, "WriteLogAndFinishWithState.RunScript")
 	defer span.End()
 
@@ -134,7 +135,7 @@ func (s *stepRunScript) writeLogAndFinishWithState(procCtx, ctx gocontext.Contex
 		logger.WithField("err", err).Error("couldn't write final log message")
 	}
 
-	err = buildJob.Finish(procCtx, state)
+	err = buildJob.Finish(preTimeoutCtx, state)
 	if err != nil {
 		logger.WithField("err", err).WithField("state", state).Error("couldn't update job state")
 	}

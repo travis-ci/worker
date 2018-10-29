@@ -183,6 +183,7 @@ func (p *Processor) Terminate() {
 }
 
 func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
+	ctx = buildJob.SetupContext(ctx)
 	ctx = context.WithTimings(ctx)
 
 	ctx, span := trace.StartSpan(ctx, "ProcessorRun")
@@ -200,8 +201,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("hostname", p.ID)
 	state.Put("buildJob", buildJob)
 	state.Put("logWriterFactory", p.logWriterFactory)
-	state.Put("procCtx", buildJob.SetupContext(p.ctx))
-	state.Put("ctx", buildJob.SetupContext(ctx))
+	state.Put("ctx", ctx)
 	state.Put("processedAt", time.Now().UTC())
 	state.Put("infra", p.config.Infra)
 
@@ -260,9 +260,13 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	logger.Info("starting job")
 	runner.Run(state)
 
-	logger.WithFields(
-		context.LoggerTimingsFromContext(ctx),
-	).Info("finished job")
+	fields := context.LoggerTimingsFromContext(ctx)
+	instance, ok := state.Get("instance").(backend.Instance)
+	if ok {
+		fields["instance_id"] = instance.ID()
+		fields["image_name"] = instance.ImageName()
+	}
+	logger.WithFields(fields).Info("finished job")
 
 	p.ProcessedCount++
 }

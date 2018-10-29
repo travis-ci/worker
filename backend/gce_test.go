@@ -121,18 +121,6 @@ func TestNewGCEProvider(t *testing.T) {
 	defer gceTestTeardown(p)
 }
 
-func TestNewGCEProvider_RequiresProjectID(t *testing.T) {
-	_, err := newGCEProvider(config.ProviderConfigFromMap(map[string]string{
-		"ACCOUNT_JSON": "{}",
-	}))
-
-	if !assert.NotNil(t, err) {
-		t.Fatal(fmt.Errorf("unexpected nil error"))
-	}
-
-	assert.Equal(t, err.Error(), "missing PROJECT_ID")
-}
-
 func TestGCEProvider_SetupMakesRequests(t *testing.T) {
 	p, _, rl := gceTestSetup(t, nil, nil)
 	err := p.Setup(context.TODO())
