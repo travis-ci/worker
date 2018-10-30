@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- backend/docker: additional support for additional env vars `HTTPS_PROXY`, `FTP_PROXY`, `NO_PROXY`
 
 ### Deprecated
 

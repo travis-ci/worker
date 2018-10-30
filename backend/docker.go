@@ -99,7 +99,8 @@ type dockerProvider struct {
 	tmpFs           map[string]string
 	imageSelector   image.Selector
 	containerLabels map[string]string
-	httpProxy       string
+
+	httpProxy, httpsProxy, ftpProxy, noProxy string
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -241,6 +242,9 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	httpProxy := cfg.Get("HTTP_PROXY")
+	httpsProxy := cfg.Get("HTTPS_PROXY")
+	ftpProxy := cfg.Get("FTP_PROXY")
+	noProxy := cfg.Get("NO_PROXY")
 
 	return &dockerProvider{
 		client:         client,
@@ -256,7 +260,11 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runNative:       runNative,
 		imageSelector:   imageSelector,
 		containerLabels: containerLabels,
-		httpProxy:       httpProxy,
+
+		httpProxy:  httpProxy,
+		httpsProxy: httpsProxy,
+		ftpProxy:   ftpProxy,
+		noProxy:    noProxy,
 
 		execCmd:         execCmd,
 		inspectInterval: inspectInterval,
@@ -671,10 +679,24 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		Cmd:          i.provider.execCmd,
 		User:         "travis",
 	}
+
 	if i.provider.httpProxy != "" {
 		execConfig.Env = append(execConfig.Env, "HTTP_PROXY="+i.provider.httpProxy)
 		execConfig.Env = append(execConfig.Env, "http_proxy="+i.provider.httpProxy)
 	}
+	if i.provider.httpsProxy != "" {
+		execConfig.Env = append(execConfig.Env, "HTTPS_PROXY="+i.provider.httpsProxy)
+		execConfig.Env = append(execConfig.Env, "https_proxy="+i.provider.httpsProxy)
+	}
+	if i.provider.ftpProxy != "" {
+		execConfig.Env = append(execConfig.Env, "FTP_PROXY="+i.provider.ftpProxy)
+		execConfig.Env = append(execConfig.Env, "ftp_proxy="+i.provider.ftpProxy)
+	}
+	if i.provider.noProxy != "" {
+		execConfig.Env = append(execConfig.Env, "NO_PROXY="+i.provider.noProxy)
+		execConfig.Env = append(execConfig.Env, "no_proxy="+i.provider.noProxy)
+	}
+
 	exec, err := i.client.ContainerExecCreate(ctx, i.container.ID, execConfig)
 	if err != nil {
 		return &RunResult{Completed: false}, err
