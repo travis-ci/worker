@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- backend/docker: support for setting `HTTP_PROXY` variable in jobs
 
 ### Changed
 -trace:
