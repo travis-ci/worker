@@ -38,6 +38,7 @@ import (
 	"github.com/travis-ci/worker/remote"
 	"github.com/travis-ci/worker/ssh"
 	"github.com/travis-ci/worker/winrm"
+	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/trace"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -717,7 +718,11 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 		TokenURL: "https://accounts.google.com/o/oauth2/token",
 	}
 
-	client := config.Client(oauth2.NoContext)
+	ctx := gocontext.WithValue(gocontext.Background(), oauth2.HTTPClient, &http.Client{
+		Transport: &ochttp.Transport{},
+	})
+
+	client := config.Client(ctx)
 
 	if gceCustomHTTPTransport != nil {
 		client.Transport = gceCustomHTTPTransport
