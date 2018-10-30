@@ -16,6 +16,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Security
 
+## [4.6.1] - 2018-10-30
+
+### Changed
+- backend/docker: additional support for additional env vars `HTTPS_PROXY`, `FTP_PROXY`, `NO_PROXY`
+
 ## [4.6.0] - 2018-10-30
 
 ### Added
@@ -831,7 +836,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.6.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.6.1...HEAD
+[4.6.1]: https://github.com/travis-ci/worker/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/travis-ci/worker/compare/v4.5.2...v4.6.0
 [4.5.2]: https://github.com/travis-ci/worker/compare/v4.5.1...v4.5.2
 [4.5.1]: https://github.com/travis-ci/worker/compare/v4.5.0...v4.5.1
