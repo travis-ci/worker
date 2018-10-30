@@ -99,6 +99,7 @@ type dockerProvider struct {
 	tmpFs           map[string]string
 	imageSelector   image.Selector
 	containerLabels map[string]string
+	httpProxy       string
 
 	cpuSetsMutex sync.Mutex
 	cpuSets      []bool
@@ -239,6 +240,8 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		containerLabels = str2map(cfg.Get("CONTAINER_LABELS"))
 	}
 
+	httpProxy := cfg.Get("HTTP_PROXY")
+
 	return &dockerProvider{
 		client:         client,
 		sshDialer:      sshDialer,
@@ -253,6 +256,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runNative:       runNative,
 		imageSelector:   imageSelector,
 		containerLabels: containerLabels,
+		httpProxy:       httpProxy,
 
 		execCmd:         execCmd,
 		inspectInterval: inspectInterval,
@@ -666,6 +670,10 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		Tty:          true,
 		Cmd:          i.provider.execCmd,
 		User:         "travis",
+	}
+	if i.provider.httpProxy != "" {
+		execConfig.Env = append(execConfig.Env, "HTTP_PROXY="+i.provider.httpProxy)
+		execConfig.Env = append(execConfig.Env, "http_proxy="+i.provider.httpProxy)
 	}
 	exec, err := i.client.ContainerExecCreate(ctx, i.container.ID, execConfig)
 	if err != nil {
