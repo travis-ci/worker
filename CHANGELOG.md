@@ -8,7 +8,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 -trace:
-    * image/selector, api_selector, env_selector for all backends
+    * image/: selector, api_selector, env_selector for all backends
+    * backend/gce: calls to google cloud API
 
 ### Deprecated
 
