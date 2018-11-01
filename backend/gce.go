@@ -1620,7 +1620,6 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 				ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.uploadRetry")
 				defer span.End()
 			}
-
 		}
 	}()
 
