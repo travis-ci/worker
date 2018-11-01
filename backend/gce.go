@@ -644,6 +644,12 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 
 		// Sleep for up to 1 second
 		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
+
+		if trace.FromContext(ctx) != nil {
+			var span *trace.Span
+			ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.apiRateLimit")
+			defer span.End()
+		}
 	}
 }
 
@@ -1062,6 +1068,12 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	})
 
 	time.Sleep(p.bootPrePollSleep)
+
+	if trace.FromContext(ctx) != nil {
+		var span *trace.Span
+		ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceIP")
+		defer span.End()
+	}
 
 	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(c.ctx)
 
@@ -1600,6 +1612,12 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 
 			i.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 			time.Sleep(i.provider.uploadRetrySleep)
+			if trace.FromContext(ctx) != nil {
+				var span *trace.Span
+				ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.uploadRetrySleep")
+				defer span.End()
+			}
+
 		}
 	}()
 
@@ -1810,6 +1828,10 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	}).Debug("sleeping before first checking instance delete operation")
 
 	time.Sleep(i.ic.StopPrePollSleep)
+
+	//ctx := state.Get("ctx").(gocontext.Context)
+	//ctx, span := trace.StartSpan(ctx, "WaitForInstanceDeleted.StopPrePollSleep")
+	//defer span.End()
 
 	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
 		i.zoneName, c.instanceDeleteOp.Name)
