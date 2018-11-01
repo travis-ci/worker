@@ -1149,6 +1149,11 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 		c.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 		time.Sleep(p.bootPollSleep)
+		if trace.FromContext(ctx) != nil {
+			var span *trace.Span
+			ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.afterInstanceInsertCompletion")
+			defer span.End()
+		}
 	}
 }
 
@@ -1614,7 +1619,7 @@ func (i *gceInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 			time.Sleep(i.provider.uploadRetrySleep)
 			if trace.FromContext(ctx) != nil {
 				var span *trace.Span
-				ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.uploadRetrySleep")
+				ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.uploadRetry")
 				defer span.End()
 			}
 
@@ -1828,10 +1833,12 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	}).Debug("sleeping before first checking instance delete operation")
 
 	time.Sleep(i.ic.StopPrePollSleep)
-
-	//ctx := state.Get("ctx").(gocontext.Context)
-	//ctx, span := trace.StartSpan(ctx, "WaitForInstanceDeleted.StopPrePollSleep")
-	//defer span.End()
+	ctx := c.ctx
+	if trace.FromContext(ctx) != nil {
+		var span *trace.Span
+		ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceDeleted")
+		defer span.End()
+	}
 
 	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
 		i.zoneName, c.instanceDeleteOp.Name)
