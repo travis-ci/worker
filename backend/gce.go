@@ -644,7 +644,6 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 
 		// Sleep for up to 1 second
 		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
-
 		if trace.FromContext(ctx) != nil {
 			var span *trace.Span
 			ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.apiRateLimit")
@@ -1068,7 +1067,6 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	})
 
 	time.Sleep(p.bootPrePollSleep)
-
 	if trace.FromContext(ctx) != nil {
 		var span *trace.Span
 		ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceIP")
