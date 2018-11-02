@@ -699,7 +699,7 @@ type MetricsTransport struct {
 	Transport http.RoundTripper
 }
 
-func (m *MetricsTransport) RoundTrip(req *Request) (*Response, error) {
+func (m *MetricsTransport) RoundTrip(req *http.Request) (*httpResponse, error) {
 	metrics.Mark(m.Name)
 	return m.Transport.RoundTrip(req)
 }
