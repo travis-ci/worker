@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- backend/gce: track `worker.google.compute.api.client` metric for rate of calls to gce api
 
 ### Deprecated
 
