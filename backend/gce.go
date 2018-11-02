@@ -650,7 +650,7 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 
 		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
 
-		if trace.StartSpan != nil {
+		if ctx != nil {
 			span.End()
 		}
 	}
