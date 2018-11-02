@@ -644,10 +644,15 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 
 		// Sleep for up to 1 second
 		var span *trace.Span
-		ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.apiRateLimit")
-		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
-		span.End()
+		if trace.FromContext(ctx) != nil {
+			ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.apiRateLimit")
+		}
 
+		time.Sleep(time.Millisecond * time.Duration(mathrand.Intn(1000)))
+
+		if trace.StartSpan != nil {
+			span.End()
+		}
 	}
 }
 
