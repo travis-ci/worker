@@ -703,9 +703,26 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	return nil
 }
 
+type MetricsTransport struct {
+	Name      string
+	Transport http.RoundTripper
+}
+
+func (m *MetricsTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	metrics.Mark(m.Name)
+	return m.Transport.RoundTrip(req)
+}
+
 func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
+	ctx := gocontext.WithValue(gocontext.Background(), oauth2.HTTPClient, &http.Client{
+		Transport: &MetricsTransport{
+			Name:      "worker.google.compute.api.client",
+			Transport: &ochttp.Transport{},
+		},
+	})
+	
 	if !cfg.IsSet("ACCOUNT_JSON") {
-		client, err := google.DefaultClient(gocontext.TODO(), compute.DevstorageFullControlScope, compute.ComputeScope)
+		client, err := google.DefaultClient(ctx, compute.DevstorageFullControlScope, compute.ComputeScope)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not build default client")
 		}
@@ -726,10 +743,6 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 		},
 		TokenURL: "https://accounts.google.com/o/oauth2/token",
 	}
-
-	ctx := gocontext.WithValue(gocontext.Background(), oauth2.HTTPClient, &http.Client{
-		Transport: &ochttp.Transport{},
-	})
 
 	client := config.Client(ctx)
 
