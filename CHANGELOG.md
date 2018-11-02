@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- trace:
+    * backend/gce: calls to `time.Sleep`
 
 ### Changed
 - backend/gce: track `worker.google.compute.api.client` metric for rate of calls to gce api
