@@ -166,6 +166,9 @@ var (
 			Value: defaultMaxLogLength,
 			Usage: "The maximum length of a log in bytes",
 		}),
+		NewConfigDef("GracefulExitOnTerm", &cli.BoolFlag{
+			Usage: "Make SIGTERM cause a graceful shutdown",
+		}),
 		NewConfigDef("JobBoardURL", &cli.StringFlag{
 			Usage: "The base URL for job-board used with http queue",
 		}),
@@ -403,6 +406,7 @@ type Config struct {
 	MaxLogLength        int           `config:"max-log-length"`
 	ScriptUploadTimeout time.Duration `config:"script-upload-timeout"`
 	StartupTimeout      time.Duration `config:"startup-timeout"`
+	GracefulExitOnTerm  bool          `config:"graceful-exit-on-term"`
 
 	BuildTraceEnabled     bool   `config:"build-trace-enabled"`
 	BuildTraceS3Bucket    string `config:"build-trace-s3-bucket"`

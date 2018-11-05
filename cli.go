@@ -606,8 +606,13 @@ func (i *CLI) signalHandler() {
 				i.logger.Warn("SIGINT received, starting graceful shutdown")
 				i.ProcessorPool.GracefulShutdown(false)
 			case syscall.SIGTERM:
-				i.logger.Warn("SIGTERM received, shutting down immediately")
-				i.cancel()
+				if i.Config.GracefulExitOnTerm {
+					i.logger.Warn("SIGTERM received, starting graceful shutdown")
+					i.ProcessorPool.GracefulShutdown(false)
+				} else {
+					i.logger.Warn("SIGTERM received, shutting down immediately")
+					i.cancel()
+				}
 			case syscall.SIGTTIN:
 				i.logger.Info("SIGTTIN received, adding processor to pool")
 				i.ProcessorPool.Incr()
