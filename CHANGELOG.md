@@ -13,6 +13,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- trace:
+    * fixed child span rendering for time.Sleep
 
 ### Security
 
