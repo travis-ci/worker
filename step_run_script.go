@@ -14,6 +14,9 @@ import (
 	"go.opencensus.io/trace"
 )
 
+var MaxLogLengthExceeded = errors.New("maximum log length exceeded")
+var LogWriterTimeout = errors.New("log writer timeout")
+
 type runScriptReturn struct {
 	result *backend.RunResult
 	err    error
@@ -64,10 +67,12 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if errors.Cause(r.err) == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
+			state.Put("err", r.err)
 			return multistep.ActionHalt
 		}
 		if logWriter.MaxLengthReached() {
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
+			state.Put("err", MaxLogLengthExceeded)
 			return multistep.ActionHalt
 		}
 
@@ -91,6 +96,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 				}
 			}
 
+			state.Put("err", r.err)
+
 			return multistep.ActionHalt
 		}
 
@@ -101,10 +108,12 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
+			state.Put("err", ctx.Err())
 			return multistep.ActionHalt
 		}
 		if logWriter.MaxLengthReached() {
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
+			state.Put("err", MaxLogLengthExceeded)
 			return multistep.ActionHalt
 		}
 
@@ -113,6 +122,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	case <-cancelChan:
 		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
 
+		state.Put("err", JobCancelledError)
+
 		return multistep.ActionHalt
 	case <-logWriter.Timeout():
 		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\nCheck the details on how to adjust your build configuration on: https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received\n\nThe build has been terminated\n\n", s.logTimeout))
@@ -120,6 +131,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if s.skipShutdownOnLogTimeout {
 			state.Put("skipShutdown", true)
 		}
+
+		state.Put("err", LogWriterTimeout)
 
 		return multistep.ActionHalt
 	}

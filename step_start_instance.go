@@ -72,6 +72,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 				logger.WithField("err", err).WithField("state", FinishStateErrored).Error("couldn't mark job as finished")
 			}
 
+			state.Put("err", err)
+
 			return multistep.ActionHalt
 		}
 
@@ -85,6 +87,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
+
+		state.Put("err", err)
 
 		return multistep.ActionHalt
 	}

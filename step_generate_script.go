@@ -51,6 +51,8 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
 
+		state.Put("err", err)
+
 		return multistep.ActionHalt
 	}
 
