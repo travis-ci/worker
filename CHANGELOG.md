@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Changed
 - processor: include state, requeue, err in "finished job" log message
+- trace: include return code for start_instance, upload_script, run_script, download_trace steps
 
 ### Deprecated
 
