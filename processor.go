@@ -266,6 +266,16 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		fields["instance_id"] = instance.ID()
 		fields["image_name"] = instance.ImageName()
 	}
+	err, ok := state.Get("err").(error)
+	if ok {
+		fields["err"] = err
+	}
+	if buildJob.FinishState() != "" {
+		fields["state"] = buildJob.FinishState()
+	}
+	if buildJob.Requeued() {
+		fields["requeued"] = 1
+	}
 	logger.WithFields(fields).Info("finished job")
 
 	p.ProcessedCount++

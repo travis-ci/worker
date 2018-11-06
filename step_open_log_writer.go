@@ -34,6 +34,8 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 		logWriter, err = buildJob.LogWriter(ctx, s.defaultLogTimeout)
 	}
 	if err != nil {
+		state.Put("err", err)
+
 		logger.WithFields(logrus.Fields{
 			"err":         err,
 			"log_timeout": s.defaultLogTimeout,
@@ -44,6 +46,7 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
+
 		return multistep.ActionHalt
 	}
 	logWriter.SetMaxLogLength(s.maxLogLength)

@@ -2,11 +2,14 @@ package worker
 
 import (
 	gocontext "context"
+	"errors"
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
 	"go.opencensus.io/trace"
 )
+
+var JobCancelledError = errors.New("job cancelled")
 
 type stepCheckCancellation struct{}
 
@@ -31,6 +34,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", FinishStateCancelled).Error("couldn't update job state")
 			}
 		}
+		state.Put("err", JobCancelledError)
 		return multistep.ActionHalt
 	default:
 	}

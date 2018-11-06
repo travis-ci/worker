@@ -25,6 +25,8 @@ type httpJob struct {
 	received        time.Time
 	started         time.Time
 	finished        time.Time
+	finishState     FinishState
+	requeued        bool
 	stateCount      uint
 
 	refreshClaim func(gocontext.Context)
@@ -64,6 +66,14 @@ func (j *httpJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
 }
 
+func (j *httpJob) FinishState() FinishState {
+	return j.finishState
+}
+
+func (j *httpJob) Requeued() bool {
+	return j.requeued
+}
+
 func (j *httpJob) Error(ctx gocontext.Context, errMessage string) error {
 	log, err := j.LogWriter(ctx, time.Minute)
 	if err != nil {
@@ -82,6 +92,8 @@ func (j *httpJob) Requeue(ctx gocontext.Context) error {
 	context.LoggerFromContext(ctx).WithField("self", "http_job").Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
+
+	j.requeued = true
 
 	j.received = time.Time{}
 	j.started = time.Time{}

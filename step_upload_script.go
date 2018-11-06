@@ -46,6 +46,8 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	err := instance.UploadScript(ctx, script)
 	if err != nil {
+		state.Put("err", err)
+
 		errMetric := "worker.job.upload.error"
 		if errors.Cause(err) == backend.ErrStaleVM {
 			errMetric += ".stalevm"

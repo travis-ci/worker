@@ -28,6 +28,8 @@ type amqpJob struct {
 	received        time.Time
 	started         time.Time
 	finished        time.Time
+	finishState     FinishState
+	requeued        bool
 	stateCount      uint
 	withLogSharding bool
 }
@@ -47,6 +49,14 @@ func (j *amqpJob) RawPayload() *simplejson.Json {
 
 func (j *amqpJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
+}
+
+func (j *amqpJob) FinishState() FinishState {
+	return j.finishState
+}
+
+func (j *amqpJob) Requeued() bool {
+	return j.requeued
 }
 
 func (j *amqpJob) Error(ctx gocontext.Context, errMessage string) error {
@@ -78,6 +88,8 @@ func (j *amqpJob) Requeue(ctx gocontext.Context) error {
 		}).Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
+
+	j.requeued = true
 
 	err := j.sendStateUpdate(ctx, "job:test:reset", "reset")
 	if err != nil {
@@ -114,6 +126,8 @@ func (j *amqpJob) Started(ctx gocontext.Context) error {
 func (j *amqpJob) Finish(ctx gocontext.Context, state FinishState) error {
 	ctx, span := trace.StartSpan(ctx, "amqpJob.Finished")
 	defer span.End()
+
+	j.finishState = state
 
 	j.finished = time.Now()
 
