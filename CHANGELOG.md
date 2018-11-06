@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- processor: include final error in "finished job" log message
+- processor: include state, requeue, err in "finished job" log message
 
 ### Deprecated
 

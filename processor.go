@@ -270,6 +270,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	if ok {
 		fields["err"] = err
 	}
+	if fields["state"] != "" {
+		fields["state"] = buildJob.FinishState()
+	}
+	if buildJob.Requeued() {
+		fields["requeued"] = 1
+	}
 	logger.WithFields(fields).Info("finished job")
 
 	p.ProcessedCount++

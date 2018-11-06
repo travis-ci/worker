@@ -26,6 +26,8 @@ type fileJob struct {
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
 	startAttributes *backend.StartAttributes
+	finishState     FinishState
+	requeued        bool
 }
 
 func (j *fileJob) Payload() *JobPayload {
@@ -38,6 +40,14 @@ func (j *fileJob) RawPayload() *simplejson.Json {
 
 func (j *fileJob) StartAttributes() *backend.StartAttributes {
 	return j.startAttributes
+}
+
+func (j *fileJob) FinishState() FinishState {
+	return j.finishState
+}
+
+func (j *fileJob) Requeued() bool {
+	return j.requeued
 }
 
 func (j *fileJob) Received(_ gocontext.Context) error {
@@ -66,6 +76,8 @@ func (j *fileJob) Requeue(ctx gocontext.Context) error {
 	context.LoggerFromContext(ctx).WithField("self", "file_job").Info("requeueing job")
 
 	metrics.Mark("worker.job.requeue")
+
+	j.requeued = true
 
 	var err error
 
