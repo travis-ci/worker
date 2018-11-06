@@ -45,13 +45,13 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	}
 
 	if err != nil {
+		state.Put("err", err)
+
 		logger.WithField("err", err).Error("couldn't generate build script, erroring job")
 		err := buildJob.Error(ctx, "An error occurred while generating the build script.")
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")
 		}
-
-		state.Put("err", err)
 
 		return multistep.ActionHalt
 	}
