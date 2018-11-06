@@ -40,6 +40,8 @@ type fakeJob struct {
 	payload         *JobPayload
 	rawPayload      *simplejson.Json
 	startAttributes *backend.StartAttributes
+	finishState     FinishState
+	requeued        bool
 
 	events []string
 
@@ -56,6 +58,14 @@ func (fj *fakeJob) RawPayload() *simplejson.Json {
 
 func (fj *fakeJob) StartAttributes() *backend.StartAttributes {
 	return fj.startAttributes
+}
+
+func (fj *fakeJob) FinishState() FinishState {
+	return fj.finishState
+}
+
+func (fj *fakeJob) Requeued() bool {
+	return fj.requeued
 }
 
 func (fj *fakeJob) Received(ctx gocontext.Context) error {
@@ -89,6 +99,7 @@ func (fj *fakeJob) Error(ctx gocontext.Context, msg string) error {
 }
 
 func (fj *fakeJob) Requeue(ctx gocontext.Context) error {
+	fj.requeued = true
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -99,6 +110,7 @@ func (fj *fakeJob) Requeue(ctx gocontext.Context) error {
 }
 
 func (fj *fakeJob) Finish(ctx gocontext.Context, state FinishState) error {
+	fj.finishState = state
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
