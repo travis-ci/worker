@@ -270,7 +270,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	if ok {
 		fields["err"] = err
 	}
-	if fields["state"] != "" {
+	if buildJob.FinishState() != "" {
 		fields["state"] = buildJob.FinishState()
 	}
 	if buildJob.Requeued() {
