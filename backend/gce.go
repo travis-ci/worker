@@ -720,7 +720,7 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 			Transport: &ochttp.Transport{},
 		},
 	})
-	
+
 	if !cfg.IsSet("ACCOUNT_JSON") {
 		client, err := google.DefaultClient(ctx, compute.DevstorageFullControlScope, compute.ComputeScope)
 		if err != nil {
@@ -1818,7 +1818,7 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 }
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
-	op, err := i.client.Instances.Delete(i.projectID, i.zoneName, i.instance.Name).Do()
+	op, err := i.client.Instances.Delete(i.projectID, i.zoneName, i.instance.Name).Context(c.ctx).Do()
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
