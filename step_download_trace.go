@@ -49,6 +49,11 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 
 	buf, err := instance.DownloadTrace(ctx)
 	if err != nil {
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: err.Error(),
+		})
+
 		if err == backend.ErrDownloadTraceNotImplemented || os.IsNotExist(errors.Cause(err)) {
 			logger.WithFields(logrus.Fields{
 				"err": err,
@@ -75,6 +80,11 @@ func (s *stepDownloadTrace) Run(state multistep.StateBag) multistep.StepAction {
 
 	if err != nil {
 		metrics.Mark("worker.job.trace.persist.error")
+
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: err.Error(),
+		})
 
 		logger.WithFields(logrus.Fields{
 			"err": err,

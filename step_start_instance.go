@@ -65,6 +65,11 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	if err != nil {
 		state.Put("err", err)
 
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: err.Error(),
+		})
+
 		jobAbortErr, ok := errors.Cause(err).(workererrors.JobAbortError)
 		if ok {
 			logWriter.WriteAndClose([]byte(jobAbortErr.UserFacingErrorMessage()))
