@@ -820,15 +820,6 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 		},
 	}
 
-	abandonedStart := false
-
-	defer func(c *gceStartContext) {
-		if c.instance != nil && abandonedStart {
-			p.apiRateLimit(c.ctx)
-			_, _ = p.client.Instances.Delete(p.projectID, c.zoneName, c.instance.Name).Do()
-		}
-	}(c)
-
 	go runner.Run(state)
 
 	logger.Debug("selecting over instance, error, and done channels")
@@ -836,7 +827,6 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	case inst := <-c.instChan:
 		return inst, nil
 	case err := <-c.errChan:
-		abandonedStart = true
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
@@ -847,7 +837,6 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 			State:      ProgressFailure,
 			Interrupts: true,
 		})
-		abandonedStart = true
 		return nil, ctx.Err()
 	}
 }
