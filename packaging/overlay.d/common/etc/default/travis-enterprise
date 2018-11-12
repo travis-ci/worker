@@ -1,8 +1,0 @@
-# Default ENV variables for Travis Enterprise
-# Uncomment and set, then restart `travis-worker` for
-# them to take effect.
-
-# export TRAVIS_ENTERPRISE_BUILD_ENDPOINT="__build__"
-# export TRAVIS_ENTERPRISE_HOST="enterprise.yourhostname.corp"
-# export TRAVIS_ENTERPRISE_SECURITY_TOKEN="abcd1234"
-# export TRAVIS_WORKER_DOCKER_PRIVILEGED="true"
