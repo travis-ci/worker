@@ -79,6 +79,11 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if r.err != nil {
 			state.Put("err", r.err)
 
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnavailable,
+				Message: r.err.Error(),
+			})
+
 			if !r.result.Completed {
 				logger.WithFields(logrus.Fields{
 					"err":       r.err,
@@ -107,6 +112,11 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	case <-ctx.Done():
 		state.Put("err", ctx.Err())
 
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: ctx.Err().Error(),
+		})
+
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
@@ -122,11 +132,23 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		return multistep.ActionHalt
 	case <-cancelChan:
 		state.Put("err", JobCancelledError)
+
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: JobCancelledError.Error(),
+		})
+
 		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
 
 		return multistep.ActionHalt
 	case <-logWriter.Timeout():
 		state.Put("err", LogWriterTimeout)
+
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: LogWriterTimeout.Error(),
+		})
+
 		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, fmt.Sprintf("\n\nNo output has been received in the last %v, this potentially indicates a stalled build or something wrong with the build itself.\nCheck the details on how to adjust your build configuration on: https://docs.travis-ci.com/user/common-build-problems/#Build-times-out-because-no-output-was-received\n\nThe build has been terminated\n\n", s.logTimeout))
 
 		if s.skipShutdownOnLogTimeout {

@@ -48,6 +48,11 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	if err != nil {
 		state.Put("err", err)
 
+		span.SetStatus(trace.Status{
+			Code:    trace.StatusCodeUnavailable,
+			Message: err.Error(),
+		})
+
 		errMetric := "worker.job.upload.error"
 		if errors.Cause(err) == backend.ErrStaleVM {
 			errMetric += ".stalevm"
