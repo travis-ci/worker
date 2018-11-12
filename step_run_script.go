@@ -68,12 +68,14 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			state.Put("err", r.err)
 			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
-			return multistep.ActionHalt
+			// Continue to the download trace step
+			return multistep.ActionContinue
 		}
 		if logWriter.MaxLengthReached() {
 			state.Put("err", MaxLogLengthExceeded)
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
-			return multistep.ActionHalt
+			// Continue to the download trace step
+			return multistep.ActionContinue
 		}
 
 		if r.err != nil {
@@ -120,12 +122,14 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			logger.Info("hard timeout exceeded, terminating")
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum time limit for jobs, and has been terminated.\n\n")
-			return multistep.ActionHalt
+			// Continue to the download trace step
+			return multistep.ActionContinue
 		}
 		if logWriter.MaxLengthReached() {
 			state.Put("err", MaxLogLengthExceeded)
 			s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateErrored, "\n\nThe job exceeded the maximum log length, and has been terminated.\n\n")
-			return multistep.ActionHalt
+			// Continue to the download trace step
+			return multistep.ActionContinue
 		}
 
 		logger.Info("context was cancelled, stopping job")
@@ -154,8 +158,8 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		if s.skipShutdownOnLogTimeout {
 			state.Put("skipShutdown", true)
 		}
-
-		return multistep.ActionHalt
+		// Continue to the download trace step
+		return multistep.ActionContinue
 	}
 }
 
