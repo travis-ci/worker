@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - processor: include state, requeue, err in "finished job" log message
 - trace: include return code for start_instance, upload_script, run_script, download_trace steps
 - trace: instrument CLI.Setup in order to avoid orphaned spans
+- backend/gce: track rate of rate limit start calls (number of gce api calls we would make without rate limiting)
 
 ### Deprecated
 
