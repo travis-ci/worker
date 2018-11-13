@@ -611,6 +611,8 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 		defer span.End()
 	}
 
+	metrics.Mark("travis.worker.vm.provider.gce.rate-limit.start")
+
 	metrics.Gauge("travis.worker.vm.provider.gce.rate-limit.queue", int64(p.rateLimitQueueDepth))
 	startWait := time.Now()
 	defer metrics.TimeSince("travis.worker.vm.provider.gce.rate-limit", startWait)
