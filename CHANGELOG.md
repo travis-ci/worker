@@ -7,20 +7,26 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- processor: include state, requeue, err in "finished job" log message
-- trace: include return code for start_instance, upload_script, run_script, download_trace steps
-- trace: instrument CLI.Setup in order to avoid orphaned spans
-- backend/gce: track rate of rate limit start calls (number of gce api calls we would make without rate limiting)
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
-- trace:
-    * fixed child span rendering for time.Sleep
 
 ### Security
+
+## [4.6.3] - 2018-11-13
+
+### Changed
+- processor: include state, requeue, err in "finished job" log message
+- trace: include return code for start_instance, upload_script, run_script, download_trace steps
+- trace: instrument CLI.Setup in order to avoid orphaned spans
+- backend/gce: track rate of rate limit start calls (number of gce api calls we would make without rate limiting)
+
+### Fixed
+- trace:
+    * fixed child span rendering for time.Sleep
 
 ## [4.6.2] - 2018-11-02
 
@@ -851,7 +857,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.6.2...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v4.6.3...HEAD
+[4.6.3]: https://github.com/travis-ci/worker/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/travis-ci/worker/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/travis-ci/worker/compare/v4.6.0...v4.6.1
 [4.6.0]: https://github.com/travis-ci/worker/compare/v4.5.2...v4.6.0
