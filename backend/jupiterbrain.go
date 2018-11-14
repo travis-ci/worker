@@ -449,14 +449,14 @@ func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer
 	defer conn.Close()
 
 	resultChan := make(chan struct {
-		exitStatus uint8
+		exitStatus int32
 		err        error
 	}, 1)
 
 	go func() {
 		exitStatus, err := conn.RunCommand("bash ~/wrapper.sh", output)
 		resultChan <- struct {
-			exitStatus uint8
+			exitStatus int32
 			err        error
 		}{
 			exitStatus,

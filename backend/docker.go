@@ -739,7 +739,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		}
 
 		if !inspect.Running {
-			return &RunResult{Completed: true, ExitCode: uint8(inspect.ExitCode)}, nil
+			return &RunResult{Completed: true, ExitCode: int32(inspect.ExitCode)}, nil
 		}
 
 		select {
