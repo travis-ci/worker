@@ -576,6 +576,10 @@ func (i *cbInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) e
 	return nil
 }
 
+func (i *cbInstance) InstallAgent(ctx gocontext.Context) error {
+	return ErrInstallAgentNotImplemented
+}
+
 func (i *cbInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	conn, err := i.sshConnection(ctx)
 	if err != nil {
@@ -643,6 +647,10 @@ func (i *cbInstance) stepWaitForInstanceDeleted(c *cbInstanceStopContext) multis
 
 func (i *cbInstance) ID() string {
 	return i.instance.ID
+}
+
+func (i *cbInstance) IP(ctx gocontext.Context) (string, error) {
+	return "", ErrInstanceIPNotImplemented
 }
 
 func (i *cbInstance) ImageName() string {

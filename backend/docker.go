@@ -662,6 +662,10 @@ func (i *dockerInstance) uploadScriptSCP(ctx gocontext.Context, script []byte) e
 	return nil
 }
 
+func (i *dockerInstance) InstallAgent(ctx gocontext.Context) error {
+	return ErrInstallAgentNotImplemented
+}
+
 func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	if i.runNative {
 		return i.runScriptExec(ctx, output)
@@ -849,6 +853,10 @@ func (i *dockerInstance) ID() string {
 	}
 
 	return i.container.ID[0:7]
+}
+
+func (i *dockerInstance) IP(ctx gocontext.Context) (string, error) {
+	return "", ErrInstanceIPNotImplemented
 }
 
 func (i *dockerInstance) ImageName() string {

@@ -629,6 +629,10 @@ func (i *osInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	return nil
 }
 
+func (i *osInstance) InstallAgent(ctx gocontext.Context) error {
+	return ErrInstallAgentNotImplemented
+}
+
 func (i *osInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	conn, err := i.sshConnection()
 	if err != nil {
@@ -668,6 +672,10 @@ func (i *osInstance) ID() string {
 		return "{unidentified}"
 	}
 	return i.instance.ID
+}
+
+func (i *osInstance) IP(ctx gocontext.Context) (string, error) {
+	return "", ErrInstanceIPNotImplemented
 }
 
 func (i *osInstance) ImageName() string {

@@ -85,6 +85,10 @@ type Instance interface {
 	// method should not be called multiple times.
 	UploadScript(gocontext.Context, []byte) error
 
+	// InstallAgent uploads the worker-agent binary and starts
+	// it as a background process
+	InstallAgent(gocontext.Context) error
+
 	// RunScript runs the build script that was uploaded with the
 	// UploadScript method.
 	RunScript(gocontext.Context, io.Writer) (*RunResult, error)
@@ -97,6 +101,11 @@ type Instance interface {
 
 	// ID is used when identifying the instance in logs and such
 	ID() string
+
+	// IP is the ip or hostname of the instance
+	// TODO: think about a more general struct that includes
+	// the pod, project, maybe even region
+	IP(ctx gocontext.Context) (string, error)
 
 	// ImageName is the name of the image used to boot the instance
 	ImageName() string

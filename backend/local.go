@@ -92,6 +92,10 @@ func (i *localInstance) UploadScript(ctx gocontext.Context, script []byte) error
 	return err
 }
 
+func (i *localInstance) InstallAgent(ctx gocontext.Context) error {
+	return ErrInstallAgentNotImplemented
+}
+
 func (i *localInstance) RunScript(ctx gocontext.Context, writer io.Writer) (*RunResult, error) {
 	if i.scriptPath == "" {
 		return &RunResult{Completed: false}, errNoScriptUploaded
@@ -136,6 +140,10 @@ func (i *localInstance) Stop(ctx gocontext.Context) error {
 
 func (i *localInstance) ID() string {
 	return fmt.Sprintf("local:%s", i.scriptPath)
+}
+
+func (i *localInstance) IP(ctx gocontext.Context) (string, error) {
+	return "", ErrInstanceIPNotImplemented
 }
 
 func (i *localInstance) ImageName() string {

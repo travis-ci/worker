@@ -15,6 +15,8 @@ var (
 )
 
 var ErrDownloadTraceNotImplemented = errors.New("DownloadTrace not implemented")
+var ErrInstallAgentNotImplemented = errors.New("InstallAgent not implemented")
+var ErrInstanceIPNotImplemented = errors.New("Instance.IP not implemented")
 
 // Backend wraps up an alias, backend provider help, and a factory func for a
 // given backend provider wheee

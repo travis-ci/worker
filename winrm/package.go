@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/masterzen/winrm"
@@ -13,7 +14,6 @@ import (
 var errNotImplemented = fmt.Errorf("method not implemented")
 
 func New(host string, port int, username, password string) (*Remoter, error) {
-
 	endpoint := &winrm.Endpoint{
 		Host:     host,
 		Port:     port,
@@ -75,6 +75,10 @@ func (r *Remoter) RunCommand(command string, output io.Writer) (int32, error) {
 
 func (r *Remoter) Close() error {
 	return nil
+}
+
+func (r *Remoter) Chmod(path string, mode os.FileMode) error {
+	return errNotImplemented
 }
 
 func (r *Remoter) newCopyClient() (*winrmcp.Winrmcp, error) {
