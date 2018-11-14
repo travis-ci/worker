@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- ssh: store exit code in int32 instead of uint8
 
 ### Security
 

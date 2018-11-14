@@ -68,9 +68,9 @@ func (r *Remoter) DownloadFile(path string) ([]byte, error) {
 	return nil, errNotImplemented
 }
 
-func (r *Remoter) RunCommand(command string, output io.Writer) (uint8, error) {
+func (r *Remoter) RunCommand(command string, output io.Writer) (int32, error) {
 	exitCode, err := r.winrmClient.Run(command, output, output)
-	return uint8(exitCode), err
+	return int32(exitCode), err
 }
 
 func (r *Remoter) Close() error {

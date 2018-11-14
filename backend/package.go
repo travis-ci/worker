@@ -114,7 +114,7 @@ type Instance interface {
 // RunResult represents the result of running a script with Instance.RunScript.
 type RunResult struct {
 	// The exit code of the script. Only valid if Completed is true.
-	ExitCode uint8
+	ExitCode int32
 
 	// Whether the script finished running or not. Can be false if there was a
 	// connection error in the middle of the script run.

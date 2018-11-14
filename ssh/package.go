@@ -21,7 +21,7 @@ type Dialer interface {
 type Connection interface {
 	UploadFile(path string, data []byte) (bool, error)
 	DownloadFile(path string) ([]byte, error)
-	RunCommand(command string, output io.Writer) (uint8, error)
+	RunCommand(command string, output io.Writer) (int32, error)
 	Close() error
 }
 
@@ -164,7 +164,7 @@ func (c *sshConnection) DownloadFile(path string) ([]byte, error) {
 	return buf, nil
 }
 
-func (c *sshConnection) RunCommand(command string, output io.Writer) (uint8, error) {
+func (c *sshConnection) RunCommand(command string, output io.Writer) (int32, error) {
 	session, err := c.client.NewSession()
 	if err != nil {
 		return 0, errors.Wrap(err, "error creating SSH session")
@@ -187,7 +187,7 @@ func (c *sshConnection) RunCommand(command string, output io.Writer) (uint8, err
 
 	switch err := err.(type) {
 	case *ssh.ExitError:
-		return uint8(err.ExitStatus()), nil
+		return int32(err.ExitStatus()), nil
 	default:
 		return 0, errors.Wrap(err, "error running script")
 	}
