@@ -178,6 +178,7 @@ type gceProvider struct {
 	deterministicHostname bool
 	imageSelectorType     string
 	imageSelector         image.Selector
+	imageCache            *sync.Map
 	bootPollSleep         time.Duration
 	bootPrePollSleep      time.Duration
 	defaultLanguage       string
@@ -587,6 +588,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		deterministicHostname: deterministicHostname,
 		imageSelector:         imageSelector,
 		imageSelectorType:     imageSelectorType,
+		imageCache:            &sync.Map{},
 		bootPollSleep:         bootPollSleep,
 		bootPrePollSleep:      bootPrePollSleep,
 		defaultLanguage:       defaultLanguage,
@@ -1164,7 +1166,6 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 	defer span.End()
 
 	p.apiRateLimit(ctx)
-	// TODO: add some TTL cache in here maybe?
 	images, err := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
 	if err != nil {
 		return nil, err
@@ -1223,7 +1224,18 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 		imageName = p.defaultImage
 	}
 
-	return p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
+	if image, ok := p.imageCache.Load(imageName); ok {
+		return image.(*compute.Image), nil
+	}
+
+	image, err := p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
+	if err != nil {
+		return nil, err
+	}
+
+	p.imageCache.Store(imageName, image)
+
+	return image, nil
 }
 
 func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
@@ -1265,18 +1277,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 
 	var machineType *compute.MachineType
 	if startAttributes.VMType == "premium" {
-		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to look up premium machine type")
-		}
-		machineType = pic
+		machineType = p.ic.PremiumMachineType
 	} else {
-		p.apiRateLimit(ctx)
-		pic, err := p.client.MachineTypes.Get(p.projectID, zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to look up machine type")
-		}
-		machineType = pic
+		machineType = p.ic.MachineType
 	}
 
 	// Set accelerator config based on number and type of requested GPUs (empty if none)
