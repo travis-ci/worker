@@ -816,7 +816,7 @@
 		},
 		{
 			"importpath": "github.com/travis-ci/worker-agent",
-			"repository": "ssh://github.com/travis-ci/worker-agent",
+			"repository": "https://github.com/travis-ci/worker-agent",
 			"vcs": "git",
 			"revision": "3496f3023d395c7c0c0ff9545a53d1fac5851471",
 			"branch": "master",
