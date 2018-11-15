@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
@@ -1724,7 +1723,7 @@ func (i *gceInstance) InstallAgent(ctx gocontext.Context) error {
 		return errors.New("agent is not supported on windows yet")
 	}
 
-	agentBinaryFile := "/Users/igor/go/src/github.com/travis-ci/worker-agent/worker-agent-linux-amd64"
+	agentBinaryFile := "/Users/bogdana/go/src/github.com/travis-ci/worker-agent/worker-agent-linux-amd64"
 
 	agentBinaryBytes, err := ioutil.ReadFile(agentBinaryFile)
 	if err != nil {
@@ -1762,18 +1761,11 @@ func (i *gceInstance) InstallAgent(ctx gocontext.Context) error {
 		return errors.Wrap(err, "couldn't chmod agent")
 	}
 
-	var out bytes.Buffer
-
-	agentCommand := "nohup /tmp/worker-agent &> /tmp/worker-agent.out &"
-	agentCommand = "nohup bash -c '/tmp/worker-agent &> /tmp/worker-agent.out &'"
-	s, err := conn.RunCommand(agentCommand, bufio.NewWriter(&out))
+	agentCommand := "nohup bash -c '/tmp/worker-agent &> /tmp/worker-agent.out &'"
+	_, err = conn.RunCommand(agentCommand, ioutil.Discard)
 	if err != nil {
 		return errors.Wrap(err, "couldn't run agent")
 	}
-
-	fmt.Println("nohup status and output")
-	fmt.Println(s)
-	fmt.Println(string(out.Bytes()))
 
 	return nil
 }

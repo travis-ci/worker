@@ -3,7 +3,6 @@ package worker
 import (
 	"fmt"
 	"io"
-	"log"
 	"time"
 
 	gocontext "context"
@@ -193,32 +192,37 @@ func (s *stepRunScript) runScriptWithAgent(ctx gocontext.Context, logWriter LogW
 
 	// TODO: get these values from state
 	// TODO: get command and args from instance
-	r, err := c.RunJob(ctx, &agent.RunJobRequest{
+	_, err = c.RunJob(ctx, &agent.RunJobRequest{
 		JobId:        "123",
 		Command:      "bash",
-		CommandArgs:  []string{"~/build.sh"},
+		CommandArgs:  []string{"build.sh"},
 		LogTimeoutS:  10,
 		HardTimeoutS: 10,
 		MaxLogLength: 10,
 	})
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
+
 	if err != nil {
 		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not run job")
 	}
-	log.Printf("agent: Received: %t", r.Ok)
 
 	stream, err := c.GetLogParts(ctx, &agent.LogPartsRequest{})
 	if err != nil {
+		logger.WithField("err", err).Error("error trying to GetLogParts")
 		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get log parts")
 	}
 
 	// TODO: figure out how to persist offset
 	// offset := int64(0)
+
 	for {
 		part, err := stream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
+			logger.WithField("err", err).Error("couldn't get log parts from stream")
 			return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get log parts")
 		}
 		logWriter.Write([]byte(part.Content))
@@ -228,6 +232,7 @@ func (s *stepRunScript) runScriptWithAgent(ctx gocontext.Context, logWriter LogW
 
 	st, err := c.GetJobStatus(ctx, &agent.WorkerRequest{})
 	if err != nil {
+		logger.WithField("err", err).Error("couldn't get job status")
 		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get job status")
 	}
 
