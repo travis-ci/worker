@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Deprecated
 
 ### Removed
+- backend/cloudbrain: the cloudbrain backend is not being used, so we are removing it
 
 ### Fixed
 - ssh: store exit code in int32 instead of uint8
