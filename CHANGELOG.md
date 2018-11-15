@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- backend/gce: first edition of worker-agent (building block for resumable job execution)
 
 ### Changed
 
