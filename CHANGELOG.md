@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- backend/gce: cache gce api calls for image and machine type, reduce total api call volume
 
 ### Changed
 
