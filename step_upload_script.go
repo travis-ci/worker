@@ -16,6 +16,7 @@ import (
 
 type stepUploadScript struct {
 	uploadTimeout time.Duration
+	agentEnabled  bool
 }
 
 func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -77,8 +78,7 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
 	}).Info("uploaded script")
 
-	agentEnabled := true
-	if agentEnabled {
+	if s.agentEnabled {
 		err := instance.InstallAgent(ctx)
 		if err != nil {
 			state.Put("err", err)

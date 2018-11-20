@@ -29,6 +29,7 @@ type stepRunScript struct {
 	logTimeout               time.Duration
 	hardTimeout              time.Duration
 	skipShutdownOnLogTimeout bool
+	agentEnabled             bool
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -57,9 +58,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	go func() {
 		var result *backend.RunResult
 		var err error
-		// TODO: config option
-		agentEnabled := true
-		if agentEnabled {
+		if s.agentEnabled {
 			result, err = s.runScriptWithAgent(ctx, logWriter, instance)
 		} else {
 			result, err = instance.RunScript(ctx, logWriter)

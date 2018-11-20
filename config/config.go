@@ -275,6 +275,9 @@ var (
 			Usage: "sample rate for trace as an inverse fraction - for sample rate n, every nth event will be sampled",
 			Value: 1,
 		}),
+		NewConfigDef("AgentEnabled", &cli.BoolFlag{
+			Usage: "Experimental: Use worker-agent for resumable job execution",
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
@@ -437,6 +440,7 @@ type Config struct {
 	StackdriverProjectID        string `config:"stackdriver-project-id"`
 	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
 	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
+	AgentEnabled                bool   `config:"agent-enabled"`
 
 	ProviderConfig *ProviderConfig
 }
