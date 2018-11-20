@@ -12,12 +12,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Deprecated
 
 ### Removed
+
+### Fixed
+
+### Security
+
+## [5.0.0] - 2018-11-15
+
+### Added
+- backend/gce: cache gce api calls for image and machine type, reduce total api call volume
+
+### Removed
 - backend/cloudbrain: the cloudbrain backend is not being used, so we are removing it
 
 ### Fixed
 - ssh: store exit code in int32 instead of uint8
-
-### Security
 
 ## [4.6.3] - 2018-11-13
 
@@ -860,7 +869,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v4.6.3...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v5.0.0...HEAD
+[5.0.0]: https://github.com/travis-ci/worker/compare/v4.6.3...v5.0.0
 [4.6.3]: https://github.com/travis-ci/worker/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/travis-ci/worker/compare/v4.6.1...v4.6.2
 [4.6.1]: https://github.com/travis-ci/worker/compare/v4.6.0...v4.6.1
