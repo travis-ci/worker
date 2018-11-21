@@ -43,7 +43,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/compute/v1"
+	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
 
@@ -958,11 +958,11 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			logger.WithFields(logrus.Fields{
 				"ip":   warmerResponse.IP,
 				"name": warmerResponse.Name,
-        "zone": warmerResponse.Zone
+				"zone": warmerResponse.Zone,
 			}).Info("got instance from warmer")
 
 			inst.Name = warmerResponse.Name
-      inst.Zone = warmerResponse.Zone
+			inst.Zone = warmerResponse.Zone
 			c.instance = inst
 			c.instanceWarmedIP = warmerResponse.IP
 			if p.ic.PublicIPConnect && warmerResponse.PublicIP != "" {
@@ -1468,7 +1468,7 @@ type warmerRequest struct {
 
 type warmerResponse struct {
 	Name          string `json:"name"`
-  Zone          string `json:"zone"`
+	Zone          string `json:"zone"`
 	IP            string `json:"ip"`
 	PublicIP      string `json:"public_ip"`
 	SSHPrivateKey string `json:"ssh_private_key"`
