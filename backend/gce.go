@@ -524,7 +524,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	rateLimitDynamicConfig := false
 	if cfg.IsSet("RATE_LIMIT_DYNAMIC_CONFIG") {
-		rateLimitDynamicConfig := asBool(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG"))
+		rateLimitDynamicConfig = asBool(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG"))
 	}
 
 	sshDialTimeout := defaultGCESSHDialTimeout
