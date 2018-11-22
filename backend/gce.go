@@ -191,11 +191,10 @@ type gceProvider struct {
 	sshDialer             ssh.Dialer
 	sshDialTimeout        time.Duration
 
-	rateLimiter            ratelimit.RateLimiter
-	rateLimitMaxCalls      uint64
-	rateLimitDuration      time.Duration
-	rateLimitDynamicConfig bool
-	rateLimitQueueDepth    uint64
+	rateLimiter         ratelimit.RateLimiter
+	rateLimitMaxCalls   uint64
+	rateLimitDuration   time.Duration
+	rateLimitQueueDepth uint64
 
 	warmerUrl           *url.URL
 	warmerTimeout       time.Duration
@@ -478,7 +477,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	var rateLimiter ratelimit.RateLimiter
 	if cfg.IsSet("RATE_LIMIT_REDIS_URL") {
-		rateLimiter = ratelimit.NewRateLimiter(cfg.Get("RATE_LIMIT_REDIS_URL"), cfg.Get("RATE_LIMIT_PREFIX"))
+		rateLimiter = ratelimit.NewRateLimiter(
+			cfg.Get("RATE_LIMIT_REDIS_URL"),
+			cfg.Get("RATE_LIMIT_PREFIX"),
+			asBool(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG")),
+		)
 	} else {
 		rateLimiter = ratelimit.NewNullRateLimiter()
 	}
@@ -520,11 +523,6 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			return nil, err
 		}
 		rateLimitDuration = rld
-	}
-
-	rateLimitDynamicConfig := false
-	if cfg.IsSet("RATE_LIMIT_DYNAMIC_CONFIG") {
-		rateLimitDynamicConfig = asBool(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG"))
 	}
 
 	sshDialTimeout := defaultGCESSHDialTimeout
@@ -603,10 +601,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		uploadRetries:         uploadRetries,
 		uploadRetrySleep:      uploadRetrySleep,
 
-		rateLimiter:            rateLimiter,
-		rateLimitMaxCalls:      rateLimitMaxCalls,
-		rateLimitDuration:      rateLimitDuration,
-		rateLimitDynamicConfig: rateLimitDynamicConfig,
+		rateLimiter:       rateLimiter,
+		rateLimitMaxCalls: rateLimitMaxCalls,
+		rateLimitDuration: rateLimitDuration,
 
 		warmerUrl:           warmerUrl,
 		warmerTimeout:       warmerTimeout,
@@ -636,7 +633,7 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 	errCount := 0
 
 	for {
-		ok, err := p.rateLimiter.RateLimit(ctx, "gce-api", p.rateLimitMaxCalls, p.rateLimitDuration, p.rateLimitDynamicConfig)
+		ok, err := p.rateLimiter.RateLimit(ctx, "gce-api", p.rateLimitMaxCalls, p.rateLimitDuration)
 		if err != nil {
 			errCount++
 			if errCount >= 5 {

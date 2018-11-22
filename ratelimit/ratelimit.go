@@ -34,12 +34,13 @@ const (
 //
 // In case an error happens, (false, err) is returned.
 type RateLimiter interface {
-	RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration, dynamicConfig bool) (bool, error)
+	RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error)
 }
 
 type redisRateLimiter struct {
-	pool   *redis.Pool
-	prefix string
+	pool          *redis.Pool
+	prefix        string
+	dynamicConfig bool
 }
 
 type nullRateLimiter struct{}
@@ -47,7 +48,7 @@ type nullRateLimiter struct{}
 // NewRateLimiter creates a RateLimiter that's backed by Redis. The prefix can
 // be used to allow multiple rate limiters with the same name on the same Redis
 // server.
-func NewRateLimiter(redisURL string, prefix string) RateLimiter {
+func NewRateLimiter(redisURL string, prefix string, dynamicConfig bool) RateLimiter {
 	return &redisRateLimiter{
 		pool: &redis.Pool{
 			Dial: func() (redis.Conn, error) {
@@ -62,7 +63,8 @@ func NewRateLimiter(redisURL string, prefix string) RateLimiter {
 			IdleTimeout: redisRateLimiterPoolIdleTimeout,
 			Wait:        true,
 		},
-		prefix: prefix,
+		prefix:        prefix,
+		dynamicConfig: dynamicConfig,
 	}
 }
 
@@ -76,7 +78,7 @@ func NewNullRateLimiter() RateLimiter {
 // requests when there are many clients talking to the same Redis. The reason
 // for this is unknown, but it's probably wise to limit the number of clients
 // to 5 or 6 for the time being.
-func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration, dynamicConfig bool) (bool, error) {
+func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
 	conn := rl.pool.Get()
 	defer conn.Close()
 
@@ -86,7 +88,7 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 		defer span.End()
 	}
 
-	if dynamicConfig {
+	if rl.dynamicConfig {
 		key := fmt.Sprintf("%s:%s:max_calls", rl.prefix, name)
 		dynMaxCalls, err := redis.Uint64(conn.Do("GET", key))
 		if err != nil && err != redis.ErrNil {
@@ -152,6 +154,6 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 	return true, nil
 }
 
-func (rl nullRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration, dynamicConfig bool) (bool, error) {
+func (rl nullRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
 	return true, nil
 }
