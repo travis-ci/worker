@@ -6,6 +6,7 @@ import (
 	gocontext "context"
 
 	"github.com/mitchellh/multistep"
+	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
@@ -139,6 +140,8 @@ func (p *Processor) Run() {
 			ctx := context.FromJobID(context.FromRepository(p.ctx, buildJob.Payload().Repository.Slug), buildJob.Payload().Job.ID)
 			if buildJob.Payload().UUID != "" {
 				ctx = context.FromUUID(ctx, buildJob.Payload().UUID)
+			} else {
+				ctx = context.FromUUID(ctx, uuid.NewRandom().String())
 			}
 			logger.WithFields(logrus.Fields{
 				"job_id": jobID,

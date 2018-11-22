@@ -180,6 +180,10 @@ func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map
 		body["meta"].(map[string]interface{})["instance_id"] = instanceID
 	}
 
+	if uuid, ok := context.UUIDFromContext(ctx); ok {
+		body["meta"].(map[string]interface{})["uuid"] = uuid
+	}
+
 	if j.Payload().Job.QueuedAt != nil {
 		body["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
 	}
