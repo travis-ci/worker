@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- backend/gce: gets zone information from warmer in order to delete instances successfully
 
 ### Security
 
