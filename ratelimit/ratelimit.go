@@ -88,6 +88,16 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 		defer span.End()
 	}
 
+	// if dynamic config is enabled, it is possible to override
+	// max_calls and duration at runtime by setting redis keys:
+	//
+	// * <prefix>:<name>:max_calls
+	// * <prefix>:<name>:duration
+	//
+	// for example:
+	//
+	// * worker-rate-limit-gce-api-1:gce-api:max_calls 3000
+	// * worker-rate-limit-gce-api-1:gce-api:duration  100s
 	if rl.dynamicConfig {
 		key := fmt.Sprintf("%s:%s:max_calls", rl.prefix, name)
 		dynMaxCalls, err := redis.Uint64(conn.Do("GET", key))
