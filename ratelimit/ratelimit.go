@@ -34,7 +34,7 @@ const (
 //
 // In case an error happens, (false, err) is returned.
 type RateLimiter interface {
-	RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error)
+	RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration, dynamicConfig bool) (bool, error)
 }
 
 type redisRateLimiter struct {
@@ -76,7 +76,7 @@ func NewNullRateLimiter() RateLimiter {
 // requests when there are many clients talking to the same Redis. The reason
 // for this is unknown, but it's probably wise to limit the number of clients
 // to 5 or 6 for the time being.
-func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
+func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration, dynamicConfig bool) (bool, error) {
 	conn := rl.pool.Get()
 	defer conn.Close()
 
@@ -84,6 +84,29 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 		var span *trace.Span
 		ctx, span = trace.StartSpan(ctx, "Redis.RateLimit")
 		defer span.End()
+	}
+
+	if dynamicConfig {
+		key := fmt.Sprintf("%s:%s:max_calls", rl.prefix, name)
+		dynMaxCalls, err := redis.Uint64(conn.Do("GET", key))
+		if err != nil && err != redis.ErrNil {
+			return false, err
+		}
+		if err != redis.ErrNil {
+			maxCalls = dynMaxCalls
+		}
+
+		key = fmt.Sprintf("%s:%s:duration", rl.prefix, name)
+		dynDurationStr, err := redis.String(conn.Do("GET", key))
+		if err != nil && err != redis.ErrNil {
+			return false, err
+		}
+		if err != redis.ErrNil {
+			dynDuration, err := time.ParseDuration(dynDurationStr)
+			if err == nil {
+				per = dynDuration
+			}
+		}
 	}
 
 	now := time.Now()
@@ -129,6 +152,6 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 	return true, nil
 }
 
-func (rl nullRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
+func (rl nullRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration, dynamicConfig bool) (bool, error) {
 	return true, nil
 }
