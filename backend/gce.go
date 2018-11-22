@@ -1376,6 +1376,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		},
 		MachineType: machineType.SelfLink,
 		Name:        hostname,
+		Zone:        zone.Name,
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
