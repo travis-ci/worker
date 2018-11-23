@@ -24,8 +24,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Fixed
 - backend/gce: gets zone information from warmer in order to delete instances successfully
 
-### Security
-
 ## [5.0.0] - 2018-11-15
 
 ### Added
