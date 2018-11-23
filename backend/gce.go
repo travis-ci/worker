@@ -1089,6 +1089,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		State:     ProgressNeutral,
 		Continues: true,
 	})
+
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
@@ -1549,12 +1550,21 @@ func (i *gceInstance) getIP() string {
 	return ""
 }
 
+// normalizes the zone name to ensure it is not the full URL, so
+// https://www.googleapis.com/compute/v1/projects/travis-staging-1/zones/us-central1-a
+// gets shortened to:
+// us-central1-a
+func (i *gceInstance) getZoneName() string {
+	parts := strings.Split(i.instance.Zone, "/")
+	return parts[len(parts)-1]
+}
+
 func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	ctx, span := trace.StartSpan(ctx, "GCE.refreshInstance")
 	defer span.End()
 
 	i.provider.apiRateLimit(ctx)
-	inst, err := i.client.Instances.Get(i.projectID, i.instance.Zone, i.instance.Name).Context(ctx).Do()
+	inst, err := i.client.Instances.Get(i.projectID, i.getZoneName(), i.instance.Name).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -1816,7 +1826,7 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 }
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
-	op, err := i.client.Instances.Delete(i.projectID, i.instance.Zone, i.instance.Name).Context(c.ctx).Do()
+	op, err := i.client.Instances.Delete(i.projectID, i.getZoneName(), i.instance.Name).Context(c.ctx).Do()
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
@@ -1846,7 +1856,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	span.End()
 
 	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
-		i.instance.Zone, c.instanceDeleteOp.Name)
+		i.getZoneName(), c.instanceDeleteOp.Name)
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = i.ic.StopPollSleep
