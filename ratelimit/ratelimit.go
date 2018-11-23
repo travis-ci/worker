@@ -38,9 +38,15 @@ type RateLimiter interface {
 }
 
 type redisRateLimiter struct {
-	pool          *redis.Pool
-	prefix        string
-	dynamicConfig bool
+	pool   *redis.Pool
+	prefix string
+
+	dynamicConfig         bool
+	dynamicConfigCacheTTL time.Duration
+
+	cachedMaxCalls *uint64
+	cachedDuration *time.Duration
+	cacheExpiresAt *time.Time
 }
 
 type nullRateLimiter struct{}
@@ -48,7 +54,7 @@ type nullRateLimiter struct{}
 // NewRateLimiter creates a RateLimiter that's backed by Redis. The prefix can
 // be used to allow multiple rate limiters with the same name on the same Redis
 // server.
-func NewRateLimiter(redisURL string, prefix string, dynamicConfig bool) RateLimiter {
+func NewRateLimiter(redisURL string, prefix string, dynamicConfig bool, dynamicConfigCacheTTL time.Duration) RateLimiter {
 	return &redisRateLimiter{
 		pool: &redis.Pool{
 			Dial: func() (redis.Conn, error) {
@@ -63,8 +69,10 @@ func NewRateLimiter(redisURL string, prefix string, dynamicConfig bool) RateLimi
 			IdleTimeout: redisRateLimiterPoolIdleTimeout,
 			Wait:        true,
 		},
-		prefix:        prefix,
-		dynamicConfig: dynamicConfig,
+		prefix: prefix,
+
+		dynamicConfig:         dynamicConfig,
+		dynamicConfigCacheTTL: dynamicConfigCacheTTL,
 	}
 }
 
@@ -99,6 +107,18 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 	// * worker-rate-limit-gce-api-1:gce-api:max_calls 3000
 	// * worker-rate-limit-gce-api-1:gce-api:duration  100s
 	if rl.dynamicConfig {
+		if rl.cacheExpiresAt != nil && rl.cacheExpiresAt.Before(time.Now()) {
+			rl.cachedMaxCalls = nil
+			rl.cachedDuration = nil
+		}
+
+		if rl.cachedMaxCalls != nil {
+			maxCalls = *rl.cachedMaxCalls
+		}
+		if rl.cachedDuration != nil {
+			per = *rl.cachedDuration
+		}
+
 		key := fmt.Sprintf("%s:%s:max_calls", rl.prefix, name)
 		dynMaxCalls, err := redis.Uint64(conn.Do("GET", key))
 		if err != nil && err != redis.ErrNil {
@@ -119,6 +139,12 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 				per = dynDuration
 			}
 		}
+
+		expires := time.Now().Add(time.Second * 10)
+
+		rl.cacheExpiresAt = &expires
+		rl.cachedMaxCalls = &maxCalls
+		rl.cachedDuration = &per
 	}
 
 	now := time.Now()

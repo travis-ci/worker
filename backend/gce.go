@@ -66,53 +66,59 @@ const (
 	defaultGCEImage              = "travis-ci.+"
 	defaultGCEGpuCount           = int64(0)
 	defaultGCEGpuType            = "nvidia-tesla-p100"
-	defaultGCERateLimitMaxCalls  = uint64(10)
-	defaultGCERateLimitDuration  = time.Second
-	defaultGCESSHDialTimeout     = 5 * time.Second
-	defaultGCEWarmerTimeout      = 5 * time.Second
+
+	defaultGCERateLimitMaxCalls         = uint64(10)
+	defaultGCERateLimitDuration         = time.Second
+	defaultGCERateLimitDynamicConfigTTL = time.Minute
+
+	defaultGCESSHDialTimeout = 5 * time.Second
+	defaultGCEWarmerTimeout  = 5 * time.Second
 )
 
 var (
 	gceHelp = map[string]string{
-		"ACCOUNT_JSON":              "[REQUIRED] account JSON config",
-		"AUTO_IMPLODE":              "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
-		"BOOT_POLL_SLEEP":           fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
-		"BOOT_PRE_POLL_SLEEP":       fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
-		"DEFAULT_LANGUAGE":          fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
-		"DETERMINISTIC_HOSTNAME":    "assign deterministic hostname based on repo slug and job id (default false)",
-		"DISK_SIZE":                 fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
-		"GPU_COUNT":                 fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEGpuCount),
-		"GPU_TYPE":                  fmt.Sprintf("type of GPU to use (default %q)", defaultGCEGpuType),
-		"IMAGE_ALIASES":             "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
-		"IMAGE_DEFAULT":             fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
-		"IMAGE_SELECTOR_TYPE":       fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
-		"IMAGE_SELECTOR_URL":        "URL for image selector API, used only when image selector is \"api\"",
-		"IMAGE_[ALIAS_]{ALIAS}":     "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"MACHINE_TYPE":              fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
-		"NETWORK":                   fmt.Sprintf("network name (default %q)", defaultGCENetwork),
-		"PREEMPTIBLE":               "boot job instances with preemptible flag enabled (default false)",
-		"PREMIUM_MACHINE_TYPE":      fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
-		"PROJECT_ID":                "[REQUIRED] GCE project id",
-		"PUBLIC_IP":                 "boot job instances with a public ip, disable this for NAT (default true)",
-		"PUBLIC_IP_CONNECT":         "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
-		"IMAGE_PROJECT_ID":          "GCE project id to use for images, will use PROJECT_ID if not specified",
-		"RATE_LIMIT_PREFIX":         "prefix for the rate limit key in Redis",
-		"RATE_LIMIT_REDIS_URL":      "URL to Redis instance to use for rate limiting",
-		"RATE_LIMIT_MAX_CALLS":      fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
-		"RATE_LIMIT_DURATION":       fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
-		"RATE_LIMIT_DYNAMIC_CONFIG": fmt.Sprintf("get max-calls and duration dynamically through redis (default false)"),
-		"REGION":                    fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
-		"SKIP_STOP_POLL":            "immediately return after issuing first instance deletion request (default false)",
-		"SSH_DIAL_TIMEOUT":          fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
-		"STOP_POLL_SLEEP":           fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
-		"STOP_PRE_POLL_SLEEP":       fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
-		"SUBNETWORK":                fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
-		"UPLOAD_RETRIES":            fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
-		"UPLOAD_RETRY_SLEEP":        fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"WARMER_URL":                "URL for warmer service",
-		"WARMER_TIMEOUT":            fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
-		"WARMER_SSH_PASSPHRASE":     fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
-		"ZONE":                      fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"ACCOUNT_JSON":           "[REQUIRED] account JSON config",
+		"AUTO_IMPLODE":           "schedule a poweroff at HARD_TIMEOUT_MINUTES in the future (default true)",
+		"BOOT_POLL_SLEEP":        fmt.Sprintf("sleep interval between polling server for instance ready status (default %v)", defaultGCEBootPollSleep),
+		"BOOT_PRE_POLL_SLEEP":    fmt.Sprintf("time to sleep prior to polling server for instance ready status (default %v)", defaultGCEBootPrePollSleep),
+		"DEFAULT_LANGUAGE":       fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
+		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
+		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEGpuCount),
+		"GPU_TYPE":               fmt.Sprintf("type of GPU to use (default %q)", defaultGCEGpuType),
+		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_DEFAULT":          fmt.Sprintf("default image name to use when none found (default %q)", defaultGCEImage),
+		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultGCEImageSelectorType),
+		"IMAGE_SELECTOR_URL":     "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_[ALIAS_]{ALIAS}":  "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"MACHINE_TYPE":           fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"NETWORK":                fmt.Sprintf("network name (default %q)", defaultGCENetwork),
+		"PREEMPTIBLE":            "boot job instances with preemptible flag enabled (default false)",
+		"PREMIUM_MACHINE_TYPE":   fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
+		"PROJECT_ID":             "[REQUIRED] GCE project id",
+		"PUBLIC_IP":              "boot job instances with a public ip, disable this for NAT (default true)",
+		"PUBLIC_IP_CONNECT":      "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
+		"IMAGE_PROJECT_ID":       "GCE project id to use for images, will use PROJECT_ID if not specified",
+
+		"RATE_LIMIT_PREFIX":             "prefix for the rate limit key in Redis",
+		"RATE_LIMIT_REDIS_URL":          "URL to Redis instance to use for rate limiting",
+		"RATE_LIMIT_MAX_CALLS":          fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
+		"RATE_LIMIT_DURATION":           fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
+		"RATE_LIMIT_DYNAMIC_CONFIG":     "get max-calls and duration dynamically through redis (default false)",
+		"RATE_LIMIT_DYNAMIC_CONFIG_TTL": fmt.Sprintf("time to cache dynamic config for (default %v)", defaultGCERateLimitDynamicConfigTTL),
+
+		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
+		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
+		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
+		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
+		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
+		"SUBNETWORK":            fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
+		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"WARMER_URL":            "URL for warmer service",
+		"WARMER_TIMEOUT":        fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
+		"WARMER_SSH_PASSPHRASE": fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
+		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
@@ -475,12 +481,22 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
+	rateLimitDynamicConfigTTL := defaultGCERateLimitDynamicConfigTTL
+	if cfg.IsSet("RATE_LIMIT_DYNAMIC_CONFIG_TTL") {
+		rldcttl, err := time.ParseDuration(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG_TTL"))
+		if err != nil {
+			return nil, err
+		}
+		rateLimitDynamicConfigTTL = rldcttl
+	}
+
 	var rateLimiter ratelimit.RateLimiter
 	if cfg.IsSet("RATE_LIMIT_REDIS_URL") {
 		rateLimiter = ratelimit.NewRateLimiter(
 			cfg.Get("RATE_LIMIT_REDIS_URL"),
 			cfg.Get("RATE_LIMIT_PREFIX"),
 			asBool(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG")),
+			rateLimitDynamicConfigTTL,
 		)
 	} else {
 		rateLimiter = ratelimit.NewNullRateLimiter()
