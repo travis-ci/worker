@@ -43,7 +43,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/compute/v1"
+	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
 
@@ -958,9 +958,11 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			logger.WithFields(logrus.Fields{
 				"ip":   warmerResponse.IP,
 				"name": warmerResponse.Name,
+				"zone": warmerResponse.Zone,
 			}).Info("got instance from warmer")
 
 			inst.Name = warmerResponse.Name
+			inst.Zone = warmerResponse.Zone
 			c.instance = inst
 			c.instanceWarmedIP = warmerResponse.IP
 			if p.ic.PublicIPConnect && warmerResponse.PublicIP != "" {
@@ -1374,6 +1376,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		},
 		MachineType: machineType.SelfLink,
 		Name:        hostname,
+		Zone:        zone.Name,
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
@@ -1466,6 +1469,7 @@ type warmerRequest struct {
 
 type warmerResponse struct {
 	Name          string `json:"name"`
+	Zone          string `json:"zone"`
 	IP            string `json:"ip"`
 	PublicIP      string `json:"public_ip"`
 	SSHPrivateKey string `json:"ssh_private_key"`
@@ -1550,7 +1554,7 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	defer span.End()
 
 	i.provider.apiRateLimit(ctx)
-	inst, err := i.client.Instances.Get(i.projectID, i.zoneName, i.instance.Name).Context(ctx).Do()
+	inst, err := i.client.Instances.Get(i.projectID, i.instance.Zone, i.instance.Name).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -1812,7 +1816,7 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 }
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
-	op, err := i.client.Instances.Delete(i.projectID, i.zoneName, i.instance.Name).Context(c.ctx).Do()
+	op, err := i.client.Instances.Delete(i.projectID, i.instance.Zone, i.instance.Name).Context(c.ctx).Do()
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
@@ -1842,7 +1846,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	span.End()
 
 	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
-		i.zoneName, c.instanceDeleteOp.Name)
+		i.instance.Zone, c.instanceDeleteOp.Name)
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = i.ic.StopPollSleep
