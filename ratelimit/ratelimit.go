@@ -96,55 +96,11 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 		defer span.End()
 	}
 
-	// if dynamic config is enabled, it is possible to override
-	// max_calls and duration at runtime by setting redis keys:
-	//
-	// * <prefix>:<name>:max_calls
-	// * <prefix>:<name>:duration
-	//
-	// for example:
-	//
-	// * worker-rate-limit-gce-api-1:gce-api:max_calls 3000
-	// * worker-rate-limit-gce-api-1:gce-api:duration  100s
 	if rl.dynamicConfig {
-		if rl.cacheExpiresAt != nil && rl.cacheExpiresAt.Before(time.Now()) {
-			rl.cachedMaxCalls = nil
-			rl.cachedDuration = nil
-		}
-
-		if rl.cachedMaxCalls != nil {
-			maxCalls = *rl.cachedMaxCalls
-		}
-		if rl.cachedDuration != nil {
-			per = *rl.cachedDuration
-		}
-
-		key := fmt.Sprintf("%s:%s:max_calls", rl.prefix, name)
-		dynMaxCalls, err := redis.Uint64(conn.Do("GET", key))
+		err := rl.loadDynamicConfig(ctx, conn, name, &maxCalls, &per)
 		if err != nil && err != redis.ErrNil {
 			return false, err
 		}
-		if err != redis.ErrNil {
-			maxCalls = dynMaxCalls
-		}
-
-		key = fmt.Sprintf("%s:%s:duration", rl.prefix, name)
-		dynDurationStr, err := redis.String(conn.Do("GET", key))
-		if err != nil && err != redis.ErrNil {
-			return false, err
-		}
-		if err != redis.ErrNil {
-			dynDuration, err := time.ParseDuration(dynDurationStr)
-			if err == nil {
-				per = dynDuration
-			}
-		}
-
-		expires := time.Now().Add(time.Second * 10)
-
-		rl.cacheExpiresAt = &expires
-		rl.cachedMaxCalls = &maxCalls
-		rl.cachedDuration = &per
 	}
 
 	now := time.Now()
@@ -188,6 +144,64 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 	}
 
 	return true, nil
+}
+
+// if dynamic config is enabled, it is possible to override
+// max_calls and duration at runtime by setting redis keys:
+//
+// * <prefix>:<name>:max_calls
+// * <prefix>:<name>:duration
+//
+// for example:
+//
+// * worker-rate-limit-gce-api-1:gce-api:max_calls 3000
+// * worker-rate-limit-gce-api-1:gce-api:duration  100s
+func (rl *redisRateLimiter) loadDynamicConfig(ctx gocontext.Context, conn redis.Conn, name string, maxCalls *uint64, per *time.Duration) error {
+	if rl.cacheExpiresAt != nil && rl.cacheExpiresAt.Before(time.Now()) {
+		rl.cachedMaxCalls = nil
+		rl.cachedDuration = nil
+	}
+
+	// load from cache
+	if rl.cachedMaxCalls != nil || rl.cachedDuration != nil {
+		if rl.cachedMaxCalls != nil {
+			*maxCalls = *rl.cachedMaxCalls
+		}
+		if rl.cachedDuration != nil {
+			*per = *rl.cachedDuration
+		}
+		return nil
+	}
+
+	// load from redis
+	key := fmt.Sprintf("%s:%s:max_calls", rl.prefix, name)
+	dynMaxCalls, err := redis.Uint64(conn.Do("GET", key))
+	if err != nil && err != redis.ErrNil {
+		return err
+	}
+	if err != redis.ErrNil {
+		*maxCalls = dynMaxCalls
+	}
+
+	key = fmt.Sprintf("%s:%s:duration", rl.prefix, name)
+	dynDurationStr, err := redis.String(conn.Do("GET", key))
+	if err != nil && err != redis.ErrNil {
+		return err
+	}
+	if err != redis.ErrNil {
+		dynDuration, err := time.ParseDuration(dynDurationStr)
+		if err == nil {
+			*per = dynDuration
+		}
+	}
+
+	expires := time.Now().Add(time.Second * 10)
+
+	rl.cacheExpiresAt = &expires
+	rl.cachedMaxCalls = maxCalls
+	rl.cachedDuration = per
+
+	return nil
 }
 
 func (rl nullRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
