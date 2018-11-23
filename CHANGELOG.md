@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- ratelimit: dynamic configuration of `max_calls` and `duration` via redis
 
 ### Changed
 
@@ -14,9 +13,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
-- backend/gce: gets zone information from warmer in order to delete instances successfully
 
 ### Security
+
+## [5.1.0] - 2018-11-23
+
+### Added
+- ratelimit: dynamic configuration of `max_calls` and `duration` via redis
+
+### Fixed
+- backend/gce: gets zone information from warmer in order to delete instances successfully
 
 ## [5.0.0] - 2018-11-15
 
@@ -870,7 +876,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v5.0.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v5.1.0...HEAD
+[5.1.0]: https://github.com/travis-ci/worker/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/travis-ci/worker/compare/v4.6.3...v5.0.0
 [4.6.3]: https://github.com/travis-ci/worker/compare/v4.6.2...v4.6.3
 [4.6.2]: https://github.com/travis-ci/worker/compare/v4.6.1...v4.6.2
