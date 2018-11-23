@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- ratelimit: dynamic configuration of `max_calls` and `duration` via redis
 
 ### Changed
 
