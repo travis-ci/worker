@@ -7,7 +7,9 @@ import (
 
 	gocontext "context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/garyburd/redigo/redis"
+	"github.com/travis-ci/worker/context"
 	"go.opencensus.io/trace"
 )
 
@@ -197,9 +199,15 @@ func (rl *redisRateLimiter) loadDynamicConfig(ctx gocontext.Context, conn redis.
 
 	expires := time.Now().Add(time.Second * 10)
 
-	rl.cacheExpiresAt = &expires
+	logger := context.LoggerFromContext(ctx).WithField("self", "ratelimit/redis")
+	logger.WithFields(logrus.Fields{
+		"max_calls": *maxCalls,
+		"duration":  *per,
+	}).Info("refreshed dynamic config")
+
 	rl.cachedMaxCalls = maxCalls
 	rl.cachedDuration = per
+	rl.cacheExpiresAt = &expires
 
 	return nil
 }
