@@ -719,6 +719,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	if p.cfg.IsSet("SUBNETWORK") {
+		p.apiRateLimit(ctx)
 		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).Context(ctx).Do()
 		if err != nil {
 			return err
@@ -813,6 +814,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	if startAttributes.VMConfig.Zone != "" {
 		logger.WithField("zone", startAttributes.VMConfig.Zone).Debug("setting zone from vm config")
 
+		p.apiRateLimit(ctx)
 		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
 		if err != nil {
 			return nil, err
@@ -1103,6 +1105,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	time.Sleep(p.bootPrePollSleep)
 	span.End()
 
+	p.apiRateLimit(ctx)
 	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(c.ctx)
 
 	c.progresser.Progress(&ProgressEntry{
@@ -1288,6 +1291,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	diskType := p.ic.DiskType
 
 	if startAttributes.VMConfig.Zone != "" {
+		p.apiRateLimit(ctx)
 		zone, err = p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
 		if err != nil {
 			return nil, err
