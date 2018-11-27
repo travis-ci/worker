@@ -8,6 +8,8 @@ import (
 	gocontext "context"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/sirupsen/logrus"
+	"github.com/travis-ci/worker/context"
 	"go.opencensus.io/trace"
 )
 
@@ -40,6 +42,13 @@ type RateLimiter interface {
 type redisRateLimiter struct {
 	pool   *redis.Pool
 	prefix string
+
+	dynamicConfig         bool
+	dynamicConfigCacheTTL time.Duration
+
+	cachedMaxCalls *uint64
+	cachedDuration *time.Duration
+	cacheExpiresAt *time.Time
 }
 
 type nullRateLimiter struct{}
@@ -47,7 +56,7 @@ type nullRateLimiter struct{}
 // NewRateLimiter creates a RateLimiter that's backed by Redis. The prefix can
 // be used to allow multiple rate limiters with the same name on the same Redis
 // server.
-func NewRateLimiter(redisURL string, prefix string) RateLimiter {
+func NewRateLimiter(redisURL string, prefix string, dynamicConfig bool, dynamicConfigCacheTTL time.Duration) RateLimiter {
 	return &redisRateLimiter{
 		pool: &redis.Pool{
 			Dial: func() (redis.Conn, error) {
@@ -63,6 +72,9 @@ func NewRateLimiter(redisURL string, prefix string) RateLimiter {
 			Wait:        true,
 		},
 		prefix: prefix,
+
+		dynamicConfig:         dynamicConfig,
+		dynamicConfigCacheTTL: dynamicConfigCacheTTL,
 	}
 }
 
@@ -84,6 +96,13 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 		var span *trace.Span
 		ctx, span = trace.StartSpan(ctx, "Redis.RateLimit")
 		defer span.End()
+	}
+
+	if rl.dynamicConfig {
+		err := rl.loadDynamicConfig(ctx, conn, name, &maxCalls, &per)
+		if err != nil && err != redis.ErrNil {
+			return false, err
+		}
 	}
 
 	now := time.Now()
@@ -127,6 +146,70 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 	}
 
 	return true, nil
+}
+
+// if dynamic config is enabled, it is possible to override
+// max_calls and duration at runtime by setting redis keys:
+//
+// * <prefix>:<name>:max_calls
+// * <prefix>:<name>:duration
+//
+// for example:
+//
+// * worker-rate-limit-gce-api-1:gce-api:max_calls 3000
+// * worker-rate-limit-gce-api-1:gce-api:duration  100s
+func (rl *redisRateLimiter) loadDynamicConfig(ctx gocontext.Context, conn redis.Conn, name string, maxCalls *uint64, per *time.Duration) error {
+	if rl.cacheExpiresAt != nil && rl.cacheExpiresAt.Before(time.Now()) {
+		rl.cachedMaxCalls = nil
+		rl.cachedDuration = nil
+	}
+
+	// load from cache
+	if rl.cachedMaxCalls != nil || rl.cachedDuration != nil {
+		if rl.cachedMaxCalls != nil {
+			*maxCalls = *rl.cachedMaxCalls
+		}
+		if rl.cachedDuration != nil {
+			*per = *rl.cachedDuration
+		}
+		return nil
+	}
+
+	// load from redis
+	key := fmt.Sprintf("%s:%s:max_calls", rl.prefix, name)
+	dynMaxCalls, err := redis.Uint64(conn.Do("GET", key))
+	if err != nil && err != redis.ErrNil {
+		return err
+	}
+	if err != redis.ErrNil {
+		*maxCalls = dynMaxCalls
+	}
+
+	key = fmt.Sprintf("%s:%s:duration", rl.prefix, name)
+	dynDurationStr, err := redis.String(conn.Do("GET", key))
+	if err != nil && err != redis.ErrNil {
+		return err
+	}
+	if err != redis.ErrNil {
+		dynDuration, err := time.ParseDuration(dynDurationStr)
+		if err == nil {
+			*per = dynDuration
+		}
+	}
+
+	expires := time.Now().Add(time.Second * 10)
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "ratelimit/redis")
+	logger.WithFields(logrus.Fields{
+		"max_calls": *maxCalls,
+		"duration":  *per,
+	}).Info("refreshed dynamic config")
+
+	rl.cachedMaxCalls = maxCalls
+	rl.cachedDuration = per
+	rl.cacheExpiresAt = &expires
+
+	return nil
 }
 
 func (rl nullRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {

@@ -43,7 +43,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
-	"google.golang.org/api/compute/v1"
+	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
 )
 
@@ -66,10 +66,13 @@ const (
 	defaultGCEImage              = "travis-ci.+"
 	defaultGCEGpuCount           = int64(0)
 	defaultGCEGpuType            = "nvidia-tesla-p100"
-	defaultGCERateLimitMaxCalls  = uint64(10)
-	defaultGCERateLimitDuration  = time.Second
-	defaultGCESSHDialTimeout     = 5 * time.Second
-	defaultGCEWarmerTimeout      = 5 * time.Second
+
+	defaultGCERateLimitMaxCalls         = uint64(10)
+	defaultGCERateLimitDuration         = time.Second
+	defaultGCERateLimitDynamicConfigTTL = time.Minute
+
+	defaultGCESSHDialTimeout = 5 * time.Second
+	defaultGCEWarmerTimeout  = 5 * time.Second
 )
 
 var (
@@ -96,22 +99,26 @@ var (
 		"PUBLIC_IP":              "boot job instances with a public ip, disable this for NAT (default true)",
 		"PUBLIC_IP_CONNECT":      "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
 		"IMAGE_PROJECT_ID":       "GCE project id to use for images, will use PROJECT_ID if not specified",
-		"RATE_LIMIT_PREFIX":      "prefix for the rate limit key in Redis",
-		"RATE_LIMIT_REDIS_URL":   "URL to Redis instance to use for rate limiting",
-		"RATE_LIMIT_MAX_CALLS":   fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
-		"RATE_LIMIT_DURATION":    fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
-		"REGION":                 fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
-		"SKIP_STOP_POLL":         "immediately return after issuing first instance deletion request (default false)",
-		"SSH_DIAL_TIMEOUT":       fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
-		"STOP_POLL_SLEEP":        fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
-		"STOP_PRE_POLL_SLEEP":    fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
-		"SUBNETWORK":             fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
-		"UPLOAD_RETRIES":         fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
-		"UPLOAD_RETRY_SLEEP":     fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"WARMER_URL":             "URL for warmer service",
-		"WARMER_TIMEOUT":         fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
-		"WARMER_SSH_PASSPHRASE":  fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
-		"ZONE":                   fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+
+		"RATE_LIMIT_PREFIX":             "prefix for the rate limit key in Redis",
+		"RATE_LIMIT_REDIS_URL":          "URL to Redis instance to use for rate limiting",
+		"RATE_LIMIT_MAX_CALLS":          fmt.Sprintf("number of calls per duration to let through to the GCE API (default %d)", defaultGCERateLimitMaxCalls),
+		"RATE_LIMIT_DURATION":           fmt.Sprintf("interval in which to let max-calls through to the GCE API (default %v)", defaultGCERateLimitDuration),
+		"RATE_LIMIT_DYNAMIC_CONFIG":     "get max-calls and duration dynamically through redis (default false)",
+		"RATE_LIMIT_DYNAMIC_CONFIG_TTL": fmt.Sprintf("time to cache dynamic config for (default %v)", defaultGCERateLimitDynamicConfigTTL),
+
+		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
+		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
+		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
+		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
+		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
+		"SUBNETWORK":            fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
+		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"WARMER_URL":            "URL for warmer service",
+		"WARMER_TIMEOUT":        fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
+		"WARMER_SSH_PASSPHRASE": fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
+		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
@@ -474,9 +481,23 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
+	rateLimitDynamicConfigTTL := defaultGCERateLimitDynamicConfigTTL
+	if cfg.IsSet("RATE_LIMIT_DYNAMIC_CONFIG_TTL") {
+		rldcttl, err := time.ParseDuration(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG_TTL"))
+		if err != nil {
+			return nil, err
+		}
+		rateLimitDynamicConfigTTL = rldcttl
+	}
+
 	var rateLimiter ratelimit.RateLimiter
 	if cfg.IsSet("RATE_LIMIT_REDIS_URL") {
-		rateLimiter = ratelimit.NewRateLimiter(cfg.Get("RATE_LIMIT_REDIS_URL"), cfg.Get("RATE_LIMIT_PREFIX"))
+		rateLimiter = ratelimit.NewRateLimiter(
+			cfg.Get("RATE_LIMIT_REDIS_URL"),
+			cfg.Get("RATE_LIMIT_PREFIX"),
+			asBool(cfg.Get("RATE_LIMIT_DYNAMIC_CONFIG")),
+			rateLimitDynamicConfigTTL,
+		)
 	} else {
 		rateLimiter = ratelimit.NewNullRateLimiter()
 	}
@@ -958,9 +979,11 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			logger.WithFields(logrus.Fields{
 				"ip":   warmerResponse.IP,
 				"name": warmerResponse.Name,
+				"zone": warmerResponse.Zone,
 			}).Info("got instance from warmer")
 
 			inst.Name = warmerResponse.Name
+			inst.Zone = warmerResponse.Zone
 			c.instance = inst
 			c.instanceWarmedIP = warmerResponse.IP
 			if p.ic.PublicIPConnect && warmerResponse.PublicIP != "" {
@@ -1087,6 +1110,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		State:     ProgressNeutral,
 		Continues: true,
 	})
+
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
@@ -1374,6 +1398,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		},
 		MachineType: machineType.SelfLink,
 		Name:        hostname,
+		Zone:        zone.Name,
 		Metadata: &compute.Metadata{
 			Items: []*compute.MetadataItems{
 				&compute.MetadataItems{
@@ -1466,6 +1491,7 @@ type warmerRequest struct {
 
 type warmerResponse struct {
 	Name          string `json:"name"`
+	Zone          string `json:"zone"`
 	IP            string `json:"ip"`
 	PublicIP      string `json:"public_ip"`
 	SSHPrivateKey string `json:"ssh_private_key"`
@@ -1545,12 +1571,21 @@ func (i *gceInstance) getIP() string {
 	return ""
 }
 
+// normalizes the zone name to ensure it is not the full URL, so
+// https://www.googleapis.com/compute/v1/projects/travis-staging-1/zones/us-central1-a
+// gets shortened to:
+// us-central1-a
+func (i *gceInstance) getZoneName() string {
+	parts := strings.Split(i.instance.Zone, "/")
+	return parts[len(parts)-1]
+}
+
 func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	ctx, span := trace.StartSpan(ctx, "GCE.refreshInstance")
 	defer span.End()
 
 	i.provider.apiRateLimit(ctx)
-	inst, err := i.client.Instances.Get(i.projectID, i.zoneName, i.instance.Name).Context(ctx).Do()
+	inst, err := i.client.Instances.Get(i.projectID, i.getZoneName(), i.instance.Name).Context(ctx).Do()
 	if err != nil {
 		return err
 	}
@@ -1868,7 +1903,7 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 }
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
-	op, err := i.client.Instances.Delete(i.projectID, i.zoneName, i.instance.Name).Context(c.ctx).Do()
+	op, err := i.client.Instances.Delete(i.projectID, i.getZoneName(), i.instance.Name).Context(c.ctx).Do()
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
@@ -1898,7 +1933,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	span.End()
 
 	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
-		i.zoneName, c.instanceDeleteOp.Name)
+		i.getZoneName(), c.instanceDeleteOp.Name)
 
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = i.ic.StopPollSleep
