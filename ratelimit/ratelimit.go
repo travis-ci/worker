@@ -95,8 +95,12 @@ func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCal
 		defer span.End()
 	}
 
+	poolCheckoutStart := time.Now()
+
 	conn := rl.pool.Get()
 	defer conn.Close()
+
+	context.TimeSince(ctx, "rate_limit_redis_pool_wait", poolCheckoutStart)
 
 	if trace.FromContext(ctx) != nil {
 		var span *trace.Span
