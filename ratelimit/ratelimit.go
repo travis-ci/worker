@@ -89,12 +89,18 @@ func NewNullRateLimiter() RateLimiter {
 // for this is unknown, but it's probably wise to limit the number of clients
 // to 5 or 6 for the time being.
 func (rl *redisRateLimiter) RateLimit(ctx gocontext.Context, name string, maxCalls uint64, per time.Duration) (bool, error) {
+	if trace.FromContext(ctx) != nil {
+		var span *trace.Span
+		ctx, span = trace.StartSpan(ctx, "Redis.RateLimit")
+		defer span.End()
+	}
+
 	conn := rl.pool.Get()
 	defer conn.Close()
 
 	if trace.FromContext(ctx) != nil {
 		var span *trace.Span
-		ctx, span = trace.StartSpan(ctx, "Redis.RateLimit")
+		ctx, span = trace.StartSpan(ctx, "Redis.RateLimit.WithPool")
 		defer span.End()
 	}
 

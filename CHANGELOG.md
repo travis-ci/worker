@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
+- ratelimit: trace redis connection pool checkout
 
 ### Deprecated
 
