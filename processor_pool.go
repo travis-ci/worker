@@ -21,6 +21,7 @@ type ProcessorPool struct {
 	Context                 gocontext.Context
 	Provider                backend.Provider
 	Generator               BuildScriptGenerator
+	ConcurrentJobLimiter    ConcurrentJobLimiter
 	Persister               BuildTracePersister
 	CancellationBroadcaster *CancellationBroadcaster
 	Hostname                string
@@ -43,7 +44,8 @@ type ProcessorPoolConfig struct {
 
 // NewProcessorPool creates a new processor pool using the given arguments.
 func NewProcessorPool(ppc *ProcessorPoolConfig,
-	provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister,
+	provider backend.Provider, generator BuildScriptGenerator,
+	concurrentJobLimiter ConcurrentJobLimiter, persister BuildTracePersister,
 	cancellationBroadcaster *CancellationBroadcaster) *ProcessorPool {
 
 	return &ProcessorPool{
@@ -53,6 +55,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 
 		Provider:                provider,
 		Generator:               generator,
+		ConcurrentJobLimiter:    concurrentJobLimiter,
 		Persister:               persister,
 		CancellationBroadcaster: cancellationBroadcaster,
 	}
@@ -110,6 +113,8 @@ func (p *ProcessorPool) Run(poolSize int, queue JobQueue, logWriterFactory LogWr
 	}
 
 	p.processorsWG.Wait()
+
+	p.ConcurrentJobLimiter.Done(p.Context)
 
 	return nil
 }
@@ -171,7 +176,7 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 	ctx := context.FromProcessor(p.Context, processorID)
 
 	proc, err := NewProcessor(ctx, p.Hostname,
-		queue, logWriterFactory, p.Provider, p.Generator, p.Persister, p.CancellationBroadcaster,
+		queue, logWriterFactory, p.Provider, p.Generator, p.ConcurrentJobLimiter, p.Persister, p.CancellationBroadcaster,
 		ProcessorConfig{
 			Config: p.Config,
 		})

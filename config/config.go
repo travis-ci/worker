@@ -210,6 +210,11 @@ var (
 		NewConfigDef("BuildTraceS3KeyPrefix", &cli.StringFlag{}),
 		NewConfigDef("BuildTraceS3Region", &cli.StringFlag{}),
 
+		NewConfigDef("ConcurrentJobsRedisURL", &cli.StringFlag{}),
+		NewConfigDef("ConcurrentJobsPrefix", &cli.StringFlag{}),
+		NewConfigDef("ConcurrentJobsName", &cli.StringFlag{}),
+		NewConfigDef("ConcurrentJobsTotalFile", &cli.StringFlag{}),
+
 		// non-config and special case flags
 		NewConfigDef("PayloadFilterExecutable", &cli.StringFlag{
 			Usage: "External executable which will be called to filter the json to be sent to the build script generator",
@@ -408,6 +413,11 @@ type Config struct {
 	BuildTraceS3Bucket    string `config:"build-trace-s3-bucket"`
 	BuildTraceS3KeyPrefix string `config:"build-trace-s3-key-prefix"`
 	BuildTraceS3Region    string `config:"build-trace-s3-region"`
+
+	ConcurrentJobsRedisURL  string `config:"concurrent-jobs-redis-url"`
+	ConcurrentJobsPrefix    string `config:"concurrent-jobs-prefix"`
+	ConcurrentJobsName      string `config:"concurrent-jobs-name"`
+	ConcurrentJobsTotalFile string `config:"concurrent-jobs-total-file"`
 
 	SentryHookErrors           bool `config:"sentry-hook-errors"`
 	BuildAPIInsecureSkipVerify bool `config:"build-api-insecure-skip-verify"`

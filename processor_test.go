@@ -68,11 +68,13 @@ func TestProcessor(t *testing.T) {
 			return []byte("hello, world"), nil
 		})
 
+		concurrentJobLimiter := NewNullConcurrentJobLimiter()
+
 		jobChan := make(chan Job)
 		jobQueue := &fakeJobQueue{c: jobChan}
 		cancellationBroadcaster := NewCancellationBroadcaster()
 
-		processor, err := NewProcessor(ctx, "test-hostname", jobQueue, nil, provider, generator, nil, cancellationBroadcaster, ProcessorConfig{
+		processor, err := NewProcessor(ctx, "test-hostname", jobQueue, nil, provider, generator, concurrentJobLimiter, nil, cancellationBroadcaster, ProcessorConfig{
 			Config: &config.Config{
 				HardTimeout:             tc.hardTimeout,
 				LogTimeout:              time.Second,

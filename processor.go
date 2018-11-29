@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"math/rand"
 	"time"
 
 	gocontext "context"
@@ -25,6 +26,7 @@ type Processor struct {
 	buildJobsChan           <-chan Job
 	provider                backend.Provider
 	generator               BuildScriptGenerator
+	concurrentJobLimiter    ConcurrentJobLimiter
 	persister               BuildTracePersister
 	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
@@ -54,7 +56,7 @@ type ProcessorConfig struct {
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster,
+	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, concurrentJobLimiter ConcurrentJobLimiter, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster,
 	config ProcessorConfig) (*Processor, error) {
 
 	processorID, _ := context.ProcessorFromContext(ctx)
@@ -77,6 +79,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		buildJobsChan:           buildJobsChan,
 		provider:                provider,
 		generator:               generator,
+		concurrentJobLimiter:    concurrentJobLimiter,
 		persister:               persister,
 		cancellationBroadcaster: cancellationBroadcaster,
 		logWriterFactory:        logWriterFactory,
@@ -122,6 +125,8 @@ func (p *Processor) Run() {
 				p.terminate()
 				return
 			}
+
+			p.waitForAvailableCapacity()
 
 			buildJob.StartAttributes().ProgressType = p.config.ProgressType
 
@@ -282,4 +287,23 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	logger.WithFields(fields).Info("finished job")
 
 	p.ProcessedCount++
+	p.concurrentJobLimiter.CompleteJob(ctx)
+}
+
+func (p *Processor) waitForAvailableCapacity() {
+	for {
+		canRun, err := p.concurrentJobLimiter.CanRunJob(p.ctx)
+		if err != nil {
+			// TODO find a better way to handle this
+			panic(err)
+		}
+
+		if canRun {
+			return
+		}
+
+		// Wait between 10 and 20 seconds
+		sleepDuration := time.Duration(10+rand.Intn(10)) * time.Second
+		time.Sleep(sleepDuration)
+	}
 }

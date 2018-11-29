@@ -58,6 +58,7 @@ type CLI struct {
 
 	Config                  *config.Config
 	BuildScriptGenerator    BuildScriptGenerator
+	ConcurrentJobLimiter    ConcurrentJobLimiter
 	BuildTracePersister     BuildTracePersister
 	BackendProvider         backend.Provider
 	ProcessorPool           *ProcessorPool
@@ -161,6 +162,8 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.BuildTracePersister = persister
 
+	i.setupConcurrentJobLimiter()
+
 	if i.Config.TravisSite != "" {
 		i.Config.ProviderConfig.Set("TRAVIS_SITE", i.Config.TravisSite)
 	}
@@ -187,7 +190,7 @@ func (i *CLI) Setup() (bool, error) {
 		Config:   i.Config,
 	}
 
-	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.BuildTracePersister, i.CancellationBroadcaster)
+	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.ConcurrentJobLimiter, i.BuildTracePersister, i.CancellationBroadcaster)
 
 	logger.WithField("pool", pool).Debug("built")
 
@@ -354,6 +357,26 @@ func (i *CLI) setupMetrics() {
 
 		go metrics.Log(metrics.DefaultRegistry, time.Minute,
 			log.New(os.Stderr, "metrics: ", log.Lmicroseconds))
+	}
+}
+
+func (i *CLI) setupConcurrentJobLimiter() {
+	if i.Config.ConcurrentJobsRedisURL != "" && i.Config.ConcurrentJobsPrefix != "" && i.Config.ConcurrentJobsName != "" {
+		i.logger.Info("limiting concurrent jobs with redis")
+
+		l, err := NewConcurrentJobLimiter(
+			i.Config.ConcurrentJobsRedisURL,
+			i.Config.ConcurrentJobsPrefix,
+			i.Config.ConcurrentJobsName,
+			i.Config.ConcurrentJobsTotalFile,
+		)
+		if err != nil {
+			panic(err)
+		}
+
+		i.ConcurrentJobLimiter = l
+	} else {
+		i.ConcurrentJobLimiter = NewNullConcurrentJobLimiter()
 	}
 }
 
