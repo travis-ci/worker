@@ -7,6 +7,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -30,6 +31,8 @@ type stepRunScript struct {
 	hardTimeout              time.Duration
 	skipShutdownOnLogTimeout bool
 	agentEnabled             bool
+	resumable                bool
+	redisConn                redis.Conn
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -59,7 +62,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		var result *backend.RunResult
 		var err error
 		if s.agentEnabled {
-			result, err = s.runScriptWithAgent(ctx, logWriter, instance)
+			result, err = s.runScriptWithAgent(ctx, logWriter, instance, buildJob)
 		} else {
 			result, err = instance.RunScript(ctx, logWriter)
 		}
@@ -173,8 +176,16 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	}
 }
 
-func (s *stepRunScript) runScriptWithAgent(ctx gocontext.Context, logWriter LogWriter, instance backend.Instance) (*backend.RunResult, error) {
-	ip, err := instance.IP(ctx)
+func (s *stepRunScript) runScriptWithAgent(ctx gocontext.Context, logWriter LogWriter, instance backend.Instance, buildJob Job) (*backend.RunResult, error) {
+
+	var err error
+	var ip string
+	if s.resumable {
+		key := fmt.Sprintf("job:%s", buildJob.Payload().Job.ID)
+		ip, err = redis.String(s.redisConn.Do("HMGET", key, "ip"))
+	} else {
+		ip, err = instance.IP(ctx)
+	}
 	if err != nil {
 		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get instance ip")
 	}

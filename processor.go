@@ -1,10 +1,12 @@
 package worker
 
 import (
+	"fmt"
 	"time"
 
 	gocontext "context"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/mitchellh/multistep"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
@@ -28,6 +30,7 @@ type Processor struct {
 	persister               BuildTracePersister
 	logWriterFactory        LogWriterFactory
 	cancellationBroadcaster *CancellationBroadcaster
+	redisPool               *redis.Pool
 
 	graceful   chan struct{}
 	terminate  gocontext.CancelFunc
@@ -54,7 +57,7 @@ type ProcessorConfig struct {
 // given channel using the given provider and getting build scripts from the
 // generator.
 func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
-	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster,
+	logWriterFactory LogWriterFactory, provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister, cancellationBroadcaster *CancellationBroadcaster, redisPool *redis.Pool,
 	config ProcessorConfig) (*Processor, error) {
 
 	processorID, _ := context.ProcessorFromContext(ctx)
@@ -80,6 +83,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		persister:               persister,
 		cancellationBroadcaster: cancellationBroadcaster,
 		logWriterFactory:        logWriterFactory,
+		redisPool:               redisPool,
 
 		graceful:  make(chan struct{}),
 		terminate: cancel,
@@ -218,6 +222,20 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		logTimeout = time.Duration(buildJob.Payload().Timeouts.LogSilence) * time.Second
 	}
 
+	resumable := false
+	var err error
+	var conn redis.Conn
+	if p.config.AgentEnabled {
+		conn = p.redisPool.Get()
+		defer conn.Close()
+
+		key := fmt.Sprintf("job:%d", buildJob.Payload().Job.ID)
+		resumable, err = redis.Bool(conn.Do("EXISTS", key))
+		if err != nil && err != redis.ErrNil {
+			resumable = false
+		}
+	}
+
 	steps := []multistep.Step{
 		&stepSubscribeCancellation{
 			cancellationBroadcaster: p.cancellationBroadcaster,
@@ -227,6 +245,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		},
 		&stepGenerateScript{
 			generator: p.generator,
+			resumable: resumable,
 		},
 		&stepSendReceived{},
 		&stepSleep{duration: p.config.InitialSleep},
@@ -239,11 +258,13 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepStartInstance{
 			provider:     p.provider,
 			startTimeout: p.config.StartupTimeout,
+			resumable:    resumable,
 		},
 		&stepCheckCancellation{},
 		&stepUploadScript{
 			uploadTimeout: p.config.ScriptUploadTimeout,
 			agentEnabled:  p.config.AgentEnabled,
+			resumable:     resumable,
 		},
 		&stepCheckCancellation{},
 		&stepUpdateState{},
@@ -254,6 +275,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			hardTimeout:              buildJob.StartAttributes().HardTimeout,
 			skipShutdownOnLogTimeout: p.config.SkipShutdownOnLogTimeout,
 			agentEnabled:             p.config.AgentEnabled,
+			resumable:                resumable,
+			redisConn:                conn,
 		},
 		&stepDownloadTrace{
 			persister: p.persister,
@@ -271,7 +294,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		fields["instance_id"] = instance.ID()
 		fields["image_name"] = instance.ImageName()
 	}
-	err, ok := state.Get("err").(error)
+	err, ok = state.Get("err").(error)
 	if ok {
 		fields["err"] = err
 	}

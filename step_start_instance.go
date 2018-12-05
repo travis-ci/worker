@@ -17,6 +17,7 @@ import (
 type stepStartInstance struct {
 	provider     backend.Provider
 	startTimeout time.Duration
+	resumable    bool
 }
 
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
@@ -30,6 +31,11 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx, span := trace.StartSpan(ctx, "StartInstance.Run")
 	defer span.End()
+
+	if s.resumable {
+		logger.Info("job is resumable - skipping step")
+		return multistep.ActionContinue
+	}
 
 	logger.Info("starting instance")
 

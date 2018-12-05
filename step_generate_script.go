@@ -13,9 +13,11 @@ import (
 
 type stepGenerateScript struct {
 	generator BuildScriptGenerator
+	resumable bool
 }
 
 func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction {
+
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 
@@ -25,6 +27,11 @@ func (s *stepGenerateScript) Run(state multistep.StateBag) multistep.StepAction 
 	defer span.End()
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_generate_script")
+
+	if s.resumable {
+		logger.Info("job is resumable - skipping step")
+		return multistep.ActionContinue
+	}
 
 	b := backoff.NewExponentialBackOff()
 	b.MaxInterval = 10 * time.Second

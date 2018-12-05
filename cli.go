@@ -29,6 +29,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/cenk/backoff"
+	"github.com/garyburd/redigo/redis"
 	"github.com/getsentry/raven-go"
 	librato "github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
@@ -44,6 +45,12 @@ import (
 
 var (
 	rootContext = gocontext.TODO()
+)
+
+const (
+	redisRateLimiterPoolMaxActive   = 1
+	redisRateLimiterPoolMaxIdle     = 1
+	redisRateLimiterPoolIdleTimeout = 3 * time.Minute
 )
 
 // CLI is the top level of execution for the whole shebang
@@ -181,13 +188,27 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.BackendProvider = provider
 
+	redisPool := &redis.Pool{
+		Dial: func() (redis.Conn, error) {
+			return redis.DialURL(i.Config.AgentRedisURL)
+		},
+		TestOnBorrow: func(c redis.Conn, _ time.Time) error {
+			_, err := c.Do("PING")
+			return err
+		},
+		MaxIdle:     redisRateLimiterPoolMaxIdle,
+		MaxActive:   redisRateLimiterPoolMaxActive,
+		IdleTimeout: redisRateLimiterPoolIdleTimeout,
+		Wait:        true,
+	}
+
 	ppc := &ProcessorPoolConfig{
 		Hostname: i.Config.Hostname,
 		Context:  rootContext,
 		Config:   i.Config,
 	}
 
-	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.BuildTracePersister, i.CancellationBroadcaster)
+	pool := NewProcessorPool(ppc, i.BackendProvider, i.BuildScriptGenerator, i.BuildTracePersister, i.CancellationBroadcaster, redisPool)
 
 	logger.WithField("pool", pool).Debug("built")
 

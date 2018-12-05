@@ -278,6 +278,9 @@ var (
 		NewConfigDef("AgentEnabled", &cli.BoolFlag{
 			Usage: "Experimental: Use worker-agent for resumable job execution",
 		}),
+		NewConfigDef("AgentRedisURL", &cli.StringFlag{
+			Usage: "Experimental: The URL for the Redis instance used to hold worker-agent job states",
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
@@ -441,6 +444,7 @@ type Config struct {
 	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
 	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
 	AgentEnabled                bool   `config:"agent-enabled"`
+	AgentRedisURL               string `config:"agent-redis-url"`
 
 	ProviderConfig *ProviderConfig
 }

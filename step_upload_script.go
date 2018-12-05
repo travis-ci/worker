@@ -17,6 +17,7 @@ import (
 type stepUploadScript struct {
 	uploadTimeout time.Duration
 	agentEnabled  bool
+	resumable     bool
 }
 
 func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -34,6 +35,11 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	ctx, span := trace.StartSpan(ctx, "UploadScript.Run")
 	defer span.End()
+
+	if s.resumable {
+		logger.Info("job is resumable - skipping step")
+		return multistep.ActionContinue
+	}
 
 	preTimeoutCtx := ctx
 

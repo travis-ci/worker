@@ -8,6 +8,7 @@ import (
 
 	gocontext "context"
 
+	"github.com/garyburd/redigo/redis"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
@@ -33,6 +34,7 @@ type ProcessorPool struct {
 	processors       []*Processor
 	processorsWG     sync.WaitGroup
 	pauseCount       int
+	redisPool        *redis.Pool
 }
 
 type ProcessorPoolConfig struct {
@@ -44,7 +46,7 @@ type ProcessorPoolConfig struct {
 // NewProcessorPool creates a new processor pool using the given arguments.
 func NewProcessorPool(ppc *ProcessorPoolConfig,
 	provider backend.Provider, generator BuildScriptGenerator, persister BuildTracePersister,
-	cancellationBroadcaster *CancellationBroadcaster) *ProcessorPool {
+	cancellationBroadcaster *CancellationBroadcaster, redisPool *redis.Pool) *ProcessorPool {
 
 	return &ProcessorPool{
 		Hostname: ppc.Hostname,
@@ -55,6 +57,7 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Generator:               generator,
 		Persister:               persister,
 		CancellationBroadcaster: cancellationBroadcaster,
+		redisPool:               redisPool,
 	}
 }
 
@@ -171,7 +174,7 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 	ctx := context.FromProcessor(p.Context, processorID)
 
 	proc, err := NewProcessor(ctx, p.Hostname,
-		queue, logWriterFactory, p.Provider, p.Generator, p.Persister, p.CancellationBroadcaster,
+		queue, logWriterFactory, p.Provider, p.Generator, p.Persister, p.CancellationBroadcaster, p.redisPool,
 		ProcessorConfig{
 			Config: p.Config,
 		})
