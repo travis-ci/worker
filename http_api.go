@@ -41,6 +41,9 @@ func (api *APIHandler) CheckAuth(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
+
+		// pass it on!
+		next.ServeHTTP(w, req)
 	})
 }
 
