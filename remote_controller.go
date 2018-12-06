@@ -10,8 +10,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// APIHandler handles requests to worker's HTTP API.
-type APIHandler struct {
+// RemoteController provides an HTTP API for controlling worker.
+type RemoteController struct {
 	pool       *ProcessorPool
 	auth       string
 	workerInfo func() workerInfo
@@ -19,7 +19,7 @@ type APIHandler struct {
 }
 
 // Setup installs the HTTP routes that will handle requests to the HTTP API.
-func (api *APIHandler) Setup() {
+func (api *RemoteController) Setup() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/healthz", api.HealthCheck).Methods("GET")
@@ -39,7 +39,7 @@ func (api *APIHandler) Setup() {
 
 // CheckAuth is a middleware for all HTTP API methods that ensures that the
 // configured basic auth credentials were passed in the request.
-func (api *APIHandler) CheckAuth(next http.Handler) http.Handler {
+func (api *RemoteController) CheckAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// skip auth for the health check endpoint
 		if strings.HasPrefix(req.URL.Path, "/healthz") {
@@ -68,7 +68,7 @@ func (api *APIHandler) CheckAuth(next http.Handler) http.Handler {
 // HealthCheck indicates whether worker is currently functioning in a healthy
 // way. This can be used by a system like Kubernetes to determine whether to
 // replace an instance of worker with a new one.
-func (api *APIHandler) HealthCheck(w http.ResponseWriter, req *http.Request) {
+func (api *RemoteController) HealthCheck(w http.ResponseWriter, req *http.Request) {
 	// TODO actually check that processors are running and ready
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "OK")
@@ -76,7 +76,7 @@ func (api *APIHandler) HealthCheck(w http.ResponseWriter, req *http.Request) {
 
 // GetWorkerInfo writes a JSON payload with useful information about the current
 // state of worker as a whole.
-func (api *APIHandler) GetWorkerInfo(w http.ResponseWriter, req *http.Request) {
+func (api *RemoteController) GetWorkerInfo(w http.ResponseWriter, req *http.Request) {
 	info := api.workerInfo()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -88,7 +88,7 @@ func (api *APIHandler) GetWorkerInfo(w http.ResponseWriter, req *http.Request) {
 //
 // The main use of this is adjusting the size of the processor pool without
 // interrupting existing running jobs.
-func (api *APIHandler) UpdateWorkerInfo(w http.ResponseWriter, req *http.Request) {
+func (api *RemoteController) UpdateWorkerInfo(w http.ResponseWriter, req *http.Request) {
 	var info workerInfo
 	if err := json.NewDecoder(req.Body).Decode(&info); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -109,7 +109,7 @@ func (api *APIHandler) UpdateWorkerInfo(w http.ResponseWriter, req *http.Request
 //
 // Options can be passed in the body that determine whether the shutdown is
 // done gracefully or not.
-func (api *APIHandler) ShutdownWorker(w http.ResponseWriter, req *http.Request) {
+func (api *RemoteController) ShutdownWorker(w http.ResponseWriter, req *http.Request) {
 	var options shutdownOptions
 	if err := json.NewDecoder(req.Body).Decode(&options); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -128,13 +128,13 @@ func (api *APIHandler) ShutdownWorker(w http.ResponseWriter, req *http.Request) 
 }
 
 // IncrementPool tells the worker to spin up another processor.
-func (api *APIHandler) IncrementPool(w http.ResponseWriter, req *http.Request) {
+func (api *RemoteController) IncrementPool(w http.ResponseWriter, req *http.Request) {
 	api.pool.Incr()
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // DecrementPool tells the worker to gracefully shutdown a processor.
-func (api *APIHandler) DecrementPool(w http.ResponseWriter, req *http.Request) {
+func (api *RemoteController) DecrementPool(w http.ResponseWriter, req *http.Request) {
 	api.pool.Decr()
 	w.WriteHeader(http.StatusNoContent)
 }

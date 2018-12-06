@@ -100,14 +100,14 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.Config = config.FromCLIContext(i.c)
 
-	if i.c.String("http-api-addr") != "" {
-		if i.c.String("http-api-auth") != "" {
-			i.setupHTTPAPI()
+	if i.c.String("remote-controller-addr") != "" {
+		if i.c.String("remote-controller-auth") != "" {
+			i.setupRemoteController()
 		} else {
-			i.logger.Info("skipping HTTP API setup without http-api-auth set")
+			i.logger.Info("skipping remote controller setup without remote-controller-auth set")
 		}
 		go func() {
-			httpAddr := i.c.String("http-api-addr")
+			httpAddr := i.c.String("remote-controller-addr")
 			i.logger.Info("listening at ", httpAddr)
 			http.ListenAndServe(httpAddr, nil)
 		}()
@@ -488,15 +488,14 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 	return nil
 }
 
-func (i *CLI) setupHTTPAPI() {
-	i.logger.Info("setting up HTTP API")
-	apiHandler := &APIHandler{
+func (i *CLI) setupRemoteController() {
+	i.logger.Info("setting up remote controller")
+	&RemoteController{
 		pool:       i.ProcessorPool,
-		auth:       i.c.String("http-api-auth"),
+		auth:       i.c.String("remote-controller-auth"),
 		workerInfo: i.workerInfo,
 		cancel:     i.cancel,
-	}
-	apiHandler.Setup()
+	}.Setup()
 }
 
 func (i *CLI) workerInfo() workerInfo {
