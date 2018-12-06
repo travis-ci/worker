@@ -490,12 +490,12 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 
 func (i *CLI) setupRemoteController() {
 	i.logger.Info("setting up remote controller")
-	&RemoteController{
+	(&RemoteController{
 		pool:       i.ProcessorPool,
 		auth:       i.c.String("remote-controller-auth"),
 		workerInfo: i.workerInfo,
 		cancel:     i.cancel,
-	}.Setup()
+	}).Setup()
 }
 
 func (i *CLI) workerInfo() workerInfo {
