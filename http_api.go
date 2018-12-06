@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -18,9 +20,18 @@ type APIHandler struct {
 func (api *APIHandler) Setup() {
 	api.i.logger.Info("setting up HTTP API")
 	r := mux.NewRouter()
+
 	r.HandleFunc("/healthz", api.HealthCheck).Methods("GET")
+
 	r.HandleFunc("/worker", api.GetWorkerInfo).Methods("GET")
 	r.HandleFunc("/worker", api.UpdateWorkerInfo).Methods("PATCH")
+	r.HandleFunc("/worker", api.ShutdownWorker).Methods("DELETE")
+
+	// It is preferable to use UpdateWorkerInfo to update the pool size,
+	// as it does not depend on the current state of worker.
+	r.HandleFunc("/pool/increment", api.IncrementPool).Methods("POST")
+	r.HandleFunc("/pool/decrement", api.DecrementPool).Methods("POST")
+
 	r.Use(api.CheckAuth)
 	http.Handle("/", r)
 }
@@ -29,6 +40,12 @@ func (api *APIHandler) Setup() {
 // configured basic auth credentials were passed in the request.
 func (api *APIHandler) CheckAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// skip auth for the health check endpoint
+		if strings.HasPrefix(req.URL.Path, "/healthz") {
+			next.ServeHTTP(w, req)
+			return
+		}
+
 		username, password, ok := req.BasicAuth()
 		if !ok {
 			w.Header().Set("WWW-Authenticate", "Basic realm=\"travis-ci/worker\"")
@@ -61,6 +78,7 @@ func (api *APIHandler) HealthCheck(w http.ResponseWriter, req *http.Request) {
 func (api *APIHandler) GetWorkerInfo(w http.ResponseWriter, req *http.Request) {
 	info := api.i.workerInfo()
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(info)
 }
@@ -86,20 +104,89 @@ func (api *APIHandler) UpdateWorkerInfo(w http.ResponseWriter, req *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ShutdownWorker tells the worker to shutdown.
+//
+// Options can be passed in the body that determine whether the shutdown is
+// done gracefully or not.
+func (api *APIHandler) ShutdownWorker(w http.ResponseWriter, req *http.Request) {
+	var options shutdownOptions
+	if err := json.NewDecoder(req.Body).Decode(&options); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errorResponse{
+			Message: err.Error(),
+		})
+		return
+	}
+
+	if options.Graceful {
+		api.i.ProcessorPool.GracefulShutdown(options.Pause)
+	} else {
+		api.i.cancel()
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// IncrementPool tells the worker to spin up another processor.
+func (api *APIHandler) IncrementPool(w http.ResponseWriter, req *http.Request) {
+	api.i.ProcessorPool.Incr()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DecrementPool tells the worker to gracefully shutdown a processor.
+func (api *APIHandler) DecrementPool(w http.ResponseWriter, req *http.Request) {
+	api.i.ProcessorPool.Decr()
+	w.WriteHeader(http.StatusNoContent)
+}
+
 type workerInfo struct {
 	Version          string `json:"version"`
 	Revision         string `json:"revision"`
+	Generated        string `json:"generated"`
+	Uptime           string `json:"uptime"`
 	PoolSize         int    `json:"poolSize"`
 	ExpectedPoolSize int    `json:"expectedPoolSize"`
+	TotalProcessed   int    `json:"totalProcessed"`
+
+	Processors []processorInfo `json:"processors"`
 }
 
 func (i *CLI) workerInfo() workerInfo {
-	return workerInfo{
+	info := workerInfo{
 		Version:          VersionString,
 		Revision:         RevisionString,
+		Generated:        GeneratedString,
+		Uptime:           time.Since(i.bootTime).String(),
 		PoolSize:         i.ProcessorPool.Size(),
 		ExpectedPoolSize: i.ProcessorPool.ExpectedSize(),
+		TotalProcessed:   i.ProcessorPool.TotalProcessed(),
 	}
+
+	i.ProcessorPool.Each(func(_ int, p *Processor) {
+		info.Processors = append(info.Processors, p.processorInfo())
+	})
+
+	return info
+}
+
+type processorInfo struct {
+	ID        string `json:"id"`
+	Processed int    `json:"processed"`
+	Status    string `json:"status"`
+	LastJobID uint64 `json:"lastJobId"`
+}
+
+func (p *Processor) processorInfo() processorInfo {
+	return processorInfo{
+		ID:        p.ID,
+		Processed: p.ProcessedCount,
+		Status:    p.CurrentStatus,
+		LastJobID: p.LastJobID,
+	}
+}
+
+type shutdownOptions struct {
+	Graceful bool `json:"graceful"`
+	Pause    bool `json:"pause"`
 }
 
 type errorResponse struct {
