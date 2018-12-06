@@ -8,12 +8,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 - backend/gce: first edition of worker-agent (building block for resumable job execution)
 
 ### Changed
+- ratelimit: trace redis connection pool checkout
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+- backend/gce: add missing rate limit calls
 
 ### Security
 
