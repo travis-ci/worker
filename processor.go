@@ -283,3 +283,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 
 	p.ProcessedCount++
 }
+
+func (p *Processor) processorInfo() processorInfo {
+	return processorInfo{
+		ID:        p.ID,
+		Processed: p.ProcessedCount,
+		Status:    p.CurrentStatus,
+		LastJobID: p.LastJobID,
+	}
+}

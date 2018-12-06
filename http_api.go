@@ -6,19 +6,20 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gorilla/mux"
 )
 
 // APIHandler handles requests to worker's HTTP API.
 type APIHandler struct {
-	i *CLI
+	pool       *ProcessorPool
+	auth       string
+	workerInfo func() workerInfo
+	cancel     func()
 }
 
 // Setup installs the HTTP routes that will handle requests to the HTTP API.
 func (api *APIHandler) Setup() {
-	api.i.logger.Info("setting up HTTP API")
 	r := mux.NewRouter()
 
 	r.HandleFunc("/healthz", api.HealthCheck).Methods("GET")
@@ -54,7 +55,7 @@ func (api *APIHandler) CheckAuth(next http.Handler) http.Handler {
 		}
 
 		authBytes := []byte(fmt.Sprintf("%s:%s", username, password))
-		if subtle.ConstantTimeCompare(authBytes, []byte(api.i.c.String("http-api-auth"))) != 1 {
+		if subtle.ConstantTimeCompare(authBytes, []byte(api.auth)) != 1 {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -76,7 +77,7 @@ func (api *APIHandler) HealthCheck(w http.ResponseWriter, req *http.Request) {
 // GetWorkerInfo writes a JSON payload with useful information about the current
 // state of worker as a whole.
 func (api *APIHandler) GetWorkerInfo(w http.ResponseWriter, req *http.Request) {
-	info := api.i.workerInfo()
+	info := api.workerInfo()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -98,7 +99,7 @@ func (api *APIHandler) UpdateWorkerInfo(w http.ResponseWriter, req *http.Request
 	}
 
 	if info.PoolSize > 0 {
-		api.i.ProcessorPool.SetSize(info.PoolSize)
+		api.pool.SetSize(info.PoolSize)
 	}
 
 	w.WriteHeader(http.StatusNoContent)
@@ -119,22 +120,22 @@ func (api *APIHandler) ShutdownWorker(w http.ResponseWriter, req *http.Request) 
 	}
 
 	if options.Graceful {
-		api.i.ProcessorPool.GracefulShutdown(options.Pause)
+		api.pool.GracefulShutdown(options.Pause)
 	} else {
-		api.i.cancel()
+		api.cancel()
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // IncrementPool tells the worker to spin up another processor.
 func (api *APIHandler) IncrementPool(w http.ResponseWriter, req *http.Request) {
-	api.i.ProcessorPool.Incr()
+	api.pool.Incr()
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // DecrementPool tells the worker to gracefully shutdown a processor.
 func (api *APIHandler) DecrementPool(w http.ResponseWriter, req *http.Request) {
-	api.i.ProcessorPool.Decr()
+	api.pool.Decr()
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -150,38 +151,11 @@ type workerInfo struct {
 	Processors []processorInfo `json:"processors"`
 }
 
-func (i *CLI) workerInfo() workerInfo {
-	info := workerInfo{
-		Version:          VersionString,
-		Revision:         RevisionString,
-		Generated:        GeneratedString,
-		Uptime:           time.Since(i.bootTime).String(),
-		PoolSize:         i.ProcessorPool.Size(),
-		ExpectedPoolSize: i.ProcessorPool.ExpectedSize(),
-		TotalProcessed:   i.ProcessorPool.TotalProcessed(),
-	}
-
-	i.ProcessorPool.Each(func(_ int, p *Processor) {
-		info.Processors = append(info.Processors, p.processorInfo())
-	})
-
-	return info
-}
-
 type processorInfo struct {
 	ID        string `json:"id"`
 	Processed int    `json:"processed"`
 	Status    string `json:"status"`
 	LastJobID uint64 `json:"lastJobId"`
-}
-
-func (p *Processor) processorInfo() processorInfo {
-	return processorInfo{
-		ID:        p.ID,
-		Processed: p.ProcessedCount,
-		Status:    p.CurrentStatus,
-		LastJobID: p.LastJobID,
-	}
 }
 
 type shutdownOptions struct {

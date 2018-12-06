@@ -498,8 +498,32 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 }
 
 func (i *CLI) setupHTTPAPI() {
-	apiHandler := &APIHandler{i: i}
+	i.logger.Info("setting up HTTP API")
+	apiHandler := &APIHandler{
+		pool:       i.ProcessorPool,
+		auth:       i.c.String("http-api-auth"),
+		workerInfo: i.workerInfo,
+		cancel:     i.cancel,
+	}
 	apiHandler.Setup()
+}
+
+func (i *CLI) workerInfo() workerInfo {
+	info := workerInfo{
+		Version:          VersionString,
+		Revision:         RevisionString,
+		Generated:        GeneratedString,
+		Uptime:           time.Since(i.bootTime).String(),
+		PoolSize:         i.ProcessorPool.Size(),
+		ExpectedPoolSize: i.ProcessorPool.ExpectedSize(),
+		TotalProcessed:   i.ProcessorPool.TotalProcessed(),
+	}
+
+	i.ProcessorPool.Each(func(_ int, p *Processor) {
+		info.Processors = append(info.Processors, p.processorInfo())
+	})
+
+	return info
 }
 
 func (i *CLI) signalHandler() {
