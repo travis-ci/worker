@@ -117,7 +117,7 @@ func (i *CLI) Setup() (bool, error) {
 			if httpPort == "" {
 				httpPort = i.c.String("pprof-port")
 			}
-			httpAddr := fmt.Sprintf("localhost:%s", httpPort)
+			httpAddr := fmt.Sprintf("0.0.0.0:%s", httpPort)
 			i.logger.Info("listening at ", httpAddr)
 			http.ListenAndServe(httpAddr, nil)
 		}()
@@ -499,9 +499,8 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 }
 
 func (i *CLI) setupHTTPAPI() {
-	i.logger.Info("setting up HTTP API")
-	http.HandleFunc("/worker", i.httpAPI)
-	http.HandleFunc("/worker/", i.httpAPI)
+	apiHandler := &APIHandler{i: i}
+	apiHandler.Setup()
 }
 
 func (i *CLI) httpAPI(w http.ResponseWriter, req *http.Request) {

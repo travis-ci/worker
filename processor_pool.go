@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"sync/atomic"
 
 	gocontext "context"
 
@@ -33,6 +34,10 @@ type ProcessorPool struct {
 	processors       []*Processor
 	processorsWG     sync.WaitGroup
 	pauseCount       int
+
+	activeProcessorCount  int32
+	firstProcessorStarted chan struct{}
+	startProcessorOnce    sync.Once
 }
 
 type ProcessorPoolConfig struct {
@@ -55,6 +60,8 @@ func NewProcessorPool(ppc *ProcessorPoolConfig,
 		Generator:               generator,
 		Persister:               persister,
 		CancellationBroadcaster: cancellationBroadcaster,
+
+		firstProcessorStarted: make(chan struct{}),
 	}
 }
 
@@ -77,8 +84,47 @@ func (p *ProcessorPool) Each(f func(int, *Processor)) {
 	}
 }
 
-// Size returns the number of processors in the pool
+// Size returns the number of processors that are currently running.
+//
+// This includes processors that are in the process of gracefully shutting down. It's
+// important to track these because they are still running jobs and thus still using
+// resources that need to be managed and tracked.
 func (p *ProcessorPool) Size() int {
+	val := atomic.LoadInt32(&p.activeProcessorCount)
+	return int(val)
+}
+
+// SetSize adjust the pool to run the given number of processors.
+//
+// This operates in an eventually consistent manner. Because some workers may be
+// running jobs, we may not be able to immediately adjust the pool size. Once jobs
+// finish, the pool size should rest at the given value.
+func (p *ProcessorPool) SetSize(newSize int) {
+	p.processorsLock.Lock()
+	defer p.processorsLock.Unlock()
+
+	cur := len(p.processors)
+
+	if newSize > cur {
+		diff := newSize - cur
+		for i := 0; i < diff; i++ {
+			p.Incr()
+		}
+	} else if newSize < cur {
+		diff := cur - newSize
+		for i := 0; i < diff; i++ {
+			p.Decr()
+		}
+	}
+}
+
+// ExpectedSize returns the size of the pool once gracefully shutdown processors
+// complete.
+//
+// After calling SetSize, ExpectedSize will soon reflect the requested new size,
+// while Size will include processors that are still processing their last job
+// before shutting down.
+func (p *ProcessorPool) ExpectedSize() int {
 	return len(p.processors)
 }
 
@@ -101,6 +147,8 @@ func (p *ProcessorPool) Run(poolSize int, queue JobQueue, logWriterFactory LogWr
 	for i := 0; i < poolSize; i++ {
 		p.Incr()
 	}
+
+	p.waitForFirstProcessor()
 
 	if len(p.poolErrors) > 0 {
 		context.LoggerFromContext(p.Context).WithFields(logrus.Fields{
@@ -136,8 +184,10 @@ func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 		}
 	}
 
-	for _, processor := range p.processors {
-		processor.GracefulShutdown()
+	ps := len(p.processors)
+	for i := 0; i < ps; i++ {
+		// Use Decr to make sure the processor is removed from the list in the pool
+		p.Decr()
 	}
 }
 
@@ -152,6 +202,10 @@ func (p *ProcessorPool) Incr() {
 			return
 		}
 	}()
+
+	p.startProcessorOnce.Do(func() {
+		close(p.firstProcessorStarted)
+	})
 }
 
 // Decr pops a processor out of the pool and issues a graceful shutdown
@@ -188,6 +242,14 @@ func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterF
 	p.processors = append(p.processors, proc)
 	p.processorsLock.Unlock()
 
+	atomic.AddInt32(&p.activeProcessorCount, 1)
 	proc.Run()
+	atomic.AddInt32(&p.activeProcessorCount, -1)
 	return nil
+}
+
+func (p *ProcessorPool) waitForFirstProcessor() {
+	// wait until this channel is closed. the first processor to start running
+	// will close it.
+	<-p.firstProcessorStarted
 }
