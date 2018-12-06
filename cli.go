@@ -100,23 +100,14 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.Config = config.FromCLIContext(i.c)
 
-	if i.c.String("pprof-port") != "" && i.c.String("http-api-port") != "" {
-		return false, fmt.Errorf("only one http port is allowed. "+
-			"pprof-port=%v http-api-port=%v",
-			i.c.String("pprof-port"), i.c.String("http-api-port"))
-	}
-	if i.c.String("pprof-port") != "" || i.c.String("http-api-port") != "" {
+	if i.c.String("http-api-addr") != "" {
 		if i.c.String("http-api-auth") != "" {
 			i.setupHTTPAPI()
 		} else {
 			i.logger.Info("skipping HTTP API setup without http-api-auth set")
 		}
 		go func() {
-			httpPort := i.c.String("http-api-port")
-			if httpPort == "" {
-				httpPort = i.c.String("pprof-port")
-			}
-			httpAddr := fmt.Sprintf("0.0.0.0:%s", httpPort)
+			httpAddr := i.c.String("http-api-addr")
 			i.logger.Info("listening at ", httpAddr)
 			http.ListenAndServe(httpAddr, nil)
 		}()
