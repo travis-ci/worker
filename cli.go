@@ -100,19 +100,6 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.Config = config.FromCLIContext(i.c)
 
-	if i.c.String("remote-controller-addr") != "" {
-		if i.c.String("remote-controller-auth") != "" {
-			i.setupRemoteController()
-		} else {
-			i.logger.Info("skipping remote controller setup without remote-controller-auth set")
-		}
-		go func() {
-			httpAddr := i.c.String("remote-controller-addr")
-			i.logger.Info("listening at ", httpAddr)
-			http.ListenAndServe(httpAddr, nil)
-		}()
-	}
-
 	if i.c.Bool("echo-config") {
 		config.WriteEnvConfig(i.Config, os.Stdout)
 		return false, nil
@@ -182,6 +169,19 @@ func (i *CLI) Setup() (bool, error) {
 	logger.WithField("pool", pool).Debug("built")
 
 	i.ProcessorPool = pool
+
+	if i.c.String("remote-controller-addr") != "" {
+		if i.c.String("remote-controller-auth") != "" {
+			i.setupRemoteController()
+		} else {
+			i.logger.Info("skipping remote controller setup without remote-controller-auth set")
+		}
+		go func() {
+			httpAddr := i.c.String("remote-controller-addr")
+			i.logger.Info("listening at ", httpAddr)
+			http.ListenAndServe(httpAddr, nil)
+		}()
+	}
 
 	err = i.setupJobQueueAndCanceller()
 	if err != nil {
