@@ -223,14 +223,11 @@ var (
 		NewConfigDef("ProgressType", &cli.StringFlag{
 			Usage: "Report progress for supported backends (valid values \"text\" or unset)",
 		}),
-		NewConfigDef("pprof-port", &cli.StringFlag{
-			Usage: "enable pprof http endpoint (and internal http api) at port",
+		NewConfigDef("remote-controller-addr", &cli.StringFlag{
+			Usage: "enable remote controller http api (and pprof) at address",
 		}),
-		NewConfigDef("http-api-port", &cli.StringFlag{
-			Usage: "enable http api (and pprof) at port",
-		}),
-		NewConfigDef("http-api-auth", &cli.StringFlag{
-			Usage: "username:password for http api basic auth",
+		NewConfigDef("remote-controller-auth", &cli.StringFlag{
+			Usage: "username:password for http api basic auth for remote controller",
 		}),
 		NewConfigDef("silence-metrics", &cli.BoolFlag{
 			Usage: "deprecated flag",

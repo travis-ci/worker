@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -101,28 +100,6 @@ func (i *CLI) Setup() (bool, error) {
 
 	i.Config = config.FromCLIContext(i.c)
 
-	if i.c.String("pprof-port") != "" && i.c.String("http-api-port") != "" {
-		return false, fmt.Errorf("only one http port is allowed. "+
-			"pprof-port=%v http-api-port=%v",
-			i.c.String("pprof-port"), i.c.String("http-api-port"))
-	}
-	if i.c.String("pprof-port") != "" || i.c.String("http-api-port") != "" {
-		if i.c.String("http-api-auth") != "" {
-			i.setupHTTPAPI()
-		} else {
-			i.logger.Info("skipping HTTP API setup without http-api-auth set")
-		}
-		go func() {
-			httpPort := i.c.String("http-api-port")
-			if httpPort == "" {
-				httpPort = i.c.String("pprof-port")
-			}
-			httpAddr := fmt.Sprintf("localhost:%s", httpPort)
-			i.logger.Info("listening at ", httpAddr)
-			http.ListenAndServe(httpAddr, nil)
-		}()
-	}
-
 	if i.c.Bool("echo-config") {
 		config.WriteEnvConfig(i.Config, os.Stdout)
 		return false, nil
@@ -192,6 +169,19 @@ func (i *CLI) Setup() (bool, error) {
 	logger.WithField("pool", pool).Debug("built")
 
 	i.ProcessorPool = pool
+
+	if i.c.String("remote-controller-addr") != "" {
+		if i.c.String("remote-controller-auth") != "" {
+			i.setupRemoteController()
+		} else {
+			i.logger.Info("skipping remote controller setup without remote-controller-auth set")
+		}
+		go func() {
+			httpAddr := i.c.String("remote-controller-addr")
+			i.logger.Info("listening at ", httpAddr)
+			http.ListenAndServe(httpAddr, nil)
+		}()
+	}
 
 	err = i.setupJobQueueAndCanceller()
 	if err != nil {
@@ -498,102 +488,32 @@ func (i *CLI) heartbeatCheck(heartbeatURL, heartbeatAuthToken string) error {
 	return nil
 }
 
-func (i *CLI) setupHTTPAPI() {
-	i.logger.Info("setting up HTTP API")
-	http.HandleFunc("/worker", i.httpAPI)
-	http.HandleFunc("/worker/", i.httpAPI)
+func (i *CLI) setupRemoteController() {
+	i.logger.Info("setting up remote controller")
+	(&RemoteController{
+		pool:       i.ProcessorPool,
+		auth:       i.c.String("remote-controller-auth"),
+		workerInfo: i.workerInfo,
+		cancel:     i.cancel,
+	}).Setup()
 }
 
-func (i *CLI) httpAPI(w http.ResponseWriter, req *http.Request) {
-	if req.Method == "GET" && req.URL.Path == "/worker" {
-		w.Header().Set("Content-Type", "text/plain;charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, strings.TrimSpace(`
-Available methods:
-
-- POST /worker/graceful-shutdown
-- POST /worker/graceful-shutdown-pause
-- POST /worker/info
-- POST /worker/pool-decr
-- POST /worker/pool-incr
-- POST /worker/shutdown
-		`)+"\n")
-		return
+func (i *CLI) workerInfo() workerInfo {
+	info := workerInfo{
+		Version:          VersionString,
+		Revision:         RevisionString,
+		Generated:        GeneratedString,
+		Uptime:           time.Since(i.bootTime).String(),
+		PoolSize:         i.ProcessorPool.Size(),
+		ExpectedPoolSize: i.ProcessorPool.ExpectedSize(),
+		TotalProcessed:   i.ProcessorPool.TotalProcessed(),
 	}
 
-	if req.Method != "POST" {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
+	i.ProcessorPool.Each(func(_ int, p *Processor) {
+		info.Processors = append(info.Processors, p.processorInfo())
+	})
 
-	username, password, ok := req.BasicAuth()
-	if !ok {
-		w.Header().Set("WWW-Authenticate", "Basic realm=\"travis-ci/worker\"")
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	authBytes := []byte(fmt.Sprintf("%s:%s", username, password))
-	if subtle.ConstantTimeCompare(authBytes, []byte(i.c.String("http-api-auth"))) != 1 {
-		w.WriteHeader(http.StatusForbidden)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/plain;charset=utf-8")
-
-	action := strings.ToLower(strings.Replace(req.URL.Path, "/worker/", "", 1))
-	i.logger.Info(fmt.Sprintf("web %s received", action))
-	switch action {
-	case "graceful-shutdown":
-		i.ProcessorPool.GracefulShutdown(false)
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "starting graceful shutdown\n")
-	case "shutdown":
-		i.cancel()
-		fmt.Fprintf(w, "shutting down immediately\n")
-	case "pool-incr":
-		prev := i.ProcessorPool.Size()
-		i.ProcessorPool.Incr()
-		fmt.Fprintf(w, "adding processor to pool (%v + 1)\n", prev)
-	case "pool-decr":
-		prev := i.ProcessorPool.Size()
-		i.ProcessorPool.Decr()
-		fmt.Fprintf(w, "removing processor from pool (%v - 1)\n", prev)
-	case "graceful-shutdown-pause":
-		i.ProcessorPool.GracefulShutdown(true)
-		fmt.Fprintf(w, "toggling graceful shutdown and pause\n")
-	case "info":
-		fmt.Fprintf(w, "version: %s\n"+
-			"revision: %s\n"+
-			"generated: %s\n"+
-			"boot_time: %s\n"+
-			"uptime: %v\n"+
-			"pool_size: %v\n"+
-			"total_processed: %v\n"+
-			"processors:\n",
-			VersionString,
-			RevisionString,
-			GeneratedString,
-			i.bootTime.String(),
-			time.Since(i.bootTime),
-			i.ProcessorPool.Size(),
-			i.ProcessorPool.TotalProcessed())
-		i.ProcessorPool.Each(func(n int, proc *Processor) {
-			fmt.Fprintf(w, "- n: %v\n"+
-				"  id: %v\n"+
-				"  processed: %v\n"+
-				"  status: %v\n"+
-				"  last_job_id: %v\n",
-				n,
-				proc.ID,
-				proc.ProcessedCount,
-				proc.CurrentStatus,
-				proc.LastJobID)
-		})
-	default:
-		w.Header().Set("Travis-Worker-Unknown-Action", action)
-		w.WriteHeader(http.StatusNotFound)
-	}
+	return info
 }
 
 func (i *CLI) signalHandler() {
