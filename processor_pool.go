@@ -184,6 +184,13 @@ func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 		}
 	}
 
+	// In case no processors were ever started, we still want a graceful shutdown
+	// request to proceed. Without this, we will wait forever until the process is
+	// forcefully killed.
+	p.startProcessorOnce.Do(func() {
+		close(p.firstProcessorStarted)
+	})
+
 	ps := len(p.processors)
 	for i := 0; i < ps; i++ {
 		// Use Decr to make sure the processor is removed from the list in the pool
