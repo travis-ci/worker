@@ -17,7 +17,7 @@ main() {
   if [[ "${TRAVIS_WORKER_PROVIDER_NAME}" == gce ]]; then
     local gce_zone
     gce_zone="$(__fetch_gce_zone)"
-    if [ -z "${gce_zone}" ]; then
+    if [[ ! "${gce_zone}" ]]; then
       gce_zone=us-central1-b
     fi
     echo "TRAVIS_WORKER_GCE_ZONE=${gce_zone}" >>"${env_file}"
@@ -29,7 +29,7 @@ main() {
     echo "TRAVIS_WORKER_LIBRATO_SOURCE=${librato_source}" >>"${env_file}"
   fi
 
-  if [ -f "${TRAVIS_WORKER_PRESTART_HOOK}" ]; then
+  if [[ -f "${TRAVIS_WORKER_PRESTART_HOOK}" ]]; then
     "${TRAVIS_WORKER_PRESTART_HOOK}"
   fi
 
@@ -46,8 +46,8 @@ main() {
 
 __fetch_gce_zone() {
   curl -sSL \
-    "http://metadata.google.internal/computeMetadata/v1/instance/zone" \
-    -H "Metadata-Flavor: Google" |
+    'http://metadata.google.internal/computeMetadata/v1/instance/zone' \
+    -H 'Metadata-Flavor: Google' |
     awk -F/ '{ print $NF }'
 }
 
@@ -55,7 +55,7 @@ __build_librato_source() {
   local host_name="${1}"
   local name="${2}"
 
-  if [[ "${name}" == "travis-worker" ]]; then
+  if [[ "${name}" == travis-worker ]]; then
     echo "${host_name}"
     return
   fi
