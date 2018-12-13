@@ -1532,7 +1532,7 @@ func (p *gceProvider) pickAlternateZone(zoneName string) string {
 	}
 
 	for {
-		altZone := p.alternateZones[rand.Intn(len(p.alternateZones))]
+		altZone := p.alternateZones[mathrand.Intn(len(p.alternateZones))]
 		if altZone != zoneName {
 			return altZone
 		}
