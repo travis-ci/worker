@@ -84,6 +84,12 @@ func (p *ProcessorPool) Each(f func(int, *Processor)) {
 	}
 }
 
+// Ready returns true if the processor pool is running as expected.
+// Returns false if the processor pool has not been started yet.
+func (p *ProcessorPool) Ready() bool {
+	return p.queue != nil && p.logWriterFactory != nil
+}
+
 // Size returns the number of processors that are currently running.
 //
 // This includes processors that are in the process of gracefully shutting down. It's
