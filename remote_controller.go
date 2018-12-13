@@ -26,6 +26,7 @@ func (api *RemoteController) Setup() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/healthz", api.HealthCheck).Methods("GET")
+	r.HandleFunc("/ready", api.ReadyCheck).Methods("GET")
 
 	r.HandleFunc("/worker", api.GetWorkerInfo).Methods("GET")
 	r.HandleFunc("/worker", api.UpdateWorkerInfo).Methods("PATCH")
@@ -57,10 +58,10 @@ func (api *RemoteController) SetContext(next http.Handler) http.Handler {
 // configured basic auth credentials were passed in the request.
 func (api *RemoteController) CheckAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		log := context.LoggerFromContext(req.Context()).WithField("method", "ShutdownWorker")
+		log := context.LoggerFromContext(req.Context())
 
-		// skip auth for the health check endpoint
-		if strings.HasPrefix(req.URL.Path, "/healthz") {
+		// skip auth for the health and ready check endpoints
+		if strings.HasPrefix(req.URL.Path, "/healthz") || strings.HasPrefix(req.URL.Path, "/ready") {
 			next.ServeHTTP(w, req)
 			return
 		}
@@ -91,9 +92,22 @@ func (api *RemoteController) CheckAuth(next http.Handler) http.Handler {
 // way. This can be used by a system like Kubernetes to determine whether to
 // replace an instance of worker with a new one.
 func (api *RemoteController) HealthCheck(w http.ResponseWriter, req *http.Request) {
-	// TODO actually check that processors are running and ready
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "OK")
+}
+
+// ReadyCheck indicates whether the worker is ready to receive requests.
+// This is intended to be used as a readiness check in a system like Kubernetes.
+// We should not attempt to interact with the remote controller until this returns
+// a successful status.
+func (api *RemoteController) ReadyCheck(w http.ResponseWriter, req *http.Request) {
+	if api.pool.Ready() {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "OK")
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprint(w, "Not Ready")
+	}
 }
 
 // GetWorkerInfo writes a JSON payload with useful information about the current
