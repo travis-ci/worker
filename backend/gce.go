@@ -1072,7 +1072,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		c.instance = inst
 		c.instanceInsertOpName = op.Name
 		return nil
-	}, backoff.WithContext(b, ctx).Backoff)
+	}, backoff.WithContext(b, ctx))
 
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
@@ -1808,7 +1808,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 		}
 
 		return nil
-	}, backoff.WithContext(b, ctx).Backoff)
+	}, backoff.WithContext(b, ctx))
 
 	return preempted, err
 }
@@ -1961,7 +1961,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 		}
 
 		return errGCEInstanceDeletionNotDone
-	}, backoff.WithContext(b, ctx).Backoff)
+	}, backoff.WithContext(b, ctx))
 
 	c.errChan <- err
 
