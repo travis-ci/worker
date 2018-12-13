@@ -7,14 +7,28 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 
 ### Changed
-- ratelimit: trace redis connection pool checkout
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
+
+## [6.0.0] - 2018-12-13
+
+### Added
+- rc: remote controller HTTP API
+- processor: set size of processor pool
+
+### Changed
+- ratelimit: trace redis connection pool checkout
+
+### Removed
+- http: old HTTP API, superseded by remote controller
+
+### Fixed
 - backend/gce: add missing rate limit calls
+- processor: fix race conditions adding and removing processors
 
 ### Security
 
@@ -878,7 +892,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v5.1.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v6.0.0...HEAD
+[6.0.0]: https://github.com/travis-ci/worker/compare/v5.1.0...v6.0.0
 [5.1.0]: https://github.com/travis-ci/worker/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/travis-ci/worker/compare/v4.6.3...v5.0.0
 [4.6.3]: https://github.com/travis-ci/worker/compare/v4.6.2...v4.6.3
