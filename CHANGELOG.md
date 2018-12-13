@@ -5,7 +5,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- backend/gce: retry instance insert in alternate zone on error
 
 ### Changed
 
@@ -14,6 +13,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+
+## [6.1.0] - 2018-12-13
+
+### Added
+- backend/gce: retry instance insert in alternate zone on error
 
 ## [6.0.0] - 2018-12-13
 
@@ -893,7 +897,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v6.0.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v6.1.0...HEAD
+[6.1.0]: https://github.com/travis-ci/worker/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/travis-ci/worker/compare/v5.1.0...v6.0.0
 [5.1.0]: https://github.com/travis-ci/worker/compare/v5.0.0...v5.1.0
 [5.0.0]: https://github.com/travis-ci/worker/compare/v4.6.3...v5.0.0
