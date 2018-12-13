@@ -181,6 +181,7 @@ type gceProvider struct {
 	imageProjectID string
 	ic             *gceInstanceConfig
 	cfg            *config.ProviderConfig
+	alternateZones []string
 
 	deterministicHostname bool
 	imageSelectorType     string
@@ -254,6 +255,7 @@ type gceStartContext struct {
 	instanceWarmedIP     string
 	windowsPassword      string
 	zoneName             string
+	zonePinned           bool
 }
 
 type gceInstance struct {
@@ -589,6 +591,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		projectID:      projectID,
 		imageProjectID: imageProjectID,
 		cfg:            cfg,
+		alternateZones: []string{},
 		sshDialer:      sshDialer,
 		sshDialTimeout: sshDialTimeout,
 
@@ -726,6 +729,20 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		}
 	}
 
+	zl, err := p.client.Zones.List(p.projectID).
+		Context(ctx).
+		Filter("status eq UP").
+		Filter(fmt.Sprintf("region eq %s", p.ic.Zone.Region)).Do()
+
+	if err != nil {
+		return err
+	}
+
+	p.alternateZones = []string{}
+	for _, z := range zl.Items {
+		p.alternateZones = append(p.alternateZones, z.Name)
+	}
+
 	return nil
 }
 
@@ -807,8 +824,9 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
 	var (
-		zone *compute.Zone
-		err  error
+		zone       *compute.Zone
+		err        error
+		zonePinned bool
 	)
 	zone = p.ic.Zone
 	if startAttributes.VMConfig.Zone != "" {
@@ -819,6 +837,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 		if err != nil {
 			return nil, err
 		}
+		zonePinned = true
 	}
 
 	state := &multistep.BasicStateBag{}
@@ -830,6 +849,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	c := &gceStartContext{
 		startAttributes: startAttributes,
 		zoneName:        zone.Name,
+		zonePinned:      zonePinned,
 		progresser:      progresser,
 		sshDialer:       p.sshDialer,
 		ctx:             ctx,
@@ -1029,8 +1049,31 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		}
 	}
 
-	p.apiRateLimit(c.ctx)
-	op, err := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 1 * time.Second
+	b.MaxElapsedTime = 1 * time.Minute
+
+	err = backoff.Retry(func() error {
+		p.apiRateLimit(c.ctx)
+		op, err := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
+		if err != nil {
+			if !c.zonePinned {
+				altZone := p.pickAlternateZone(c.zoneName)
+				logger.WithFields(logrus.Fields{
+					"err":       err,
+					"prev_zone": c.zoneName,
+					"next_zone": altZone,
+				}).Warn("switching zones due to error")
+				c.zoneName = altZone
+			}
+			return err
+		}
+
+		c.instance = inst
+		c.instanceInsertOpName = op.Name
+		return nil
+	}, backoff.WithContext(b, ctx))
+
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
 			Message: "could not insert instance",
@@ -1040,8 +1083,6 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		return multistep.ActionHalt
 	}
 
-	c.instance = inst
-	c.instanceInsertOpName = op.Name
 	c.progresser.Progress(&ProgressEntry{
 		Message: "inserted instance",
 		State:   ProgressSuccess,
@@ -1485,6 +1526,22 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 	return warmerRes, nil
 }
 
+func (p *gceProvider) pickAlternateZone(zoneName string) string {
+	if len(p.alternateZones) == 0 {
+		return zoneName
+	}
+
+	for {
+		altZone := p.alternateZones[mathrand.Intn(len(p.alternateZones))]
+		if altZone != zoneName {
+			return altZone
+		}
+		if len(p.alternateZones) == 1 {
+			return zoneName
+		}
+	}
+}
+
 type warmerRequest struct {
 	Site        string `json:"site"`
 	Zone        string `json:"zone"`
@@ -1751,7 +1808,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 		}
 
 		return nil
-	}, b)
+	}, backoff.WithContext(b, ctx))
 
 	return preempted, err
 }
@@ -1904,7 +1961,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 		}
 
 		return errGCEInstanceDeletionNotDone
-	}, b)
+	}, backoff.WithContext(b, ctx))
 
 	c.errChan <- err
 
