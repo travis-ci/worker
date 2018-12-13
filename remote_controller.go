@@ -99,7 +99,7 @@ func (api *RemoteController) HealthCheck(w http.ResponseWriter, req *http.Reques
 // GetWorkerInfo writes a JSON payload with useful information about the current
 // state of worker as a whole.
 func (api *RemoteController) GetWorkerInfo(w http.ResponseWriter, req *http.Request) {
-	log := context.LoggerFromContext(req.Context()).WithField("method", "UpdateWorkerInfo")
+	log := context.LoggerFromContext(req.Context()).WithField("method", "GetWorkerInfo")
 
 	info := api.workerInfo()
 	log.Info("got worker info")
