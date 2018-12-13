@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- backend/gce: retry instance insert in alternate zone on error
 
 ### Changed
 - ratelimit: trace redis connection pool checkout
