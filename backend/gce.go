@@ -107,6 +107,7 @@ var (
 		"RATE_LIMIT_DYNAMIC_CONFIG":     "get max-calls and duration dynamically through redis (default false)",
 		"RATE_LIMIT_DYNAMIC_CONFIG_TTL": fmt.Sprintf("time to cache dynamic config for (default %v)", defaultGCERateLimitDynamicConfigTTL),
 
+		"BACKOFF_RETRY_MAX":     "Maximum allowed duration of generic exponential backoff retries (default 1m)",
 		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
 		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
 		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
@@ -183,6 +184,7 @@ type gceProvider struct {
 	cfg            *config.ProviderConfig
 	alternateZones []string
 
+	backoffRetryMax       time.Duration
 	deterministicHostname bool
 	imageSelectorType     string
 	imageSelector         image.Selector
@@ -586,6 +588,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		deterministicHostname = asBool(cfg.Get("DETERMINISTIC_HOSTNAME"))
 	}
 
+	backoffRetryMax := time.Minute
+	if cfg.IsSet("BACKOFF_RETRY_MAX") {
+		backoffRetryMax, err = time.ParseDuration(cfg.Get("BACKOFF_RETRY_MAX"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &gceProvider{
 		client:         client,
 		projectID:      projectID,
@@ -609,6 +619,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			AcceleratorConfig: defaultAcceleratorConfig,
 		},
 
+		backoffRetryMax:       backoffRetryMax,
 		deterministicHostname: deterministicHostname,
 		imageSelector:         imageSelector,
 		imageSelectorType:     imageSelectorType,
@@ -687,28 +698,56 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	var err error
 
-	p.apiRateLimit(ctx)
-	p.ic.Zone, err = p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Context(ctx).Do()
+	err := p.backoffRetry(ctx, func() error {
+		p.apiRateLimit(ctx)
+		p.ic.Zone, err = p.client.Zones.
+			Get(p.projectID, p.cfg.Get("ZONE")).
+			Context(ctx).
+			Do()
+		return err
+	})
+
 	if err != nil {
 		return err
 	}
 
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
-	p.apiRateLimit(ctx)
-	p.ic.MachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).Context(ctx).Do()
+	err = p.backoffRetry(ctx, func() error {
+		p.apiRateLimit(ctx)
+		p.ic.MachineType, err = p.client.MachineTypes.
+			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).
+			Context(ctx).
+			Do()
+		return err
+	})
+
 	if err != nil {
 		return err
 	}
 
-	p.apiRateLimit(ctx)
-	p.ic.PremiumMachineType, err = p.client.MachineTypes.Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).Context(ctx).Do()
+	err = p.backoffRetry(ctx, func() error {
+		p.apiRateLimit(ctx)
+		p.ic.PremiumMachineType, err = p.client.MachineTypes.
+			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).
+			Context(ctx).
+			Do()
+		return err
+	})
+
 	if err != nil {
 		return err
 	}
 
-	p.apiRateLimit(ctx)
-	p.ic.Network, err = p.client.Networks.Get(p.projectID, p.cfg.Get("NETWORK")).Context(ctx).Do()
+	err = p.backoffRetry(ctx, func() error {
+		p.apiRateLimit(ctx)
+		p.ic.Network, err = p.client.Networks.
+			Get(p.projectID, p.cfg.Get("NETWORK")).
+			Context(ctx).
+			Do()
+		return err
+	})
+
 	if err != nil {
 		return err
 	}
@@ -722,28 +761,48 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	if p.cfg.IsSet("SUBNETWORK") {
-		p.apiRateLimit(ctx)
-		p.ic.Subnetwork, err = p.client.Subnetworks.Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).Context(ctx).Do()
+		err = p.backoffRetry(ctx, func() error {
+			p.apiRateLimit(ctx)
+			p.ic.Subnetwork, err = p.client.Subnetworks.
+				Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).
+				Context(ctx).
+				Do()
+			return err
+		})
+
 		if err != nil {
 			return err
 		}
 	}
 
-	zl, err := p.client.Zones.List(p.projectID).
-		Context(ctx).
-		Filter("status eq UP").
-		Filter(fmt.Sprintf("region eq %s", p.ic.Zone.Region)).Do()
+	err = p.backoffRetry(ctx, func() error {
+		p.apiRateLimit(ctx)
+		zl, err := p.client.Zones.List(p.projectID).
+			Context(ctx).
+			Filter("status eq UP").
+			Filter(fmt.Sprintf("region eq %s", p.ic.Zone.Region)).Do()
 
-	if err != nil {
-		return err
-	}
+		if err != nil {
+			return err
+		}
 
-	p.alternateZones = []string{}
-	for _, z := range zl.Items {
-		p.alternateZones = append(p.alternateZones, z.Name)
-	}
+		p.alternateZones = []string{}
+		for _, z := range zl.Items {
+			p.alternateZones = append(p.alternateZones, z.Name)
+		}
 
-	return nil
+		return nil
+	})
+
+	return err
+}
+
+func (p *gceProvider) backoffRetry(ctx gocontext.Context, fn func() error) error {
+	b = backoff.NewExponentialBackOff()
+	b.InitialInterval = 1 * time.Second
+	b.MaxElapsedTime = p.backoffRetryMax
+
+	return backoff.Retry(fn, backoff.WithContext(b, ctx))
 }
 
 type MetricsTransport struct {
@@ -1049,11 +1108,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		}
 	}
 
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = 1 * time.Second
-	b.MaxElapsedTime = 1 * time.Minute
-
-	err = backoff.Retry(func() error {
+	err = p.backoffRetry(c.ctx, func() error {
 		p.apiRateLimit(c.ctx)
 		op, err := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
 		if err != nil {
@@ -1072,7 +1127,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		c.instance = inst
 		c.instanceInsertOpName = op.Name
 		return nil
-	}, backoff.WithContext(b, ctx))
+	})
 
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
@@ -1146,9 +1201,6 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	time.Sleep(p.bootPrePollSleep)
 	span.End()
 
-	p.apiRateLimit(ctx)
-	zoneOpCall := p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(c.ctx)
-
 	c.progresser.Progress(&ProgressEntry{
 		Message:   "polling for instance insert completion...",
 		State:     ProgressNeutral,
@@ -1158,8 +1210,17 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
-		p.apiRateLimit(c.ctx)
-		newOp, err := zoneOpCall.Do()
+		var (
+			zoneOp *compute.ZoneOperationCall
+			err    error
+		)
+
+		err := p.backoffRetry(ctx, func() error {
+			p.apiRateLimit(c.ctx)
+			zoneOp, err = p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(ctx).Do()
+			return err
+		})
+
 		if err != nil {
 			c.progresser.Progress(&ProgressEntry{
 				Message:    "could not check for instance insert",
@@ -1170,19 +1231,19 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			return multistep.ActionHalt
 		}
 
-		if newOp.Status == "RUNNING" || newOp.Status == "DONE" {
-			if newOp.Error != nil {
+		if zoneOp.Status == "RUNNING" || zoneOp.Status == "DONE" {
+			if zoneOp.Error != nil {
 				c.progresser.Progress(&ProgressEntry{
 					Message:    "instance could not be inserted",
 					State:      ProgressFailure,
 					Interrupts: true,
 				})
-				c.errChan <- &gceOpError{Err: newOp.Error}
+				c.errChan <- &gceOpError{Err: zoneOp.Error}
 				return multistep.ActionHalt
 			}
 
 			logger.WithFields(logrus.Fields{
-				"status": newOp.Status,
+				"status": zoneOp.Status,
 				"name":   c.instanceInsertOpName,
 			}).Debug("instance is ready")
 
@@ -1199,9 +1260,9 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			return multistep.ActionContinue
 		}
 
-		if newOp.Error != nil {
+		if zoneOp.Error != nil {
 			logger.WithFields(logrus.Fields{
-				"err":  newOp.Error,
+				"err":  zoneOp.Error,
 				"name": c.instanceInsertOpName,
 			}).Error("encountered an error while waiting for instance insert operation")
 
@@ -1210,12 +1271,12 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 				State:      ProgressFailure,
 				Interrupts: true,
 			})
-			c.errChan <- &gceOpError{Err: newOp.Error}
+			c.errChan <- &gceOpError{Err: zoneOp.Error}
 			return multistep.ActionHalt
 		}
 
 		logger.WithFields(logrus.Fields{
-			"status":   newOp.Status,
+			"status":   zoneOp.Status,
 			"name":     c.instanceInsertOpName,
 			"duration": p.bootPollSleep,
 		}).Debug("sleeping before checking instance insert operation")
@@ -1645,14 +1706,16 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	ctx, span := trace.StartSpan(ctx, "GCE.refreshInstance")
 	defer span.End()
 
-	i.provider.apiRateLimit(ctx)
-	inst, err := i.client.Instances.Get(i.projectID, i.getZoneName(), i.instance.Name).Context(ctx).Do()
-	if err != nil {
-		return err
-	}
+	return i.provider.backoffRetry(ctx, func() error {
+		i.provider.apiRateLimit(ctx)
+		inst, err := i.client.Instances.Get(i.projectID, i.getZoneName(), i.instance.Name).Context(ctx).Do()
+		if err != nil {
+			return err
+		}
 
-	i.instance = inst
-	return nil
+		i.instance = inst
+		return nil
+	})
 }
 
 func (i *gceInstance) Warmed() bool {
@@ -1786,12 +1849,8 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 	listOpCall := i.provider.client.GlobalOperations.AggregatedList(i.provider.projectID).
 		Filter(fmt.Sprintf("targetId eq %d", i.instance.Id)).Context(ctx)
 
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = 1 * time.Second
-	b.MaxElapsedTime = 1 * time.Minute
-
 	var preempted bool
-	err := backoff.Retry(func() error {
+	err := i.provider.backoffRetry(ctx, func() error {
 		i.provider.apiRateLimit(ctx)
 		list, err := listOpCall.Do()
 		if err != nil {
@@ -1808,7 +1867,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 		}
 
 		return nil
-	}, backoff.WithContext(b, ctx))
+	})
 
 	return preempted, err
 }
@@ -1908,13 +1967,20 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 }
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
-	op, err := i.client.Instances.Delete(i.projectID, i.getZoneName(), i.instance.Name).Context(c.ctx).Do()
+	err := i.provider.backoffRetry(c.ctx, func() error {
+		op, err := i.client.Instances.Delete(i.projectID, i.getZoneName(), i.instance.Name).Context(c.ctx).Do()
+		if err != nil {
+			return err
+		}
+		c.instanceDeleteOp = op
+		return nil
+	})
+
 	if err != nil {
 		c.errChan <- err
 		return multistep.ActionHalt
 	}
 
-	c.instanceDeleteOp = op
 	return multistep.ActionContinue
 }
 
@@ -1937,31 +2003,25 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	time.Sleep(i.ic.StopPrePollSleep)
 	span.End()
 
-	zoneOpCall := i.client.ZoneOperations.Get(i.projectID,
-		i.getZoneName(), c.instanceDeleteOp.Name)
-
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = i.ic.StopPollSleep
-	b.MaxInterval = 10 * i.ic.StopPollSleep
-	b.MaxElapsedTime = 2 * time.Minute
-
-	err := backoff.Retry(func() error {
+	err := i.provider.backoffRetry(ctx, func() error {
 		i.provider.apiRateLimit(c.ctx)
-		newOp, err := zoneOpCall.Do()
+		zoneOp, err := i.client.ZoneOperations.Get(i.projectID,
+			i.getZoneName(), c.instanceDeleteOp.Name).Do()
+
 		if err != nil {
 			return err
 		}
 
-		if newOp.Status == "DONE" {
-			if newOp.Error != nil {
-				return &gceOpError{Err: newOp.Error}
+		if zoneOp.Status == "DONE" {
+			if zoneOp.Error != nil {
+				return &gceOpError{Err: zoneOp.Error}
 			}
 
 			return nil
 		}
 
 		return errGCEInstanceDeletionNotDone
-	}, backoff.WithContext(b, ctx))
+	})
 
 	c.errChan <- err
 
