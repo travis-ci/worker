@@ -698,13 +698,14 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	var err error
 
-	err := p.backoffRetry(ctx, func() error {
+	err = p.backoffRetry(ctx, func() error {
+		var zErr error
 		p.apiRateLimit(ctx)
-		p.ic.Zone, err = p.client.Zones.
+		p.ic.Zone, zErr = p.client.Zones.
 			Get(p.projectID, p.cfg.Get("ZONE")).
 			Context(ctx).
 			Do()
-		return err
+		return zErr
 	})
 
 	if err != nil {
@@ -714,12 +715,13 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
 	err = p.backoffRetry(ctx, func() error {
+		var mtErr error
 		p.apiRateLimit(ctx)
-		p.ic.MachineType, err = p.client.MachineTypes.
+		p.ic.MachineType, mtErr = p.client.MachineTypes.
 			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).
 			Context(ctx).
 			Do()
-		return err
+		return mtErr
 	})
 
 	if err != nil {
@@ -727,12 +729,13 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	err = p.backoffRetry(ctx, func() error {
+		var mtErr error
 		p.apiRateLimit(ctx)
-		p.ic.PremiumMachineType, err = p.client.MachineTypes.
+		p.ic.PremiumMachineType, mtErr = p.client.MachineTypes.
 			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).
 			Context(ctx).
 			Do()
-		return err
+		return mtErr
 	})
 
 	if err != nil {
@@ -798,7 +801,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 }
 
 func (p *gceProvider) backoffRetry(ctx gocontext.Context, fn func() error) error {
-	b = backoff.NewExponentialBackOff()
+	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = 1 * time.Second
 	b.MaxElapsedTime = p.backoffRetryMax
 
@@ -1211,11 +1214,11 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
 		var (
-			zoneOp *compute.ZoneOperationCall
+			zoneOp *compute.Operation
 			err    error
 		)
 
-		err := p.backoffRetry(ctx, func() error {
+		err = p.backoffRetry(ctx, func() error {
 			p.apiRateLimit(c.ctx)
 			zoneOp, err = p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(ctx).Do()
 			return err
