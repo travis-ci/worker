@@ -671,13 +671,13 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 
 	jobQueue, err := NewAMQPJobQueue(amqpConn, i.Config.QueueName, i.Config.StateUpdatePoolSize, i.Config.RabbitMQSharding)
 
-	// Set the consumer priority directly instead of altering the signature of
-	// NewAMQPJobQueue :sigh_cat:
-	jobQueue.priority = i.Config.AmqpConsumerPriority
-
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Set the consumer priority directly instead of altering the signature of
+	// NewAMQPJobQueue :sigh_cat:
+	jobQueue.priority = i.Config.AmqpConsumerPriority
 
 	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
 	jobQueue.DefaultDist = i.Config.DefaultDist
