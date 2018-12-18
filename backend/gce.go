@@ -217,7 +217,6 @@ type gceInstanceConfig struct {
 	Network            *compute.Network
 	Subnetwork         *compute.Subnetwork
 	AcceleratorConfig  *compute.AcceleratorConfig
-	DiskType           string
 	DiskSize           int64
 	SSHPubKey          string
 	AutoImplode        bool
@@ -711,8 +710,6 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	if err != nil {
 		return err
 	}
-
-	p.ic.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name)
 
 	err = p.backoffRetry(ctx, func() error {
 		var mtErr error
@@ -1393,7 +1390,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	var err error
 
 	zone := p.ic.Zone
-	diskType := p.ic.DiskType
 
 	if startAttributes.VMConfig.Zone != "" {
 		p.apiRateLimit(ctx)
@@ -1401,11 +1397,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		if err != nil {
 			return nil, err
 		}
-		logger.WithFields(logrus.Fields{
-			"disk_type": fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
-		}).Info("setting disk type based on zone in vm config")
-		diskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name)
-
 	}
 
 	var machineType *compute.MachineType
@@ -1494,7 +1485,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 				AutoDelete: true,
 				InitializeParams: &compute.AttachedDiskInitializeParams{
 					SourceImage: imageLink,
-					DiskType:    diskType,
+					DiskType:    fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name),
 					DiskSizeGb:  p.ic.DiskSize,
 				},
 			},
