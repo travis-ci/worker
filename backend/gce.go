@@ -778,7 +778,6 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	err = p.backoffRetry(ctx, func() error {
-		var zlErr error
 		p.apiRateLimit(ctx)
 		zl, zlErr := p.client.Zones.List(p.projectID).
 			Context(ctx).
