@@ -698,12 +698,14 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	var err error
 
 	err = p.backoffRetry(ctx, func() error {
-		var zErr error
 		p.apiRateLimit(ctx)
-		p.ic.Zone, zErr = p.client.Zones.
+		zone, zErr := p.client.Zones.
 			Get(p.projectID, p.cfg.Get("ZONE")).
 			Context(ctx).
 			Do()
+		if zErr == nil {
+			p.ic.Zone = zone
+		}
 		return zErr
 	})
 
@@ -712,12 +714,14 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	err = p.backoffRetry(ctx, func() error {
-		var mtErr error
 		p.apiRateLimit(ctx)
-		p.ic.MachineType, mtErr = p.client.MachineTypes.
+		mt, mtErr := p.client.MachineTypes.
 			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).
 			Context(ctx).
 			Do()
+		if mtErr == nil {
+			p.ic.MachineType = mt
+		}
 		return mtErr
 	})
 
@@ -726,12 +730,14 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	err = p.backoffRetry(ctx, func() error {
-		var mtErr error
 		p.apiRateLimit(ctx)
-		p.ic.PremiumMachineType, mtErr = p.client.MachineTypes.
+		pmt, mtErr := p.client.MachineTypes.
 			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).
 			Context(ctx).
 			Do()
+		if mtErr == nil {
+			p.ic.PremiumMachineType = pmt
+		}
 		return mtErr
 	})
 
@@ -740,13 +746,15 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	}
 
 	err = p.backoffRetry(ctx, func() error {
-		var netErr error
 		p.apiRateLimit(ctx)
-		p.ic.Network, netErr = p.client.Networks.
+		nw, nwErr := p.client.Networks.
 			Get(p.projectID, p.cfg.Get("NETWORK")).
 			Context(ctx).
 			Do()
-		return netErr
+		if nwErr == nil {
+			p.ic.Network = nw
+		}
+		return nwErr
 	})
 
 	if err != nil {
@@ -763,12 +771,14 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	if p.cfg.IsSet("SUBNETWORK") {
 		err = p.backoffRetry(ctx, func() error {
-			var snErr error
 			p.apiRateLimit(ctx)
-			p.ic.Subnetwork, snErr = p.client.Subnetworks.
+			sn, snErr := p.client.Subnetworks.
 				Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).
 				Context(ctx).
 				Do()
+			if snErr == nil {
+				p.ic.Subnetwork = sn
+			}
 			return snErr
 		})
 
@@ -1214,14 +1224,15 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	for {
 		metrics.Mark("worker.vm.provider.gce.boot.poll")
 
-		var (
-			zoneOp *compute.Operation
-		)
+		zoneOp := &compute.Operation{}
 
 		err := p.backoffRetry(ctx, func() error {
-			var zoErr error
 			p.apiRateLimit(c.ctx)
-			zoneOp, zoErr = p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(ctx).Do()
+			op, zoErr := p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(ctx).Do()
+			if zoErr == nil {
+				zoneOp.Status = op.Status
+				zoneOp.Error = op.Error
+			}
 			return zoErr
 		})
 
@@ -1855,7 +1866,8 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 		return false, nil
 	}
 
-	var preempted bool
+	preempted := &(struct{ state bool }{state: false})
+
 	err := i.provider.backoffRetry(ctx, func() error {
 		i.provider.apiRateLimit(ctx)
 		list, err := i.provider.client.GlobalOperations.
@@ -1871,7 +1883,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 		for _, item := range list.Items {
 			for _, op := range item.Operations {
 				if op.Kind == "compute#operation" && op.OperationType == "compute.instances.preempted" {
-					preempted = true
+					preempted.state = true
 					return nil
 				}
 			}
@@ -1880,7 +1892,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 		return nil
 	})
 
-	return preempted, err
+	return preempted.state, err
 }
 
 func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
