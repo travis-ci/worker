@@ -1133,7 +1133,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 					"prev_zone": c.zoneName,
 					"next_zone": altZone,
 				}).Warn("switching zones due to error")
-				c.zoneName = altZone
+				c.SetZone(altZone)
 			}
 			return insErr
 		}
@@ -1416,7 +1416,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 
 	diskInitParams := &compute.AttachedDiskInitializeParams{
 		SourceImage: imageLink,
-		DiskType:    fmt.Sprintf("zones/%s/diskTypes/pd-ssd", p.ic.Zone.Name),
+		DiskType:    gcePdSSDForZone(p.ic.Zone.Name),
 		DiskSizeGb:  p.ic.DiskSize,
 	}
 
@@ -1427,7 +1427,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 			if zErr != nil {
 				return zErr
 			}
-			diskInitParams.DiskType = fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zone.Name)
+			diskInitParams.DiskType = gcePdSSDForZone(zone.Name)
 			inst.Zone = zone.Name
 			return nil
 		})
@@ -1621,6 +1621,22 @@ func (p *gceProvider) pickAlternateZone(zoneName string) string {
 			return zoneName
 		}
 	}
+}
+
+func (c *gceStartContext) SetZone(zoneName string) {
+	c.zoneName = zoneName
+	c.instance.Zone = zoneName
+	for _, disk := range c.instance.Disks {
+		if disk.InitializeParams == nil {
+			continue
+		}
+
+		disk.InitializeParams.DiskType = gcePdSSDForZone(zoneName)
+	}
+}
+
+func gcePdSSDForZone(zoneName string) string {
+	return fmt.Sprintf("zones/%s/diskTypes/pd-ssd", zoneName)
 }
 
 type warmerRequest struct {
