@@ -695,9 +695,7 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 }
 
 func (p *gceProvider) Setup(ctx gocontext.Context) error {
-	var err error
-
-	err = p.backoffRetry(ctx, func() error {
+	err := p.backoffRetry(ctx, func() error {
 		p.apiRateLimit(ctx)
 		zone, zErr := p.client.Zones.
 			Get(p.projectID, p.cfg.Get("ZONE")).
