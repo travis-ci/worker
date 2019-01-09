@@ -840,6 +840,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 			}
 		}
 	}
+	logger.WithField("map", p.machineTypeSelfLinks).Debug("built machine type self link map")
 
 	return err
 }
@@ -1472,8 +1473,10 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		machineType = p.ic.PremiumMachineType
 	}
 
-	if machineTypeSelfLink, ok := p.machineTypeSelfLinks[gceMtKey(c.zoneName, machineType)]; ok {
-		inst.MachineType = machineTypeSelfLink
+	var ok bool
+	inst.MachineType, ok = p.machineTypeSelfLinks[gceMtKey(c.zoneName, machineType)]
+	if !ok {
+		return nil, fmt.Errorf("no machine type %s for zone %s", machineType, c.zoneName)
 	}
 
 	// Set accelerator config based on number and type of requested GPUs (empty if none)
