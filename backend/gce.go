@@ -714,11 +714,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	})
 
 	if err != nil {
-		logger.WithFields(logrus.Fields{
-			"err":  err,
-			"zone": p.cfg.Get("ZONE"),
-		}).Error("failed to resolve configured zone")
-		return err
+		return errors.Wrap(err, "failed to resolve configured zone")
 	}
 
 	logger.WithField("network", p.cfg.Get("NETWORK")).Debug("resolving configured network")
@@ -736,11 +732,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	})
 
 	if err != nil {
-		logger.WithFields(logrus.Fields{
-			"err":     err,
-			"network": p.cfg.Get("NETWORK"),
-		}).Error("failed to resolve configured network")
-		return err
+		return errors.Wrap(err, "failed te resolve configured network")
 	}
 
 	region := defaultGCERegion
@@ -769,11 +761,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		})
 
 		if err != nil {
-			logger.WithFields(logrus.Fields{
-				"err":        err,
-				"subnetwork": p.cfg.Get("SUBNETWORK"),
-			}).Error("failed to resolve configured subnetwork")
-			return err
+			return errors.Wrap(err, "failed to resolve configured subnetwork")
 		}
 	}
 
@@ -798,8 +786,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	})
 
 	if err != nil {
-		logger.WithField("err", err).Error("failed to find alternate zones")
-		return err
+		return errors.Wrap(err, "failed to find alternate zones")
 	}
 
 	logger.Debug("building machine type self link map")
@@ -832,12 +819,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 			})
 
 			if err != nil {
-				logger.WithFields(logrus.Fields{
-					"err":          err,
-					"zone":         zoneName,
-					"machine_type": machineType,
-				}).Error("failed to find machine type self link")
-				return err
+				return errors.Wrap(err, "failed to find machine type self link")
 			}
 		}
 	}
@@ -1451,6 +1433,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	inst := &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", c.startAttributes.Language),
+		Name:        fmt.Sprintf("travis-job-%s", uuid.NewRandom()),
 	}
 
 	diskInitParams := &compute.AttachedDiskInitializeParams{
@@ -1542,8 +1525,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	if p.deterministicHostname {
 		inst.Name = hostnameFromContext(ctx)
-	} else {
-		inst.Name = fmt.Sprintf("travis-job-%s", uuid.NewRandom())
 	}
 
 	inst.Scheduling = &compute.Scheduling{
@@ -1725,15 +1706,23 @@ func (i *gceInstance) winrmRemoter(ctx gocontext.Context) (remote.Remoter, error
 }
 
 func (i *gceInstance) getCachedIP(ctx gocontext.Context) (string, error) {
+	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"self":   "backend/gce_instance",
+		"method": "getCachedIP",
+	})
+
 	if i.cachedIPAddr != "" {
+		logger.WithField("cached_ip", i.cachedIPAddr).Debug("returning cached ip address")
 		return i.cachedIPAddr, nil
 	}
 
+	logger.Debug("refreshing instance")
 	err := i.refreshInstance(ctx)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "failed to refresh instance")
 	}
 
+	logger.Debug("getting ip")
 	ipAddr := i.getIP()
 	if ipAddr == "" {
 		return "", errGCEMissingIPAddressError
@@ -1780,9 +1769,19 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	ctx, span := trace.StartSpan(ctx, "GCE.refreshInstance")
 	defer span.End()
 
+	context.LoggerFromContext(ctx).
+		WithFields(logrus.Fields{
+			"self": "backend/gce_instance",
+			"zone": i.getZoneName(),
+			"name": i.instance.Name,
+		}).Debug("refreshing instance")
+
 	return i.provider.backoffRetry(ctx, func() error {
 		i.provider.apiRateLimit(ctx)
-		inst, err := i.client.Instances.Get(i.projectID, i.getZoneName(), i.instance.Name).Context(ctx).Do()
+		inst, err := i.client.Instances.
+			Get(i.projectID, i.getZoneName(), i.instance.Name).
+			Context(ctx).
+			Do()
 		if err != nil {
 			return err
 		}
@@ -1973,13 +1972,7 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 
 	preempted, googleErr := i.isPreempted(ctx)
 	if googleErr != nil {
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-			"err":  googleErr,
-			"self": "backend/gce_instance",
-		}).Error("couldn't determine if instance was preempted")
-		// could not get answer from google
-		// requeue just in case
-		return &RunResult{Completed: false}, googleErr
+		return &RunResult{Completed: false}, errors.Wrap(googleErr, "couldn't determine if instance was preempted")
 	}
 	if preempted {
 		metrics.Mark("travis.worker.gce.preempted-instances")
