@@ -699,6 +699,10 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 }
 
 func (p *gceProvider) Setup(ctx gocontext.Context) error {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
+
+	logger.WithField("zone", p.cfg.Get("ZONE")).Debug("resolving configured zone")
+
 	err := p.backoffRetry(ctx, func() error {
 		p.apiRateLimit(ctx)
 		zone, zErr := p.client.Zones.
@@ -712,8 +716,14 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	})
 
 	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"err":  err,
+			"zone": p.cfg.Get("ZONE"),
+		}).Error("failed to resolve configured zone")
 		return err
 	}
+
+	logger.WithField("network", p.cfg.Get("NETWORK")).Debug("resolving configured network")
 
 	err = p.backoffRetry(ctx, func() error {
 		p.apiRateLimit(ctx)
@@ -728,18 +738,26 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	})
 
 	if err != nil {
+		logger.WithFields(logrus.Fields{
+			"err":     err,
+			"network": p.cfg.Get("NETWORK"),
+		}).Error("failed to resolve configured network")
 		return err
 	}
 
 	region := defaultGCERegion
 	if metadata.OnGCE() {
+		logger.WithField("region", p.ic.Zone.Region).Debug("setting region from zone when on gce")
 		region = p.ic.Zone.Region
 	}
 	if p.cfg.IsSet("REGION") {
+		logger.WithField("region", p.ic.Zone.Region).Debug("setting region from config")
 		region = p.cfg.Get("REGION")
 	}
 
 	if p.cfg.IsSet("SUBNETWORK") {
+		logger.WithField("subnetwork", p.cfg.Get("SUBNETWORK")).Debug("resolving configured subnetwork")
+
 		err = p.backoffRetry(ctx, func() error {
 			p.apiRateLimit(ctx)
 			sn, snErr := p.client.Subnetworks.
@@ -753,10 +771,15 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		})
 
 		if err != nil {
+			logger.WithFields(logrus.Fields{
+				"err":        err,
+				"subnetwork": p.cfg.Get("SUBNETWORK"),
+			}).Error("failed to resolve configured subnetwork")
 			return err
 		}
 	}
 
+	logger.Debug("finding alternate zones")
 	err = p.backoffRetry(ctx, func() error {
 		p.apiRateLimit(ctx)
 		zl, zlErr := p.client.Zones.List(p.projectID).
@@ -777,11 +800,23 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	})
 
 	if err != nil {
+		logger.WithField("err", err).Error("failed to find alternate zones")
 		return err
 	}
 
+	logger.Debug("building machine type self link map")
+
 	for _, zoneName := range append([]string{p.ic.Zone.Name}, p.alternateZones...) {
 		for _, machineType := range []string{p.ic.MachineType, p.ic.PremiumMachineType} {
+			if zoneName == "" || machineType == "" {
+				continue
+			}
+
+			logger.WithFields(logrus.Fields{
+				"zone":         zoneName,
+				"machine_type": machineType,
+			}).Debug("finding machine type self link")
+
 			err = p.backoffRetry(ctx, func() error {
 				p.apiRateLimit(ctx)
 				mt, mtErr := p.client.MachineTypes.
@@ -796,6 +831,11 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 			})
 
 			if err != nil {
+				logger.WithFields(logrus.Fields{
+					"err":          err,
+					"zone":         zoneName,
+					"machine_type": machineType,
+				}).Error("failed to find machine type self link")
 				return err
 			}
 		}
