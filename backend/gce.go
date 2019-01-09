@@ -177,12 +177,13 @@ type gceAccountJSON struct {
 }
 
 type gceProvider struct {
-	client         *compute.Service
-	projectID      string
-	imageProjectID string
-	ic             *gceInstanceConfig
-	cfg            *config.ProviderConfig
-	alternateZones []string
+	client               *compute.Service
+	projectID            string
+	imageProjectID       string
+	ic                   *gceInstanceConfig
+	cfg                  *config.ProviderConfig
+	alternateZones       []string
+	machineTypeSelfLinks map[string]string
 
 	backoffRetryMax       time.Duration
 	deterministicHostname bool
@@ -211,8 +212,8 @@ type gceProvider struct {
 }
 
 type gceInstanceConfig struct {
-	MachineType        *compute.MachineType
-	PremiumMachineType *compute.MachineType
+	MachineType        string
+	PremiumMachineType string
 	Zone               *compute.Zone
 	Network            *compute.Network
 	Subnetwork         *compute.Subnetwork
@@ -257,6 +258,8 @@ type gceStartContext struct {
 	windowsPassword      string
 	zoneName             string
 	zonePinned           bool
+	machineType          string
+	premiumMachineType   string
 }
 
 type gceInstance struct {
@@ -596,13 +599,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	return &gceProvider{
-		client:         client,
-		projectID:      projectID,
-		imageProjectID: imageProjectID,
-		cfg:            cfg,
-		alternateZones: []string{},
-		sshDialer:      sshDialer,
-		sshDialTimeout: sshDialTimeout,
+		client:               client,
+		projectID:            projectID,
+		imageProjectID:       imageProjectID,
+		cfg:                  cfg,
+		alternateZones:       []string{},
+		machineTypeSelfLinks: map[string]string{},
+		sshDialer:            sshDialer,
+		sshDialTimeout:       sshDialTimeout,
 
 		ic: &gceInstanceConfig{
 			Preemptible:       preemptible,
@@ -713,38 +717,6 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	err = p.backoffRetry(ctx, func() error {
 		p.apiRateLimit(ctx)
-		mt, mtErr := p.client.MachineTypes.
-			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("MACHINE_TYPE")).
-			Context(ctx).
-			Do()
-		if mtErr == nil {
-			p.ic.MachineType = mt
-		}
-		return mtErr
-	})
-
-	if err != nil {
-		return err
-	}
-
-	err = p.backoffRetry(ctx, func() error {
-		p.apiRateLimit(ctx)
-		pmt, mtErr := p.client.MachineTypes.
-			Get(p.projectID, p.ic.Zone.Name, p.cfg.Get("PREMIUM_MACHINE_TYPE")).
-			Context(ctx).
-			Do()
-		if mtErr == nil {
-			p.ic.PremiumMachineType = pmt
-		}
-		return mtErr
-	})
-
-	if err != nil {
-		return err
-	}
-
-	err = p.backoffRetry(ctx, func() error {
-		p.apiRateLimit(ctx)
 		nw, nwErr := p.client.Networks.
 			Get(p.projectID, p.cfg.Get("NETWORK")).
 			Context(ctx).
@@ -803,6 +775,31 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	for _, zoneName := range append([]string{p.ic.Zone.Name}, p.alternateZones...) {
+		for _, machineType := range []string{p.ic.MachineType, p.ic.PremiumMachineType} {
+			err = p.backoffRetry(ctx, func() error {
+				p.apiRateLimit(ctx)
+				mt, mtErr := p.client.MachineTypes.
+					Get(p.projectID, zoneName, machineType).
+					Context(ctx).
+					Do()
+				if mtErr == nil {
+					p.machineTypeSelfLinks[gceMtKey(zoneName, machineType)] = mt.SelfLink
+					return nil
+				}
+				return mtErr
+			})
+
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return err
 }
@@ -893,31 +890,15 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
 	c := &gceStartContext{
-		startAttributes: startAttributes,
-		zoneName:        p.ic.Zone.Name,
-		progresser:      progresser,
-		sshDialer:       p.sshDialer,
-		ctx:             ctx,
-		instChan:        make(chan Instance),
-		errChan:         make(chan error),
-	}
-
-	if startAttributes.VMConfig.Zone != "" {
-		logger.WithField("zone", startAttributes.VMConfig.Zone).Debug("setting zone from vm config")
-
-		err := p.backoffRetry(ctx, func() error {
-			p.apiRateLimit(ctx)
-			zone, zErr := p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
-			if zErr == nil {
-				c.zoneName = zone.Name
-			}
-			return zErr
-		})
-
-		if err != nil {
-			return nil, err
-		}
-		c.zonePinned = true
+		startAttributes:    startAttributes,
+		zoneName:           p.ic.Zone.Name,
+		machineType:        p.ic.MachineType,
+		premiumMachineType: p.ic.PremiumMachineType,
+		progresser:         progresser,
+		sshDialer:          p.sshDialer,
+		ctx:                ctx,
+		instChan:           make(chan Instance),
+		errChan:            make(chan error),
 	}
 
 	state := &multistep.BasicStateBag{}
@@ -1046,7 +1027,24 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
-	inst, err := p.buildInstance(c.ctx, c.startAttributes, c.image.SelfLink, c.script)
+	if c.startAttributes.VMConfig.Zone != "" {
+		err := p.backoffRetry(ctx, func() error {
+			p.apiRateLimit(ctx)
+			zone, zErr := p.client.Zones.Get(p.projectID, c.startAttributes.VMConfig.Zone).Context(ctx).Do()
+			if zErr != nil {
+				return zErr
+			}
+			c.zoneName = zone.Name
+			c.zonePinned = true
+			return nil
+		})
+
+		if err != nil {
+			return multistep.ActionHalt
+		}
+	}
+
+	inst, err := p.buildInstance(ctx, c)
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
 			Message: "could not build instance",
@@ -1133,7 +1131,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 					"prev_zone": c.zoneName,
 					"next_zone": altZone,
 				}).Warn("switching zones due to error")
-				c.SetZone(altZone)
+				p.setStartContextZone(c, altZone)
 			}
 			return insErr
 		}
@@ -1169,11 +1167,11 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
 	gceInst := &gceInstance{
-		zoneName:   c.zoneName,
+		zoneName: c.zoneName,
+
 		client:     p.client,
 		provider:   p,
 		instance:   c.instance,
-		ic:         p.ic,
 		progresser: c.progresser,
 		sshDialer:  c.sshDialer,
 
@@ -1404,36 +1402,19 @@ func buildGCEImageSelector(selectorType string, cfg *config.ProviderConfig) (ima
 	}
 }
 
-func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *StartAttributes, imageLink, startupScript string) (*compute.Instance, error) {
+func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (*compute.Instance, error) {
 	ctx, span := trace.StartSpan(ctx, "GCE.buildinstance")
 	defer span.End()
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 
 	inst := &compute.Instance{
-		Description: fmt.Sprintf("Travis CI %s test VM", startAttributes.Language),
+		Description: fmt.Sprintf("Travis CI %s test VM", c.startAttributes.Language),
 	}
 
 	diskInitParams := &compute.AttachedDiskInitializeParams{
-		SourceImage: imageLink,
-		DiskType:    gcePdSSDForZone(p.ic.Zone.Name),
+		SourceImage: c.image.SelfLink,
+		DiskType:    gcePdSSDForZone(c.zoneName),
 		DiskSizeGb:  p.ic.DiskSize,
-	}
-
-	if startAttributes.VMConfig.Zone != "" {
-		err := p.backoffRetry(ctx, func() error {
-			p.apiRateLimit(ctx)
-			zone, zErr := p.client.Zones.Get(p.projectID, startAttributes.VMConfig.Zone).Context(ctx).Do()
-			if zErr != nil {
-				return zErr
-			}
-			diskInitParams.DiskType = gcePdSSDForZone(zone.Name)
-			inst.Zone = zone.Name
-			return nil
-		})
-
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	inst.Disks = []*compute.AttachedDisk{
@@ -1446,20 +1427,23 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		},
 	}
 
-	if startAttributes.VMType == "premium" {
-		inst.MachineType = p.ic.PremiumMachineType.SelfLink
-	} else {
-		inst.MachineType = p.ic.MachineType.SelfLink
+	machineType := p.ic.MachineType
+	if c.startAttributes.VMType == "premium" {
+		machineType = p.ic.PremiumMachineType
+	}
+
+	if machineTypeSelfLink, ok := p.machineTypeSelfLinks[gceMtKey(c.zoneName, machineType)]; ok {
+		inst.MachineType = machineTypeSelfLink
 	}
 
 	// Set accelerator config based on number and type of requested GPUs (empty if none)
 	acceleratorConfig := &compute.AcceleratorConfig{}
-	if startAttributes.VMConfig.GpuCount > 0 {
-		acceleratorConfig.AcceleratorCount = startAttributes.VMConfig.GpuCount
+	if c.startAttributes.VMConfig.GpuCount > 0 {
+		acceleratorConfig.AcceleratorCount = c.startAttributes.VMConfig.GpuCount
 		acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
 			p.projectID,
-			startAttributes.VMConfig.Zone,
-			startAttributes.VMConfig.GpuType)
+			c.startAttributes.VMConfig.Zone,
+			c.startAttributes.VMConfig.GpuType)
 	}
 
 	var subnetwork string
@@ -1495,7 +1479,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 	}
 
 	startupKey := "startup-script"
-	if startAttributes.OS == "windows" {
+	if c.startAttributes.OS == "windows" {
 		startupKey = "windows-startup-script-ps1"
 	}
 
@@ -1503,7 +1487,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, startAttributes *Star
 		Items: []*compute.MetadataItems{
 			&compute.MetadataItems{
 				Key:   startupKey,
-				Value: googleapi.String(startupScript),
+				Value: googleapi.String(c.script),
 			},
 		},
 	}
@@ -1622,7 +1606,7 @@ func (p *gceProvider) pickAlternateZone(zoneName string) string {
 	}
 }
 
-func (c *gceStartContext) SetZone(zoneName string) {
+func (p *gceProvider) setStartContextZone(c *gceStartContext, zoneName string) {
 	c.zoneName = zoneName
 
 	if c.instance == nil {
@@ -1630,6 +1614,7 @@ func (c *gceStartContext) SetZone(zoneName string) {
 	}
 
 	c.instance.Zone = zoneName
+	c.instance.MachineType, _ = p.machineTypeSelfLinks[gceMtKey(zoneName, c.instance.MachineType)]
 
 	for _, disk := range c.instance.Disks {
 		if disk.InitializeParams == nil {
@@ -1638,6 +1623,10 @@ func (c *gceStartContext) SetZone(zoneName string) {
 
 		disk.InitializeParams.DiskType = gcePdSSDForZone(zoneName)
 	}
+}
+
+func gceMtKey(zoneName, machineType string) string {
+	return zoneName + "-" + machineType
 }
 
 func gcePdSSDForZone(zoneName string) string {
@@ -1711,7 +1700,7 @@ func (i *gceInstance) getCachedIP(ctx gocontext.Context) (string, error) {
 }
 
 func (i *gceInstance) getIP() string {
-	if i.ic.PublicIP && i.ic.PublicIPConnect {
+	if i.provider.ic.PublicIP && i.provider.ic.PublicIPConnect {
 		for _, ni := range i.instance.NetworkInterfaces {
 			if ni.AccessConfigs == nil {
 				continue
@@ -1883,7 +1872,7 @@ func (i *gceInstance) uploadScriptAttempt(ctx gocontext.Context, script []byte) 
 }
 
 func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
-	if !i.ic.Preemptible {
+	if !i.provider.ic.Preemptible {
 		return false, nil
 	}
 
@@ -2031,20 +2020,20 @@ func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.St
 func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 
-	if i.ic.SkipStopPoll {
+	if i.provider.ic.SkipStopPoll {
 		logger.Debug("skipping instance deletion polling")
 		c.errChan <- nil
 		return multistep.ActionContinue
 	}
 
 	logger.WithFields(logrus.Fields{
-		"duration": i.ic.StopPrePollSleep,
+		"duration": i.provider.ic.StopPrePollSleep,
 	}).Debug("sleeping before first checking instance delete operation")
 
 	var span *trace.Span
 	ctx := c.ctx
 	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceDeleted")
-	time.Sleep(i.ic.StopPrePollSleep)
+	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
 	err := i.provider.backoffRetry(ctx, func() error {
