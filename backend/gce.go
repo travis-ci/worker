@@ -1716,7 +1716,6 @@ func (i *gceInstance) getCachedIP(ctx gocontext.Context) (string, error) {
 		return i.cachedIPAddr, nil
 	}
 
-	logger.Debug("refreshing instance")
 	err := i.refreshInstance(ctx)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to refresh instance")
@@ -1761,25 +1760,26 @@ func (i *gceInstance) getIP() string {
 // gets shortened to:
 // us-central1-a
 func (i *gceInstance) getZoneName() string {
-	parts := strings.Split(i.instance.Zone, "/")
+	parts := strings.Split(strings.TrimRight(i.instance.Zone, "/"), "/")
 	return parts[len(parts)-1]
 }
 
 func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 	ctx, span := trace.StartSpan(ctx, "GCE.refreshInstance")
 	defer span.End()
+	zone := i.getZoneName()
 
 	context.LoggerFromContext(ctx).
 		WithFields(logrus.Fields{
 			"self": "backend/gce_instance",
-			"zone": i.getZoneName(),
+			"zone": zone,
 			"name": i.instance.Name,
 		}).Debug("refreshing instance")
 
 	return i.provider.backoffRetry(ctx, func() error {
 		i.provider.apiRateLimit(ctx)
 		inst, err := i.client.Instances.
-			Get(i.projectID, i.getZoneName(), i.instance.Name).
+			Get(i.projectID, zone, i.instance.Name).
 			Context(ctx).
 			Do()
 		if err != nil {
