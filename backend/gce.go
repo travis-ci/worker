@@ -1056,15 +1056,17 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		return multistep.ActionHalt
 	}
 
+	c.instance = inst
+
 	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
 		"self":     "backend/gce_provider",
-		"instance": inst,
+		"instance": c.instance,
 	}).Debug("inserting instance")
 
 	c.bootStart = time.Now().UTC()
 
 	if c.startAttributes.Warmer && p.warmerUrl != nil {
-		warmerResponse, err := p.warmerRequestInstance(c.ctx, c.zoneName, inst)
+		warmerResponse, err := p.warmerRequestInstance(c.ctx, c.zoneName, c.instance)
 		if err != nil {
 			logger.WithError(err).Warn("could not obtain instance from warmer")
 		} else {
@@ -1075,9 +1077,8 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 				"zone": warmerResponse.Zone,
 			}).Info("got instance from warmer")
 
-			inst.Name = warmerResponse.Name
-			inst.Zone = warmerResponse.Zone
-			c.instance = inst
+			c.instance.Name = warmerResponse.Name
+			c.instance.Zone = warmerResponse.Zone
 			c.instanceWarmedIP = warmerResponse.IP
 			if p.ic.PublicIPConnect && warmerResponse.PublicIP != "" {
 				c.instanceWarmedIP = warmerResponse.PublicIP
@@ -1122,7 +1123,8 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	err = p.backoffRetry(c.ctx, func() error {
 		p.apiRateLimit(c.ctx)
-		op, insErr := p.client.Instances.Insert(p.projectID, c.zoneName, inst).Context(c.ctx).Do()
+
+		op, insErr := p.client.Instances.Insert(p.projectID, c.zoneName, c.instance).Context(c.ctx).Do()
 		if insErr != nil {
 			if !c.zonePinned {
 				altZone := p.pickAlternateZone(c.zoneName)
@@ -1136,7 +1138,6 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			return insErr
 		}
 
-		c.instance = inst
 		c.instanceInsertOpName = op.Name
 		return nil
 	})
@@ -1623,7 +1624,13 @@ func (p *gceProvider) pickAlternateZone(zoneName string) string {
 
 func (c *gceStartContext) SetZone(zoneName string) {
 	c.zoneName = zoneName
+
+	if c.instance == nil {
+		return
+	}
+
 	c.instance.Zone = zoneName
+
 	for _, disk := range c.instance.Disks {
 		if disk.InitializeParams == nil {
 			continue

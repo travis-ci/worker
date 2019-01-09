@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+- cli: assign job queue priority only when job queue is non-nil
+- backend/gce:
+  - consistently retry GCP API calls with exponential backoff
+  - switch both instance and disk zone when retrying in different zone
 
 ## [6.1.0] - 2018-12-13
 
