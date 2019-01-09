@@ -346,14 +346,10 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		mtName = cfg.Get("MACHINE_TYPE")
 	}
 
-	cfg.Set("MACHINE_TYPE", mtName)
-
 	premiumMTName := defaultGCEPremiumMachineType
 	if cfg.IsSet("PREMIUM_MACHINE_TYPE") {
 		premiumMTName = cfg.Get("PREMIUM_MACHINE_TYPE")
 	}
-
-	cfg.Set("PREMIUM_MACHINE_TYPE", premiumMTName)
 
 	nwName := defaultGCENetwork
 	if cfg.IsSet("NETWORK") {
@@ -609,17 +605,19 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		sshDialTimeout:       sshDialTimeout,
 
 		ic: &gceInstanceConfig{
-			Preemptible:       preemptible,
-			PublicIP:          publicIP,
-			PublicIPConnect:   publicIPConnect,
-			DiskSize:          diskSize,
-			SSHPubKey:         string(pubKey),
-			AutoImplode:       autoImplode,
-			StopPollSleep:     stopPollSleep,
-			StopPrePollSleep:  stopPrePollSleep,
-			SkipStopPoll:      skipStopPoll,
-			Site:              site,
-			AcceleratorConfig: defaultAcceleratorConfig,
+			Preemptible:        preemptible,
+			PublicIP:           publicIP,
+			PublicIPConnect:    publicIPConnect,
+			DiskSize:           diskSize,
+			SSHPubKey:          string(pubKey),
+			AutoImplode:        autoImplode,
+			StopPollSleep:      stopPollSleep,
+			StopPrePollSleep:   stopPrePollSleep,
+			SkipStopPoll:       skipStopPoll,
+			Site:               site,
+			AcceleratorConfig:  defaultAcceleratorConfig,
+			MachineType:        mtName,
+			PremiumMachineType: premiumMTName,
 		},
 
 		backoffRetryMax:       backoffRetryMax,
@@ -812,19 +810,22 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 				continue
 			}
 
+			key := gceMtKey(zoneName, machineType)
 			logger.WithFields(logrus.Fields{
 				"zone":         zoneName,
 				"machine_type": machineType,
+				"key":          key,
 			}).Debug("finding machine type self link")
 
 			err = p.backoffRetry(ctx, func() error {
 				p.apiRateLimit(ctx)
+
 				mt, mtErr := p.client.MachineTypes.
 					Get(p.projectID, zoneName, machineType).
 					Context(ctx).
 					Do()
 				if mtErr == nil {
-					p.machineTypeSelfLinks[gceMtKey(zoneName, machineType)] = mt.SelfLink
+					p.machineTypeSelfLinks[key] = mt.SelfLink
 					return nil
 				}
 				return mtErr
