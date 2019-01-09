@@ -1249,7 +1249,11 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 		err := p.backoffRetry(ctx, func() error {
 			p.apiRateLimit(c.ctx)
-			op, zoErr := p.client.ZoneOperations.Get(p.projectID, c.zoneName, c.instanceInsertOpName).Context(ctx).Do()
+			op, zoErr := p.client.ZoneOperations.
+				Get(p.projectID, c.zoneName, c.instanceInsertOpName).
+				Context(ctx).
+				Do()
+
 			if zoErr == nil {
 				zoneOp.Status = op.Status
 				zoneOp.Error = op.Error
@@ -1434,6 +1438,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	inst := &compute.Instance{
 		Description: fmt.Sprintf("Travis CI %s test VM", c.startAttributes.Language),
 		Name:        fmt.Sprintf("travis-job-%s", uuid.NewRandom()),
+		Zone:        c.zoneName,
 	}
 
 	diskInitParams := &compute.AttachedDiskInitializeParams{
@@ -1782,6 +1787,7 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 			Get(i.projectID, zone, i.instance.Name).
 			Context(ctx).
 			Do()
+
 		if err != nil {
 			return err
 		}
@@ -2038,7 +2044,11 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
 	err := i.provider.backoffRetry(c.ctx, func() error {
-		op, err := i.client.Instances.Delete(i.projectID, i.getZoneName(), i.instance.Name).Context(c.ctx).Do()
+		op, err := i.client.Instances.
+			Delete(i.projectID, i.getZoneName(), i.instance.Name).
+			Context(c.ctx).
+			Do()
+
 		if err != nil {
 			return err
 		}
@@ -2075,8 +2085,9 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 
 	err := i.provider.backoffRetry(ctx, func() error {
 		i.provider.apiRateLimit(c.ctx)
-		zoneOp, err := i.client.ZoneOperations.Get(i.projectID,
-			i.getZoneName(), c.instanceDeleteOp.Name).Do()
+		zoneOp, err := i.client.ZoneOperations.
+			Get(i.projectID, i.getZoneName(), c.instanceDeleteOp.Name).
+			Do()
 
 		if err != nil {
 			return err
