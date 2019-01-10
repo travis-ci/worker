@@ -126,5 +126,5 @@ func TestGCEProvider_SetupMakesRequests(t *testing.T) {
 	err := p.Setup(context.TODO())
 
 	assert.NotNil(t, err)
-	assert.Len(t, rl.Reqs, 1)
+	assert.True(t, len(rl.Reqs) >= 1)
 }
