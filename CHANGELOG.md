@@ -13,10 +13,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Removed
 
 ### Fixed
+
+## [6.2.0] - 2019-01-09
+
+### Changed
+- backend/gce: consistently retry GCP API calls with exponential backoff
+
+### Fixed
 - cli: assign job queue priority only when job queue is non-nil
-- backend/gce:
-  - consistently retry GCP API calls with exponential backoff
-  - switch both instance and disk zone when retrying in different zone
+- backend/gce: switch both instance and disk zone when retrying in different
+  zone
 
 ## [6.1.0] - 2018-12-13
 
@@ -901,7 +907,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/travis-ci/worker/compare/v6.1.0...HEAD
+[Unreleased]: https://github.com/travis-ci/worker/compare/v6.2.0...HEAD
+[6.2.0]: https://github.com/travis-ci/worker/compare/v6.1.0...v6.2.0
 [6.1.0]: https://github.com/travis-ci/worker/compare/v6.0.0...v6.1.0
 [6.0.0]: https://github.com/travis-ci/worker/compare/v5.1.0...v6.0.0
 [5.1.0]: https://github.com/travis-ci/worker/compare/v5.0.0...v5.1.0
