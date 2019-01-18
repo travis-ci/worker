@@ -1,0 +1,418 @@
+package backend
+
+import (
+	"fmt"
+	"io"
+	"net"
+	"net/url"
+	"strings"
+	"time"
+
+	gocontext "context"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/pkg/errors"
+
+	"github.com/travis-ci/worker/config"
+	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
+	"github.com/travis-ci/worker/ssh"
+)
+
+func init() {
+	Register("ec2", "EC2", map[string]string{
+		"IMAGE_MAP":                "Map of which image to use for which language",
+		"AWS_ACCESS_KEY_ID":        "AWS Access Key ID",
+		"AWS_SECRET_ACCESS_KEY":    "AWS Secret Access Key",
+		"REGION":                   "Which region to run workers in",  // Should be autodetected when running on EC2 instances?
+		"INSTANCE_TYPE":            "Instance type to use for builds", // t2 and t3 are burstable
+		"SUBNET_ID":                "Subnet ID to launch instances into",
+		"EBS_OPTIMIZED":            "Whether or not to use EBS-optimized instances (Default: false)",
+		"IAM_INSTANCE_PROFILE":     "This is not a good idea... for security, builds should provice API keys",
+		"USER_DATA":                "Why?",
+		"CPU_CREDIT_SPECIFICATION": "standard|unlimited (for faster boots)",
+		"TAGS": "Tags, how to deal with key value?",
+		//"SECURITY_GROUPS": "Security groups to assign ",
+	}, newEC2Provider)
+}
+
+var (
+	defaultEC2ScriptLocation    = "/home/jonhenrik/travis-in-ec2"
+	defaultEC2SSHDialTimeout    = 5 * time.Second
+	defaultEC2ImageSelectorType = "env"
+	defaultEC2SSHUserName       = "ubuntu"
+	defaultEC2SSHPrivateKeyPath = "/home/jonhenrik/.ssh/devops-infra-del-sndbx.pem"
+	defaultEC2ExecCmd           = "bash /home/ubuntu/build.sh"
+	defaultEC2SubnetID          = ""
+	defaultEC2InstanceType      = "t2.micro"
+	defaultEC2Image             = "ami-02790d1ebf3b5181d"
+	defaultEC2SecurityGroupIDs  = "default"
+)
+
+/****** POC SECTION *******/
+
+type ec2Provider struct {
+	cfg            *config.ProviderConfig
+	sshDialer      ssh.Dialer
+	sshDialTimeout time.Duration
+	execCmd        []string
+	imageSelector  image.Selector
+	awsSession     *session.Session
+	instanceType   string
+	defaultImage   string
+	securityGroups []string
+}
+
+func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
+
+	//sshDialer, err := ssh.NewDialerWithPassword("travis")
+	sshDialer, err := ssh.NewDialer(defaultEC2SSHPrivateKeyPath, "")
+
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create SSH dialer")
+	}
+
+	sshDialTimeout := defaultEC2SSHDialTimeout
+	if cfg.IsSet("SSH_DIAL_TIMEOUT") {
+		sshDialTimeout, err = time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	execCmd := strings.Split(defaultEC2ExecCmd, " ")
+	if cfg.IsSet("EXEC_CMD") {
+		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
+	}
+
+	imageSelectorType := defaultEC2ImageSelectorType
+	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
+		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
+	}
+
+	if imageSelectorType != "env" && imageSelectorType != "api" {
+		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
+	}
+
+	imageSelector, err := buildEC2ImageSelector(imageSelectorType, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	awsSession := &session.Session{}
+
+	if cfg.IsSet("AWS_ACCESS_KEY_ID") && cfg.IsSet("AWS_SECRET_ACCESS_KEY") {
+		config := aws.NewConfig().WithCredentialsChainVerboseErrors(true)
+		staticCreds := credentials.NewStaticCredentials(cfg.Get("AWS_ACCESS_KEY_ID"), cfg.Get("AWS_SECRET_ACCESS_KEY"), "")
+		if _, err = staticCreds.Get(); err != credentials.ErrStaticCredentialsEmpty {
+			config.WithCredentials(staticCreds)
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		config = config.WithRegion("eu-west-1")
+		config = config.WithMaxRetries(8)
+
+		opts := session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+			Config:            *config,
+		}
+		awsSession, err = session.NewSessionWithOptions(opts)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	instanceType := defaultEC2InstanceType
+
+	if cfg.IsSet("INSTANCE_TYPE") {
+		instanceType = cfg.Get("INSTANCE_TYPE")
+	}
+
+	defaultImage := defaultEC2Image
+	if cfg.IsSet("DEFAULT_IMAGE") {
+		defaultImage = cfg.Get("DEFAULT_IMAGE")
+	}
+
+	securityGroups := strings.Split(defaultEC2SecurityGroupIDs, ",")
+	if cfg.IsSet("SECURITY_GROUP_IDS") {
+		securityGroups = strings.Split(cfg.Get("SECURITY_GROUP_IDS"), ",")
+	}
+
+	return &ec2Provider{
+		cfg:            cfg,
+		sshDialTimeout: sshDialTimeout,
+		sshDialer:      sshDialer,
+		execCmd:        execCmd,
+		imageSelector:  imageSelector,
+		awsSession:     awsSession,
+		instanceType:   instanceType,
+		defaultImage:   defaultImage,
+		securityGroups: securityGroups,
+	}, nil
+}
+
+func buildEC2ImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
+	switch selectorType {
+	case "env":
+		return image.NewEnvSelector(cfg)
+	case "api":
+		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
+		if err != nil {
+			return nil, err
+		}
+		return image.NewAPISelector(baseURL), nil
+	default:
+		return nil, fmt.Errorf("invalid image selector type %q", selectorType)
+	}
+}
+
+func (p *ec2Provider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, progresser Progresser) (Instance, error) {
+	return nil, nil
+}
+
+func (p *ec2Provider) SupportsProgress() bool {
+	return false
+}
+
+func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
+	startBooting := time.Now()
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/ec2_provider")
+	hostName := hostnameFromContext(ctx)
+
+	// Create EC2 service client
+	svc := ec2.New(p.awsSession)
+
+	keyResp, err := svc.CreateKeyPair(
+		&ec2.CreateKeyPairInput{
+			KeyName: aws.String(hostName),
+		},
+	)
+
+	if err != nil {
+		logger.WithField("err", err).Error("ooooehhh noesss!!!")
+		return nil, err
+	}
+
+	privateKey := *keyResp.KeyMaterial
+	sshDialer, err := ssh.NewDialerWithKeyWithoutPassPhrase([]byte(privateKey))
+
+	if err != nil {
+		return nil, err
+	}
+
+	imageID, err := p.imageSelector.Select(ctx, &image.Params{
+		Language: startAttributes.Language,
+		Infra:    "ec2",
+	})
+
+	if imageID == "default" {
+		imageID = p.defaultImage
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	securityGroups := []*string{}
+	for _, securityGroup := range p.securityGroups {
+		securityGroups = append(securityGroups, &securityGroup)
+	}
+
+	runOpts := &ec2.RunInstancesInput{
+		ImageId:          aws.String(imageID),
+		InstanceType:     aws.String(p.instanceType),
+		MaxCount:         aws.Int64(1),
+		MinCount:         aws.Int64(1),
+		KeyName:          keyResp.KeyName,
+		SecurityGroupIds: securityGroups,
+		TagSpecifications: []*ec2.TagSpecification{
+			&ec2.TagSpecification{
+				ResourceType: aws.String("instance"),
+				Tags: []*ec2.Tag{
+					&ec2.Tag{
+						Key:   aws.String("Name"),
+						Value: aws.String(hostName),
+					},
+				},
+			},
+		},
+	}
+	reservation, err := svc.RunInstances(runOpts)
+
+	if err != nil {
+		return nil, err
+	}
+
+	describeInstancesInput := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{
+			reservation.Instances[0].InstanceId,
+		},
+	}
+
+	instance := &ec2.Instance{}
+	for {
+		instances, err := svc.DescribeInstances(describeInstancesInput)
+
+		if err != nil {
+			return nil, err
+		}
+		instance = instances.Reservations[0].Instances[0]
+		if instances != nil {
+			address := *instance.PublicDnsName
+			if address != "" {
+				break
+			}
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	err = p.waitForSSH(*instance.PublicDnsName, 22, 120)
+
+	if err != nil {
+		return nil, err
+	}
+	return &ec2Instance{
+		provider:     p,
+		sshDialer:    sshDialer,
+		endBooting:   time.Now(),
+		startBooting: startBooting,
+		instance:     instance,
+	}, nil
+}
+
+func (p *ec2Provider) Setup(ctx gocontext.Context) error {
+	return nil
+}
+
+type ec2Instance struct {
+	provider     *ec2Provider
+	startBooting time.Time
+	endBooting   time.Time
+	sshDialer    ssh.Dialer
+	instance     *ec2.Instance
+}
+
+func (i *ec2Instance) UploadScript(ctx gocontext.Context, script []byte) error {
+	return i.uploadScriptSCP(ctx, script)
+}
+
+func (i *ec2Instance) uploadScriptSCP(ctx gocontext.Context, script []byte) error {
+	conn, err := i.sshConnection(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	existed, err := conn.UploadFile("build.sh", script)
+	if existed {
+		return ErrStaleVM
+	}
+	if err != nil {
+		return errors.Wrap(err, "couldn't upload build script")
+	}
+
+	return nil
+}
+
+func (p *ec2Provider) waitForSSH(host string, port, timeout int) error {
+	// Wait for ssh to becom available
+	iter := 0
+	for {
+		_, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, 22), 1*time.Second)
+		if err == nil {
+			break
+		}
+		iter = iter + 1
+		if iter > timeout {
+			return err
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return nil
+}
+
+func (i *ec2Instance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
+	return i.sshDialer.Dial(fmt.Sprintf("%s:22", *i.instance.PublicDnsName), defaultEC2SSHUserName, i.provider.sshDialTimeout)
+}
+
+func (i *ec2Instance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
+	return i.runScriptSSH(ctx, output)
+}
+
+func (i *ec2Instance) runScriptSSH(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
+	conn, err := i.sshConnection(ctx)
+	if err != nil {
+		return &RunResult{Completed: false}, errors.Wrap(err, "couldn't connect to SSH server")
+	}
+	defer conn.Close()
+
+	exitStatus, err := conn.RunCommand(strings.Join(i.provider.execCmd, " "), output)
+
+	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
+}
+
+func (i *ec2Instance) Stop(ctx gocontext.Context) error {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/ec2_provider")
+	//hostName := hostnameFromContext(ctx)
+
+	svc := ec2.New(i.provider.awsSession)
+
+	instanceTerminationInput := &ec2.TerminateInstancesInput{
+		InstanceIds: []*string{
+			i.instance.InstanceId,
+		},
+	}
+
+	_, err := svc.TerminateInstances(instanceTerminationInput)
+
+	if err != nil {
+		return err
+	}
+
+	logger.Info(fmt.Sprintf("Terminated instance %s with hostname %s", *i.instance.InstanceId, *i.instance.PublicDnsName))
+
+	deleteKeyPairInput := &ec2.DeleteKeyPairInput{
+		KeyName: i.instance.KeyName,
+	}
+
+	_, err = svc.DeleteKeyPair(deleteKeyPairInput)
+
+	if err != nil {
+		return err
+	}
+
+	logger.Info(fmt.Sprintf("Deleted keypair %s", *i.instance.KeyName))
+
+	return nil
+}
+
+func (i *ec2Instance) DownloadTrace(gocontext.Context) ([]byte, error) {
+	return nil, nil
+}
+
+func (i *ec2Instance) SupportsProgress() bool {
+	return false
+}
+
+func (i *ec2Instance) Warmed() bool {
+	return false
+}
+
+func (i *ec2Instance) ID() string {
+	return *i.instance.PublicDnsName
+}
+
+func (i *ec2Instance) ImageName() string {
+	return "ec2"
+}
+
+func (i *ec2Instance) StartupDuration() time.Duration {
+	return i.endBooting.Sub(i.startBooting)
+}
