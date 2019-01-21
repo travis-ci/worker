@@ -3,7 +3,6 @@ package backend
 import (
 	"fmt"
 	"io"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -16,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
@@ -36,6 +36,8 @@ var (
 	defaultEC2SecurityGroupIDs  = "default"
 	defaultEC2EBSOptimized      = false
 	defaultEC2DiskSize          = int64(8)
+	defaultEC2UploadRetries     = uint64(120)
+	defaultEC2UploadRetrySleep  = 1 * time.Second
 )
 
 func init() {
@@ -50,41 +52,39 @@ func init() {
 		"IAM_INSTANCE_PROFILE":     "This is not a good idea... for security, builds should provice API keys",
 		"USER_DATA":                "Why?",
 		"CPU_CREDIT_SPECIFICATION": "standard|unlimited (for faster boots)",
-		"TAGS":      "Tags, how to deal with key value?",
-		"DISK_SIZE": fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
-		//"SECURITY_GROUPS": "Security groups to assign ",
+		"TAGS":               "Tags, how to deal with key value?",
+		"DISK_SIZE":          fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
+		"SSH_DIAL_TIMEOUT":   fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultEC2SSHDialTimeout),
+		"UPLOAD_RETRIES":     fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultEC2UploadRetries),
+		"UPLOAD_RETRY_SLEEP": fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultEC2UploadRetrySleep),
+		"SECURITY_GROUPS":    "Security groups to assign",
 	}, newEC2Provider)
 }
 
 type ec2Provider struct {
-	cfg            *config.ProviderConfig
-	sshDialer      ssh.Dialer
-	sshDialTimeout time.Duration
-	execCmd        []string
-	imageSelector  image.Selector
-	awsSession     *session.Session
-	instanceType   string
-	defaultImage   string
-	securityGroups []string
-	ebsOptimized   bool
-	diskSize       int64
+	cfg              *config.ProviderConfig
+	execCmd          []string
+	imageSelector    image.Selector
+	awsSession       *session.Session
+	instanceType     string
+	defaultImage     string
+	securityGroups   []string
+	ebsOptimized     bool
+	diskSize         int64
+	uploadRetries    uint64
+	uploadRetrySleep time.Duration
+	sshDialTimeout   time.Duration
 }
 
 func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 
-	//sshDialer, err := ssh.NewDialerWithPassword("travis")
-	sshDialer, err := ssh.NewDialer(defaultEC2SSHPrivateKeyPath, "")
-
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create SSH dialer")
-	}
-
 	sshDialTimeout := defaultEC2SSHDialTimeout
 	if cfg.IsSet("SSH_DIAL_TIMEOUT") {
-		sshDialTimeout, err = time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
+		sd, err := time.ParseDuration(cfg.Get("SSH_DIAL_TIMEOUT"))
 		if err != nil {
 			return nil, err
 		}
+		sshDialTimeout = sd
 	}
 
 	execCmd := strings.Split(defaultEC2ExecCmd, " ")
@@ -162,18 +162,37 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
+	uploadRetries := defaultEC2UploadRetries
+	if cfg.IsSet("UPLOAD_RETRIES") {
+		ur, err := strconv.ParseUint(cfg.Get("UPLOAD_RETRIES"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		uploadRetries = ur
+	}
+
+	uploadRetrySleep := defaultEC2UploadRetrySleep
+	if cfg.IsSet("UPLOAD_RETRY_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("UPLOAD_RETRY_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		uploadRetrySleep = si
+	}
+
 	return &ec2Provider{
-		cfg:            cfg,
-		sshDialTimeout: sshDialTimeout,
-		sshDialer:      sshDialer,
-		execCmd:        execCmd,
-		imageSelector:  imageSelector,
-		awsSession:     awsSession,
-		instanceType:   instanceType,
-		defaultImage:   defaultImage,
-		securityGroups: securityGroups,
-		ebsOptimized:   ebsOptimized,
-		diskSize:       diskSize,
+		cfg:              cfg,
+		sshDialTimeout:   sshDialTimeout,
+		execCmd:          execCmd,
+		imageSelector:    imageSelector,
+		awsSession:       awsSession,
+		instanceType:     instanceType,
+		defaultImage:     defaultImage,
+		securityGroups:   securityGroups,
+		ebsOptimized:     ebsOptimized,
+		diskSize:         diskSize,
+		uploadRetries:    uploadRetries,
+		uploadRetrySleep: uploadRetrySleep,
 	}, nil
 }
 
@@ -306,12 +325,6 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		time.Sleep(1 * time.Second)
 	}
 
-	err = p.waitForSSH(ctx, *instance.PublicDnsName, 22, 120)
-
-	if err != nil {
-		return nil, err
-	}
-
 	return &ec2Instance{
 		provider:     p,
 		sshDialer:    sshDialer,
@@ -334,6 +347,54 @@ type ec2Instance struct {
 }
 
 func (i *ec2Instance) UploadScript(ctx gocontext.Context, script []byte) error {
+	defer context.TimeSince(ctx, "boot_poll_ssh", time.Now())
+	uploadedChan := make(chan error)
+	var lastErr error
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/ec2_instance")
+
+	// Wait for ssh to becom available
+	go func() {
+		var errCount uint64
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			err := i.uploadScriptAttempt(ctx, script)
+			if err != nil {
+				logger.WithError(err).Debug("upload script attempt errored")
+			} else {
+				uploadedChan <- nil
+				return
+			}
+
+			lastErr = err
+
+			errCount++
+			if errCount > i.provider.uploadRetries {
+				uploadedChan <- err
+				return
+			}
+			time.Sleep(i.provider.uploadRetrySleep)
+		}
+	}()
+
+	select {
+	case err := <-uploadedChan:
+		return err
+	case <-ctx.Done():
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  lastErr,
+			"self": "backend/gce_instance",
+		}).Info("stopping upload retries, error from last attempt")
+		return ctx.Err()
+	}
+
+	//return i.uploadScriptAttempt(ctx, script)
+}
+
+func (i *ec2Instance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
 	return i.uploadScriptSCP(ctx, script)
 }
 
@@ -350,24 +411,6 @@ func (i *ec2Instance) uploadScriptSCP(ctx gocontext.Context, script []byte) erro
 	}
 	if err != nil {
 		return errors.Wrap(err, "couldn't upload build script")
-	}
-
-	return nil
-}
-
-func (p *ec2Provider) waitForSSH(ctx gocontext.Context, host string, port, timeout int) error {
-	// Wait for ssh to becom available
-	iter := 0
-	for {
-		_, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, 22), 1*time.Second)
-		if err == nil {
-			break
-		}
-		iter = iter + 1
-		if iter > timeout {
-			return err
-		}
-		time.Sleep(1 * time.Second)
 	}
 	return nil
 }
