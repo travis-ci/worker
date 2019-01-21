@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,21 @@ import (
 	"github.com/travis-ci/worker/ssh"
 )
 
+var (
+	defaultEC2ScriptLocation    = "/home/jonhenrik/travis-in-ec2"
+	defaultEC2SSHDialTimeout    = 5 * time.Second
+	defaultEC2ImageSelectorType = "env"
+	defaultEC2SSHUserName       = "ubuntu"
+	defaultEC2SSHPrivateKeyPath = "/home/jonhenrik/.ssh/devops-infra-del-sndbx.pem"
+	defaultEC2ExecCmd           = "bash /home/ubuntu/build.sh"
+	defaultEC2SubnetID          = ""
+	defaultEC2InstanceType      = "t2.micro"
+	defaultEC2Image             = "ami-02790d1ebf3b5181d"
+	defaultEC2SecurityGroupIDs  = "default"
+	defaultEC2EBSOptimized      = false
+	defaultEC2DiskSize          = int64(8)
+)
+
 func init() {
 	Register("ec2", "EC2", map[string]string{
 		"IMAGE_MAP":                "Map of which image to use for which language",
@@ -34,25 +50,11 @@ func init() {
 		"IAM_INSTANCE_PROFILE":     "This is not a good idea... for security, builds should provice API keys",
 		"USER_DATA":                "Why?",
 		"CPU_CREDIT_SPECIFICATION": "standard|unlimited (for faster boots)",
-		"TAGS": "Tags, how to deal with key value?",
+		"TAGS":      "Tags, how to deal with key value?",
+		"DISK_SIZE": fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
 		//"SECURITY_GROUPS": "Security groups to assign ",
 	}, newEC2Provider)
 }
-
-var (
-	defaultEC2ScriptLocation    = "/home/jonhenrik/travis-in-ec2"
-	defaultEC2SSHDialTimeout    = 5 * time.Second
-	defaultEC2ImageSelectorType = "env"
-	defaultEC2SSHUserName       = "ubuntu"
-	defaultEC2SSHPrivateKeyPath = "/home/jonhenrik/.ssh/devops-infra-del-sndbx.pem"
-	defaultEC2ExecCmd           = "bash /home/ubuntu/build.sh"
-	defaultEC2SubnetID          = ""
-	defaultEC2InstanceType      = "t2.micro"
-	defaultEC2Image             = "ami-02790d1ebf3b5181d"
-	defaultEC2SecurityGroupIDs  = "default"
-)
-
-/****** POC SECTION *******/
 
 type ec2Provider struct {
 	cfg            *config.ProviderConfig
@@ -64,6 +66,8 @@ type ec2Provider struct {
 	instanceType   string
 	defaultImage   string
 	securityGroups []string
+	ebsOptimized   bool
+	diskSize       int64
 }
 
 func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
@@ -145,6 +149,19 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		securityGroups = strings.Split(cfg.Get("SECURITY_GROUP_IDS"), ",")
 	}
 
+	ebsOptimized := defaultEC2EBSOptimized
+	if cfg.IsSet("EBS_OPTIMIZED") {
+		ebsOptimized = asBool(cfg.Get("EBS_OPTIMIZED"))
+	}
+
+	diskSize := defaultEC2DiskSize
+	if cfg.IsSet("DISK_SIZE") {
+		diskSize, err = strconv.ParseInt(cfg.Get("DISK_SIZE"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &ec2Provider{
 		cfg:            cfg,
 		sshDialTimeout: sshDialTimeout,
@@ -155,6 +172,8 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		instanceType:   instanceType,
 		defaultImage:   defaultImage,
 		securityGroups: securityGroups,
+		ebsOptimized:   ebsOptimized,
+		diskSize:       diskSize,
 	}, nil
 }
 
@@ -225,6 +244,15 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		securityGroups = append(securityGroups, &securityGroup)
 	}
 
+	blockDeviceMappings := []*ec2.BlockDeviceMapping{
+		&ec2.BlockDeviceMapping{
+			DeviceName: aws.String("/dev/sda1"),
+			Ebs: &ec2.EbsBlockDevice{
+				VolumeSize: aws.Int64(p.diskSize),
+			},
+		},
+	}
+
 	runOpts := &ec2.RunInstancesInput{
 		ImageId:          aws.String(imageID),
 		InstanceType:     aws.String(p.instanceType),
@@ -232,6 +260,11 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		MinCount:         aws.Int64(1),
 		KeyName:          keyResp.KeyName,
 		SecurityGroupIds: securityGroups,
+		CreditSpecification: &ec2.CreditSpecificationRequest{
+			CpuCredits: aws.String("unlimited"), // TODO:
+		},
+		EbsOptimized:        aws.Bool(p.ebsOptimized),
+		BlockDeviceMappings: blockDeviceMappings,
 		TagSpecifications: []*ec2.TagSpecification{
 			&ec2.TagSpecification{
 				ResourceType: aws.String("instance"),
@@ -273,11 +306,12 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		time.Sleep(1 * time.Second)
 	}
 
-	err = p.waitForSSH(*instance.PublicDnsName, 22, 120)
+	err = p.waitForSSH(ctx, *instance.PublicDnsName, 22, 120)
 
 	if err != nil {
 		return nil, err
 	}
+
 	return &ec2Instance{
 		provider:     p,
 		sshDialer:    sshDialer,
@@ -321,7 +355,7 @@ func (i *ec2Instance) uploadScriptSCP(ctx gocontext.Context, script []byte) erro
 	return nil
 }
 
-func (p *ec2Provider) waitForSSH(host string, port, timeout int) error {
+func (p *ec2Provider) waitForSSH(ctx gocontext.Context, host string, port, timeout int) error {
 	// Wait for ssh to becom available
 	iter := 0
 	for {
