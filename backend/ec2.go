@@ -1,12 +1,18 @@
 package backend
 
 import (
+	"bytes"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	gocontext "context"
@@ -25,21 +31,50 @@ import (
 )
 
 var (
-	defaultEC2ScriptLocation    = "/home/jonhenrik/travis-in-ec2"
 	defaultEC2SSHDialTimeout    = 5 * time.Second
 	defaultEC2ImageSelectorType = "env"
-	defaultEC2SSHUserName       = "ubuntu"
-	defaultEC2SSHPrivateKeyPath = "/home/jonhenrik/.ssh/devops-infra-del-sndbx.pem"
-	defaultEC2ExecCmd           = "bash /home/ubuntu/build.sh"
-	defaultEC2SubnetID          = ""
-	defaultEC2InstanceType      = "t2.micro"
-	defaultEC2Image             = "ami-02790d1ebf3b5181d"
-	defaultEC2SecurityGroupIDs  = "default"
-	defaultEC2EBSOptimized      = false
-	defaultEC2DiskSize          = int64(8)
-	defaultEC2UploadRetries     = uint64(120)
-	defaultEC2UploadRetrySleep  = 1 * time.Second
+	defaultEC2SSHUserName       = "travis"
+	//defaultEC2ExecCmd           = "bash ~/build.sh"
+	defaultEC2ExecCmd          = "bash -c 'lsblk -l && sudo cat /root/mounter.log'"
+	defaultEC2SubnetID         = ""
+	defaultEC2InstanceType     = "t2.micro"
+	defaultEC2Image            = "ami-02790d1ebf3b5181d"
+	defaultEC2SecurityGroupIDs = "default"
+	defaultEC2EBSOptimized     = false
+	defaultEC2DiskSize         = int64(8)
+	defaultEC2UploadRetries    = uint64(120)
+	defaultEC2UploadRetrySleep = 1 * time.Second
 )
+
+var (
+	/*
+		#if [[ -b /dev/nvme1n1 ]]; then
+		# Are we able to run on instance/store disks
+		#fi
+
+		   	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
+		   {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
+		   cat > ~travis/.ssh/authorized_keys <<EOF
+		   {{ .SSHPubKey }}
+		   EOF
+		   chown -R travis:travis ~travis/.ssh/
+		   `))
+	*/
+	ec2StartupScript = template.Must(template.New("ec2-startup").Parse(`#!/usr/bin/env bash
+
+cat > ~travis/.ssh/authorized_keys <<EOF
+{{ .SSHPubKey }}
+EOF
+chown -R travis:travis ~travis/.ssh/
+
+{{ .UserData }}
+`))
+)
+
+type ec2StartupScriptData struct {
+	SSHPubKey string
+	UserData  string
+}
 
 func init() {
 	Register("ec2", "EC2", map[string]string{
@@ -51,7 +86,7 @@ func init() {
 		"SUBNET_ID":                "Subnet ID to launch instances into",
 		"EBS_OPTIMIZED":            "Whether or not to use EBS-optimized instances (Default: false)",
 		"IAM_INSTANCE_PROFILE":     "This is not a good idea... for security, builds should provice API keys",
-		"USER_DATA":                "Why?",
+		"USER_DATA":                "User data, needs to be URL safe base64 encoded format (RFC 4648)",
 		"CPU_CREDIT_SPECIFICATION": "standard|unlimited (for faster boots)",
 		"TAGS":               "Tags, how to deal with key value?",
 		"DISK_SIZE":          fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
@@ -61,6 +96,7 @@ func init() {
 		"SECURITY_GROUPS":    "Security groups to assign",
 		"PUBLIC_IP":          "boot job instances with a public ip, disable this for NAT (default true)",
 		"PUBLIC_IP_CONNECT":  "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
+		"USE_INSTANCE_STORE": "Use instance store for builds if available",
 	}, newEC2Provider)
 }
 
@@ -80,6 +116,7 @@ type ec2Provider struct {
 	publicIP         bool
 	publicIPConnect  bool
 	subnetID         string
+	userData         string
 }
 
 func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
@@ -155,6 +192,18 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		defaultImage = cfg.Get("DEFAULT_IMAGE")
 	}
 
+	userData := ""
+	if cfg.IsSet("USER_DATA") {
+		userDataBytes, err := base64.RawURLEncoding.DecodeString(cfg.Get("USER_DATA"))
+		if err != nil {
+			fmt.Println(cfg.Get("USER_DATA"))
+			fmt.Println(string(userDataBytes))
+			return nil, err
+		}
+
+		userData = string(userDataBytes)
+	}
+
 	securityGroups := strings.Split(defaultEC2SecurityGroupIDs, ",")
 	if cfg.IsSet("SECURITY_GROUP_IDS") {
 		securityGroups = strings.Split(cfg.Get("SECURITY_GROUP_IDS"), ",")
@@ -217,6 +266,7 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		publicIP:         publicIP,
 		publicIPConnect:  publicIPConnect,
 		subnetID:         subnetID,
+		userData:         userData,
 	}, nil
 }
 
@@ -251,14 +301,30 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Create EC2 service client
 	svc := ec2.New(p.awsSession)
 
-	keyResp, err := svc.CreateKeyPair(
-		&ec2.CreateKeyPairInput{
-			KeyName: aws.String(hostName),
-		},
-	)
+	keyPairInput := &ec2.CreateKeyPairInput{
+		KeyName: aws.String(hostName),
+	}
+
+	keyResp, err := svc.CreateKeyPair(keyPairInput)
 
 	if err != nil {
-		logger.WithField("err", err).Error("ooooehhh noesss!!!")
+		logger.WithField("err", err).Errorf("Unable to generate keypair %s", *keyPairInput.KeyName)
+		return nil, err
+	}
+
+	block, _ := pem.Decode([]byte(*keyResp.KeyMaterial))
+
+	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+
+	if err != nil {
+		logger.WithField("err", err).Error("Unable to parse private key")
+		return nil, err
+	}
+
+	publicKey, err := ssh.FormatPublicKey(key.Public())
+
+	if err != nil {
+		logger.WithField("err", err).Error(fmt.Sprintf("Unable to format public key for private key %s", *keyResp.KeyName))
 		return nil, err
 	}
 
@@ -268,6 +334,18 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	if err != nil {
 		return nil, err
 	}
+
+	userDataBuffer := bytes.Buffer{}
+	err = ec2StartupScript.Execute(&userDataBuffer, ec2StartupScriptData{
+		SSHPubKey: string(publicKey),
+		UserData:  p.userData,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	userDataEncoded := base64.StdEncoding.EncodeToString(userDataBuffer.Bytes())
 
 	imageID, err := p.imageSelector.Select(ctx, &image.Params{
 		Language: startAttributes.Language,
@@ -297,16 +375,13 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 
 	runOpts := &ec2.RunInstancesInput{
-		ImageId:      aws.String(imageID),
-		InstanceType: aws.String(p.instanceType),
-		MaxCount:     aws.Int64(1),
-		MinCount:     aws.Int64(1),
-		KeyName:      keyResp.KeyName,
-
-		CreditSpecification: &ec2.CreditSpecificationRequest{
-			CpuCredits: aws.String("unlimited"), // TODO:
-		},
+		ImageId:             aws.String(imageID),
+		InstanceType:        aws.String(p.instanceType),
+		MaxCount:            aws.Int64(1),
+		MinCount:            aws.Int64(1),
+		KeyName:             keyResp.KeyName,
 		EbsOptimized:        aws.Bool(p.ebsOptimized),
+		UserData:            aws.String(userDataEncoded),
 		BlockDeviceMappings: blockDeviceMappings,
 		TagSpecifications: []*ec2.TagSpecification{
 			&ec2.TagSpecification{
@@ -319,6 +394,14 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 				},
 			},
 		},
+	}
+
+	regex := regexp.MustCompile("^(t2|t3).*")
+
+	if regex.MatchString(p.instanceType) {
+		runOpts.CreditSpecification = &ec2.CreditSpecificationRequest{
+			CpuCredits: aws.String("unlimited"), // TODO:
+		}
 	}
 
 	if p.subnetID != "" && p.publicIP {
