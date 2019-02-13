@@ -792,7 +792,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	logger.Debug("building machine type self link map")
 
 	for _, zoneName := range append([]string{p.ic.Zone.Name}, p.alternateZones...) {
-		for _, machineType := range []string{p.ic.MachineType, p.ic.PremiumMachineType} {
+		for _, machineType := range []string{p.ic.MachineType, p.ic.PremiumMachineType, "n1-highmem-4", "n1-standard-8"} {
 			if zoneName == "" || machineType == "" {
 				continue
 			}
@@ -912,6 +912,23 @@ func (p *gceProvider) SupportsProgress() bool {
 
 func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, progresser Progresser) (Instance, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
+
+	// HACK: extract vm type from group {
+	// e.g.:
+	//
+	//     group: stable,vm_type=n1-highmem-4
+	//
+	if strings.HasPrefix(startAttributes.Group, "vm_type") {
+		parts := strings.Split(startAttributes.Group, ",")
+		if len(parts) == 2 {
+			vmTypeParts := strings.Split(parts[1], "=")
+			if len(vmTypeParts) == 2 {
+				startAttributes.VMType = strings.TrimSpace(vmTypeParts[1])
+				startAttributes.Group = strings.TrimSpace(parts[0])
+			}
+		}
+	}
+	// }
 
 	c := &gceStartContext{
 		startAttributes:    startAttributes,
@@ -1458,8 +1475,15 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	machineType := p.ic.MachineType
-	if c.startAttributes.VMType == "premium" {
+	switch c.startAttributes.VMType {
+	case "premium":
 		machineType = p.ic.PremiumMachineType
+	case "n1-standard-8":
+		machineType = "n1-standard-8"
+	case "n1-highmem-4":
+		machineType = "n1-highmem-4"
+	default:
+		return nil, fmt.Errorf("unknown vm type %s in start attributes", c.startAttributes.VMType)
 	}
 
 	var ok bool
