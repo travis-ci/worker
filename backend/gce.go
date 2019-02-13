@@ -916,10 +916,10 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	// HACK: extract vm type from group {
 	// e.g.:
 	//
-	//     group: stable,vm_type=n1-highmem-4
+	//     group: stable vm_type=n1-highmem-4
 	//
-	if strings.HasPrefix(startAttributes.Group, "vm_type") {
-		parts := strings.Split(startAttributes.Group, ",")
+	if strings.Contains(startAttributes.Group, "vm_type=") {
+		parts := strings.Split(startAttributes.Group, " ")
 		if len(parts) == 2 {
 			vmTypeParts := strings.Split(parts[1], "=")
 			if len(vmTypeParts) == 2 {
