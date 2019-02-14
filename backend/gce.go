@@ -1482,6 +1482,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		machineType = "n1-standard-8"
 	case "n1-highmem-4":
 		machineType = "n1-highmem-4"
+	case "default":
+		machineType = p.ic.MachineType
 	default:
 		return nil, fmt.Errorf("unknown vm type %s in start attributes", c.startAttributes.VMType)
 	}
