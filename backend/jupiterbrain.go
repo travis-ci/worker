@@ -441,6 +441,10 @@ func (i *jupiterBrainInstance) UploadScript(ctx gocontext.Context, script []byte
 	return nil
 }
 
+func (i *jupiterBrainInstance) InstallAgent(ctx gocontext.Context) error {
+	return ErrInstallAgentNotImplemented
+}
+
 func (i *jupiterBrainInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	conn, err := i.sshConnection()
 	if err != nil {
@@ -497,6 +501,10 @@ func (i *jupiterBrainInstance) ID() string {
 		return "{unidentified}"
 	}
 	return i.payload.ID
+}
+
+func (i *jupiterBrainInstance) IP(ctx gocontext.Context) (string, error) {
+	return "", ErrInstanceIPNotImplemented
 }
 
 func (i *jupiterBrainInstance) ImageName() string {

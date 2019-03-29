@@ -22,6 +22,7 @@ type Connection interface {
 	UploadFile(path string, data []byte) (bool, error)
 	DownloadFile(path string) ([]byte, error)
 	RunCommand(command string, output io.Writer) (int32, error)
+	Chmod(path string, mode os.FileMode) error
 	Close() error
 }
 
@@ -191,6 +192,21 @@ func (c *sshConnection) RunCommand(command string, output io.Writer) (int32, err
 	default:
 		return 0, errors.Wrap(err, "error running script")
 	}
+}
+
+func (c *sshConnection) Chmod(path string, mode os.FileMode) error {
+	sftp, err := sftp.NewClient(c.client)
+	if err != nil {
+		return errors.Wrap(err, "couldn't create SFTP client")
+	}
+	defer sftp.Close()
+
+	err = sftp.Chmod(path, mode)
+	if err != nil {
+		return errors.Wrap(err, "couldn't chmod file")
+	}
+
+	return nil
 }
 
 func (c *sshConnection) Close() error {

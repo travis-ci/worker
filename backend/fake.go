@@ -69,6 +69,10 @@ func (i *fakeInstance) UploadScript(ctx context.Context, script []byte) error {
 	return nil
 }
 
+func (i *fakeInstance) InstallAgent(ctx context.Context) error {
+	return ErrInstallAgentNotImplemented
+}
+
 func (i *fakeInstance) RunScript(ctx context.Context, writer io.Writer) (*RunResult, error) {
 	if i.p.cfg.Get("ERROR") == "true" {
 		return &RunResult{Completed: false}, errors.New("fake provider is configured to error all jobs")
@@ -100,6 +104,10 @@ func (i *fakeInstance) Stop(ctx context.Context) error {
 
 func (i *fakeInstance) ID() string {
 	return "fake"
+}
+
+func (i *fakeInstance) IP(ctx context.Context) (string, error) {
+	return "", ErrInstanceIPNotImplemented
 }
 
 func (i *fakeInstance) ImageName() string {

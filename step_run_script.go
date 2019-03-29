@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	gocontext "context"
@@ -9,9 +10,11 @@ import (
 	"github.com/mitchellh/multistep"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	agent "github.com/travis-ci/worker-agent/agent"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	"go.opencensus.io/trace"
+	"google.golang.org/grpc"
 )
 
 var MaxLogLengthExceeded = errors.New("maximum log length exceeded")
@@ -26,6 +29,7 @@ type stepRunScript struct {
 	logTimeout               time.Duration
 	hardTimeout              time.Duration
 	skipShutdownOnLogTimeout bool
+	agentEnabled             bool
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -52,7 +56,13 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 	resultChan := make(chan runScriptReturn, 1)
 	go func() {
-		result, err := instance.RunScript(ctx, logWriter)
+		var result *backend.RunResult
+		var err error
+		if s.agentEnabled {
+			result, err = s.runScriptWithAgent(ctx, logWriter, instance)
+		} else {
+			result, err = instance.RunScript(ctx, logWriter)
+		}
 		resultChan <- runScriptReturn{
 			result: result,
 			err:    err,
@@ -161,6 +171,74 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		// Continue to the download trace step
 		return multistep.ActionContinue
 	}
+}
+
+func (s *stepRunScript) runScriptWithAgent(ctx gocontext.Context, logWriter LogWriter, instance backend.Instance) (*backend.RunResult, error) {
+	ip, err := instance.IP(ctx)
+	if err != nil {
+		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get instance ip")
+	}
+	address := ip + ":" + agent.PORT
+
+	// TODO: figure out grpc security
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not connect to agent")
+	}
+	defer conn.Close()
+
+	c := agent.NewAgentClient(conn)
+
+	// TODO: get these values from state
+	// TODO: get command and args from instance
+	_, err = c.RunJob(ctx, &agent.RunJobRequest{
+		JobId:        "123",
+		Command:      "bash",
+		CommandArgs:  []string{"build.sh"},
+		LogTimeoutS:  10,
+		HardTimeoutS: 10,
+		MaxLogLength: 10,
+	})
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_run_script")
+
+	if err != nil {
+		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not run job")
+	}
+
+	stream, err := c.GetLogParts(ctx, &agent.LogPartsRequest{})
+	if err != nil {
+		logger.WithField("err", err).Error("error trying to GetLogParts")
+		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get log parts")
+	}
+
+	// TODO: figure out how to persist offset
+	// offset := int64(0)
+
+	for {
+		part, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't get log parts from stream")
+			return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get log parts")
+		}
+		logWriter.Write([]byte(part.Content))
+
+		// offset = part.Number
+	}
+
+	st, err := c.GetJobStatus(ctx, &agent.WorkerRequest{})
+	if err != nil {
+		logger.WithField("err", err).Error("couldn't get job status")
+		return &backend.RunResult{Completed: false}, errors.Wrap(err, "could not get job status")
+	}
+
+	return &backend.RunResult{
+		Completed: true,
+		ExitCode:  st.ExitCode,
+	}, nil
 }
 
 func (s *stepRunScript) writeLogAndFinishWithState(preTimeoutCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {

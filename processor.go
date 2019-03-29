@@ -243,6 +243,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		&stepCheckCancellation{},
 		&stepUploadScript{
 			uploadTimeout: p.config.ScriptUploadTimeout,
+			agentEnabled:  p.config.AgentEnabled,
 		},
 		&stepCheckCancellation{},
 		&stepUpdateState{},
@@ -252,6 +253,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			logTimeout:               logTimeout,
 			hardTimeout:              buildJob.StartAttributes().HardTimeout,
 			skipShutdownOnLogTimeout: p.config.SkipShutdownOnLogTimeout,
+			agentEnabled:             p.config.AgentEnabled,
 		},
 		&stepDownloadTrace{
 			persister: p.persister,

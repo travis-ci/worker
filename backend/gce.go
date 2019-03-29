@@ -1954,6 +1954,62 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 	return preempted.state, err
 }
 
+func (i *gceInstance) InstallAgent(ctx gocontext.Context) error {
+	var conn remote.Remoter
+	var err error
+
+	// TODO: windows support
+	if i.os == "windows" {
+		return errors.New("agent is not supported on windows yet")
+	}
+
+	agentBinaryFile := "/Users/bogdana/go/src/github.com/travis-ci/worker-agent/worker-agent-linux-amd64"
+
+	agentBinaryBytes, err := ioutil.ReadFile(agentBinaryFile)
+	if err != nil {
+		return errors.Wrap(err, "couldn't read local agent binary")
+	}
+
+	conn, err = i.sshConnection(ctx)
+	if err != nil {
+		return errors.Wrap(err, "couldn't connect to remote server for agent upload")
+	}
+	defer conn.Close()
+
+	uploadDest := "/tmp/worker-agent"
+
+	context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+		"dest": uploadDest,
+		"self": "backend/gce_instance",
+	}).Debug("uploading agent")
+
+	existed, err := conn.UploadFile(uploadDest, agentBinaryBytes)
+	if existed {
+		i.progresser.Progress(&ProgressEntry{
+			Message:    "existing script detected",
+			State:      ProgressFailure,
+			Interrupts: true,
+		})
+		return ErrStaleVM
+	}
+	if err != nil {
+		return errors.Wrap(err, "couldn't upload agent")
+	}
+
+	err = conn.Chmod(uploadDest, 0755)
+	if err != nil {
+		return errors.Wrap(err, "couldn't chmod agent")
+	}
+
+	agentCommand := "nohup bash -c '/tmp/worker-agent &> /tmp/worker-agent.out &'"
+	_, err = conn.RunCommand(agentCommand, ioutil.Discard)
+	if err != nil {
+		return errors.Wrap(err, "couldn't run agent")
+	}
+
+	return nil
+}
+
 func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
 	var conn remote.Remoter
 	var err error
@@ -2115,6 +2171,10 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 
 func (i *gceInstance) ID() string {
 	return i.instance.Name
+}
+
+func (i *gceInstance) IP(ctx gocontext.Context) (string, error) {
+	return i.getCachedIP(ctx)
 }
 
 func (i *gceInstance) ImageName() string {

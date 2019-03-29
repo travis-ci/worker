@@ -16,6 +16,7 @@ import (
 
 type stepUploadScript struct {
 	uploadTimeout time.Duration
+	agentEnabled  bool
 }
 
 func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -76,6 +77,35 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	logger.WithFields(logrus.Fields{
 		"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
 	}).Info("uploaded script")
+
+	if s.agentEnabled {
+		err := instance.InstallAgent(ctx)
+		if err != nil {
+			state.Put("err", err)
+
+			span.SetStatus(trace.Status{
+				Code:    trace.StatusCodeUnavailable,
+				Message: err.Error(),
+			})
+
+			logger.WithFields(logrus.Fields{
+				"err":            err,
+				"upload_timeout": s.uploadTimeout,
+			}).Error("couldn't install agent, attempting requeue")
+			context.CaptureError(ctx, err)
+
+			err := buildJob.Requeue(preTimeoutCtx)
+			if err != nil {
+				logger.WithField("err", err).Error("couldn't requeue job")
+			}
+
+			return multistep.ActionHalt
+		}
+
+		logger.WithFields(logrus.Fields{
+			"since_processed_ms": time.Since(processedAt).Seconds() * 1e3,
+		}).Info("installed agent")
+	}
 
 	return multistep.ActionContinue
 }
