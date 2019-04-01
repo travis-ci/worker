@@ -312,6 +312,10 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
+	if !cfg.IsSet("ACCOUNT_JSON") {
+		return nil, fmt.Errorf("missing ACCOUNT_JSON")
+	}
+
 	projectID := cfg.Get("PROJECT_ID")
 	if metadata.OnGCE() {
 		projectID, err = metadata.ProjectID()
