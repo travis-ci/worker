@@ -2,7 +2,7 @@
 set -o errexit
 
 main() {
-  if [[ ! -n "${1}" ]]; then
+  if [[ -z "${1}" ]]; then
     git ls-files '*.go' | while read -r f; do
       __gofmt_check "${f}"
     done
