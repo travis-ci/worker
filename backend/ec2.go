@@ -34,8 +34,8 @@ var (
 	defaultEC2SSHDialTimeout    = 5 * time.Second
 	defaultEC2ImageSelectorType = "env"
 	defaultEC2SSHUserName       = "travis"
-	//defaultEC2ExecCmd           = "bash ~/build.sh"
-	defaultEC2ExecCmd          = "bash -c 'lsblk -l && sudo cat /root/mounter.log'"
+	defaultEC2ExecCmd           = "bash ~/build.sh"
+	//wdefaultEC2ExecCmd          = "bash -c 'lsblk -l && sudo cat /root/mounter.log'"
 	defaultEC2SubnetID         = ""
 	defaultEC2InstanceType     = "t2.micro"
 	defaultEC2Image            = "ami-02790d1ebf3b5181d"
@@ -194,13 +194,11 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 
 	userData := ""
 	if cfg.IsSet("USER_DATA") {
-		userDataBytes, err := base64.RawURLEncoding.DecodeString(cfg.Get("USER_DATA"))
+		var userDataBytes []byte
+		userDataBytes, err = base64.RawURLEncoding.DecodeString(cfg.Get("USER_DATA"))
 		if err != nil {
-			fmt.Println(cfg.Get("USER_DATA"))
-			fmt.Println(string(userDataBytes))
 			return nil, err
 		}
-
 		userData = string(userDataBytes)
 	}
 
@@ -374,24 +372,53 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		},
 	}
 
+	tags := []*ec2.Tag{
+		&ec2.Tag{
+			Key:   aws.String("Name"),
+			Value: aws.String(hostName),
+		},
+		&ec2.Tag{
+			Key:   aws.String("travis.dist"),
+			Value: aws.String(startAttributes.Dist),
+		},
+	}
+
+	/*
+		for key, value := range p.containerLabels {
+			labels[key] = value
+		}
+	*/
+
+	r, ok := context.RepositoryFromContext(ctx)
+	if ok {
+		tags = append(tags, &ec2.Tag{
+			Key:   aws.String("travis.repo"),
+			Value: aws.String(r),
+		})
+	}
+
+	jid, ok := context.JobIDFromContext(ctx)
+	if ok {
+		tags = append(tags, &ec2.Tag{
+			Key:   aws.String("travis.job_id"),
+			Value: aws.String(strconv.FormatUint(jid, 10)),
+		})
+	}
+
 	runOpts := &ec2.RunInstancesInput{
-		ImageId:             aws.String(imageID),
-		InstanceType:        aws.String(p.instanceType),
-		MaxCount:            aws.Int64(1),
-		MinCount:            aws.Int64(1),
-		KeyName:             keyResp.KeyName,
+		ImageId:      aws.String(imageID),
+		InstanceType: aws.String(p.instanceType),
+		MaxCount:     aws.Int64(1),
+		MinCount:     aws.Int64(1),
+		KeyName:      keyResp.KeyName,
+		//KeyName:             aws.String("devops"),
 		EbsOptimized:        aws.Bool(p.ebsOptimized),
 		UserData:            aws.String(userDataEncoded),
 		BlockDeviceMappings: blockDeviceMappings,
 		TagSpecifications: []*ec2.TagSpecification{
 			&ec2.TagSpecification{
 				ResourceType: aws.String("instance"),
-				Tags: []*ec2.Tag{
-					&ec2.Tag{
-						Key:   aws.String("Name"),
-						Value: aws.String(hostName),
-					},
-				},
+				Tags:         tags,
 			},
 		},
 	}
@@ -431,33 +458,55 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		},
 	}
 
-	instance := &ec2.Instance{}
-	for {
-		instances, err := svc.DescribeInstances(describeInstancesInput)
+	instanceChan := make(chan *ec2.Instance)
+	var lastErr error
+	go func() {
+		for {
+			var errCount uint64
+			var instances *ec2.DescribeInstancesOutput
+			if ctx.Err() != nil {
+				return
+			}
+			instances, lastErr = svc.DescribeInstances(describeInstancesInput)
+			if instances != nil {
+				instance := instances.Reservations[0].Instances[0]
+				address := *instance.PrivateDnsName
+				if p.publicIPConnect {
+					address = *instance.PublicDnsName
+				}
+				if address != "" {
+					instanceChan <- instance
+					return
+				}
+			}
+			errCount++
+			if errCount > p.uploadRetries {
+				instanceChan <- nil
+				return
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+	}()
 
-		if err != nil {
-			return nil, err
+	select {
+	case instance := <-instanceChan:
+		if instance != nil {
+			return &ec2Instance{
+				provider:     p,
+				sshDialer:    sshDialer,
+				endBooting:   time.Now(),
+				startBooting: startBooting,
+				instance:     instance,
+			}, nil
 		}
-		instance = instances.Reservations[0].Instances[0]
-		if instances != nil {
-			address := *instance.PrivateDnsName
-			if p.publicIPConnect {
-				address = *instance.PublicDnsName
-			}
-			if address != "" {
-				break
-			}
-		}
-		time.Sleep(1 * time.Second)
+		return nil, lastErr
+	case <-ctx.Done():
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  lastErr,
+			"self": "backend/ec2_instance",
+		}).Info("Stopping probing for up instance")
+		return nil, ctx.Err()
 	}
-
-	return &ec2Instance{
-		provider:     p,
-		sshDialer:    sshDialer,
-		endBooting:   time.Now(),
-		startBooting: startBooting,
-		instance:     instance,
-	}, nil
 }
 
 func (p *ec2Provider) Setup(ctx gocontext.Context) error {
@@ -512,7 +561,7 @@ func (i *ec2Instance) UploadScript(ctx gocontext.Context, script []byte) error {
 	case <-ctx.Done():
 		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 			"err":  lastErr,
-			"self": "backend/gce_instance",
+			"self": "backend/ec2_instance",
 		}).Info("stopping upload retries, error from last attempt")
 		return ctx.Err()
 	}
