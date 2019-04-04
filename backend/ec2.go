@@ -88,15 +88,21 @@ func init() {
 		"IAM_INSTANCE_PROFILE":     "This is not a good idea... for security, builds should provice API keys",
 		"USER_DATA":                "User data, needs to be URL safe base64 encoded format (RFC 4648)",
 		"CPU_CREDIT_SPECIFICATION": "standard|unlimited (for faster boots)",
-		"TAGS":               "Tags, how to deal with key value?",
-		"DISK_SIZE":          fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
-		"SSH_DIAL_TIMEOUT":   fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultEC2SSHDialTimeout),
-		"UPLOAD_RETRIES":     fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultEC2UploadRetries),
-		"UPLOAD_RETRY_SLEEP": fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultEC2UploadRetrySleep),
-		"SECURITY_GROUPS":    "Security groups to assign",
-		"PUBLIC_IP":          "boot job instances with a public ip, disable this for NAT (default true)",
-		"PUBLIC_IP_CONNECT":  "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
-		"USE_INSTANCE_STORE": "Use instance store for builds if available",
+		"TAGS":                  "Tags, how to deal with key value?",
+		"DISK_SIZE":             fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
+		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultEC2SSHDialTimeout),
+		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultEC2UploadRetries),
+		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultEC2UploadRetrySleep),
+		"SECURITY_GROUPS":       "Security groups to assign",
+		"PUBLIC_IP":             "boot job instances with a public ip, disable this for NAT (default true)",
+		"PUBLIC_IP_CONNECT":     "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
+		"KEY_NAME":              "Key name to use for the admin user, this is in case you need login access to instances. The travis user has a auto generated key.",
+		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_DEFAULT":         "default image name to use when none found",
+		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultEC2ImageSelectorType),
+		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"CUSTOM_TAGS":           "Custom tags to set for the EC2 instance. Comma separated list with format key1=value1,key2=value2.....keyN=valueN",
 	}, newEC2Provider)
 }
 
@@ -116,7 +122,9 @@ type ec2Provider struct {
 	publicIP         bool
 	publicIPConnect  bool
 	subnetID         string
+	keyName          string
 	userData         string
+	customTags       map[string]string
 }
 
 func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
@@ -128,6 +136,14 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 			return nil, err
 		}
 		sshDialTimeout = sd
+	}
+	customTags := make(map[string]string, 0)
+	if cfg.IsSet("CUSTOM_TAGS") {
+		items := strings.Split(cfg.Get("CUSTOM_TAGS"), ",")
+		for _, tag := range items {
+			item := strings.Split(tag, "=")
+			customTags[item[0]] = item[1]
+		}
 	}
 
 	execCmd := strings.Split(defaultEC2ExecCmd, " ")
@@ -149,31 +165,35 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
-	awsSession := &session.Session{}
+	awsConfig := &aws.Config{
+		Region:     aws.String("eu-west-1"),
+		MaxRetries: aws.Int(8),
+	}
 
 	if cfg.IsSet("AWS_ACCESS_KEY_ID") && cfg.IsSet("AWS_SECRET_ACCESS_KEY") {
-		config := aws.NewConfig().WithCredentialsChainVerboseErrors(true)
-		staticCreds := credentials.NewStaticCredentials(cfg.Get("AWS_ACCESS_KEY_ID"), cfg.Get("AWS_SECRET_ACCESS_KEY"), "")
+		staticCreds := credentials.NewStaticCredentials(
+			cfg.Get("AWS_ACCESS_KEY_ID"),
+			cfg.Get("AWS_SECRET_ACCESS_KEY"),
+			"",
+		)
 		if _, err = staticCreds.Get(); err != credentials.ErrStaticCredentialsEmpty {
-			config.WithCredentials(staticCreds)
+			awsConfig.WithCredentials(staticCreds)
 		}
 
 		if err != nil {
 			return nil, err
 		}
+	}
 
-		config = config.WithRegion("eu-west-1")
-		config = config.WithMaxRetries(8)
+	opts := session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+		Config:            *awsConfig,
+	}
 
-		opts := session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-			Config:            *config,
-		}
-		awsSession, err = session.NewSessionWithOptions(opts)
+	awsSession, err := session.NewSessionWithOptions(opts)
 
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	instanceType := defaultEC2InstanceType
@@ -187,9 +207,9 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		subnetID = cfg.Get("SUBNET_ID")
 	}
 
-	defaultImage := defaultEC2Image
-	if cfg.IsSet("DEFAULT_IMAGE") {
-		defaultImage = cfg.Get("DEFAULT_IMAGE")
+	defaultImage := ""
+	if cfg.IsSet("IMAGE_DEFAULT") {
+		defaultImage = cfg.Get("IMAGE_DEFAULT")
 	}
 
 	userData := ""
@@ -248,6 +268,11 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		publicIPConnect = asBool(cfg.Get("PUBLIC_IP_CONNECT"))
 	}
 
+	keyName := ""
+	if cfg.IsSet("KEY_NAME") {
+		keyName = cfg.Get("KEY_NAME")
+	}
+
 	return &ec2Provider{
 		cfg:              cfg,
 		sshDialTimeout:   sshDialTimeout,
@@ -265,6 +290,8 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		publicIPConnect:  publicIPConnect,
 		subnetID:         subnetID,
 		userData:         userData,
+		keyName:          keyName,
+		customTags:       customTags,
 	}, nil
 }
 
@@ -350,12 +377,12 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		Infra:    "ec2",
 	})
 
-	if imageID == "default" {
-		imageID = p.defaultImage
-	}
-
 	if err != nil {
 		return nil, err
+	}
+
+	if imageID == "default" {
+		imageID = p.defaultImage
 	}
 
 	securityGroups := []*string{}
@@ -383,11 +410,12 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		},
 	}
 
-	/*
-		for key, value := range p.containerLabels {
-			labels[key] = value
-		}
-	*/
+	for key, value := range p.customTags {
+		tags = append(tags, &ec2.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
 
 	r, ok := context.RepositoryFromContext(ctx)
 	if ok {
@@ -395,6 +423,17 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			Key:   aws.String("travis.repo"),
 			Value: aws.String(r),
 		})
+
+		repo := strings.Split(r, "/")
+		tags = append(tags,
+			&ec2.Tag{
+				Key:   aws.String("travis.github_repo"),
+				Value: aws.String(repo[1]),
+			},
+			&ec2.Tag{
+				Key:   aws.String("travis.github_org"),
+				Value: aws.String(repo[0]),
+			})
 	}
 
 	jid, ok := context.JobIDFromContext(ctx)
@@ -405,13 +444,18 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		})
 	}
 
+	keyName := keyResp.KeyName
+	if p.keyName != "" {
+		keyName = aws.String(p.keyName)
+	}
+	//RequestSpotInstances
+
 	runOpts := &ec2.RunInstancesInput{
-		ImageId:      aws.String(imageID),
-		InstanceType: aws.String(p.instanceType),
-		MaxCount:     aws.Int64(1),
-		MinCount:     aws.Int64(1),
-		KeyName:      keyResp.KeyName,
-		//KeyName:             aws.String("devops"),
+		ImageId:             aws.String(imageID),
+		InstanceType:        aws.String(p.instanceType),
+		MaxCount:            aws.Int64(1),
+		MinCount:            aws.Int64(1),
+		KeyName:             keyName,
 		EbsOptimized:        aws.Bool(p.ebsOptimized),
 		UserData:            aws.String(userDataEncoded),
 		BlockDeviceMappings: blockDeviceMappings,
@@ -464,9 +508,11 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		for {
 			var errCount uint64
 			var instances *ec2.DescribeInstancesOutput
+
 			if ctx.Err() != nil {
 				return
 			}
+
 			instances, lastErr = svc.DescribeInstances(describeInstancesInput)
 			if instances != nil {
 				instance := instances.Reservations[0].Instances[0]
@@ -475,8 +521,11 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 					address = *instance.PublicDnsName
 				}
 				if address != "" {
-					instanceChan <- instance
-					return
+					_, lastErr = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", address, 22), 1*time.Second)
+					if lastErr == nil {
+						instanceChan <- instance
+						return
+					}
 				}
 			}
 			errCount++
@@ -497,6 +546,7 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 				endBooting:   time.Now(),
 				startBooting: startBooting,
 				instance:     instance,
+				tmpKeyName:   keyResp.KeyName,
 			}, nil
 		}
 		return nil, lastErr
@@ -519,6 +569,7 @@ type ec2Instance struct {
 	endBooting   time.Time
 	sshDialer    ssh.Dialer
 	instance     *ec2.Instance
+	tmpKeyName   *string
 }
 
 func (i *ec2Instance) UploadScript(ctx gocontext.Context, script []byte) error {
@@ -654,10 +705,10 @@ func (i *ec2Instance) Stop(ctx gocontext.Context) error {
 		return err
 	}
 
-	logger.Info(fmt.Sprintf("Terminated instance %s with hostname %s", *i.instance.InstanceId, *i.instance.PublicDnsName))
+	logger.Info(fmt.Sprintf("Terminated instance %s with hostname %s", *i.instance.InstanceId, *i.instance.PrivateDnsName))
 
 	deleteKeyPairInput := &ec2.DeleteKeyPairInput{
-		KeyName: i.instance.KeyName,
+		KeyName: i.tmpKeyName,
 	}
 
 	_, err = svc.DeleteKeyPair(deleteKeyPairInput)
@@ -666,7 +717,7 @@ func (i *ec2Instance) Stop(ctx gocontext.Context) error {
 		return err
 	}
 
-	logger.Info(fmt.Sprintf("Deleted keypair %s", *i.instance.KeyName))
+	logger.Info(fmt.Sprintf("Deleted keypair %s", *i.tmpKeyName))
 
 	return nil
 }
