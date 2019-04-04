@@ -90,6 +90,7 @@ var (
 		"IMAGE_SELECTOR_URL":     "URL for image selector API, used only when image selector is \"api\"",
 		"IMAGE_[ALIAS_]{ALIAS}":  "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
 		"MACHINE_TYPE":           fmt.Sprintf("machine name (default %q)", defaultGCEMachineType),
+		"MINIMUM_CPU_PLATFORM":   "minimum cpu platform",
 		"NETWORK":                fmt.Sprintf("network name (default %q)", defaultGCENetwork),
 		"PREEMPTIBLE":            "boot job instances with preemptible flag enabled (default false)",
 		"PREMIUM_MACHINE_TYPE":   fmt.Sprintf("premium machine type (default %q)", defaultGCEPremiumMachineType),
@@ -210,6 +211,7 @@ type gceProvider struct {
 }
 
 type gceInstanceConfig struct {
+	MinimumCpuPlatform string
 	MachineType        string
 	PremiumMachineType string
 	Zone               *compute.Zone
@@ -347,6 +349,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	cfg.Set("REGION", region)
+
+	minimumCpuPlatform := ""
+	if cfg.IsSet("MINIMUM_CPU_PLATFORM") {
+		minimumCpuPlatform = cfg.Get("MINIMUM_CPU_PLATFORM")
+	}
 
 	mtName := defaultGCEMachineType
 	if cfg.IsSet("MACHINE_TYPE") {
@@ -623,6 +630,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			SkipStopPoll:       skipStopPoll,
 			Site:               site,
 			AcceleratorConfig:  defaultAcceleratorConfig,
+			MinimumCpuPlatform: minimumCpuPlatform,
 			MachineType:        mtName,
 			PremiumMachineType: premiumMTName,
 		},
@@ -1447,6 +1455,10 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			AutoDelete:       true,
 			InitializeParams: diskInitParams,
 		},
+	}
+
+	if p.ic.MinimumCpuPlatform != "" {
+		inst.MinCpuPlatform = p.ic.MinimumCpuPlatform
 	}
 
 	machineType := p.ic.MachineType
