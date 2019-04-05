@@ -800,6 +800,10 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 			p.allZonesForRegion = append(p.allZonesForRegion, z.Name)
 		}
 
+		if len(p.allZonesForRegion) == 0 {
+			return fmt.Errorf("no zones found for region %s", p.cfg.Get("REGION"))
+		}
+
 		return nil
 	})
 
