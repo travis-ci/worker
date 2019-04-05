@@ -14,6 +14,7 @@ import (
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -343,7 +344,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		if zErr != nil {
 			return nil, errors.Wrap(zErr, "could not get zone from compute api")
 		}
-		region = zone.Region
+		fullZoneURI := fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/(.*)", projectID)
+		re := regexp.MustCompile(regexp.QuoteMeta(fullZoneURI))
+		region = re.FindStringSubmatch(zone.Region)[1]
 	} else {
 		return nil, fmt.Errorf("missing REGION")
 	}
