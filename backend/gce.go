@@ -344,8 +344,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		if zErr != nil {
 			return nil, errors.Wrap(zErr, "could not get zone from compute api")
 		}
-		fullZoneURI := fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/(.*)", projectID)
-		re := regexp.MustCompile(regexp.QuoteMeta(fullZoneURI))
+		zoneURI := fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/(.*)", projectID)
+		quotedZoneURI := strings.ReplaceAll(zoneURI, "/", "\\/")
+		re := regexp.MustCompile(quotedZoneURI)
 		region = re.FindStringSubmatch(zone.Region)[0]
 	} else {
 		return nil, fmt.Errorf("missing REGION")
