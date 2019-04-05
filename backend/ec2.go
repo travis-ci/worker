@@ -35,31 +35,18 @@ var (
 	defaultEC2ImageSelectorType = "env"
 	defaultEC2SSHUserName       = "travis"
 	defaultEC2ExecCmd           = "bash ~/build.sh"
-	//wdefaultEC2ExecCmd          = "bash -c 'lsblk -l && sudo cat /root/mounter.log'"
-	defaultEC2SubnetID         = ""
-	defaultEC2InstanceType     = "t2.micro"
-	defaultEC2Image            = "ami-02790d1ebf3b5181d"
-	defaultEC2SecurityGroupIDs = "default"
-	defaultEC2EBSOptimized     = false
-	defaultEC2DiskSize         = int64(8)
-	defaultEC2UploadRetries    = uint64(120)
-	defaultEC2UploadRetrySleep = 1 * time.Second
+	defaultEC2SubnetID          = ""
+	defaultEC2InstanceType      = "t2.micro"
+	defaultEC2Image             = "ami-02790d1ebf3b5181d"
+	defaultEC2SecurityGroupIDs  = "default"
+	defaultEC2EBSOptimized      = false
+	defaultEC2DiskSize          = int64(8)
+	defaultEC2UploadRetries     = uint64(120)
+	defaultEC2UploadRetrySleep  = 1 * time.Second
+	defaultEC2Region            = "eu-west-1"
 )
 
 var (
-	/*
-		#if [[ -b /dev/nvme1n1 ]]; then
-		# Are we able to run on instance/store disks
-		#fi
-
-		   	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
-		   {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
-		   cat > ~travis/.ssh/authorized_keys <<EOF
-		   {{ .SSHPubKey }}
-		   EOF
-		   chown -R travis:travis ~travis/.ssh/
-		   `))
-	*/
 	ec2StartupScript = template.Must(template.New("ec2-startup").Parse(`#!/usr/bin/env bash
 
 cat > ~travis/.ssh/authorized_keys <<EOF
@@ -165,8 +152,13 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		return nil, err
 	}
 
+	awsRegion := defaultEC2Region
+	if cfg.IsSet("REGION") {
+		awsRegion = cfg.Get("REGION")
+	}
+
 	awsConfig := &aws.Config{
-		Region:     aws.String("eu-west-1"),
+		Region:     aws.String(awsRegion),
 		MaxRetries: aws.Int(8),
 	}
 
