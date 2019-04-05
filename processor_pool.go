@@ -84,6 +84,12 @@ func (p *ProcessorPool) Each(f func(int, *Processor)) {
 	}
 }
 
+// Ready returns true if the processor pool is running as expected.
+// Returns false if the processor pool has not been started yet.
+func (p *ProcessorPool) Ready() bool {
+	return p.queue != nil
+}
+
 // Size returns the number of processors that are currently running.
 //
 // This includes processors that are in the process of gracefully shutting down. It's
@@ -100,6 +106,10 @@ func (p *ProcessorPool) Size() int {
 // running jobs, we may not be able to immediately adjust the pool size. Once jobs
 // finish, the pool size should rest at the given value.
 func (p *ProcessorPool) SetSize(newSize int) {
+	// It's important to lock over the whole method rather than use the lock for
+	// individual Incr and Decr calls. We don't want other calls to SetSize to see
+	// the intermediate state where only some processors have been started, or they
+	// will do the wrong math and start the wrong number of processors.
 	p.processorsLock.Lock()
 	defer p.processorsLock.Unlock()
 
@@ -108,12 +118,12 @@ func (p *ProcessorPool) SetSize(newSize int) {
 	if newSize > cur {
 		diff := newSize - cur
 		for i := 0; i < diff; i++ {
-			p.Incr()
+			p.incr()
 		}
 	} else if newSize < cur {
 		diff := cur - newSize
 		for i := 0; i < diff; i++ {
-			p.Decr()
+			p.decr()
 		}
 	}
 }
@@ -184,23 +194,49 @@ func (p *ProcessorPool) GracefulShutdown(togglePause bool) {
 		}
 	}
 
+	// In case no processors were ever started, we still want a graceful shutdown
+	// request to proceed. Without this, we will wait forever until the process is
+	// forcefully killed.
+	p.startProcessorOnce.Do(func() {
+		close(p.firstProcessorStarted)
+	})
+
 	ps := len(p.processors)
 	for i := 0; i < ps; i++ {
-		// Use Decr to make sure the processor is removed from the list in the pool
-		p.Decr()
+		// Use decr to make sure the processor is removed from the list in the pool
+		p.decr()
 	}
 }
 
 // Incr adds a single running processor to the pool
 func (p *ProcessorPool) Incr() {
+	p.processorsLock.Lock()
+	defer p.processorsLock.Unlock()
+
+	p.incr()
+}
+
+// incr assumes the processorsLock has already been locked
+func (p *ProcessorPool) incr() {
+	proc, err := p.makeProcessor(p.queue, p.logWriterFactory)
+	if err != nil {
+		context.LoggerFromContext(p.Context).WithFields(logrus.Fields{
+			"err":  err,
+			"self": "processor_pool",
+		}).Error("couldn't create processor")
+		p.poolErrors = append(p.poolErrors, err)
+		return
+	}
+
+	p.processors = append(p.processors, proc)
 	p.processorsWG.Add(1)
+
 	go func() {
 		defer p.processorsWG.Done()
-		err := p.runProcessor(p.queue, p.logWriterFactory)
-		if err != nil {
-			p.poolErrors = append(p.poolErrors, err)
-			return
-		}
+
+		atomic.AddInt32(&p.activeProcessorCount, 1)
+		proc.Run()
+		atomic.AddInt32(&p.activeProcessorCount, -1)
 	}()
 
 	p.startProcessorOnce.Do(func() {
@@ -210,6 +246,10 @@ func (p *ProcessorPool) Incr() {
 
 // Decr pops a processor out of the pool and issues a graceful shutdown
 func (p *ProcessorPool) Decr() {
+}
+
+// decr assumes the processorsLock has already been locked
+func (p *ProcessorPool) decr() {
 	if len(p.processors) == 0 {
 		return
 	}
@@ -219,33 +259,22 @@ func (p *ProcessorPool) Decr() {
 	proc.GracefulShutdown()
 }
 
-func (p *ProcessorPool) runProcessor(queue JobQueue, logWriterFactory LogWriterFactory) error {
+func (p *ProcessorPool) makeProcessor(queue JobQueue, logWriterFactory LogWriterFactory) (*Processor, error) {
 	processorUUID := uuid.NewRandom()
 	processorID := fmt.Sprintf("%s@%d.%s", processorUUID.String(), os.Getpid(), p.Hostname)
 	ctx := context.FromProcessor(p.Context, processorID)
 
-	proc, err := NewProcessor(ctx, p.Hostname,
+	return NewProcessor(ctx, p.Hostname,
 		queue, logWriterFactory, p.Provider, p.Generator, p.Persister, p.CancellationBroadcaster,
 		ProcessorConfig{
 			Config: p.Config,
 		})
+}
 
-	if err != nil {
-		context.LoggerFromContext(p.Context).WithFields(logrus.Fields{
-			"err":  err,
-			"self": "processor_pool",
-		}).Error("couldn't create processor")
-		return err
-	}
-
-	p.processorsLock.Lock()
-	p.processors = append(p.processors, proc)
-	p.processorsLock.Unlock()
-
+func (p *ProcessorPool) runProcessor(proc *Processor) {
 	atomic.AddInt32(&p.activeProcessorCount, 1)
 	proc.Run()
 	atomic.AddInt32(&p.activeProcessorCount, -1)
-	return nil
 }
 
 func (p *ProcessorPool) waitForFirstProcessor() {
