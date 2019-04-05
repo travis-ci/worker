@@ -721,6 +721,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 			p.apiRateLimit(ctx)
 			zone, zErr := p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Context(ctx).Do()
 			if zErr == nil {
+				logger.WithField("zone", zone).Info("resolved configured zone")
 				p.ic.Zone = zone
 			}
 			return zErr
@@ -751,10 +752,10 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	region := ""
 	if p.cfg.IsSet("REGION") {
-		logger.WithField("region", p.cfg.Get("REGION")).Debug("setting region from config")
+		logger.WithField("region", p.cfg.Get("REGION")).Info("setting region from config")
 		region = p.cfg.Get("REGION")
 	} else if metadata.OnGCE() {
-		logger.WithField("region", p.ic.Zone.Region).Debug("setting region from zone when on gce")
+		logger.WithField("region", p.ic.Zone.Region).Info("setting region from zone when on gce")
 		region = p.ic.Zone.Region
 	} else {
 		return errors.Wrap(err, "failed to resolve configured region")
