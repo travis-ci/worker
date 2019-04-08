@@ -508,9 +508,9 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			instances, lastErr = svc.DescribeInstances(describeInstancesInput)
 			if instances != nil {
 				instance := instances.Reservations[0].Instances[0]
-				address := *instance.PrivateDnsName
+				address := *instance.PrivateIpAddress
 				if p.publicIPConnect {
-					address = *instance.PublicDnsName
+					address = *instance.PublicIpAddress
 				}
 				if address != "" {
 					_, lastErr = net.DialTimeout("tcp", fmt.Sprintf("%s:%d", address, 22), 1*time.Second)
