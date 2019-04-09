@@ -246,6 +246,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	config := map[string]string{
 		"security.idmap.isolated": "true",
 		"security.idmap.size":     "65536",
+		"security.nesting":        "true",
 		"limits.cpu":              p.limitCPU,
 		"limits.memory":           p.limitMemory,
 		"limits.processes":        p.limitProcess,
