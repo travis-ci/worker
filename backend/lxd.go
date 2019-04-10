@@ -525,9 +525,10 @@ func (i *lxdInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	}
 
 	args := lxd.ContainerExecArgs{
-		Stdin:  nil,
-		Stdout: lxdWriteCloser{Writer: output},
-		Stderr: lxdWriteCloser{Writer: output},
+		Stdin:    nil,
+		Stdout:   lxdWriteCloser{Writer: output},
+		Stderr:   lxdWriteCloser{Writer: output},
+		DataDone: make(chan bool),
 	}
 
 	// Spawn the command
