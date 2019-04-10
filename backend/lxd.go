@@ -310,6 +310,47 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil, err
 	}
 
+	// Wait for connectivity
+	connectivityCheck := func() error {
+		exec := lxdapi.ContainerExecPost{
+			Command: []string{"ping", "www.google.com", "-c", "1"},
+		}
+
+		// Spawn the command
+		op, err := p.client.ExecContainer(containerName, exec, nil)
+		if err != nil {
+			return err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return err
+		}
+		opAPI := op.Get()
+
+		retVal := int32(opAPI.Metadata["return"].(float64))
+		if retVal != 0 {
+			return fmt.Errorf("ping exited with %d", retVal)
+		}
+
+		return nil
+	}
+
+	// Wait 30s in 500ms increments
+	for i := 0; i < 60; i++ {
+		err = connectivityCheck()
+		if err == nil {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	if err != nil {
+		logger.WithField("err", err).Error("container didn't have connectivity after 30s")
+		return nil, err
+	}
+
 	// Get the container
 	container, _, err = p.client.GetContainer(containerName)
 	if err != nil {
