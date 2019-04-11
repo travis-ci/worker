@@ -495,7 +495,11 @@ func (i *lxdInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/lxd_provider")
 
 	// Build the environment
-	env := map[string]string{}
+	env := map[string]string{
+		"HOME": "/home/travis",
+		"USER": "travis",
+		"TERM": "xterm",
+	}
 	if i.provider.httpProxy != "" {
 		env["HTTP_PROXY"] = i.provider.httpProxy
 		env["http_proxy"] = i.provider.httpProxy
