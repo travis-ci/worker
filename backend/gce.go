@@ -1082,8 +1082,8 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
 		"self":     "backend/gce_provider",
-		"instance": c.instance,
-	}).Debug("inserting instance")
+		"instance": fmt.Sprintf("%+v", c.instance),
+	}).Info("inserting instance")
 
 	c.bootStart = time.Now().UTC()
 
