@@ -457,7 +457,9 @@ func (i *lxdInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 
 	args := lxd.ContainerFileArgs{
 		Type:    "file",
-		Mode:    0640,
+		Mode:    0700,
+		UID:     1000,
+		GID:     1000,
 		Content: strings.NewReader(string(script)),
 	}
 
