@@ -244,7 +244,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	// Create the container
 	config := map[string]string{
-		"security.idmap.isolated": "true",
+		"security.privileged":     "true",
 		"security.idmap.size":     "65536",
 		"security.nesting":        "true",
 		"limits.cpu":              p.limitCPU,
@@ -336,14 +336,14 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil
 	}
 
-	// Wait 30s in 500ms increments
-	for i := 0; i < 60; i++ {
+	// Wait 30s for network
+	for i := 0; i < 30; i++ {
 		err = connectivityCheck()
 		if err == nil {
 			break
 		}
 
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 
 	if err != nil {
