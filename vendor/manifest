@@ -283,6 +283,15 @@
 			"notests": true
 		},
 		{
+			"importpath": "github.com/aws/aws-sdk-go/service/ec2",
+			"repository": "https://github.com/aws/aws-sdk-go",
+			"vcs": "git",
+			"revision": "c15e3069f617b6020f1ada3eee769a61318dabdf",
+			"branch": "master",
+			"path": "/service/ec2",
+			"notests": true
+		},
+		{
 			"importpath": "github.com/aws/aws-sdk-go/vendor/github.com/go-ini/ini",
 			"repository": "https://github.com/aws/aws-sdk-go",
 			"vcs": "git",
