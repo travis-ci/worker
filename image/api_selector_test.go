@@ -136,6 +136,7 @@ var (
 					&tagSet{[]string{"dist:yosammity", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_fancy:true", "language_node_js:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_node_js:true", "os:osx"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:yosammity"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_node_js:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"osx_image:xcode6.1"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:yosammity"}, true, uint64(4), "corp/frob"},
