@@ -107,6 +107,7 @@ var (
 					&tagSet{[]string{"dist:precise", "language_ruby:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_edge:true", "language_ruby:true"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_ruby:true", "os:linux"}, false, uint64(4), "corp/frob"},
+					&tagSet{[]string{"dist:precise"}, false, uint64(4), "corp/frob"},
 					&tagSet{[]string{"language_ruby:true"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"dist:precise"}, true, uint64(4), "corp/frob"},
 					&tagSet{[]string{"group_edge:true"}, true, uint64(4), "corp/frob"},
