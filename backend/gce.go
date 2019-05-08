@@ -473,9 +473,9 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		autoImplode = ai
 	}
 
-	StartupScriptAddition := ""
+	startupScriptAddition := ""
 	if cfg.IsSet("STARTUP_SCRIPT") {
-		StartupScriptAddition = cfg.Get("STARTUP_SCRIPT_ADDITION")
+		startupScriptAddition = cfg.Get("STARTUP_SCRIPT_ADDITION")
 	}
 
 	imageSelectorType := defaultGCEImageSelectorType
