@@ -474,7 +474,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	startupScriptAddition := ""
-	if cfg.IsSet("STARTUP_SCRIPT") {
+	if cfg.IsSet("STARTUP_SCRIPT_ADDITION") {
 		startupScriptAddition = cfg.Get("STARTUP_SCRIPT_ADDITION")
 	}
 
