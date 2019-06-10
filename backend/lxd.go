@@ -19,18 +19,20 @@ import (
 )
 
 var (
-	lxdLimitCPU     = "2"
-	lxdLimitDisk    = "10GB"
-	lxdLimitMemory  = "4GB"
-	lxdLimitNetwork = "100Mbit"
-	lxdLimitProcess = "2000"
-	lxdImage        = "ubuntu:18.04"
-	lxdExecCmd      = "bash /home/travis/build.sh"
-	lxdDockerPool   = ""
-	lxdHelp         = map[string]string{
+	lxdLimitCPU      = "2"
+	lxdLimitCPUBurst = false
+	lxdLimitDisk     = "10GB"
+	lxdLimitMemory   = "4GB"
+	lxdLimitNetwork  = "100Mbit"
+	lxdLimitProcess  = "2000"
+	lxdImage         = "ubuntu:18.04"
+	lxdExecCmd       = "bash /home/travis/build.sh"
+	lxdDockerPool    = ""
+	lxdHelp          = map[string]string{
 		"EXEC_CMD":    fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
 		"MEMORY":      fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
-		"CPUS":        fmt.Sprintf("cpu count to allocate to each container (default %q)", lxdLimitCPU),
+		"CPUS":        fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
+		"CPUS_BURST":  fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
 		"NETWORK":     fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
 		"DISK":        fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
 		"PROCESS":     fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
@@ -58,13 +60,14 @@ func (w lxdWriteCloser) Close() error {
 type lxdProvider struct {
 	client lxd.ContainerServer
 
-	runCmd       []string
-	limitCPU     string
-	limitDisk    string
-	limitMemory  string
-	limitNetwork string
-	limitProcess string
-	image        string
+	runCmd        []string
+	limitCPU      string
+	limitCPUBurst bool
+	limitDisk     string
+	limitMemory   string
+	limitNetwork  string
+	limitProcess  string
+	image         string
 
 	dockerPool string
 
@@ -90,6 +93,11 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	limitCPU := lxdLimitCPU
 	if cfg.IsSet("CPUS") {
 		limitCPU = cfg.Get("CPUS")
+	}
+
+	limitCPUBurst := lxdLimitCPUBurst
+	if cfg.IsSet("CPUS_BURST") {
+		limitCPUBurst = cfg.Get("CPUS_BURST") == "true"
 	}
 
 	limitNetwork := lxdLimitNetwork
@@ -125,11 +133,12 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &lxdProvider{
 		client: client,
 
-		limitCPU:     limitCPU,
-		limitDisk:    limitDisk,
-		limitMemory:  limitMemory,
-		limitNetwork: limitNetwork,
-		limitProcess: limitProcess,
+		limitCPU:      limitCPU,
+		limitCPUBurst: limitCPUBurst,
+		limitDisk:     limitDisk,
+		limitMemory:   limitMemory,
+		limitNetwork:  limitNetwork,
+		limitProcess:  limitProcess,
 
 		runCmd: execCmd,
 		image:  image,
@@ -280,9 +289,14 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		"security.privileged": "true",
 		"security.idmap.size": "65536",
 		"security.nesting":    "true",
-		"limits.cpu":          p.limitCPU,
 		"limits.memory":       p.limitMemory,
 		"limits.processes":    p.limitProcess,
+	}
+
+	if !p.limitCPUBurst {
+		config["limits.cpu"] = p.limitCPU
+	} else {
+		config["limits.cpu.allowance"] = fmt.Sprintf("%s00%%", p.limitCPU)
 	}
 
 	req := lxdapi.ContainersPost{
