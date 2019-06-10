@@ -26,14 +26,16 @@ var (
 	lxdLimitProcess = "2000"
 	lxdImage        = "ubuntu:18.04"
 	lxdExecCmd      = "bash /home/travis/build.sh"
+	lxdDockerPool   = ""
 	lxdHelp         = map[string]string{
-		"EXEC_CMD": fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
-		"MEMORY":   fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
-		"CPUS":     fmt.Sprintf("cpu count to allocate to each container (default %q)", lxdLimitCPU),
-		"NETWORK":  fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
-		"DISK":     fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
-		"PROCESS":  fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
-		"IMAGE":    fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
+		"EXEC_CMD":    fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
+		"MEMORY":      fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
+		"CPUS":        fmt.Sprintf("cpu count to allocate to each container (default %q)", lxdLimitCPU),
+		"NETWORK":     fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
+		"DISK":        fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
+		"PROCESS":     fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
+		"IMAGE":       fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
+		"DOCKER_POOL": fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
 	}
 )
 
@@ -63,6 +65,8 @@ type lxdProvider struct {
 	limitNetwork string
 	limitProcess string
 	image        string
+
+	dockerPool string
 
 	httpProxy, httpsProxy, ftpProxy, noProxy string
 }
@@ -108,6 +112,11 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		image = cfg.Get("IMAGE")
 	}
 
+	dockerPool := lxdDockerPool
+	if cfg.IsSet("DOCKER_POOL") {
+		dockerPool = cfg.Get("DOCKER_POOL")
+	}
+
 	httpProxy := cfg.Get("HTTP_PROXY")
 	httpsProxy := cfg.Get("HTTPS_PROXY")
 	ftpProxy := cfg.Get("FTP_PROXY")
@@ -124,6 +133,8 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		runCmd: execCmd,
 		image:  image,
+
+		dockerPool: dockerPool,
 
 		httpProxy:  httpProxy,
 		httpsProxy: httpsProxy,
@@ -239,17 +250,39 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			return nil, err
 		}
 
+		if p.dockerPool != "" {
+			err := p.client.DeleteStoragePoolVolume(p.dockerPool, "custom", fmt.Sprintf("%s_docker", containerName))
+			if err != nil {
+				logger.WithField("err", err).Error("couldn't remove the container Docker storage volume")
+				return nil, err
+			}
+		}
+
 		logger.Warn("removed preexisting container before create")
+	}
+
+	// Create the Docker volume
+	if p.dockerPool != "" {
+		vol := lxdapi.StorageVolumesPost{
+			Name: fmt.Sprintf("%s_docker", containerName),
+			Type: "custom",
+		}
+
+		err := p.client.CreateStoragePoolVolume(p.dockerPool, vol)
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't create the container Docker storage volume")
+			return nil, err
+		}
 	}
 
 	// Create the container
 	config := map[string]string{
-		"security.privileged":     "true",
-		"security.idmap.size":     "65536",
-		"security.nesting":        "true",
-		"limits.cpu":              p.limitCPU,
-		"limits.memory":           p.limitMemory,
-		"limits.processes":        p.limitProcess,
+		"security.privileged": "true",
+		"security.idmap.size": "65536",
+		"security.nesting":    "true",
+		"limits.cpu":          p.limitCPU,
+		"limits.memory":       p.limitMemory,
+		"limits.processes":    p.limitProcess,
 	}
 
 	req := lxdapi.ContainersPost{
@@ -283,6 +316,16 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Network limits
 	container.Devices["eth0"] = container.ExpandedDevices["eth0"]
 	container.Devices["eth0"]["limits.max"] = p.limitNetwork
+
+	// Docker storage
+	if p.dockerPool != "" {
+		container.Devices["docker"] = map[string]string{
+			"type":   "disk",
+			"source": fmt.Sprintf("%s_docker", containerName),
+			"pool":   p.dockerPool,
+			"path":   "/var/lib/docker",
+		}
+	}
 
 	// Save the changes
 	op, err := p.client.UpdateContainer(containerName, container.Writable(), etag)
@@ -447,6 +490,14 @@ func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't remove preexisting container before create")
 		return err
+	}
+
+	if i.provider.dockerPool != "" {
+		err := i.client.DeleteStoragePoolVolume(i.provider.dockerPool, "custom", fmt.Sprintf("%s_docker", container.Name))
+		if err != nil {
+			logger.WithField("err", err).Error("couldn't remove the container Docker storage volume")
+			return err
+		}
 	}
 
 	return nil
