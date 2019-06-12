@@ -28,8 +28,8 @@ var (
 	lxdLimitMemory   = "4GB"
 	lxdNetworkStatic = false
 	lxdNetworkDns    = "1.1.1.1,1.0.0.1"
-	lxdLimitNetwork  = "100Mbit"
-	lxdLimitProcess  = "2000"
+	lxdLimitNetwork  = "500Mbit"
+	lxdLimitProcess  = "5000"
 	lxdImage         = "ubuntu:18.04"
 	lxdExecCmd       = "bash /home/travis/build.sh"
 	lxdDockerPool    = ""
