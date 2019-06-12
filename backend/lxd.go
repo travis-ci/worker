@@ -599,6 +599,9 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 }
 
 func (p *lxdProvider) Setup(ctx gocontext.Context) error {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/lxd_provider")
+	logger.Warn("The LXD provider is in beta, use it at your own risk!")
+
 	return nil
 }
 
