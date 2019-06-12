@@ -1,10 +1,13 @@
 package backend
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"strings"
+	"sync"
 	"time"
 
 	gocontext "context"
@@ -23,21 +26,25 @@ var (
 	lxdLimitCPUBurst = false
 	lxdLimitDisk     = "10GB"
 	lxdLimitMemory   = "4GB"
+	lxdNetworkStatic = false
+	lxdNetworkDns    = "1.1.1.1,1.0.0.1"
 	lxdLimitNetwork  = "100Mbit"
 	lxdLimitProcess  = "2000"
 	lxdImage         = "ubuntu:18.04"
 	lxdExecCmd       = "bash /home/travis/build.sh"
 	lxdDockerPool    = ""
 	lxdHelp          = map[string]string{
-		"EXEC_CMD":    fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
-		"MEMORY":      fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
-		"CPUS":        fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
-		"CPUS_BURST":  fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
-		"NETWORK":     fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
-		"DISK":        fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
-		"PROCESS":     fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
-		"IMAGE":       fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
-		"DOCKER_POOL": fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
+		"EXEC_CMD":       fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
+		"MEMORY":         fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
+		"CPUS":           fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
+		"CPUS_BURST":     fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
+		"NETWORK":        fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
+		"DISK":           fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
+		"PROCESS":        fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
+		"IMAGE":          fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
+		"DOCKER_POOL":    fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
+		"NETWORK_STATIC": fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
+		"NETWORK_DNS":    fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
 )
 
@@ -60,14 +67,23 @@ func (w lxdWriteCloser) Close() error {
 type lxdProvider struct {
 	client lxd.ContainerServer
 
-	runCmd        []string
 	limitCPU      string
 	limitCPUBurst bool
 	limitDisk     string
 	limitMemory   string
 	limitNetwork  string
 	limitProcess  string
-	image         string
+
+	image  string
+	runCmd []string
+
+	networkStatic     bool
+	networkGateway    string
+	networkSubnet     *net.IPNet
+	networkMTU        string
+	networkDNS        []string
+	networkLeases     map[string]string
+	networkLeasesLock sync.Mutex
 
 	dockerPool string
 
@@ -103,6 +119,44 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	limitNetwork := lxdLimitNetwork
 	if cfg.IsSet("NETWORK") {
 		limitNetwork = cfg.Get("NETWORK")
+	}
+
+	networkStatic := lxdNetworkStatic
+	networkMTU := "1500"
+	var networkGateway string
+	var networkSubnet *net.IPNet
+	var networkLeases map[string]string
+	if cfg.IsSet("NETWORK_STATIC") {
+		networkStatic = cfg.Get("NETWORK_STATIC") == "true"
+
+		network, _, err := client.GetNetwork("lxdbr0")
+		if err != nil {
+			return nil, err
+		}
+
+		// Get MTU
+		if network.Config["bridge.mtu"] != "" {
+			networkMTU = network.Config["bridge.mtu"]
+		}
+
+		// Get subnet
+		if network.Config["ipv4.address"] == "" {
+			return nil, fmt.Errorf("No IPv4 subnet set on the network")
+		}
+
+		gateway, subnet, err := net.ParseCIDR(network.Config["ipv4.address"])
+		if err != nil {
+			return nil, err
+		}
+
+		networkGateway = gateway.String()
+		networkSubnet = subnet
+		networkLeases = map[string]string{}
+	}
+
+	networkDNS := strings.Split(lxdNetworkDns, ",")
+	if cfg.IsSet("NETWORK_DNS") {
+		networkDNS = strings.Split(cfg.Get("NETWORK_DNS"), ",")
 	}
 
 	limitProcess := lxdLimitProcess
@@ -143,6 +197,13 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runCmd: execCmd,
 		image:  image,
 
+		networkSubnet:  networkSubnet,
+		networkGateway: networkGateway,
+		networkStatic:  networkStatic,
+		networkMTU:     networkMTU,
+		networkDNS:     networkDNS,
+		networkLeases:  networkLeases,
+
 		dockerPool: dockerPool,
 
 		httpProxy:  httpProxy,
@@ -158,6 +219,76 @@ func (p *lxdProvider) SupportsProgress() bool {
 
 func (p *lxdProvider) StartWithProgress(ctx gocontext.Context, startAttributes *StartAttributes, _ Progresser) (Instance, error) {
 	return p.Start(ctx, startAttributes)
+}
+
+func (p *lxdProvider) allocateAddress(containerName string) (string, error) {
+	p.networkLeasesLock.Lock()
+	defer p.networkLeasesLock.Unlock()
+
+	// Get all IPs
+	inc := func(ip net.IP) {
+		for j := len(ip) - 1; j >= 0; j-- {
+			ip[j]++
+			if ip[j] > 0 {
+				break
+			}
+		}
+	}
+
+	stringInSlice := func(key string, list []string) bool {
+		for _, entry := range list {
+			if entry == key {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	var ips []string
+	ip := net.ParseIP(p.networkGateway)
+	for ip := ip.Mask(p.networkSubnet.Mask); p.networkSubnet.Contains(ip); inc(ip) {
+		ips = append(ips, ip.String())
+	}
+
+	usedIPs := []string{}
+	for _, usedIP := range p.networkLeases {
+		usedIPs = append(usedIPs, usedIP)
+	}
+
+	// Find a free address
+	for _, ip := range ips {
+		// Skip used addresses
+		if ip == ips[0] {
+			continue
+		}
+
+		if ip == p.networkGateway {
+			continue
+		}
+
+		if ip == ips[len(ips)-1] {
+			continue
+		}
+
+		if stringInSlice(ip, usedIPs) {
+			continue
+		}
+
+		// Allocate the address
+		p.networkLeases[containerName] = ip
+		size, _ := p.networkSubnet.Mask.Size()
+		return fmt.Sprintf("%s/%d", ip, size), nil
+	}
+
+	return "", fmt.Errorf("No free addresses found")
+}
+
+func (p *lxdProvider) releaseAddress(containerName string) {
+	p.networkLeasesLock.Lock()
+	defer p.networkLeasesLock.Unlock()
+
+	delete(p.networkLeases, containerName)
 }
 
 func (p *lxdProvider) getImage(imageName string) (lxd.ImageServer, *lxdapi.Image, error) {
@@ -267,6 +398,10 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			}
 		}
 
+		if p.networkStatic {
+			p.releaseAddress(containerName)
+		}
+
 		logger.Warn("removed preexisting container before create")
 	}
 
@@ -338,6 +473,45 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			"source": fmt.Sprintf("%s_docker", containerName),
 			"pool":   p.dockerPool,
 			"path":   "/var/lib/docker",
+		}
+	}
+
+	// Static networking
+	if p.networkStatic {
+		address, err := p.allocateAddress(containerName)
+		if err != nil {
+			return nil, err
+		}
+
+		dns, err := json.Marshal(p.networkDNS)
+		if err != nil {
+			return nil, err
+		}
+
+		netplan := fmt.Sprintf(`network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses:
+        - %s
+      gateway4: %s
+      nameservers:
+        addresses: %s
+      mtu: %s
+`, address, p.networkGateway, dns, p.networkMTU)
+
+		args := lxd.ContainerFileArgs{
+			Type:    "file",
+			Mode:    0644,
+			UID:     0,
+			GID:     0,
+			Content: strings.NewReader(string(netplan)),
+		}
+
+		err = p.client.CreateContainerFile(containerName, "/etc/netplan/50-cloud-init.yaml", args)
+		if err != nil {
+			logger.WithField("err", err).Error("failed to upload netplan to container")
+			return nil, err
 		}
 	}
 
@@ -512,6 +686,10 @@ func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 			logger.WithField("err", err).Error("couldn't remove the container Docker storage volume")
 			return err
 		}
+	}
+
+	if i.provider.networkStatic {
+		i.provider.releaseAddress(container.Name)
 	}
 
 	return nil
