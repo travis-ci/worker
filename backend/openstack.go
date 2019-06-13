@@ -488,7 +488,7 @@ func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttribut
 				FlavorRef:        p.ic.FlavorRef,
 				ImageRef:         imageRef,
 				SecurityGroups:   []string{p.ic.SecGroup},
-				Networks:         []servers.Network{servers.Network{UUID: p.ic.NetworkRef}},
+				Networks:         []servers.Network{{UUID: p.ic.NetworkRef}},
 				AvailabilityZone: p.ic.Zone,
 			},
 			KeyName: p.ic.KeyPairName,
@@ -502,7 +502,7 @@ func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttribut
 			FlavorRef:        p.ic.FlavorRef,
 			ImageRef:         imageRef,
 			SecurityGroups:   []string{p.ic.SecGroup},
-			Networks:         []servers.Network{servers.Network{UUID: p.ic.NetworkRef}},
+			Networks:         []servers.Network{{UUID: p.ic.NetworkRef}},
 			AvailabilityZone: p.ic.Zone,
 		}
 		startBooting = time.Now()
