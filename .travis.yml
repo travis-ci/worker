@@ -21,6 +21,7 @@ env:
   - CHECKOUT_ROOT="$HOME/gopath/src/github.com/travis-ci/worker"
   - GO15VENDOREXPERIMENT='1'
   - REDIS_URL="redis://"
+  - GO111MODULE=on
 
 stages:
 - cache-warm
@@ -34,7 +35,6 @@ jobs:
   - stage: cache-warm
     name: cache warm
     script:
-    - git checkout -- vendor/
     - make distclean
     - travis_retry make deps
   - stage: test
