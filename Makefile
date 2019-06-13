@@ -101,8 +101,8 @@ distclean: clean
 deps: .ensure-shfmt .ensure-gometalinter .deps-fetched
 
 .deps-fetched: go.mod
-	$(GO) mod download
-	$(GO) mod vendor
+	GO111MODULE=on $(GO) mod download
+	GO111MODULE=on $(GO) mod vendor
 	touch $@
 
 .PHONY: .ensure-shfmt
