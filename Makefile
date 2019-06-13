@@ -115,11 +115,11 @@ deps: .ensure-shfmt .ensure-gometalinter .deps-fetched
 
 .PHONY: .ensure-gometalinter
 .ensure-gometalinter:
+	go get -u golang.org/x/lint/golint
 	if ! command -v gometalinter &>/dev/null; then \
 		go get -u github.com/alecthomas/gometalinter; \
 		gometalinter --install; \
 	fi
-	go get -u golang.org/x/lint/golint
 
 .PHONY: annotations
 annotations:
