@@ -1448,7 +1448,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	inst.Disks = []*compute.AttachedDisk{
-		&compute.AttachedDisk{
+		{
 			Type:             "PERSISTENT",
 			Mode:             "READ_WRITE",
 			Boot:             true,
@@ -1489,9 +1489,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	if p.ic.PublicIP {
 		inst.NetworkInterfaces = []*compute.NetworkInterface{
-			&compute.NetworkInterface{
+			{
 				AccessConfigs: []*compute.AccessConfig{
-					&compute.AccessConfig{
+					{
 						Name: "AccessConfig brought to you by travis-worker",
 						Type: "ONE_TO_ONE_NAT",
 					},
@@ -1503,7 +1503,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	} else {
 		inst.Tags.Items = append(inst.Tags.Items, "no-ip")
 		inst.NetworkInterfaces = []*compute.NetworkInterface{
-			&compute.NetworkInterface{
+			{
 				Network:    p.ic.Network.SelfLink,
 				Subnetwork: subnetwork,
 			},
@@ -1517,7 +1517,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	inst.Metadata = &compute.Metadata{
 		Items: []*compute.MetadataItems{
-			&compute.MetadataItems{
+			{
 				Key:   startupKey,
 				Value: googleapi.String(c.script),
 			},
