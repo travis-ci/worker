@@ -119,6 +119,7 @@ deps: .ensure-shfmt .ensure-gometalinter .deps-fetched
 		go get -u github.com/alecthomas/gometalinter; \
 		gometalinter --install; \
 	fi
+	go get -u golang.org/x/lint/golint
 
 .PHONY: annotations
 annotations:
