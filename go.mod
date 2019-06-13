@@ -23,18 +23,23 @@ require (
 	github.com/docker/go-units v0.3.3 // indirect
 	github.com/dustin/go-humanize v1.0.0
 	github.com/dylanmei/iso8601 v0.1.0 // indirect
+	github.com/flosch/pongo2 v0.0.0-20190505152737-8914e1cf9164 // indirect
 	github.com/garyburd/redigo v0.0.0-20180404160726-569eae59ada9
 	github.com/getsentry/raven-go v0.0.0-20180903072508-084a9de9eb03
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
-	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/google/martian v2.0.0-beta.2.0.20180813215018-c223d6f7955e+incompatible // indirect
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf // indirect
 	github.com/google/uuid v1.1.0 // indirect
 	github.com/googleapis/gax-go v2.0.0+incompatible // indirect
 	github.com/gorilla/mux v0.0.0-20181012153151-deb579d6e030
+	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/jtacoma/uritemplates v1.0.0
+	github.com/juju/go4 v0.0.0-20160222163258-40d72ab9641a // indirect
+	github.com/juju/persistent-cookiejar v0.0.0-20171026135701-d5e5a8405ef9 // indirect
+	github.com/juju/webbrowser v0.0.0-20180907093207-efb9432b2bcb // indirect
 	github.com/kr/fs v0.1.0 // indirect
+	github.com/lxc/lxd v0.0.0-20190613145114-3dac7136d553
 	github.com/masterzen/azure-sdk-for-go v0.0.0-20161014135628-ee4f0065d00c // indirect
 	github.com/masterzen/simplexml v0.0.0-20160608183007-4572e39b1ab9 // indirect
 	github.com/masterzen/winrm v0.0.0-20180702085143-58761a495ca4
@@ -50,12 +55,13 @@ require (
 	github.com/pkg/sftp v1.8.3
 	github.com/rackspace/gophercloud v0.0.0-20161013232434-e00690e87603
 	github.com/rcrowley/go-metrics v0.0.0-20180503174638-e2704e165165
+	github.com/rogpeppe/fastuuid v1.1.0 // indirect
 	github.com/sirupsen/logrus v0.0.0-20181010200618-458213699411
 	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
 	github.com/streadway/amqp v0.0.0-20180806233856-70e15c650864
 	github.com/stretchr/testify v1.2.2
 	go.opencensus.io v0.15.0
-	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+	golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
 	golang.org/x/net v0.0.0-20190311183353-d8887717615a
 	golang.org/x/oauth2 v0.0.0-20181003184128-c57b0facaced
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f // indirect
@@ -66,7 +72,12 @@ require (
 	google.golang.org/genproto v0.0.0-20181004005441-af9cb2a35e7f // indirect
 	google.golang.org/grpc v1.14.0 // indirect
 	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c // indirect
-	gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 // indirect
+	gopkg.in/httprequest.v1 v1.2.0 // indirect
+	gopkg.in/juju/environschema.v1 v1.0.0 // indirect
+	gopkg.in/macaroon-bakery.v2 v2.1.0 // indirect
+	gopkg.in/macaroon.v2 v2.1.0 // indirect
+	gopkg.in/retry.v1 v1.0.3 // indirect
+	gopkg.in/robfig/cron.v2 v2.0.0-20150107220207-be2e0b0deed5 // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0
 	gotest.tools v2.2.0+incompatible // indirect
 )
