@@ -43,6 +43,7 @@ GIT_DESCRIPTION
 
 *_rsa*
 vendor/**
+.deps-fetched
 !vendor/manifest
 /*-success
 .crossdeps

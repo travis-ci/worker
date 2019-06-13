@@ -34,14 +34,13 @@ jobs:
   - stage: cache-warm
     name: cache warm
     script:
-    - git checkout -- vendor/
     - make distclean
     - travis_retry make deps
   - stage: test
     name: linux
     script:
     - make lintall
-    - make build
+    - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
     - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make test-no-cover
@@ -57,7 +56,7 @@ jobs:
         - travis-ci/worker/$TRAVIS_BRANCH
   - name: crossbuild
     script:
-    - make build/darwin/amd64/travis-worker
+    - GO111MODULE=on make build/darwin/amd64/travis-worker
     addons:
       artifacts:
         paths:
@@ -80,7 +79,7 @@ jobs:
         - docker-ce
   - name: http-job-test
     script:
-    - make build
+    - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
     - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make http-job-test
