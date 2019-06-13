@@ -3,7 +3,6 @@ MAINTAINER Travis CI GmbH <support+travis-worker-docker-image@travis-ci.org>
 
 COPY . /go/src/github.com/travis-ci/worker
 WORKDIR /go/src/github.com/travis-ci/worker
-RUN make deps
 ENV CGO_ENABLED 0
 RUN make build
 
