@@ -1,0 +1,11 @@
+#!/bin/sh
+export LXD_DIR=/var/snap/lxd/common/lxd/
+
+# Source the worker configuration
+if [ ! -e "${SNAP_COMMON}/worker.env" ]; then
+    echo "travis-worker isn't configured, please write its configuration to ${SNAP_COMMON}/worker.env" >&2
+    exit 1
+fi
+. ${SNAP_COMMON}/worker.env
+
+exec travis-worker
