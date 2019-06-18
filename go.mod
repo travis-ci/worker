@@ -11,8 +11,6 @@ require (
 	github.com/Jeffail/tunny v0.0.0-20180304204616-59cfa8fcb19f
 	github.com/Microsoft/go-winio v0.4.11 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/alecthomas/gometalinter v3.0.0+incompatible // indirect
-	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
 	github.com/aws/aws-sdk-go v1.15.31
 	github.com/bitly/go-simplejson v0.0.0-20171023175154-0c965951289c
 	github.com/cenk/backoff v2.1.0+incompatible
@@ -29,14 +27,17 @@ require (
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/google/martian v2.0.0-beta.2.0.20180813215018-c223d6f7955e+incompatible // indirect
-	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf // indirect
 	github.com/google/uuid v1.1.0 // indirect
 	github.com/googleapis/gax-go v2.0.0+incompatible // indirect
 	github.com/gorilla/mux v0.0.0-20181012153151-deb579d6e030
 	github.com/gorilla/websocket v1.4.0 // indirect
 	github.com/jtacoma/uritemplates v1.0.0
+	github.com/juju/clock v0.0.0-20190205081909-9c5c9712527c // indirect
 	github.com/juju/go4 v0.0.0-20160222163258-40d72ab9641a // indirect
 	github.com/juju/persistent-cookiejar v0.0.0-20171026135701-d5e5a8405ef9 // indirect
+	github.com/juju/retry v0.0.0-20180821225755-9058e192b216 // indirect
+	github.com/juju/utils v0.0.0-20180820210520-bf9cc5bdd62d // indirect
+	github.com/juju/version v0.0.0-20180108022336-b64dbd566305 // indirect
 	github.com/juju/webbrowser v0.0.0-20180907093207-efb9432b2bcb // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/lxc/lxd v0.0.0-20190613145114-3dac7136d553
@@ -71,7 +72,6 @@ require (
 	google.golang.org/appengine v1.2.0 // indirect
 	google.golang.org/genproto v0.0.0-20181004005441-af9cb2a35e7f // indirect
 	google.golang.org/grpc v1.14.0 // indirect
-	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c // indirect
 	gopkg.in/httprequest.v1 v1.2.0 // indirect
 	gopkg.in/juju/environschema.v1 v1.0.0 // indirect
 	gopkg.in/macaroon-bakery.v2 v2.1.0 // indirect
