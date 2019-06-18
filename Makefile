@@ -98,7 +98,7 @@ distclean: clean
 	rm -rf .deps-fetched build/
 
 .PHONY: deps
-deps: .ensure-shfmt .ensure-gometalinter .deps-fetched
+deps: .ensure-shfmt .deps-fetched
 
 .deps-fetched: go.mod
 	GO111MODULE=on $(GO) mod download
@@ -113,13 +113,13 @@ deps: .ensure-shfmt .ensure-gometalinter .deps-fetched
 		shfmt -version; \
 	fi
 
-.PHONY: .ensure-gometalinter
-.ensure-gometalinter:
-	go get -u golang.org/x/lint/golint
-	if ! command -v gometalinter &>/dev/null; then \
-		go get -u github.com/alecthomas/gometalinter; \
-		gometalinter --install; \
-	fi
+# .PHONY: .ensure-gometalinter
+# .ensure-gometalinter:
+# 	go get -u golang.org/x/lint/golint
+# 	if ! command -v gometalinter &>/dev/null; then \
+# 		go get -u github.com/alecthomas/gometalinter; \
+# 		gometalinter --install; \
+# 	fi
 
 .PHONY: annotations
 annotations:
