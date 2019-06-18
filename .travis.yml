@@ -24,7 +24,6 @@ env:
   - REDIS_URL="redis://"
 
 stages:
-- cache-warm
 - test
 
 before_cache:
@@ -32,14 +31,9 @@ before_cache:
 
 jobs:
   include:
-  - stage: cache-warm
-    name: cache warm
-    go: 1.12.x
-    script:
-    - make distclean
-    - make deps
   - stage: test
     name: linux
+    go: 1.12.x
     script:
     - make lintall
     - GO111MODULE=on make build
@@ -56,7 +50,9 @@ jobs:
         - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
-  - name: crossbuild
+  - stage: test
+    name: crossbuild
+    go: 1.12.x
     script:
     - GO111MODULE=on make build/darwin/amd64/travis-worker
     addons:
@@ -67,7 +63,8 @@ jobs:
         - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
-  - name: docker
+  - stage: test
+    name: docker
     if: type != 'pull_request' && env(DOCKER_LOGIN_PASSWORD) is present && env(DOCKER_LOGIN_USERNAME) is present
     script:
     - make docker-build
@@ -79,7 +76,8 @@ jobs:
         update: true
         packages:
         - docker-ce
-  - name: http-job-test
+  - stage: test
+    name: http-job-test
     script:
     - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
