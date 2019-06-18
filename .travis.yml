@@ -1,6 +1,6 @@
 language: go
 
-go: "1.12"
+go: 1.12.x
 
 dist: xenial
 
@@ -34,6 +34,7 @@ jobs:
   include:
   - stage: cache-warm
     name: cache warm
+    go: 1.12.x
     script:
     - make distclean
     - make deps
