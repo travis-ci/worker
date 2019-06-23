@@ -9,6 +9,11 @@ cache:
   - vendor
   - $HOME/gopath/bin
 
+addons:
+  apt:
+    packages:
+      - rabbitmq-server
+
 services:
 - rabbitmq
 - docker
