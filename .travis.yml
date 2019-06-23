@@ -9,11 +9,6 @@ cache:
   - vendor
   - $HOME/gopath/bin
 
-addons:
-  apt:
-    packages:
-      - rabbitmq-server
-
 services:
 - rabbitmq
 - docker
@@ -47,6 +42,9 @@ jobs:
     - make test-cover
     - make smoke
     addons:
+      apt:
+        packages:
+        - rabbitmq-server
       artifacts:
         paths:
         - ./build/linux/amd64/travis-worker
