@@ -115,7 +115,7 @@ deps: .ensure-shfmt .ensure-golangci-lint .deps-fetched
 
 .PHONY: .ensure-golangci-lint
 .ensure-golangci-lint:
-	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.1
+	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(HOME)/bin v1.17.1
 	if ! command -v $(go env GOPATH)/bin/golangci-lint &>/dev/null; then \
 		$(go env GOPATH)/bin/golangci-lint --version; \
 	fi
