@@ -4,24 +4,24 @@ set -o errexit
 main() {
   pushd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
 
-  : "${CYCLOMAX:=20}"
-  : "${DEADLINE:=1m}"
-  : "${PACKAGE:=github.com/travis-ci/worker}"
+  # : "${CYCLOMAX:=20}"
+  # : "${DEADLINE:=1m}"
+  # : "${PACKAGE:=github.com/travis-ci/worker}"
 
-  : "${ENABLED_LINTER_FLAGS:=-E goimports -E gofmt -E goconst -E deadcode -E golint -E vet}"
+  # : "${ENABLED_LINTER_FLAGS:=-E goimports -E gofmt -E goconst -E deadcode -E golint -E vet}"
 
-  GOLANGCILINT_ARGS="--disable-all ${ENABLED_LINTER_FLAGS}"
-  GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --deadline=${DEADLINE}"
-  GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --vendor"
-  GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --tests"
+  # GOLANGCILINT_ARGS="--disable-all ${ENABLED_LINTER_FLAGS}"
+  # GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --deadline=${DEADLINE}"
+  # GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --vendor"
+  # GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --tests"
 
-  if [[ "${DEBUG}" ]]; then
-    GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --debug"
-  else
-    GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --errors"
-  fi
+  # if [[ "${DEBUG}" ]]; then
+  #   GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --debug"
+  # else
+  #   GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --errors"
+  # fi
 
-  IFS=" " read -r -a gmlargs_array <<<"$GOLANGCILINT_ARGS"
+  # IFS=" " read -r -a gmlargs_array <<<"$GOLANGCILINT_ARGS"
 
   set -o xtrace
   $HOME/bin/golangci-lint run
