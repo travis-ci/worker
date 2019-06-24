@@ -15,7 +15,7 @@ func runAppTest(t *testing.T, args []string, action func(*cli.Context) error) {
 	app := cli.NewApp()
 	app.Flags = Flags
 	app.Action = action
-	app.Run(append([]string{"whatever"}, args...))
+	_ = app.Run(append([]string{"whatever"}, args...))
 }
 
 func TestFromCLIContext(t *testing.T) {

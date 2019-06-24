@@ -68,7 +68,7 @@ type containerCreateRequest struct {
 func TestDockerProvider_Start(t *testing.T) {
 	for _, dockerAPIVersion := range dockerAPIVersions {
 		func() {
-			dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+			_, _ = dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
 				"API_VERSION": dockerAPIVersion,
 			}))
 			defer dockerTestTeardown()
@@ -117,12 +117,12 @@ func TestDockerProvider_Start(t *testing.T) {
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerName), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
 				w.WriteHeader(404)
-				w.Write(containerStatusBytes)
+				_, _ = w.Write(containerStatusBytes)
 			})
 
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
-				w.Write(containerStatusBytes)
+				_, _ = w.Write(containerStatusBytes)
 			})
 
 			dockerTestMux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +158,7 @@ func TestDockerProvider_Start(t *testing.T) {
 func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 	for _, dockerAPIVersion := range dockerAPIVersions {
 		func() {
-			dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+			_, _ = dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
 				"PRIVILEGED":  "true",
 				"API_VERSION": dockerAPIVersion,
 			}))
@@ -208,13 +208,13 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 			}
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerID), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
-				w.Write(containerStatusBytes)
+				_, _ = w.Write(containerStatusBytes)
 			})
 
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/containers/%s/json", dockerAPIVersion, containerName), func(w http.ResponseWriter, r *http.Request) {
 				containerStatusBytes, _ := json.Marshal(containerStatus)
 				w.WriteHeader(404)
-				w.Write(containerStatusBytes)
+				_, _ = w.Write(containerStatusBytes)
 			})
 
 			dockerTestMux.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +298,7 @@ func TestNewDockerProvider_WithNative(t *testing.T) {
 }
 
 func TestNewDockerProvider_WithCPUSetSize(t *testing.T) {
-	dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
+	_, _ = dockerTestSetup(t, config.ProviderConfigFromMap(map[string]string{
 		"NATIVE":       "1",
 		"CPU_SET_SIZE": "16",
 	}))
@@ -387,7 +387,7 @@ func TestNewDockerProvider_WithCPUs(t *testing.T) {
 
 func TestDockerProvider_Setup(t *testing.T) {
 	provider, _ := dockerTestSetup(t, nil)
-	provider.Setup(nil)
+	_ = provider.Setup(gocontext.TODO())
 }
 
 func TestDockerInstance_UploadScript_WithNative(t *testing.T) {

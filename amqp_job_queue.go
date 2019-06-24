@@ -230,7 +230,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 						"send_duration_ms": time.Since(jobSendBegin).Seconds() * 1e3,
 					}).Info("sent job to output channel")
 				case <-ctx.Done():
-					delivery.Nack(false, true)
+					_ = delivery.Nack(false, true)
 					return
 				}
 			}

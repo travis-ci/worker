@@ -268,9 +268,9 @@ func newOSProvider(cfg *config.ProviderConfig) (Provider, error) {
 				sshKeyPath = cfg.Get("SSH_KEY_PATH")
 			}
 		}
-		dialer, err = ssh.NewDialerWithPassword(sshPass)
+		dialer, _ = ssh.NewDialerWithPassword(sshPass)
 		if sshKeyPath != "" {
-			dialer, err = ssh.NewDialer(sshKeyPath, "")
+			dialer, _ = ssh.NewDialer(sshKeyPath, "")
 		}
 	}
 
