@@ -364,6 +364,9 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 	compClient, err := openstack.NewComputeV2(provider, gophercloud.EndpointOpts{
 		Region: region,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	netClient, err := openstack.NewNetworkV2(provider, gophercloud.EndpointOpts{Name: "neutron", Region: cfg.Get("REGION")})
 	if err != nil {
