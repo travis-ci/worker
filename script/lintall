@@ -24,7 +24,7 @@ main() {
   # IFS=" " read -r -a gmlargs_array <<<"$GOLANGCILINT_ARGS"
 
   set -o xtrace
-  $HOME/bin/golangci-lint run
+  "$HOME"/bin/golangci-lint run
   # $(go env GOPATH)/bin/golangci-lint run "${gmlargs_array[@]}"
   git grep -l '^#!/usr/bin/env bash' | xargs shfmt -i 2 -w
   git grep -l '^#!/usr/bin/env bash' | xargs shellcheck
