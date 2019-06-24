@@ -35,6 +35,7 @@ jobs:
     name: linux
     go: 1.12.x
     script:
+    - make deps
     - make lintall
     - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
