@@ -7,7 +7,9 @@ dist: xenial
 cache:
   directories:
   - vendor
+  - $HOME/.cache/go-build
   - $HOME/gopath/bin
+  - $HOME/gopath/pkg/mod
 
 services:
 - rabbitmq
