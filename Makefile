@@ -98,7 +98,7 @@ distclean: clean
 	rm -rf .deps-fetched build/
 
 .PHONY: deps
-deps: .ensure-shfmt .deps-fetched
+deps: .ensure-shfmt .ensure-golangci-lint .deps-fetched
 
 .deps-fetched: go.mod
 	GO111MODULE=on $(GO) mod download
@@ -113,13 +113,12 @@ deps: .ensure-shfmt .deps-fetched
 		shfmt -version; \
 	fi
 
-# .PHONY: .ensure-gometalinter
-# .ensure-gometalinter:
-# 	go get -u golang.org/x/lint/golint
-# 	if ! command -v gometalinter &>/dev/null; then \
-# 		go get -u github.com/alecthomas/gometalinter; \
-# 		gometalinter --install; \
-# 	fi
+.PHONY: .ensure-golangci-lint
+.ensure-golangci-lint:
+	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(go env GOPATH)/bin v1.17.1
+	if ! command -v $(go env GOPATH)/bin/golangci-lint &>/dev/null; then \
+		$(go env GOPATH)/bin/golangci-lint --version; \
+	fi
 
 .PHONY: annotations
 annotations:
