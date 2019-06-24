@@ -4,7 +4,6 @@ import (
 	gocontext "context"
 	"fmt"
 	"math/rand"
-	"net/http"
 	"strings"
 	"testing"
 
@@ -12,14 +11,14 @@ import (
 	"github.com/travis-ci/worker/context"
 )
 
-type recordingHTTPTransport struct {
-	req *http.Request
-}
+// type recordingHTTPTransport struct {
+// 	req *http.Request
+// }
 
-func (t *recordingHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	t.req = req
-	return nil, fmt.Errorf("recording HTTP transport impl")
-}
+// func (t *recordingHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+// 	t.req = req
+// 	return nil, fmt.Errorf("recording HTTP transport impl")
+// }
 
 func Test_asBool(t *testing.T) {
 	for s, b := range map[string]bool{

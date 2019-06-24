@@ -38,13 +38,13 @@ type HTTPJobQueue struct {
 	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
 }
 
-type httpFetchJobsRequest struct {
-	Jobs []string `json:"jobs"`
-}
+// type httpFetchJobsRequest struct {
+// 	Jobs []string `json:"jobs"`
+// }
 
-type httpFetchJobsResponse struct {
-	Jobs []string `json:"jobs"`
-}
+// type httpFetchJobsResponse struct {
+// 	Jobs []string `json:"jobs"`
+// }
 
 type jobBoardErrorResponse struct {
 	Type          string `json:"@type"`

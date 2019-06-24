@@ -265,7 +265,7 @@ type gceInstance struct {
 	client   *compute.Service
 	provider *gceProvider
 	instance *compute.Instance
-	ic       *gceInstanceConfig
+	//ic       *gceInstanceConfig
 
 	progresser Progresser
 	sshDialer  ssh.Dialer

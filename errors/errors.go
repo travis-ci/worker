@@ -6,7 +6,7 @@ type JobAbortError interface {
 
 type wrappedJobAbortError struct {
 	err     error
-	message string
+//	message string
 }
 
 func NewWrappedJobAbortError(err error) error {
