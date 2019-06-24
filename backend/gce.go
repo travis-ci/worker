@@ -1539,7 +1539,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		inst.Scheduling.OnHostMaintenance = "TERMINATE"
 	}
 
-	if p.ic.Preemptible == true && inst.Scheduling.OnHostMaintenance == "MIGRATE" {
+	if p.ic.Preemptible && inst.Scheduling.OnHostMaintenance == "MIGRATE" {
 		// googleapi: Scheduling must have preemptible be false when OnHostMaintenance isn't TERMINATE.
 		// In other words: if preemptible is true, OnHostMaintenance must be TERMINATE.
 		logger.Warn("PREEMPTIBLE is set to true; forcing onHostMaintenance to TERMINATE")
@@ -1638,7 +1638,7 @@ func (p *gceProvider) setStartContextZone(c *gceStartContext, zoneName string) {
 	}
 
 	c.instance.Zone = zoneName
-	c.instance.MachineType, _ = p.machineTypeSelfLinks[gceMtKey(zoneName, c.instance.MachineType)]
+	c.instance.MachineType = p.machineTypeSelfLinks[gceMtKey(zoneName, c.instance.MachineType)]
 
 	for _, disk := range c.instance.Disks {
 		if disk.InitializeParams == nil {
