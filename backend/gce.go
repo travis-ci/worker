@@ -194,8 +194,6 @@ type gceProvider struct {
 	bootPrePollSleep      time.Duration
 	defaultLanguage       string
 	defaultImage          string
-	defaultGpuCount       int64
-	defaultGpuType        string
 	uploadRetries         uint64
 	uploadRetrySleep      time.Duration
 	sshDialer             ssh.Dialer
@@ -240,7 +238,7 @@ func (gsmw *gceStartMultistepWrapper) Run(multistep.StateBag) multistep.StepActi
 	return gsmw.f(gsmw.c)
 }
 
-func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
+func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { }
 
 type gceStartContext struct {
 	startAttributes      *StartAttributes
@@ -300,7 +298,7 @@ func (gismw *gceInstanceStopMultistepWrapper) Run(multistep.StateBag) multistep.
 	return gismw.f(gismw.c)
 }
 
-func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { return }
+func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { }
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	var (
@@ -969,9 +967,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
-	ctx := c.ctx
-
-	ctx, span := trace.StartSpan(ctx, "GCE.GetImage")
+	_, span := trace.StartSpan(c.ctx, "GCE.GetImage")
 	defer span.End()
 
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
@@ -1002,9 +998,7 @@ func makeWindowsPassword() (string, error) {
 }
 
 func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
-	ctx := c.ctx
-
-	ctx, span := trace.StartSpan(ctx, "GCE.RenderScript")
+	_, span := trace.StartSpan(c.ctx, "GCE.RenderScript")
 	defer span.End()
 
 	scriptBuf := bytes.Buffer{}
