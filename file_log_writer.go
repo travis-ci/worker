@@ -40,9 +40,7 @@ func (w *fileLogWriter) Close() error {
 	return w.fd.Close()
 }
 
-func (w *fileLogWriter) SetMaxLogLength(n int) {
-	return
-}
+func (w *fileLogWriter) SetMaxLogLength(n int) {}
 
 func (w *fileLogWriter) SetJobStarted(meta *JobStartedMeta) {}
 

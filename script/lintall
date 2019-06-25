@@ -4,27 +4,28 @@ set -o errexit
 main() {
   pushd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
 
-  : "${CYCLOMAX:=20}"
-  : "${DEADLINE:=1m}"
-  : "${PACKAGE:=github.com/travis-ci/worker}"
+  # : "${CYCLOMAX:=20}"
+  # : "${DEADLINE:=1m}"
+  # : "${PACKAGE:=github.com/travis-ci/worker}"
 
-  : "${ENABLED_LINTER_FLAGS:=-E goimports -E gofmt -E goconst -E deadcode -E golint -E vet}"
+  # : "${ENABLED_LINTER_FLAGS:=-E goimports -E gofmt -E goconst -E deadcode -E golint -E vet}"
 
-  GOMETALINTER_ARGS="--disable-all ${ENABLED_LINTER_FLAGS}"
-  GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --deadline=${DEADLINE}"
-  GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --vendor"
-  GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --tests"
+  # GOLANGCILINT_ARGS="--disable-all ${ENABLED_LINTER_FLAGS}"
+  # GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --deadline=${DEADLINE}"
+  # GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --vendor"
+  # GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --tests"
 
-  if [[ "${DEBUG}" ]]; then
-    GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --debug"
-  else
-    GOMETALINTER_ARGS="${GOMETALINTER_ARGS} --errors"
-  fi
+  # if [[ "${DEBUG}" ]]; then
+  #   GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --debug"
+  # else
+  #   GOLANGCILINT_ARGS="${GOLANGCILINT_ARGS} --errors"
+  # fi
 
-  IFS=" " read -r -a gmlargs_array <<<"$GOMETALINTER_ARGS"
+  # IFS=" " read -r -a gmlargs_array <<<"$GOLANGCILINT_ARGS"
 
   set -o xtrace
-  gometalinter "${gmlargs_array[@]}" ./...
+  "$HOME"/bin/golangci-lint run
+  # $(go env GOPATH)/bin/golangci-lint run "${gmlargs_array[@]}"
   git grep -l '^#!/usr/bin/env bash' | xargs shfmt -i 2 -w
   git grep -l '^#!/usr/bin/env bash' | xargs shellcheck
 }

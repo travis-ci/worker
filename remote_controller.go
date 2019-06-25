@@ -120,7 +120,7 @@ func (api *RemoteController) GetWorkerInfo(w http.ResponseWriter, req *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(info)
+	_ = json.NewEncoder(w).Encode(info)
 }
 
 // UpdateWorkerInfo allows reconfiguring some parts of worker on the fly.
@@ -134,7 +134,7 @@ func (api *RemoteController) UpdateWorkerInfo(w http.ResponseWriter, req *http.R
 	if err := json.NewDecoder(req.Body).Decode(&info); err != nil {
 		log.WithError(err).Error("could not decode json request body")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{
+		_ = json.NewEncoder(w).Encode(errorResponse{
 			Message: err.Error(),
 		})
 		return
@@ -159,7 +159,7 @@ func (api *RemoteController) ShutdownWorker(w http.ResponseWriter, req *http.Req
 	if err := json.NewDecoder(req.Body).Decode(&options); err != nil {
 		log.WithError(err).Error("could not decode json request body")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse{
+		_ = json.NewEncoder(w).Encode(errorResponse{
 			Message: err.Error(),
 		})
 		return

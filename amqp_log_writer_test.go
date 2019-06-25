@@ -141,7 +141,7 @@ func TestAMQPMaxLogLength(t *testing.T) {
 		t.Error("max length should not be reached yet")
 	}
 
-	_, err = fmt.Fprintf(logWriter, "5")
+	_, _ = fmt.Fprintf(logWriter, "5")
 	if !logWriter.MaxLengthReached() {
 		t.Error("expected MaxLengthReached to be true")
 	}

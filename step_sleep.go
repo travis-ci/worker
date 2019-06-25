@@ -18,7 +18,7 @@ func (s *stepSleep) Run(state multistep.StateBag) multistep.StepAction {
 
 	defer context.TimeSince(ctx, "step_sleep_run", time.Now())
 
-	ctx, span := trace.StartSpan(ctx, "Sleep.Run")
+	_, span := trace.StartSpan(ctx, "Sleep.Run")
 	defer span.End()
 
 	time.Sleep(s.duration)

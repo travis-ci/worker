@@ -323,7 +323,7 @@ func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAtt
 			provider:   p,
 			progresser: progresser,
 		}
-		instance.Stop(ctx)
+		_ = instance.Stop(ctx)
 
 		return nil, err
 	}
@@ -347,7 +347,7 @@ func (p *jupiterBrainProvider) StartWithProgress(ctx gocontext.Context, startAtt
 			provider:   p,
 			progresser: progresser,
 		}
-		instance.Stop(ctx)
+		_ = instance.Stop(ctx)
 
 		return nil, err
 	}

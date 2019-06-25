@@ -19,7 +19,7 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 	instance := state.Get("instance").(backend.Instance)
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "WriteWorkerInfo.Run")
+	_, span := trace.StartSpan(ctx, "WriteWorkerInfo.Run")
 	defer span.End()
 
 	if hostname, ok := state.Get("hostname").(string); ok && hostname != "" {
