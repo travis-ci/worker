@@ -34,7 +34,7 @@ func TestNewHTTPLogWriter(t *testing.T) {
 }
 
 func TestHTTPLogWriter_Write(t *testing.T) {
-	cancel, hlw, err := buildTestHTTPLogWriter()
+	cancel, hlw, _ := buildTestHTTPLogWriter()
 	defer cancel()
 
 	assert.NotNil(t, hlw)
@@ -44,7 +44,7 @@ func TestHTTPLogWriter_Write(t *testing.T) {
 }
 
 func TestHTTPLogWriter_Write_HitsMaxLogLength(t *testing.T) {
-	cancel, hlw, err := buildTestHTTPLogWriter()
+	cancel, hlw, _ := buildTestHTTPLogWriter()
 	defer cancel()
 
 	assert.NotNil(t, hlw)
@@ -58,7 +58,7 @@ func TestHTTPLogWriter_Write_HitsMaxLogLength(t *testing.T) {
 }
 
 func TestHTTPLogWriter_Write_HitsMaxLogLength_CannotWriteAndClose(t *testing.T) {
-	cancel, hlw, err := buildTestHTTPLogWriter()
+	cancel, hlw, _ := buildTestHTTPLogWriter()
 	defer cancel()
 
 	assert.NotNil(t, hlw)
@@ -75,13 +75,13 @@ func TestHTTPLogWriter_Write_HitsMaxLogLength_CannotWriteAndClose(t *testing.T) 
 }
 
 func TestHTTPLogWriter_Write_HitsMaxLogLength_CannotWriteAndClose_LogClosed(t *testing.T) {
-	cancel, hlw, err := buildTestHTTPLogWriter()
+	cancel, hlw, _ := buildTestHTTPLogWriter()
 	defer cancel()
 
 	assert.NotNil(t, hlw)
 
 	hlw.bytesWritten = 1000
-	err = hlw.Close()
+	err := hlw.Close()
 	assert.Nil(t, err)
 
 	n, err := hlw.Write([]byte("a storm is a comin"))

@@ -48,7 +48,7 @@ var (
 // CLI is the top level of execution for the whole shebang
 type CLI struct {
 	c        *cli.Context
-	id       string
+
 	bootTime time.Time
 
 	ctx    gocontext.Context
@@ -179,7 +179,7 @@ func (i *CLI) Setup() (bool, error) {
 		go func() {
 			httpAddr := i.c.String("remote-controller-addr")
 			i.logger.Info("listening at ", httpAddr)
-			http.ListenAndServe(httpAddr, nil)
+			_ = http.ListenAndServe(httpAddr, nil)
 		}()
 	}
 
@@ -221,7 +221,7 @@ func (i *CLI) Run() {
 		"logwriter_factory": i.LogWriterFactory,
 	}).Debug("running pool")
 
-	i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogWriterFactory)
+	_ = i.ProcessorPool.Run(i.Config.PoolSize, i.JobQueue, i.LogWriterFactory)
 
 	err := i.JobQueue.Cleanup()
 	if err != nil {

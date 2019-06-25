@@ -38,7 +38,7 @@ func TestHTTPLogPartSink_flush(t *testing.T) {
 	ctx := gocontext.TODO()
 	lps := newHTTPLogPartSink(ctx, lss.URL, uint64(10))
 	lps.flush(gocontext.TODO())
-	lps.Add(ctx, &httpLogPart{
+	_ = lps.Add(ctx, &httpLogPart{
 		JobID:   uint64(4),
 		Content: "wat",
 		Number:  3,
