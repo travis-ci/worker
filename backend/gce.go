@@ -119,7 +119,7 @@ var (
 		"WARMER_URL":            "URL for warmer service",
 		"WARMER_TIMEOUT":        fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
 		"WARMER_SSH_PASSPHRASE": fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
-		"ZONE":                  "zone in which to deploy job instaces into (default is to use all zones in the region)",
+		"ZONE":                  "zone in which to deploy job instances into (default is to use all zones in the region)",
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
