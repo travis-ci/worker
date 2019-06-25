@@ -48,7 +48,7 @@ var (
 // CLI is the top level of execution for the whole shebang
 type CLI struct {
 	c        *cli.Context
-	// id       string
+
 	bootTime time.Time
 
 	ctx    gocontext.Context
