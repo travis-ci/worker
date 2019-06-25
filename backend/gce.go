@@ -740,7 +740,6 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	err = p.backoffRetry(ctx, func() error {
 		_ = p.apiRateLimit(ctx)
- 
 		nw, nwErr := p.client.Networks.
 			Get(p.projectID, p.cfg.Get("NETWORK")).
 			Context(ctx).
