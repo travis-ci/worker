@@ -1,13 +1,15 @@
 language: go
-go: 1.11.x
-sudo: required
-dist: trusty
-group: edge
+
+go: 1.12.x
+
+dist: xenial
 
 cache:
   directories:
   - vendor
+  - $HOME/.cache/go-build
   - $HOME/gopath/bin
+  - $HOME/gopath/pkg/mod
 
 services:
 - rabbitmq
@@ -24,7 +26,6 @@ env:
   - REDIS_URL="redis://"
 
 stages:
-- cache-warm
 - test
 
 before_cache:
@@ -32,23 +33,22 @@ before_cache:
 
 jobs:
   include:
-  - stage: cache-warm
-    name: cache warm
-    script:
-    - git checkout -- vendor/
-    - make distclean
-    - travis_retry make deps
   - stage: test
     name: linux
+    go: 1.12.x
     script:
+    - make deps
     - make lintall
-    - make build
+    - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
     - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make test-no-cover
     - make test-cover
     - make smoke
     addons:
+      apt:
+        packages:
+        - rabbitmq-server
       artifacts:
         paths:
         - ./build/linux/amd64/travis-worker
@@ -56,9 +56,11 @@ jobs:
         - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
-  - name: crossbuild
+  - stage: test
+    name: crossbuild
+    go: 1.12.x
     script:
-    - make build/darwin/amd64/travis-worker
+    - GO111MODULE=on make build/darwin/amd64/travis-worker
     addons:
       artifacts:
         paths:
@@ -67,7 +69,8 @@ jobs:
         - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
-  - name: docker
+  - stage: test
+    name: docker
     if: type != 'pull_request' && env(DOCKER_LOGIN_PASSWORD) is present && env(DOCKER_LOGIN_USERNAME) is present
     script:
     - make docker-build
@@ -79,9 +82,10 @@ jobs:
         update: true
         packages:
         - docker-ce
-  - name: http-job-test
+  - stage: test
+    name: http-job-test
     script:
-    - make build
+    - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
     - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make http-job-test

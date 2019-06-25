@@ -20,7 +20,7 @@ func main() {
 	app.Flags = config.Flags
 	app.Action = runWorker
 
-	app.Run(os.Args)
+	_ = app.Run(os.Args)
 }
 
 func runWorker(c *cli.Context) error {

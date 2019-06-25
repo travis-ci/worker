@@ -142,7 +142,7 @@ func (w *httpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
 }
 
 func (w *httpLogWriter) MaxLengthReached() bool {
-	return w.maxLengthReached == true
+	return w.maxLengthReached
 }
 
 func (w *httpLogWriter) WriteAndClose(p []byte) (int, error) {

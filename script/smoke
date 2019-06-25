@@ -11,6 +11,7 @@ main() {
 
   cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
 
+  git checkout HEAD go.sum
   git diff --exit-code
   git diff --cached --exit-code
   "./build/${OS}/${ARCH}/travis-worker" --version

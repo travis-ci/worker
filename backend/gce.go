@@ -194,8 +194,6 @@ type gceProvider struct {
 	bootPrePollSleep      time.Duration
 	defaultLanguage       string
 	defaultImage          string
-	defaultGpuCount       int64
-	defaultGpuType        string
 	uploadRetries         uint64
 	uploadRetrySleep      time.Duration
 	sshDialer             ssh.Dialer
@@ -241,7 +239,7 @@ func (gsmw *gceStartMultistepWrapper) Run(multistep.StateBag) multistep.StepActi
 	return gsmw.f(gsmw.c)
 }
 
-func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { return }
+func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { }
 
 type gceStartContext struct {
 	startAttributes      *StartAttributes
@@ -267,7 +265,7 @@ type gceInstance struct {
 	client   *compute.Service
 	provider *gceProvider
 	instance *compute.Instance
-	ic       *gceInstanceConfig
+	//ic       *gceInstanceConfig
 
 	progresser Progresser
 	sshDialer  ssh.Dialer
@@ -300,7 +298,7 @@ func (gismw *gceInstanceStopMultistepWrapper) Run(multistep.StateBag) multistep.
 	return gismw.f(gismw.c)
 }
 
-func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { return }
+func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { }
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	var (
@@ -721,15 +719,17 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	if p.cfg.Get("ZONE") != "" {
 		logger.WithField("zone", p.cfg.Get("ZONE")).Debug("resolving configured zone")
 
-		err := p.backoffRetry(ctx, func() error {
-			p.apiRateLimit(ctx)
-			zone, zErr := p.client.Zones.Get(p.projectID, p.cfg.Get("ZONE")).Context(ctx).Do()
-			if zErr == nil {
-				logger.WithField("zone", zone).Info("resolved configured zone")
-				p.ic.Zone = zone
-			}
-			return zErr
-		})
+	  err := p.backoffRetry(ctx, func() error {
+		  _ = p.apiRateLimit(ctx)
+		  zone, zErr := p.client.Zones.
+			  Get(p.projectID, p.cfg.Get("ZONE")).
+			  Context(ctx).
+			  Do()
+		  if zErr == nil {
+			  p.ic.Zone = zone
+		  }
+		  return zErr
+	  })
 
 		if err != nil {
 			return errors.Wrap(err, "failed to resolve configured zone")
@@ -738,8 +738,9 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	logger.WithField("network", p.cfg.Get("NETWORK")).Debug("resolving configured network")
 
-	err := p.backoffRetry(ctx, func() error {
-		p.apiRateLimit(ctx)
+	err = p.backoffRetry(ctx, func() error {
+		_ = p.apiRateLimit(ctx)
+ 
 		nw, nwErr := p.client.Networks.
 			Get(p.projectID, p.cfg.Get("NETWORK")).
 			Context(ctx).
@@ -769,7 +770,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		logger.WithField("subnetwork", p.cfg.Get("SUBNETWORK")).Debug("resolving configured subnetwork")
 
 		err = p.backoffRetry(ctx, func() error {
-			p.apiRateLimit(ctx)
+			_ = p.apiRateLimit(ctx)
 			sn, snErr := p.client.Subnetworks.
 				Get(p.projectID, region, p.cfg.Get("SUBNETWORK")).
 				Context(ctx).
@@ -787,7 +788,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	logger.Debug("finding all zones for region")
 	err = p.backoffRetry(ctx, func() error {
-		p.apiRateLimit(ctx)
+		_ = p.apiRateLimit(ctx)
 
 		regionURL := fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/regions/%s", p.projectID, p.cfg.Get("REGION"))
 
@@ -832,7 +833,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 			}).Debug("finding machine type self link")
 
 			err = p.backoffRetry(ctx, func() error {
-				p.apiRateLimit(ctx)
+				_ = p.apiRateLimit(ctx)
 
 				mt, mtErr := p.client.MachineTypes.
 					Get(p.projectID, zoneName, machineType).
@@ -995,9 +996,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
-	ctx := c.ctx
-
-	ctx, span := trace.StartSpan(ctx, "GCE.GetImage")
+	_, span := trace.StartSpan(c.ctx, "GCE.GetImage")
 	defer span.End()
 
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
@@ -1028,9 +1027,7 @@ func makeWindowsPassword() (string, error) {
 }
 
 func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
-	ctx := c.ctx
-
-	ctx, span := trace.StartSpan(ctx, "GCE.RenderScript")
+	_, span := trace.StartSpan(c.ctx, "GCE.RenderScript")
 	defer span.End()
 
 	scriptBuf := bytes.Buffer{}
@@ -1155,7 +1152,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	}
 
 	err = p.backoffRetry(c.ctx, func() error {
-		p.apiRateLimit(c.ctx)
+		_ = p.apiRateLimit(c.ctx)
 
 		op, insErr := p.client.Instances.Insert(p.projectID, c.zoneName, c.instance).Context(c.ctx).Do()
 		if insErr != nil {
@@ -1257,7 +1254,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		zoneOp := &compute.Operation{}
 
 		err := p.backoffRetry(ctx, func() error {
-			p.apiRateLimit(c.ctx)
+			_ = p.apiRateLimit(c.ctx)
 			op, zoErr := p.client.ZoneOperations.
 				Get(p.projectID, c.zoneName, c.instanceInsertOpName).
 				Context(ctx).
@@ -1347,7 +1344,7 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 	imageNames := []string{}
 
 	err := p.backoffRetry(ctx, func() error {
-		p.apiRateLimit(ctx)
+		_ = p.apiRateLimit(ctx)
 		images, ilErr := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
 		if ilErr != nil {
 			return ilErr
@@ -1457,7 +1454,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	inst.Disks = []*compute.AttachedDisk{
-		&compute.AttachedDisk{
+		{
 			Type:             "PERSISTENT",
 			Mode:             "READ_WRITE",
 			Boot:             true,
@@ -1502,9 +1499,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	if p.ic.PublicIP {
 		inst.NetworkInterfaces = []*compute.NetworkInterface{
-			&compute.NetworkInterface{
+			{
 				AccessConfigs: []*compute.AccessConfig{
-					&compute.AccessConfig{
+					{
 						Name: "AccessConfig brought to you by travis-worker",
 						Type: "ONE_TO_ONE_NAT",
 					},
@@ -1516,7 +1513,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	} else {
 		inst.Tags.Items = append(inst.Tags.Items, "no-ip")
 		inst.NetworkInterfaces = []*compute.NetworkInterface{
-			&compute.NetworkInterface{
+			{
 				Network:    p.ic.Network.SelfLink,
 				Subnetwork: subnetwork,
 			},
@@ -1530,7 +1527,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	inst.Metadata = &compute.Metadata{
 		Items: []*compute.MetadataItems{
-			&compute.MetadataItems{
+			{
 				Key:   startupKey,
 				Value: googleapi.String(c.script),
 			},
@@ -1558,7 +1555,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		inst.Scheduling.OnHostMaintenance = "TERMINATE"
 	}
 
-	if p.ic.Preemptible == true && inst.Scheduling.OnHostMaintenance == "MIGRATE" {
+	if p.ic.Preemptible && inst.Scheduling.OnHostMaintenance == "MIGRATE" {
 		// googleapi: Scheduling must have preemptible be false when OnHostMaintenance isn't TERMINATE.
 		// In other words: if preemptible is true, OnHostMaintenance must be TERMINATE.
 		logger.Warn("PREEMPTIBLE is set to true; forcing onHostMaintenance to TERMINATE")
@@ -1649,7 +1646,7 @@ func (p *gceProvider) setStartContextZone(c *gceStartContext, zoneName string) {
 	}
 
 	c.instance.Zone = zoneName
-	c.instance.MachineType, _ = p.machineTypeSelfLinks[gceMtKey(zoneName, c.instance.MachineType)]
+	c.instance.MachineType = p.machineTypeSelfLinks[gceMtKey(zoneName, c.instance.MachineType)]
 
 	for _, disk := range c.instance.Disks {
 		if disk.InitializeParams == nil {
@@ -1787,7 +1784,7 @@ func (i *gceInstance) refreshInstance(ctx gocontext.Context) error {
 		}).Debug("refreshing instance")
 
 	return i.provider.backoffRetry(ctx, func() error {
-		i.provider.apiRateLimit(ctx)
+		_ = i.provider.apiRateLimit(ctx)
 		inst, err := i.client.Instances.
 			Get(i.projectID, zone, i.instance.Name).
 			Context(ctx).
@@ -1933,7 +1930,7 @@ func (i *gceInstance) isPreempted(ctx gocontext.Context) (bool, error) {
 	preempted := &(struct{ state bool }{state: false})
 
 	err := i.provider.backoffRetry(ctx, func() error {
-		i.provider.apiRateLimit(ctx)
+		_ = i.provider.apiRateLimit(ctx)
 		list, err := i.provider.client.GlobalOperations.
 			AggregatedList(i.provider.projectID).
 			Filter(fmt.Sprintf("targetId eq %d", i.instance.Id)).
@@ -2089,7 +2086,7 @@ func (i *gceInstance) stepWaitForInstanceDeleted(c *gceInstanceStopContext) mult
 	span.End()
 
 	err := i.provider.backoffRetry(ctx, func() error {
-		i.provider.apiRateLimit(c.ctx)
+		_ = i.provider.apiRateLimit(c.ctx)
 		zoneOp, err := i.client.ZoneOperations.
 			Get(i.projectID, i.getZoneName(), c.instanceDeleteOp.Name).
 			Do()

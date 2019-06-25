@@ -1,0 +1,52 @@
+name: travis-worker
+base: core18
+version: git
+grade: stable
+summary: Travis CI worker
+description: |-
+ This snap is for internal use by Travis to run worker nodes.
+confinement: strict
+
+apps:
+  daemon:
+    command: daemon.start
+    daemon: simple
+    plugs:
+      - lxd
+      - network
+
+parts:
+  travis-worker:
+    source: .
+    build-packages:
+      - gcc
+    plugin: go
+    go-packages:
+      - github.com/travis-ci/worker/cmd/travis-worker
+    go-importpath: github.com/travis-ci/worker
+    prime:
+      - bin/travis-worker
+    override-build: |-
+      set -eux
+
+      cd ${SNAPCRAFT_PROJECT_DIR}
+      VERSION="$(git describe --always --dirty --tags 2>/dev/null)"
+      REVISION="$(git rev-parse HEAD)"
+      REVISION_URL="https://github.com/travis-ci/worker/tree/${REVISION}"
+      GENERATED="$(date -u +'%Y-%m-%dT%H:%M:%S%z')"
+      COPYRIGHT="$(grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')"
+      cd -
+
+      sed -i "s#VersionString =.*#VersionString = \"${VERSION}\"#g" ../go/src/github.com/travis-ci/worker/version.go
+      sed -i "s#RevisionString =.*#RevisionString = \"${REVISION}\"#g" ../go/src/github.com/travis-ci/worker/version.go
+      sed -i "s#RevisionURLString =.*#RevisionURLString = \"${REVISION_URL}\"#g" ../go/src/github.com/travis-ci/worker/version.go
+      sed -i "s#GeneratedString =.*#GeneratedString = \"${GENERATED}\"#g" ../go/src/github.com/travis-ci/worker/version.go
+      sed -i "s#CopyrightString =.*#CopyrightString = \"${COPYRIGHT}\"#g" ../go/src/github.com/travis-ci/worker/version.go
+
+      set +ex
+      snapcraftctl build
+      set -ex
+
+  wrappers:
+    plugin: dump
+    source: .snapcraft/

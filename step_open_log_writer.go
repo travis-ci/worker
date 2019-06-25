@@ -59,7 +59,7 @@ func (s *stepOpenLogWriter) Run(state multistep.StateBag) multistep.StepAction {
 func (s *stepOpenLogWriter) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "OpenLogWriter.Cleanup")
+	_, span := trace.StartSpan(ctx, "OpenLogWriter.Cleanup")
 	defer span.End()
 
 	logWriter, ok := state.Get("logWriter").(LogWriter)

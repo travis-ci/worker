@@ -50,8 +50,15 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		switch buildJob.StartAttributes().ProgressType {
 		case "text":
 			progresser = backend.NewTextProgresser(logWriter)
-			writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\r\n"))
-			defer writeFoldEnd(logWriter, "step_start_instance", []byte(""))
+			_, _ = writeFoldStart(logWriter, "step_start_instance", []byte("\033[33;1mStarting instance\033[0m\r\n"))
+			defer func() {
+				_, err := writeFoldEnd(logWriter, "step_start_instance", []byte(""))
+				if err != nil {
+					logger.WithFields(logrus.Fields{
+						"err":            err,
+					}).Error("couldn't write fold end")
+				}
+			}()
 		default:
 			logger.WithField("progress_type", buildJob.StartAttributes().ProgressType).Warn("unknown progress type")
 			progresser = &backend.NullProgresser{}

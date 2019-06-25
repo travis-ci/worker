@@ -144,7 +144,7 @@ func (w *amqpLogWriter) SetCancelFunc(cancel gocontext.CancelFunc) {
 }
 
 func (w *amqpLogWriter) MaxLengthReached() bool {
-	return w.maxLengthReached == true
+	return w.maxLengthReached
 }
 
 // WriteAndClose works like a Write followed by a Close, but ensures that no

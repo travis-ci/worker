@@ -236,7 +236,7 @@ func newOSProvider(cfg *config.ProviderConfig) (Provider, error) {
 		autoKeyGen = val
 	}
 
-	if autoKeyGen == true {
+	if autoKeyGen {
 		privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			return nil, err
@@ -268,9 +268,9 @@ func newOSProvider(cfg *config.ProviderConfig) (Provider, error) {
 				sshKeyPath = cfg.Get("SSH_KEY_PATH")
 			}
 		}
-		dialer, err = ssh.NewDialerWithPassword(sshPass)
+		dialer, _ = ssh.NewDialerWithPassword(sshPass)
 		if sshKeyPath != "" {
-			dialer, err = ssh.NewDialer(sshKeyPath, "")
+			dialer, _ = ssh.NewDialer(sshKeyPath, "")
 		}
 	}
 
@@ -364,6 +364,9 @@ func buildOSComputeService(cfg *config.ProviderConfig) (*osClients, error) {
 	compClient, err := openstack.NewComputeV2(provider, gophercloud.EndpointOpts{
 		Region: region,
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	netClient, err := openstack.NewNetworkV2(provider, gophercloud.EndpointOpts{Name: "neutron", Region: cfg.Get("REGION")})
 	if err != nil {
@@ -383,8 +386,12 @@ func (p *osProvider) waitForSSH(ctx gocontext.Context, ip string) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_provider")
 
 	logger.WithField("duration", p.sshPollTimeout).Info("Polling for instance to be ready for ssh")
+	
 	timeout := time.After(p.sshPollTimeout)
-	tick := time.Tick(p.bootPollDialSleep)
+	
+	tick := time.NewTicker(p.bootPollDialSleep)
+	defer tick.Stop()
+
 	dialer := &net.Dialer{Timeout: p.sshDialTimeout}
 	for {
 		if ctx.Err() != nil {
@@ -394,7 +401,7 @@ func (p *osProvider) waitForSSH(ctx gocontext.Context, ip string) error {
 		select {
 		case <-timeout:
 			return errors.New("timed out")
-		case <-tick:
+		case <-tick.C:
 			conn, err := dialer.Dial("tcp", fmt.Sprintf("%s:22", ip))
 			if err == nil && conn != nil {
 				conn.Close()
@@ -414,7 +421,10 @@ func (p *osProvider) waitForStatus(ctx gocontext.Context, id string, status stri
 
 	logger.WithField("duration", p.bootPollSleep).Info("Waiting for instance to be ACTIVE")
 	timeout := time.After(p.bootPollSleep)
-	tick := time.Tick(p.bootPollDialSleep)
+	
+	tick := time.NewTicker(p.bootPollDialSleep)
+	defer tick.Stop()
+
 	for {
 		if ctx.Err() != nil {
 			return errors.Errorf("cancelling waiting for instance to boot, was waiting for VM to come to ACTIVE")
@@ -422,7 +432,7 @@ func (p *osProvider) waitForStatus(ctx gocontext.Context, id string, status stri
 		select {
 		case <-timeout:
 			return errors.New("timed out")
-		case <-tick:
+		case <-tick.C:
 			current, err := servers.Get(p.client, id).Extract()
 			if err != nil {
 				logger.WithFields(logrus.Fields{
@@ -488,7 +498,7 @@ func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttribut
 				FlavorRef:        p.ic.FlavorRef,
 				ImageRef:         imageRef,
 				SecurityGroups:   []string{p.ic.SecGroup},
-				Networks:         []servers.Network{servers.Network{UUID: p.ic.NetworkRef}},
+				Networks:         []servers.Network{{UUID: p.ic.NetworkRef}},
 				AvailabilityZone: p.ic.Zone,
 			},
 			KeyName: p.ic.KeyPairName,
@@ -502,7 +512,7 @@ func (p *osProvider) Start(ctx gocontext.Context, startAttributes *StartAttribut
 			FlavorRef:        p.ic.FlavorRef,
 			ImageRef:         imageRef,
 			SecurityGroups:   []string{p.ic.SecGroup},
-			Networks:         []servers.Network{servers.Network{UUID: p.ic.NetworkRef}},
+			Networks:         []servers.Network{{UUID: p.ic.NetworkRef}},
 			AvailabilityZone: p.ic.Zone,
 		}
 		startBooting = time.Now()
@@ -648,7 +658,7 @@ func (i *osInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 func (i *osInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_instance")
 
-	if i.ic.AutoKeyGen == true {
+	if i.ic.AutoKeyGen {
 		keyErr := keypairs.Delete(i.provider.client, i.ic.KeyPairName).ExtractErr()
 		if keyErr != nil {
 			return errors.Wrap(keyErr, "Instance not yet deleted")

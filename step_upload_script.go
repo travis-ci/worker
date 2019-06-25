@@ -40,8 +40,15 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 	defer cancel()
 
 	if instance.SupportsProgress() && buildJob.StartAttributes().ProgressType == "text" {
-		writeFoldStart(logWriter, "step_upload_script", []byte("\033[33;1mUploading script\033[0m\r\n"))
-		defer writeFoldEnd(logWriter, "step_upload_script", []byte(""))
+		_, _ = writeFoldStart(logWriter, "step_upload_script", []byte("\033[33;1mUploading script\033[0m\r\n"))
+		defer func() {
+			_, err := writeFoldEnd(logWriter, "step_upload_script", []byte(""))
+			if err != nil {
+			    logger.WithFields(logrus.Fields{
+					"err":            err,
+				}).Error("couldn't write fold end")
+			}
+		}()
 	}
 
 	err := instance.UploadScript(ctx, script)

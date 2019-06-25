@@ -44,7 +44,7 @@ func (s *gceTestServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(resp.Status)
-	io.WriteString(w, resp.Body)
+	_, _ = io.WriteString(w, resp.Body)
 }
 
 func gceTestSetupGCEServer(resp *gceTestResponseMap) *httptest.Server {

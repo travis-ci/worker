@@ -18,7 +18,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 
 	ctx := state.Get("ctx").(gocontext.Context)
 
-	ctx, span := trace.StartSpan(ctx, "CheckCancellation.Run")
+	_, span := trace.StartSpan(ctx, "CheckCancellation.Run")
 	defer span.End()
 
 	select {
