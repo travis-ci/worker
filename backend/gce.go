@@ -738,7 +738,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	logger.WithField("network", p.cfg.Get("NETWORK")).Debug("resolving configured network")
 
-	err = p.backoffRetry(ctx, func() error {
+	err := p.backoffRetry(ctx, func() error {
 		_ = p.apiRateLimit(ctx)
 		nw, nwErr := p.client.Networks.
 			Get(p.projectID, p.cfg.Get("NETWORK")).
