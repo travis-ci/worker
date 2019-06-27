@@ -134,23 +134,48 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 			return nil, err
 		}
 
-		// Get MTU
-		if network.Config["bridge.mtu"] != "" {
-			networkMTU = network.Config["bridge.mtu"]
-		}
+		if network.Managed {
+			// Get MTU
+			if network.Config["bridge.mtu"] != "" {
+				networkMTU = network.Config["bridge.mtu"]
+			}
 
-		// Get subnet
-		if network.Config["ipv4.address"] == "" {
-			return nil, fmt.Errorf("No IPv4 subnet set on the network")
-		}
+			// Get subnet
+			if network.Config["ipv4.address"] == "" {
+				return nil, fmt.Errorf("No IPv4 subnet set on the network")
+			}
 
-		gateway, subnet, err := net.ParseCIDR(network.Config["ipv4.address"])
-		if err != nil {
-			return nil, err
-		}
+			gateway, subnet, err := net.ParseCIDR(network.Config["ipv4.address"])
+			if err != nil {
+				return nil, err
+			}
 
-		networkGateway = gateway.String()
-		networkSubnet = subnet
+			networkGateway = gateway.String()
+			networkSubnet = subnet
+		} else {
+			networkState, err := client.GetNetworkState("lxdbr0")
+			if err != nil {
+				return nil, err
+			}
+
+			// Get MTU
+			networkMTU = fmt.Sprintf("%d", networkState.Mtu)
+
+			// Get subnet
+			for _, address := range networkState.Addresses {
+				if address.Family != "inet" || address.Scope != "global" {
+					continue
+				}
+
+				gateway, subnet, err := net.ParseCIDR(address.Address)
+				if err != nil {
+					return nil, err
+				}
+
+				networkGateway = gateway.String()
+				networkSubnet = subnet
+			}
+		}
 		networkLeases = map[string]string{}
 	}
 
