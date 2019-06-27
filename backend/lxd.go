@@ -167,7 +167,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 					continue
 				}
 
-				gateway, subnet, err := net.ParseCIDR(address.Address)
+				gateway, subnet, err := net.ParseCIDR(fmt.Sprintf("%s/%s", address.Address, address.Netmask))
 				if err != nil {
 					return nil, err
 				}
