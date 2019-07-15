@@ -98,9 +98,11 @@ func ProviderConfigFromEnviron(providerName string) *ProviderConfig {
 
 				key := strings.ToUpper(strings.TrimPrefix(pair[0], prefix))
 				value := pair[1]
-				unescapedValue, err := url.QueryUnescape(value)
-				if err == nil {
-					value = unescapedValue
+				if !strings.HasSuffix(key, "ACCOUNT_JSON") {
+					unescapedValue, err := url.QueryUnescape(value)
+					if err == nil {
+						value = unescapedValue
+					}
 				}
 
 				pc.Set(key, value)
