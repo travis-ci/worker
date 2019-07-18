@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Fixed
 
+## [6.2.1] - 2019-07-18
+
+### Fixed
+- config/provider_config: Don't unescape \*ACCOUNT_JSON variables.
+
 ## [6.2.0] - 2019-01-09
 
 ### Changed
