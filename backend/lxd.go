@@ -39,6 +39,7 @@ var (
 		"CPUS":           fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
 		"CPUS_BURST":     fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
 		"NETWORK":        fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
+		"POOL":           fmt.Sprintf("storage pool to use for the instances"),
 		"DISK":           fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
 		"PROCESS":        fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
 		"IMAGE":          fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
@@ -85,6 +86,7 @@ type lxdProvider struct {
 	networkLeases     map[string]string
 	networkLeasesLock sync.Mutex
 
+	pool       string
 	dockerPool string
 
 	httpProxy, httpsProxy, ftpProxy, noProxy string
@@ -204,6 +206,11 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		dockerPool = cfg.Get("DOCKER_POOL")
 	}
 
+	pool := ""
+	if cfg.IsSet("POOL") {
+		pool = cfg.Get("POOL")
+	}
+
 	httpProxy := cfg.Get("HTTP_PROXY")
 	httpsProxy := cfg.Get("HTTPS_PROXY")
 	ftpProxy := cfg.Get("FTP_PROXY")
@@ -229,6 +236,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		networkDNS:     networkDNS,
 		networkLeases:  networkLeases,
 
+		pool:       pool,
 		dockerPool: dockerPool,
 
 		httpProxy:  httpProxy,
@@ -464,6 +472,14 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		Name: containerName,
 	}
 	req.Config = config
+
+	if p.pool != "" {
+		req.Devices = map[string]map[string]string{}
+		req.Devices["root"] = map[string]string{}
+		req.Devices["root"]["type"] = "disk"
+		req.Devices["root"]["path"] = "/"
+		req.Devices["root"]["pool"] = p.pool
+	}
 
 	rop, err := p.client.CreateContainerFromImage(imageServer, *image, req)
 	if err != nil {
