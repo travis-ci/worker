@@ -463,13 +463,15 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	// Create the container
 	config := map[string]string{
-		"security.devlxd":         "false",
-		"security.idmap.isolated": "true",
-		"security.idmap.size":     "100000",
-		"security.nesting":        "true",
-		"limits.memory":           p.limitMemory,
-		"limits.processes":        p.limitProcess,
-		"linux.kernel_modules":    "overlay",
+		"security.devlxd":                      "false",
+		"security.idmap.isolated":              "true",
+		"security.idmap.size":                  "100000",
+		"security.nesting":                     "true",
+		"security.syscalls.intercept.mknod":    "true",
+		"security.syscalls.intercept.setxattr": "true",
+		"limits.memory":                        p.limitMemory,
+		"limits.processes":                     p.limitProcess,
+		"linux.kernel_modules":                 "overlay",
 	}
 
 	if !p.limitCPUBurst {
