@@ -447,7 +447,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Create the container
 	config := map[string]string{
 		"security.idmap.isolated": "true",
-		"security.idmap.size":     "65536",
+		"security.idmap.size":     "100000",
 		"security.nesting":        "true",
 		"limits.memory":           p.limitMemory,
 		"limits.processes":        p.limitProcess,
