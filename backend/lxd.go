@@ -453,6 +453,9 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			Name: fmt.Sprintf("%s_docker", containerName),
 			Type: "custom",
 		}
+		vol.Config = map[string]string{
+			"size": p.dockerDisk,
+		}
 
 		err := p.client.CreateStoragePoolVolume(p.dockerPool, vol)
 		if err != nil {
@@ -530,7 +533,6 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			"source": fmt.Sprintf("%s_docker", containerName),
 			"pool":   p.dockerPool,
 			"path":   "/var/lib/docker",
-			"size":   p.dockerDisk,
 		}
 	}
 
