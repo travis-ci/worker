@@ -519,6 +519,9 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Network limits
 	container.Devices["eth0"] = container.ExpandedDevices["eth0"]
 	container.Devices["eth0"]["limits.max"] = p.limitNetwork
+	container.Devices["eth0"]["security.mac_filtering"] = "true"
+	container.Devices["eth0"]["security.ipv4_filtering"] = "true"
+	container.Devices["eth0"]["security.ipv6_filtering"] = "true"
 
 	// Docker storage
 	if p.dockerPool != "" {
@@ -554,6 +557,8 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
         addresses: %s
       mtu: %s
 `, address, p.networkGateway, dns, p.networkMTU)
+
+		container.Devices["eth0"]["ipv4.address"] = address
 
 		args := lxd.ContainerFileArgs{
 			Type:    "file",
