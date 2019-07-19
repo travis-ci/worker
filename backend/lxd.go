@@ -33,6 +33,7 @@ var (
 	lxdImage         = "ubuntu:18.04"
 	lxdExecCmd       = "bash /home/travis/build.sh"
 	lxdDockerPool    = ""
+	lxdDockerDisk    = "10GB"
 	lxdHelp          = map[string]string{
 		"EXEC_CMD":       fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
 		"MEMORY":         fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
@@ -44,6 +45,7 @@ var (
 		"PROCESS":        fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
 		"IMAGE":          fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
 		"DOCKER_POOL":    fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
+		"DOCKER_DISK":    fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerDisk),
 		"NETWORK_STATIC": fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":    fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
@@ -87,6 +89,7 @@ type lxdProvider struct {
 	networkLeasesLock sync.Mutex
 
 	pool       string
+	dockerDisk string
 	dockerPool string
 
 	httpProxy, httpsProxy, ftpProxy, noProxy string
@@ -201,6 +204,11 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		image = cfg.Get("IMAGE")
 	}
 
+	dockerDisk := lxdDockerDisk
+	if cfg.IsSet("DOCKER_DISK") {
+		dockerDisk = cfg.Get("DOCKER_DISK")
+	}
+
 	dockerPool := lxdDockerPool
 	if cfg.IsSet("DOCKER_POOL") {
 		dockerPool = cfg.Get("DOCKER_POOL")
@@ -237,6 +245,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		networkLeases:  networkLeases,
 
 		pool:       pool,
+		dockerDisk: dockerDisk,
 		dockerPool: dockerPool,
 
 		httpProxy:  httpProxy,
@@ -515,6 +524,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			"source": fmt.Sprintf("%s_docker", containerName),
 			"pool":   p.dockerPool,
 			"path":   "/var/lib/docker",
+			"size":   p.dockerDisk,
 		}
 	}
 
