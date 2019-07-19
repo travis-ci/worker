@@ -191,7 +191,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	limitDisk := lxdLimitDisk
 	if cfg.IsSet("DISK") {
-		limitNetwork = cfg.Get("DISK")
+		limitDisk = cfg.Get("DISK")
 	}
 
 	image := lxdImage
