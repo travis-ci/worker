@@ -45,7 +45,7 @@ var (
 		"PROCESS":        fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
 		"IMAGE":          fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
 		"DOCKER_POOL":    fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
-		"DOCKER_DISK":    fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerDisk),
+		"DOCKER_DISK":    fmt.Sprintf("disk size to use for Docker (default %q)", lxdDockerDisk),
 		"NETWORK_STATIC": fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":    fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
