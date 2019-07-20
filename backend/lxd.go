@@ -33,16 +33,19 @@ var (
 	lxdImage         = "ubuntu:18.04"
 	lxdExecCmd       = "bash /home/travis/build.sh"
 	lxdDockerPool    = ""
+	lxdDockerDisk    = "10GB"
 	lxdHelp          = map[string]string{
 		"EXEC_CMD":       fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
 		"MEMORY":         fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
 		"CPUS":           fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
 		"CPUS_BURST":     fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
 		"NETWORK":        fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
+		"POOL":           fmt.Sprintf("storage pool to use for the instances"),
 		"DISK":           fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
 		"PROCESS":        fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
 		"IMAGE":          fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
 		"DOCKER_POOL":    fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
+		"DOCKER_DISK":    fmt.Sprintf("disk size to use for Docker (default %q)", lxdDockerDisk),
 		"NETWORK_STATIC": fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":    fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
@@ -85,6 +88,8 @@ type lxdProvider struct {
 	networkLeases     map[string]string
 	networkLeasesLock sync.Mutex
 
+	pool       string
+	dockerDisk string
 	dockerPool string
 
 	httpProxy, httpsProxy, ftpProxy, noProxy string
@@ -191,7 +196,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	limitDisk := lxdLimitDisk
 	if cfg.IsSet("DISK") {
-		limitNetwork = cfg.Get("DISK")
+		limitDisk = cfg.Get("DISK")
 	}
 
 	image := lxdImage
@@ -199,9 +204,19 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		image = cfg.Get("IMAGE")
 	}
 
+	dockerDisk := lxdDockerDisk
+	if cfg.IsSet("DOCKER_DISK") {
+		dockerDisk = cfg.Get("DOCKER_DISK")
+	}
+
 	dockerPool := lxdDockerPool
 	if cfg.IsSet("DOCKER_POOL") {
 		dockerPool = cfg.Get("DOCKER_POOL")
+	}
+
+	pool := ""
+	if cfg.IsSet("POOL") {
+		pool = cfg.Get("POOL")
 	}
 
 	httpProxy := cfg.Get("HTTP_PROXY")
@@ -229,6 +244,8 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		networkDNS:     networkDNS,
 		networkLeases:  networkLeases,
 
+		pool:       pool,
+		dockerDisk: dockerDisk,
 		dockerPool: dockerPool,
 
 		httpProxy:  httpProxy,
@@ -436,6 +453,9 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			Name: fmt.Sprintf("%s_docker", containerName),
 			Type: "custom",
 		}
+		vol.Config = map[string]string{
+			"size": p.dockerDisk,
+		}
 
 		err := p.client.CreateStoragePoolVolume(p.dockerPool, vol)
 		if err != nil {
@@ -446,12 +466,15 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	// Create the container
 	config := map[string]string{
-		"security.idmap.isolated": "true",
-		"security.idmap.size":     "65536",
-		"security.nesting":        "true",
-		"limits.memory":           p.limitMemory,
-		"limits.processes":        p.limitProcess,
-		"linux.kernel_modules":    "overlay",
+		"security.devlxd":                      "false",
+		"security.idmap.isolated":              "true",
+		"security.idmap.size":                  "100000",
+		"security.nesting":                     "true",
+		"security.syscalls.intercept.mknod":    "true",
+		"security.syscalls.intercept.setxattr": "true",
+		"limits.memory":                        p.limitMemory,
+		"limits.processes":                     p.limitProcess,
+		"linux.kernel_modules":                 "overlay",
 	}
 
 	if !p.limitCPUBurst {
@@ -464,6 +487,14 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		Name: containerName,
 	}
 	req.Config = config
+
+	if p.pool != "" {
+		req.Devices = map[string]map[string]string{}
+		req.Devices["root"] = map[string]string{}
+		req.Devices["root"]["type"] = "disk"
+		req.Devices["root"]["path"] = "/"
+		req.Devices["root"]["pool"] = p.pool
+	}
 
 	rop, err := p.client.CreateContainerFromImage(imageServer, *image, req)
 	if err != nil {
@@ -491,6 +522,9 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Network limits
 	container.Devices["eth0"] = container.ExpandedDevices["eth0"]
 	container.Devices["eth0"]["limits.max"] = p.limitNetwork
+	container.Devices["eth0"]["security.mac_filtering"] = "true"
+	container.Devices["eth0"]["security.ipv4_filtering"] = "true"
+	container.Devices["eth0"]["security.ipv6_filtering"] = "true"
 
 	// Docker storage
 	if p.dockerPool != "" {
@@ -525,6 +559,8 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
         addresses: %s
       mtu: %s
 `, address, p.networkGateway, dns, p.networkMTU)
+
+		container.Devices["eth0"]["ipv4.address"] = address
 
 		args := lxd.ContainerFileArgs{
 			Type:    "file",
