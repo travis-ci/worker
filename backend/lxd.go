@@ -560,7 +560,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
       mtu: %s
 `, address, p.networkGateway, dns, p.networkMTU)
 
-		container.Devices["eth0"]["ipv4.address"] = address
+		container.Devices["eth0"]["ipv4.address"] = strings.Split(address, "/")[0]
 
 		args := lxd.ContainerFileArgs{
 			Type:    "file",
