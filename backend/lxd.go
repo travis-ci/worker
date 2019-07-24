@@ -88,9 +88,10 @@ type lxdProvider struct {
 	networkLeases     map[string]string
 	networkLeasesLock sync.Mutex
 
-	pool       string
-	dockerDisk string
-	dockerPool string
+	pool        string
+	dockerCache string
+	dockerDisk  string
+	dockerPool  string
 
 	httpProxy, httpsProxy, ftpProxy, noProxy string
 }
@@ -210,8 +211,14 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	dockerPool := lxdDockerPool
+	dockerCache := ""
 	if cfg.IsSet("DOCKER_POOL") {
 		dockerPool = cfg.Get("DOCKER_POOL")
+
+		volume, _, err := client.GetStoragePoolVolume(dockerPool, "custom", "cache_docker")
+		if err == nil {
+			dockerCache = volume.Name
+		}
 	}
 
 	pool := ""
@@ -244,9 +251,10 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		networkDNS:     networkDNS,
 		networkLeases:  networkLeases,
 
-		pool:       pool,
-		dockerDisk: dockerDisk,
-		dockerPool: dockerPool,
+		pool:        pool,
+		dockerCache: dockerCache,
+		dockerDisk:  dockerDisk,
+		dockerPool:  dockerPool,
 
 		httpProxy:  httpProxy,
 		httpsProxy: httpsProxy,
@@ -534,6 +542,17 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			"pool":   p.dockerPool,
 			"path":   "/var/lib/docker",
 		}
+
+		if p.dockerCache != "" {
+			container.Devices["docker-cache"] = map[string]string{
+				"type":     "disk",
+				"readonly": "true",
+				"shift":    "true",
+				// FIXME: workaround for lack of shifting on custom volumes (will be implemented soon)
+				"source": fmt.Sprintf("/var/snap/lxd/common/lxd/storage-pools/%s/custom/%s/", p.dockerPool, p.dockerCache),
+				"path":   "/var/lib/docker-cache",
+			}
+		}
 	}
 
 	// Static networking
@@ -601,6 +620,70 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't start new container")
 		return nil, err
+	}
+
+	// Setup Docker cache
+	if p.dockerPool != "" && p.dockerCache != "" {
+		dockerCacheScript := `#!/bin/sh
+if [ ! -d /var/lib/docker ] || [ ! -d /var/lib/docker-cache ]; then
+    exit 0
+fi
+
+if [ -d /var/lib/docker-cache/image ]; then
+    rm -Rf /var/lib/docker/image
+    cp -R /var/lib/docker-cache/image /var/lib/docker/image
+fi
+
+if [ -d /var/lib/docker-cache/overlay2 ]; then
+    for mount in $(cat /proc/mounts  | grep /var/lib/docker/overlay2 | cut -d' ' -f2); do
+        umount "${mount}"
+    done
+    rm -Rf /var/lib/docker/overlay2
+    mkdir -p /var/lib/docker/overlay2
+    for entry in /var/lib/docker-cache/overlay2/*; do
+    basename=$(basename "${entry}")
+    if [ "${basename}" = "l" ]; then
+        continue
+    fi
+
+    mkdir "/var/lib/docker/overlay2/${basename}"
+        mount -o bind "${entry}" "/var/lib/docker/overlay2/${basename}"
+    done
+
+    if [ -d /var/lib/docker-cache/overlay2/l ]; then
+        cp -R /var/lib/docker-cache/overlay2/l /var/lib/docker/overlay2/l
+    fi
+fi
+`
+
+		exec := lxdapi.ContainerExecPost{
+			Command: []string{"sh"},
+		}
+
+		execArgs := lxd.ContainerExecArgs{
+			Stdin:  ioutil.NopCloser(strings.NewReader(dockerCacheScript)),
+			Stdout: &lxdWriteCloser{ioutil.Discard},
+			Stderr: &lxdWriteCloser{ioutil.Discard},
+		}
+
+		// Spawn the command
+		op, err := p.client.ExecContainer(containerName, exec, &execArgs)
+		if err != nil {
+			return nil, err
+		}
+
+		err = op.Wait()
+		if err != nil {
+			return nil, err
+		}
+		opAPI := op.Get()
+
+		retVal := int32(opAPI.Metadata["return"].(float64))
+		if retVal != 0 {
+			return nil, fmt.Errorf("docker cache setup exited with %d", retVal)
+		}
+
+		return nil, nil
 	}
 
 	// Wait for connectivity
