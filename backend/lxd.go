@@ -682,8 +682,6 @@ fi
 		if retVal != 0 {
 			return nil, fmt.Errorf("docker cache setup exited with %d", retVal)
 		}
-
-		return nil, nil
 	}
 
 	// Wait for connectivity
