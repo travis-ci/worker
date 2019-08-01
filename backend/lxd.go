@@ -649,13 +649,14 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 
 	// Wait 30s for network
-	for i := 0; i < 30; i++ {
+	time.Sleep(1 * time.Second)
+	for i := 0; i < 60; i++ {
 		err = connectivityCheck()
 		if err == nil {
 			break
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	if err != nil {
