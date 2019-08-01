@@ -622,68 +622,6 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		return nil, err
 	}
 
-	// Setup Docker cache
-	if p.dockerPool != "" && p.dockerCache != "" {
-		dockerCacheScript := `#!/bin/sh
-if [ ! -d /var/lib/docker ] || [ ! -d /var/lib/docker-cache ]; then
-    exit 0
-fi
-
-if [ -d /var/lib/docker-cache/image ]; then
-    rm -Rf /var/lib/docker/image
-    cp -R /var/lib/docker-cache/image /var/lib/docker/image
-fi
-
-if [ -d /var/lib/docker-cache/overlay2 ]; then
-    for mount in $(cat /proc/mounts  | grep /var/lib/docker/overlay2 | cut -d' ' -f2); do
-        umount "${mount}"
-    done
-    rm -Rf /var/lib/docker/overlay2
-    mkdir -p /var/lib/docker/overlay2
-    for entry in /var/lib/docker-cache/overlay2/*; do
-    basename=$(basename "${entry}")
-    if [ "${basename}" = "l" ]; then
-        continue
-    fi
-
-    mkdir "/var/lib/docker/overlay2/${basename}"
-        mount -o bind "${entry}" "/var/lib/docker/overlay2/${basename}"
-    done
-
-    if [ -d /var/lib/docker-cache/overlay2/l ]; then
-        cp -R /var/lib/docker-cache/overlay2/l /var/lib/docker/overlay2/l
-    fi
-fi
-`
-
-		exec := lxdapi.ContainerExecPost{
-			Command: []string{"sh"},
-		}
-
-		execArgs := lxd.ContainerExecArgs{
-			Stdin:  ioutil.NopCloser(strings.NewReader(dockerCacheScript)),
-			Stdout: &lxdWriteCloser{ioutil.Discard},
-			Stderr: &lxdWriteCloser{ioutil.Discard},
-		}
-
-		// Spawn the command
-		op, err := p.client.ExecContainer(containerName, exec, &execArgs)
-		if err != nil {
-			return nil, err
-		}
-
-		err = op.Wait()
-		if err != nil {
-			return nil, err
-		}
-		opAPI := op.Get()
-
-		retVal := int32(opAPI.Metadata["return"].(float64))
-		if retVal != 0 {
-			return nil, fmt.Errorf("docker cache setup exited with %d", retVal)
-		}
-	}
-
 	// Wait for connectivity
 	connectivityCheck := func() error {
 		exec := lxdapi.ContainerExecPost{
