@@ -75,21 +75,21 @@ func init() {
 		"IAM_INSTANCE_PROFILE":     "This is not a good idea... for security, builds should provice API keys",
 		"USER_DATA":                "User data, needs to be URL safe base64 encoded format (RFC 4648)",
 		"CPU_CREDIT_SPECIFICATION": "standard|unlimited (for faster boots)",
-		"TAGS":                  "Tags, how to deal with key value?",
-		"DISK_SIZE":             fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
-		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultEC2SSHDialTimeout),
-		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultEC2UploadRetries),
-		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultEC2UploadRetrySleep),
-		"SECURITY_GROUPS":       "Security groups to assign",
-		"PUBLIC_IP":             "boot job instances with a public ip, disable this for NAT (default true)",
-		"PUBLIC_IP_CONNECT":     "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
-		"KEY_NAME":              "Key name to use for the admin user, this is in case you need login access to instances. The travis user has a auto generated key.",
-		"IMAGE_ALIASES":         "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
-		"IMAGE_DEFAULT":         "default image name to use when none found",
-		"IMAGE_SELECTOR_TYPE":   fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultEC2ImageSelectorType),
-		"IMAGE_SELECTOR_URL":    "URL for image selector API, used only when image selector is \"api\"",
-		"IMAGE_[ALIAS_]{ALIAS}": "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
-		"CUSTOM_TAGS":           "Custom tags to set for the EC2 instance. Comma separated list with format key1=value1,key2=value2.....keyN=valueN",
+		"TAGS":                     "Tags, how to deal with key value?",
+		"DISK_SIZE":                fmt.Sprintf("Disk size in GB (default %d)", defaultEC2DiskSize),
+		"SSH_DIAL_TIMEOUT":         fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultEC2SSHDialTimeout),
+		"UPLOAD_RETRIES":           fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultEC2UploadRetries),
+		"UPLOAD_RETRY_SLEEP":       fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultEC2UploadRetrySleep),
+		"SECURITY_GROUPS":          "Security groups to assign",
+		"PUBLIC_IP":                "boot job instances with a public ip, disable this for NAT (default true)",
+		"PUBLIC_IP_CONNECT":        "connect to the public ip of the instance instead of the internal, only takes effect if PUBLIC_IP is true (default true)",
+		"KEY_NAME":                 "Key name to use for the admin user, this is in case you need login access to instances. The travis user has a auto generated key.",
+		"IMAGE_ALIASES":            "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
+		"IMAGE_DEFAULT":            "default image name to use when none found",
+		"IMAGE_SELECTOR_TYPE":      fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultEC2ImageSelectorType),
+		"IMAGE_SELECTOR_URL":       "URL for image selector API, used only when image selector is \"api\"",
+		"IMAGE_[ALIAS_]{ALIAS}":    "full name for a given alias given via IMAGE_ALIASES, where the alias form in the key is uppercased and normalized by replacing non-alphanumerics with _",
+		"CUSTOM_TAGS":              "Custom tags to set for the EC2 instance. Comma separated list with format key1=value1,key2=value2.....keyN=valueN",
 	}, newEC2Provider)
 }
 
@@ -319,7 +319,7 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	svc := ec2.New(p.awsSession)
 
 	keyPairInput := &ec2.CreateKeyPairInput{
-		KeyName: aws.String(hostName),
+		KeyName: aws.String(fmt.Sprintf("%s-%d", hostName, time.Now().Unix())),
 	}
 
 	keyResp, err := svc.CreateKeyPair(keyPairInput)
