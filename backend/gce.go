@@ -813,13 +813,13 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 					p.machineTypeSelfLinks[key] = mt.SelfLink
 					return nil
 				}
-				return mtErr
+				return nil
 			})
 
-			if err != nil {
-				return errors.Wrap(err, "failed to find machine type self link")
-			}
 		}
+	}
+	if len(p.machineTypeSelfLinks) == 0 {
+		return errors.Wrap(errors.New("couldn't valid any MachineType"), "built machine type self link map is empty")
 	}
 	logger.WithField("map", p.machineTypeSelfLinks).Debug("built machine type self link map")
 
