@@ -812,6 +812,13 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 				if mtErr == nil {
 					p.machineTypeSelfLinks[key] = mt.SelfLink
 					return nil
+				} else {
+					logger.WithFields(logrus.Fields{
+						"err":          mtErr,
+						"zone":         zoneName,
+						"machine_type": machineType,
+						"key":          key,
+					}).Debug("not found")
 				}
 				return nil
 			})
@@ -819,7 +826,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		}
 	}
 	if len(p.machineTypeSelfLinks) == 0 {
-		return errors.Wrap(errors.New("couldn't valid any MachineType"), "built machine type self link map is empty")
+		return errors.Wrap(errors.New("couldn't validate any MachineType"), "built machine type self link map is empty")
 	}
 	logger.WithField("map", p.machineTypeSelfLinks).Debug("built machine type self link map")
 
