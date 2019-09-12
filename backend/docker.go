@@ -46,7 +46,7 @@ var (
 	defaultDockerSSHDialTimeout                = 5 * time.Second
 	defaultInspectInterval                     = 500 * time.Millisecond
 	defaultExecCmd                             = "bash /home/travis/build.sh"
-	defaultTmpfsMap                            = map[string]string{/run": "rw,nosuid,nodev,exec,noatime,size=65536k", "/run/lock": "rw,nosuid,nodev,exec,noatime,size=65536k"}
+	defaultTmpfsMap                            = map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k", "/run/lock": "rw,nosuid,nodev,exec,noatime,size=65536k"}
 	dockerHelp                                 = map[string]string{
 		"ENDPOINT / HOST":     "[REQUIRED] tcp or unix address for connecting to Docker",
 		"CERT_PATH":           "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
