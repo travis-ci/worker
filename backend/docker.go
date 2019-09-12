@@ -433,7 +433,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Resources: dockercontainer.Resources{
 			Memory: int64(p.runMemory),
 		},
-		SecurityOpts: []string{"seccomp=unconfined"},
+		SecurityOpt: []string{"seccomp=unconfined"},
 	}
 
 	useCPUSets := p.runCPUs != uint(0)
