@@ -130,11 +130,11 @@ func asBool(s string) bool {
 	}
 }
 
-func str2map(s string) map[string]string {
+func str2map(s, separators string) map[string]string {
 	ret := map[string]string{}
 
 	f := func(r rune) bool {
-		return r == ' ' || r == ','
+		return strings.ContainsAny(string(r), separators)
 	}
 
 	for _, kv := range strings.FieldsFunc(s, f) {

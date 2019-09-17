@@ -57,7 +57,7 @@ func Test_hostnameFromContext(t *testing.T) {
 
 func Test_str2Map(t *testing.T) {
 	s := "foo:bar,bang:baz Hello:World, extra space:justBecause sillychars:butwhy%3F encodedspace:yup+, colonInside:why%3Anot"
-	m := str2map(s)
+	m := str2map(s, " ,")
 	e := map[string]string{
 		"foo":          "bar",
 		"bang":         "baz",
