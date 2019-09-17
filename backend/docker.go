@@ -46,14 +46,14 @@ var (
 	defaultDockerSSHDialTimeout                = 5 * time.Second
 	defaultInspectInterval                     = 500 * time.Millisecond
 	defaultExecCmd                             = "bash /home/travis/build.sh"
-	defaultTmpfsMap                            = map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k", "/run/lock": "rw,nosuid,nodev,exec,noatime,size=65536k"}
+	defaultTmpfsMap                            = map[string]string{"/run": "rw,nosuid,nodev,exec,noatime,size=65536k"}
 	dockerHelp                                 = map[string]string{
 		"ENDPOINT / HOST":     "[REQUIRED] tcp or unix address for connecting to Docker",
 		"CERT_PATH":           "directory where ca.pem, cert.pem, and key.pem are located (default \"\")",
 		"CMD":                 "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
 		"INSPECT_INTERVAL":    fmt.Sprintf("time to wait between container inspections as duration (default %q)", defaultInspectInterval),
-		"TMPFS_MAP":           fmt.Sprintf("space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
+		"TMPFS_MAP":           fmt.Sprintf("\"+\"-delimited key:value map of tmpfs mounts (example \"/run:rw,exec+/run/lock:rw,exec\", default %q)", defaultTmpfsMap),
 		"MEMORY":              "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
 		"CONTAINER_LABELS":    "comma- or space-delimited key:value pairs of labels to apply to each container (default \"\")",
