@@ -53,7 +53,7 @@ var (
 		"CMD":                 "command (CMD) to run when creating containers (default \"/sbin/init\")",
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", defaultExecCmd),
 		"INSPECT_INTERVAL":    fmt.Sprintf("time to wait between container inspections as duration (default %q)", defaultInspectInterval),
-		"TMPFS_MAP":           fmt.Sprintf("comma- or space-delimited key:value map of tmpfs mounts (default %q)", defaultTmpfsMap),
+		"TMPFS_MAP":           fmt.Sprintf("\"+\"-delimited key:value map of tmpfs mounts (example \"/run:rw,exec+/run/lock:rw,exec\", default %q)", defaultTmpfsMap),
 		"MEMORY":              "memory to allocate to each container (0 disables allocation, default \"4G\")",
 		"SHM":                 "/dev/shm to allocate to each container (0 disables allocation, default \"64MiB\")",
 		"CONTAINER_LABELS":    "comma- or space-delimited key:value pairs of labels to apply to each container (default \"\")",
@@ -65,6 +65,7 @@ var (
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"tag\", \"api\", or \"env\", default %q)", defaultDockerImageSelectorType),
 		"IMAGE_SELECTOR_URL":  "URL for image selector API, used only when image selector is \"api\"",
 		"BINDS":               "Bind mount a volume (example: \"/var/run/docker.sock:/var/run/docker.sock\", default \"\")",
+		"SECURITY_OPT":        "Security configuration (example: \"seccomp=unconfined\") to turn off seccomp confinement for the container",
 	}
 )
 
@@ -90,6 +91,7 @@ type dockerProvider struct {
 	runPrivileged   bool
 	runCmd          []string
 	runBinds        []string
+	setSecurityOpt  []string
 	runMemory       uint64
 	runShm          uint64
 	runCPUs         uint
@@ -187,7 +189,12 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		binds = strings.Split(cfg.Get("BINDS"), " ")
 	}
 
-	tmpFs := str2map(cfg.Get("TMPFS_MAP"))
+	securityOpt := []string{}
+	if cfg.IsSet("SECURITY_OPT") {
+		securityOpt = strings.Split(cfg.Get("SECURITY_OPT"), " ")
+	}
+
+	tmpFs := str2map(cfg.Get("TMPFS_MAP"), " ")
 	if len(tmpFs) == 0 {
 		tmpFs = defaultTmpfsMap
 	}
@@ -238,7 +245,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	containerLabels := map[string]string{}
 	if cfg.IsSet("CONTAINER_LABELS") {
-		containerLabels = str2map(cfg.Get("CONTAINER_LABELS"))
+		containerLabels = str2map(cfg.Get("CONTAINER_LABELS"), " ,")
 	}
 
 	httpProxy := cfg.Get("HTTP_PROXY")
@@ -254,6 +261,7 @@ func newDockerProvider(cfg *config.ProviderConfig) (Provider, error) {
 		runPrivileged:   privileged,
 		runCmd:          cmd,
 		runBinds:        binds,
+		setSecurityOpt:  securityOpt,
 		runMemory:       memory,
 		runShm:          shm,
 		runCPUs:         uint(cpus),
@@ -433,6 +441,10 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		Resources: dockercontainer.Resources{
 			Memory: int64(p.runMemory),
 		},
+	}
+
+	if len(p.setSecurityOpt) > 0 {
+		dockerHostConfig.SecurityOpt = p.setSecurityOpt
 	}
 
 	useCPUSets := p.runCPUs != uint(0)
