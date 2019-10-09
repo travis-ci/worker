@@ -47,7 +47,7 @@ var (
 
 // CLI is the top level of execution for the whole shebang
 type CLI struct {
-	c        *cli.Context
+	c *cli.Context
 
 	bootTime time.Time
 
@@ -681,6 +681,7 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 
 	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
 	jobQueue.DefaultDist = i.Config.DefaultDist
+	jobQueue.DefaultArch = i.Config.DefaultArch
 	jobQueue.DefaultGroup = i.Config.DefaultGroup
 	jobQueue.DefaultOS = i.Config.DefaultOS
 
@@ -704,6 +705,7 @@ func (i *CLI) buildHTTPJobQueue() (*HTTPJobQueue, error) {
 
 	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
 	jobQueue.DefaultDist = i.Config.DefaultDist
+	jobQueue.DefaultArch = i.Config.DefaultArch
 	jobQueue.DefaultGroup = i.Config.DefaultGroup
 	jobQueue.DefaultOS = i.Config.DefaultOS
 
@@ -719,6 +721,7 @@ func (i *CLI) buildFileJobQueue() (*FileJobQueue, error) {
 
 	jobQueue.DefaultLanguage = i.Config.DefaultLanguage
 	jobQueue.DefaultDist = i.Config.DefaultDist
+	jobQueue.DefaultArch = i.Config.DefaultArch
 	jobQueue.DefaultGroup = i.Config.DefaultGroup
 	jobQueue.DefaultOS = i.Config.DefaultOS
 

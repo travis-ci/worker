@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -19,36 +20,44 @@ import (
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 )
 
 var (
-	lxdLimitCPU      = "2"
-	lxdLimitCPUBurst = false
-	lxdLimitDisk     = "10GB"
-	lxdLimitMemory   = "4GB"
-	lxdNetworkStatic = false
-	lxdNetworkDns    = "1.1.1.1,1.0.0.1"
-	lxdLimitNetwork  = "500Mbit"
-	lxdLimitProcess  = "5000"
-	lxdImage         = "ubuntu:18.04"
-	lxdExecCmd       = "bash /home/travis/build.sh"
-	lxdDockerPool    = ""
-	lxdDockerDisk    = "10GB"
-	lxdHelp          = map[string]string{
-		"EXEC_CMD":       fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
-		"MEMORY":         fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
-		"CPUS":           fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
-		"CPUS_BURST":     fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
-		"NETWORK":        fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
-		"POOL":           fmt.Sprintf("storage pool to use for the instances"),
-		"DISK":           fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
-		"PROCESS":        fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
-		"IMAGE":          fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
-		"DOCKER_POOL":    fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
-		"DOCKER_DISK":    fmt.Sprintf("disk size to use for Docker (default %q)", lxdDockerDisk),
-		"NETWORK_STATIC": fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
-		"NETWORK_DNS":    fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
+	lxdLimitCPU                  = "2"
+	lxdLimitCPUBurst             = false
+	lxdLimitDisk                 = "10GB"
+	lxdLimitMemory               = "4GB"
+	lxdNetworkStatic             = false
+	lxdNetworkDns                = "1.1.1.1,1.0.0.1"
+	lxdLimitNetwork              = "500Mbit"
+	lxdLimitProcess              = "5000"
+	lxdImage                     = "ubuntu:18.04"
+	defaultLxdImageSelectorType  = "env"
+	lxdExecCmd                   = "bash /home/travis/build.sh"
+	lxdDockerPool                = ""
+	lxdDockerDisk                = "10GB"
+
+	lxdHelp = map[string]string{
+		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
+		"MEMORY":              fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
+		"CPUS":                fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
+		"CPUS_BURST":          fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
+		"NETWORK":             fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
+		"POOL":                fmt.Sprintf("storage pool to use for the instances"),
+		"DISK":                fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
+		"PROCESS":             fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
+		"IMAGE":               fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
+		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultLxdImageSelectorType),
+		"IMAGE_SELECTOR_URL":  fmt.Sprintf("URL for image selector API, used only when image selector is \"api\""),
+		"DOCKER_POOL":         fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
+		"DOCKER_DISK":         fmt.Sprintf("disk size to use for Docker (default %q)", lxdDockerDisk),
+		"NETWORK_STATIC":      fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
+		"NETWORK_DNS":         fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
+
+
+
 )
 
 func init() {
@@ -79,6 +88,9 @@ type lxdProvider struct {
 
 	image  string
 	runCmd []string
+
+	imageSelectorType string
+	imageSelector     image.Selector
 
 	networkStatic     bool
 	networkGateway    string
@@ -205,6 +217,20 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		image = cfg.Get("IMAGE")
 	}
 
+	imageSelectorType := defaultLxdImageSelectorType
+	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
+		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
+	}
+
+	if imageSelectorType != "env" && imageSelectorType != "api" {
+		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
+	}
+
+	imageSelector, err := buildLxdImageSelector(imageSelectorType, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	dockerDisk := lxdDockerDisk
 	if cfg.IsSet("DOCKER_DISK") {
 		dockerDisk = cfg.Get("DOCKER_DISK")
@@ -243,6 +269,9 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		runCmd: execCmd,
 		image:  image,
+
+		imageSelector:     imageSelector,
+		imageSelectorType: imageSelectorType,
 
 		networkSubnet:  networkSubnet,
 		networkGateway: networkGateway,
@@ -341,6 +370,21 @@ func (p *lxdProvider) releaseAddress(containerName string) {
 	delete(p.networkLeases, containerName)
 }
 
+func buildLxdImageSelector(selectorType string, cfg *config.ProviderConfig) (image.Selector, error) {
+	switch selectorType {
+	case "env":
+		return image.NewEnvSelector(cfg)
+	case "api":
+		baseURL, err := url.Parse(cfg.Get("IMAGE_SELECTOR_URL"))
+		if err != nil {
+			return nil, err
+		}
+		return image.NewAPISelector(baseURL), nil
+	default:
+		return nil, fmt.Errorf("invalid image selector type %q", selectorType)
+	}
+}
+
 func (p *lxdProvider) getImage(imageName string) (lxd.ImageServer, *lxdapi.Image, error) {
 	// Remote images
 	if strings.Contains(imageName, ":") {
@@ -392,10 +436,36 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/lxd_provider")
 	containerName := hostnameFromContext(ctx)
 
+	var (
+		imageName string
+		err       error
+	)
+
+	jobID, _ := context.JobIDFromContext(ctx)
+	repo, _ := context.RepositoryFromContext(ctx)
+
 	// Select the image
-	imageName := p.image
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
+	} else {
+		imageName, err = p.imageSelector.Select(ctx, &image.Params{
+			Infra:    "lxd-" + startAttributes.Arch,
+			Language: startAttributes.Language,
+			OsxImage: startAttributes.OsxImage,
+			Dist:     startAttributes.Dist,
+			Group:    startAttributes.Group,
+			OS:       startAttributes.OS,
+			JobID:    jobID,
+			Repo:     repo,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if imageName == "default" {
+		imageName = p.image
 	}
 
 	imageServer, image, err := p.getImage(imageName)
