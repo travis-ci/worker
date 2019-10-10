@@ -23,7 +23,8 @@ var jsonPayload = `
 		".result": "configured",
 		"global_env": [],
 		"group": "stable",
-		"dist": "precise"
+		"dist": "precise",
+		"arch": "amd64"
 	},
 	"env_vars": [],
 	"job": {
