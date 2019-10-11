@@ -21,7 +21,6 @@ import (
 
 	gocontext "context"
 
-	googlecloudtrace "cloud.google.com/go/trace"
 	"contrib.go.opencensus.io/exporter/stackdriver"
 	"go.opencensus.io/trace"
 	"golang.org/x/oauth2/google"
@@ -39,6 +38,10 @@ import (
 	"github.com/travis-ci/worker/context"
 	travismetrics "github.com/travis-ci/worker/metrics"
 	cli "gopkg.in/urfave/cli.v1"
+)
+
+const (
+	scopeTraceAppend = "https://www.googleapis.com/auth/trace.append"
 )
 
 var (
@@ -349,7 +352,7 @@ func (i *CLI) setupMetrics() {
 
 func loadStackdriverTraceJSON(ctx gocontext.Context, stackdriverTraceAccountJSON string) (*google.Credentials, error) {
 	if stackdriverTraceAccountJSON == "" {
-		creds, err := google.FindDefaultCredentials(ctx, googlecloudtrace.ScopeTraceAppend)
+		creds, err := google.FindDefaultCredentials(ctx, scopeTraceAppend)
 		return creds, errors.Wrap(err, "could not build default client")
 	}
 
@@ -358,7 +361,7 @@ func loadStackdriverTraceJSON(ctx gocontext.Context, stackdriverTraceAccountJSON
 		return nil, err
 	}
 
-	creds, err := google.CredentialsFromJSON(ctx, credBytes, googlecloudtrace.ScopeTraceAppend)
+	creds, err := google.CredentialsFromJSON(ctx, credBytes, scopeTraceAppend)
 	if err != nil {
 		return nil, err
 	}
