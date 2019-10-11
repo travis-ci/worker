@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Fixed
 
+## [6.2.3] - 2019-10-11
+
+### Added
+- backend/lxd: image selector
+
 ## [6.2.2] - 2019-09-30
 
 ### Fixed
