@@ -41,7 +41,7 @@ import (
 )
 
 const (
-	ScopeTraceAppend = "https://www.googleapis.com/auth/trace.append"
+	scopeTraceAppend = "https://www.googleapis.com/auth/trace.append"
 )
 
 var (
@@ -352,7 +352,7 @@ func (i *CLI) setupMetrics() {
 
 func loadStackdriverTraceJSON(ctx gocontext.Context, stackdriverTraceAccountJSON string) (*google.Credentials, error) {
 	if stackdriverTraceAccountJSON == "" {
-		creds, err := google.FindDefaultCredentials(ctx, ScopeTraceAppend)
+		creds, err := google.FindDefaultCredentials(ctx, scopeTraceAppend)
 		return creds, errors.Wrap(err, "could not build default client")
 	}
 
@@ -361,7 +361,7 @@ func loadStackdriverTraceJSON(ctx gocontext.Context, stackdriverTraceAccountJSON
 		return nil, err
 	}
 
-	creds, err := google.CredentialsFromJSON(ctx, credBytes, ScopeTraceAppend)
+	creds, err := google.CredentialsFromJSON(ctx, credBytes, scopeTraceAppend)
 	if err != nil {
 		return nil, err
 	}
