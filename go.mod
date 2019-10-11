@@ -26,7 +26,6 @@ require (
 	github.com/getsentry/raven-go v0.0.0-20180903072508-084a9de9eb03
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
-	github.com/google/martian v2.0.0-beta.2.0.20180813215018-c223d6f7955e+incompatible // indirect
 	github.com/google/uuid v1.1.0 // indirect
 	github.com/googleapis/gax-go v2.0.0+incompatible // indirect
 	github.com/gorilla/mux v0.0.0-20181012153151-deb579d6e030
