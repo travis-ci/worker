@@ -637,7 +637,27 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			return nil, err
 		}
 
-		netplan := fmt.Sprintf(`network:
+		container.Devices["eth0"]["ipv4.address"] = strings.Split(address, "/")[0]
+
+		var fileName, content string
+		switch startAttributes.Dist {
+		case "xenial":
+			fileName = "/etc/network/interfaces"
+			content = fmt.Sprintf(`# The loopback network interface
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+  address %s
+  gateway %s
+  netmask 255.255.255.0
+  dns-nameservers %s
+  mtu %s
+`, address, p.networkGateway, strings.Join(p.networkDNS, ", "), p.networkMTU)
+		default:
+			fileName = "/etc/netplan/50-cloud-init.yaml"
+			content = fmt.Sprintf(`network:
   version: 2
   ethernets:
     eth0:
@@ -648,20 +668,19 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
         addresses: %s
       mtu: %s
 `, address, p.networkGateway, dns, p.networkMTU)
-
-		container.Devices["eth0"]["ipv4.address"] = strings.Split(address, "/")[0]
+		}
 
 		args := lxd.ContainerFileArgs{
 			Type:    "file",
 			Mode:    0644,
 			UID:     0,
 			GID:     0,
-			Content: strings.NewReader(string(netplan)),
+			Content: strings.NewReader(string(content)),
 		}
 
-		err = p.client.CreateContainerFile(containerName, "/etc/netplan/50-cloud-init.yaml", args)
+		err = p.client.CreateContainerFile(containerName, fileName, args)
 		if err != nil {
-			logger.WithField("err", err).Error("failed to upload netplan to container")
+			logger.WithField("err", err).Error("failed to upload netplan/interfaces to container")
 			return nil, err
 		}
 	}
