@@ -31,7 +31,7 @@ type FileJobQueue struct {
 	finishedDir string
 	logDir      string
 
-	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
+	DefaultLanguage, DefaultDist, DefaultArch, DefaultGroup, DefaultOS string
 }
 
 // NewFileJobQueue creates a *FileJobQueue from a base directory and queue name
@@ -142,7 +142,7 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 		buildJob.startAttributes = startAttrs.Config
 		buildJob.startAttributes.VMConfig = buildJob.payload.VMConfig
 		buildJob.startAttributes.VMType = buildJob.payload.VMType
-		buildJob.startAttributes.SetDefaults(f.DefaultLanguage, f.DefaultDist, f.DefaultGroup, f.DefaultOS, VMTypeDefault, VMConfigDefault)
+		buildJob.startAttributes.SetDefaults(f.DefaultLanguage, f.DefaultDist, f.DefaultArch, f.DefaultGroup, f.DefaultOS, VMTypeDefault, VMConfigDefault)
 		buildJob.receivedFile = filepath.Join(f.receivedDir, entry.Name())
 		buildJob.startedFile = filepath.Join(f.startedDir, entry.Name())
 		buildJob.finishedFile = filepath.Join(f.finishedDir, entry.Name())

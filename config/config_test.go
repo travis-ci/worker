@@ -64,6 +64,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		"--build-cache-type=type",
 		"--build-npm-cache=cache",
 		"--default-dist=dist",
+		"--default-arch=arch",
 		"--default-group=group",
 		"--default-language=language",
 		"--default-os=os",
@@ -91,6 +92,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		assert.Equal(t, "type", cfg.BuildCacheType, "BuildCacheType")
 		assert.Equal(t, "cache", cfg.BuildNpmCache, "BuildNpmCache")
 		assert.Equal(t, "dist", cfg.DefaultDist, "DefaultDist")
+		assert.Equal(t, "arch", cfg.DefaultArch, "DefaultArch")
 		assert.Equal(t, "group", cfg.DefaultGroup, "DefaultGroup")
 		assert.Equal(t, "language", cfg.DefaultLanguage, "DefaultLanguage")
 		assert.Equal(t, "os", cfg.DefaultOS, "DefaultOS")

@@ -16,6 +16,7 @@ type StartAttributes struct {
 	Language  string `json:"language"`
 	OsxImage  string `json:"osx_image"`
 	Dist      string `json:"dist"`
+	Arch      string `json:"arch"`
 	Group     string `json:"group"`
 	OS        string `json:"os"`
 	ImageName string `json:"image_name"`
@@ -42,13 +43,17 @@ type StartAttributes struct {
 }
 
 // SetDefaults sets any missing required attributes to the default values provided
-func (sa *StartAttributes) SetDefaults(lang, dist, group, os, vmType string, vmConfig VmConfig) {
+func (sa *StartAttributes) SetDefaults(lang, dist, arch, group, os, vmType string, vmConfig VmConfig) {
 	if sa.Language == "" {
 		sa.Language = lang
 	}
 
 	if sa.Dist == "" {
 		sa.Dist = dist
+	}
+
+	if sa.Arch == "" {
+		sa.Arch = arch
 	}
 
 	if sa.Group == "" {
