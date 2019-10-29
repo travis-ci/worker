@@ -177,6 +177,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 					stateUpdatePool: q.stateUpdatePool,
 					withLogSharding: q.withLogSharding,
 					logWriterChan:   logWriterChannel,
+					delivery:        delivery,
 				}
 				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
@@ -194,9 +195,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 				err = json.Unmarshal(delivery.Body, &startAttrs)
 				if err != nil {
-					logger.WithField("err", err).
-						WithField("json", string(delivery.Body)).
-						Error("start attributes JSON parse error, attempting to ack+drop delivery")
+					logger.WithField("err", err).Error("start attributes JSON parse error, attempting to ack+drop delivery")
 
 					err := delivery.Ack(false)
 					if err != nil {
@@ -227,7 +226,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.Warmer = buildJob.payload.Warmer
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultArch, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 				buildJob.conn = q.conn
-				buildJob.delivery = delivery
 				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
 
 				jobSendBegin := time.Now()
