@@ -202,7 +202,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't ack+drop delivery")
 					}
 
-					err = buildJob.Error(ctx, "An error occurred while parsing the job config.")
+					err = buildJob.Error(ctx, "An error occured while parsing the job config. Please consider enabling the build config validation feature for the repository: https://docs.travis-ci.com/user/build-config-validation")
 					if err != nil {
 						logger.WithField("err", err).Error("couldn't error the job")
 					}
