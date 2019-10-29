@@ -66,9 +66,9 @@ type testEnvCase struct {
 }
 
 func TestNewEnvSelector(t *testing.T) {
-	assert.Panics(t, func() { NewEnvSelector(nil) })
+	assert.Panics(t, func() { _, _ = NewEnvSelector(nil) })
 	assert.NotPanics(t, func() {
-		NewEnvSelector(config.ProviderConfigFromMap(map[string]string{}))
+		_, _ = NewEnvSelector(config.ProviderConfigFromMap(map[string]string{}))
 	})
 }
 

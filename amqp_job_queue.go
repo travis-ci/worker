@@ -25,7 +25,7 @@ type AMQPJobQueue struct {
 
 	stateUpdatePool *tunny.Pool
 
-	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
+	DefaultLanguage, DefaultDist, DefaultArch, DefaultGroup, DefaultOS string
 }
 
 // NewAMQPJobQueue creates a AMQPJobQueue backed by the given AMQP connections and
@@ -215,7 +215,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.VMType = buildJob.payload.VMType
 				buildJob.startAttributes.VMConfig = buildJob.payload.VMConfig
 				buildJob.startAttributes.Warmer = buildJob.payload.Warmer
-				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
+				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultArch, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 				buildJob.conn = q.conn
 				buildJob.logWriterChan = logWriterChannel
 				buildJob.delivery = delivery
@@ -230,7 +230,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 						"send_duration_ms": time.Since(jobSendBegin).Seconds() * 1e3,
 					}).Info("sent job to output channel")
 				case <-ctx.Done():
-					delivery.Nack(false, true)
+					_ = delivery.Nack(false, true)
 					return
 				}
 			}

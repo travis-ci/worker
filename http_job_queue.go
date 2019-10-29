@@ -35,15 +35,7 @@ type HTTPJobQueue struct {
 	refreshClaimInterval time.Duration
 	cb                   *CancellationBroadcaster
 
-	DefaultLanguage, DefaultDist, DefaultGroup, DefaultOS string
-}
-
-type httpFetchJobsRequest struct {
-	Jobs []string `json:"jobs"`
-}
-
-type httpFetchJobsResponse struct {
-	Jobs []string `json:"jobs"`
+	DefaultLanguage, DefaultDist, DefaultArch, DefaultGroup, DefaultOS string
 }
 
 type jobBoardErrorResponse struct {
@@ -484,7 +476,7 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 	buildJob.startAttributes = startAttrs.Data.Config
 	buildJob.startAttributes.VMConfig = buildJob.payload.Data.VMConfig
 	buildJob.startAttributes.VMType = buildJob.payload.Data.VMType
-	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
+	buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultArch, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 
 	return buildJob, readyChan, nil
 }

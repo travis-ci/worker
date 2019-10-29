@@ -271,12 +271,6 @@ func (p *ProcessorPool) makeProcessor(queue JobQueue, logWriterFactory LogWriter
 		})
 }
 
-func (p *ProcessorPool) runProcessor(proc *Processor) {
-	atomic.AddInt32(&p.activeProcessorCount, 1)
-	proc.Run()
-	atomic.AddInt32(&p.activeProcessorCount, -1)
-}
-
 func (p *ProcessorPool) waitForFirstProcessor() {
 	// wait until this channel is closed. the first processor to start running
 	// will close it.

@@ -258,5 +258,5 @@ func (lps *httpLogPartSink) generatePayloadSignature(payload []*httpLogPartEncod
 	}
 
 	sig := sha1.Sum([]byte(strings.Join(authTokens, "")))
-	return fmt.Sprintf("%s", hex.EncodeToString(sig[:]))
+	return hex.EncodeToString(sig[:])
 }

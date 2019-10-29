@@ -1,9 +1,11 @@
 # Worker [![Build Status](https://travis-ci.org/travis-ci/worker.svg?branch=master)](https://travis-ci.org/travis-ci/worker)
 
 Worker is the component of Travis CI that will run a CI job on some form of
-compute instance. It's responsible for getting the bash script from
+compute instance.
+
+It's responsible for getting the bash script from
 [travis-build](https://github.com/travis-ci/travis-build), spinning up the
-compute instance (VM, Docker container, or maybe something different),
+compute instance (VM, Docker container, LXD container, or maybe something different),
 uploading the bash script, running it, and streaming the logs back to
 [travis-logs](https://github.com/travis-ci/travis-logs). It also sends state
 updates to [travis-hub](https://github.com/travis-ci/travis-hub).
@@ -23,6 +25,11 @@ Use the [`./bin/travis-worker-install`](./bin/travis-worker-install) script,
 or take a look at the [packagecloud
 instructions](https://packagecloud.io/travisci/worker/install).
 
+### from snap
+
+Using a linux distribution which supports [Snaps](https://snapcraft.io/store)
+you can run: `sudo snap install travis-worker --edge`
+
 ### from source
 
 1. install [Go](http://golang.org) `v1.7+`
@@ -30,24 +37,12 @@ instructions](https://packagecloud.io/travisci/worker/install).
   * `mkdir -p $GOPATH/src/github.com/travis-ci`
   * `git clone https://github.com/travis-ci/worker $GOPATH/src/github.com/travis-ci/worker`
   * `cd $GOPATH/src/github.com/travis-ci/worker`
-1. install [gvt](https://github.com/FiloSottile/gvt):
-  * `go get -u github.com/FiloSottile/gvt`
 1. install [gometalinter](https://github.com/alecthomas/gometalinter):
   * `go get -u github.com/alecthomas/gometalinter`
   * `gometalinter --install`
 1. install [shellcheck](https://github.com/koalaman/shellcheck)
 1. `make`
 
-
-## Uninstalling
-
-In the case where Travis Worker has been installed via a deb package, there is a
-convenience script available which may be executed like so:
-
-``` bash
-curl -sSL https://raw.githubusercontent.com/travis-ci/worker/master/bin/travis-worker-uninstall |
-  sudo bash -
-```
 
 ## Configuring Travis Worker
 
@@ -217,24 +212,7 @@ worker (for example using `kill -TERM`).
 ## Go dependency management
 
 Travis Worker is built via the standard `go` commands and dependencies managed
-by [`gvt`](https://github.com/FiloSottile/gvt).
-
-To work with the dependencies you need to do the following first
-
-- Have this repository checked out
-- Install `gvt` with `github.com/FiloSottile/gvt`
-
-### Updating existing vendored dependencies
-
-To update an existing vendored dependency, do the following in *this directory*:
-
-- `gvt update name/of/dependency` e.g. `gvt update github.com/pkg/sftp`
-
-### Adding a new dependency
-
-To add a new dependency, do the following:
-
-- `gvt fetch name/of/package` e.g. `gvt fetch github.com/pkg/sftp`
+by using Go Modules.
 
 ## Release process
 

@@ -1,11 +1,8 @@
 FROM golang:1.11 as builder
 MAINTAINER Travis CI GmbH <support+travis-worker-docker-image@travis-ci.org>
 
-RUN go get -u github.com/FiloSottile/gvt
-
 COPY . /go/src/github.com/travis-ci/worker
 WORKDIR /go/src/github.com/travis-ci/worker
-RUN make deps
 ENV CGO_ENABLED 0
 RUN make build
 

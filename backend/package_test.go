@@ -4,22 +4,12 @@ import (
 	gocontext "context"
 	"fmt"
 	"math/rand"
-	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/context"
 )
-
-type recordingHTTPTransport struct {
-	req *http.Request
-}
-
-func (t *recordingHTTPTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	t.req = req
-	return nil, fmt.Errorf("recording HTTP transport impl")
-}
 
 func Test_asBool(t *testing.T) {
 	for s, b := range map[string]bool{
@@ -67,7 +57,7 @@ func Test_hostnameFromContext(t *testing.T) {
 
 func Test_str2Map(t *testing.T) {
 	s := "foo:bar,bang:baz Hello:World, extra space:justBecause sillychars:butwhy%3F encodedspace:yup+, colonInside:why%3Anot"
-	m := str2map(s)
+	m := str2map(s, " ,")
 	e := map[string]string{
 		"foo":          "bar",
 		"bang":         "baz",

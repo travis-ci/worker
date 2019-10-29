@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -57,7 +56,7 @@ func TestProcessor(t *testing.T) {
 		ctx := workerctx.FromProcessor(context.TODO(), uuid.String())
 
 		provider, err := backend.NewBackendProvider("fake", config.ProviderConfigFromMap(map[string]string{
-			"RUN_SLEEP":  fmt.Sprintf("%s", tc.runSleep),
+			"RUN_SLEEP":  tc.runSleep.String(),
 			"LOG_OUTPUT": "hello, world",
 		}))
 		if err != nil {
