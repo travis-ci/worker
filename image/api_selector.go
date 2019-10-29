@@ -237,6 +237,10 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 		addTags("os:"+params.OS, "language_"+params.Language+":true")
 	}
 
+	if hasDist {
+		addTags("dist:" + params.Dist)
+	}
+
 	if hasLang {
 		addDefaultTag("language_" + params.Language + ":true")
 	}
