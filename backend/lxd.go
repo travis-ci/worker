@@ -511,7 +511,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		}
 
 		if p.dockerPool != "" {
-			err := p.client.DeleteStoragePoolVolume(p.dockerPool, "custom", fmt.Sprintf("%s_docker", containerName))
+			err := p.client.DeleteStoragePoolVolume(p.dockerPool, "custom", fmt.Sprintf("%s-docker", containerName))
 			if err != nil {
 				logger.WithField("err", err).Error("couldn't remove the container Docker storage volume")
 				return nil, err
@@ -528,7 +528,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Create the Docker volume
 	if p.dockerPool != "" {
 		vol := lxdapi.StorageVolumesPost{
-			Name: fmt.Sprintf("%s_docker", containerName),
+			Name: fmt.Sprintf("%s-docker", containerName),
 			Type: "custom",
 		}
 		vol.Config = map[string]string{
@@ -608,7 +608,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	if p.dockerPool != "" {
 		container.Devices["docker"] = map[string]string{
 			"type":   "disk",
-			"source": fmt.Sprintf("%s_docker", containerName),
+			"source": fmt.Sprintf("%s-docker", containerName),
 			"pool":   p.dockerPool,
 			"path":   "/var/lib/docker",
 		}
@@ -855,7 +855,7 @@ func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 	}
 
 	if i.provider.dockerPool != "" {
-		err := i.client.DeleteStoragePoolVolume(i.provider.dockerPool, "custom", fmt.Sprintf("%s_docker", container.Name))
+		err := i.client.DeleteStoragePoolVolume(i.provider.dockerPool, "custom", fmt.Sprintf("%s-docker", container.Name))
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't remove the container Docker storage volume")
 			return err
