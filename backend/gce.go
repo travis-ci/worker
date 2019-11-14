@@ -342,10 +342,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	}
 
 	if cfg.IsSet("ZONES") {
-		zoneNames = []string{}
-		for _, zoneName := range strings.Split(cfg.Get("ZONES"), ",") {
-			zoneNames = append(zoneNames, zoneName)
-		}
+		zoneNames = strings.Split(cfg.Get("ZONES"), ",")
 	}
 
 	cfg.Set("ZONES", strings.Join(zoneNames, ","))
