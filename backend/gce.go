@@ -119,7 +119,8 @@ var (
 		"WARMER_URL":            "URL for warmer service",
 		"WARMER_TIMEOUT":        fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
 		"WARMER_SSH_PASSPHRASE": fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
-		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"ZONE":                  fmt.Sprintf("[DEPRECATED] Use ZONES instead. Zone name (default %q)", defaultGCEZone),
+		"ZONES":                 fmt.Sprintf("comma-delimited list of zone names (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
@@ -212,7 +213,7 @@ type gceProvider struct {
 type gceInstanceConfig struct {
 	MachineType        string
 	PremiumMachineType string
-	Zone               *compute.Zone
+	Zones              []*compute.Zone
 	Network            *compute.Network
 	Subnetwork         *compute.Subnetwork
 	AcceleratorConfig  *compute.AcceleratorConfig
@@ -238,7 +239,7 @@ func (gsmw *gceStartMultistepWrapper) Run(multistep.StateBag) multistep.StepActi
 	return gsmw.f(gsmw.c)
 }
 
-func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) { }
+func (gsmw *gceStartMultistepWrapper) Cleanup(multistep.StateBag) {}
 
 type gceStartContext struct {
 	startAttributes      *StartAttributes
@@ -298,7 +299,7 @@ func (gismw *gceInstanceStopMultistepWrapper) Run(multistep.StateBag) multistep.
 	return gismw.f(gismw.c)
 }
 
-func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) { }
+func (gismw *gceInstanceStopMultistepWrapper) Cleanup(multistep.StateBag) {}
 
 func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	var (
@@ -326,18 +327,28 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageProjectID = cfg.Get("IMAGE_PROJECT_ID")
 	}
 
-	zoneName := defaultGCEZone
+	zoneNames := []string{defaultGCEZone}
 	if metadata.OnGCE() {
-		zoneName, err = metadata.Zone()
+		zoneName, err := metadata.Zone()
 		if err != nil {
 			return nil, errors.Wrap(err, "could not get zone from metadata api")
 		}
-	}
-	if cfg.IsSet("ZONE") {
-		zoneName = cfg.Get("ZONE")
+		zoneNames = []string{zoneName}
 	}
 
-	cfg.Set("ZONE", zoneName)
+	// For compatibility, should be removed later
+	if cfg.IsSet("ZONE") {
+		zoneNames = []string{cfg.Get("ZONE")}
+	}
+
+	if cfg.IsSet("ZONES") {
+		zoneNames = []string{}
+		for _, zoneName := range strings.Split(cfg.Get("ZONES"), ",") {
+			zoneNames = append(zoneNames, zoneName)
+		}
+	}
+
+	cfg.Set("ZONES", strings.Join(zoneNames, ","))
 
 	mtName := defaultGCEMachineType
 	if cfg.IsSet("MACHINE_TYPE") {
@@ -616,6 +627,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			AcceleratorConfig:  defaultAcceleratorConfig,
 			MachineType:        mtName,
 			PremiumMachineType: premiumMTName,
+			Zones:              []*compute.Zone{},
 		},
 
 		backoffRetryMax:       backoffRetryMax,
@@ -697,27 +709,31 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
-	logger.WithField("zone", p.cfg.Get("ZONE")).Debug("resolving configured zone")
+	logger.WithField("zone", p.cfg.Get("ZONES")).Debug("resolving configured zone")
 
-	err := p.backoffRetry(ctx, func() error {
-		_ = p.apiRateLimit(ctx)
-		zone, zErr := p.client.Zones.
-			Get(p.projectID, p.cfg.Get("ZONE")).
-			Context(ctx).
-			Do()
-		if zErr == nil {
-			p.ic.Zone = zone
+	for _, zoneName := range strings.Split(p.cfg.Get("ZONES"), ",") {
+		err := p.backoffRetry(ctx, func() error {
+			_ = p.apiRateLimit(ctx)
+
+			zone, zErr := p.client.Zones.
+				Get(p.projectID, zoneName).
+				Context(ctx).
+				Do()
+			if zErr == nil {
+				p.ic.Zones = append(p.ic.Zones, zone)
+			}
+			return zErr
+		})
+
+		if err != nil {
+			return errors.Wrap(err, "failed to resolve configured zone")
 		}
-		return zErr
-	})
 
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve configured zone")
 	}
 
 	logger.WithField("network", p.cfg.Get("NETWORK")).Debug("resolving configured network")
 
-	err = p.backoffRetry(ctx, func() error {
+	err := p.backoffRetry(ctx, func() error {
 		_ = p.apiRateLimit(ctx)
 		nw, nwErr := p.client.Networks.
 			Get(p.projectID, p.cfg.Get("NETWORK")).
@@ -735,11 +751,11 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	region := defaultGCERegion
 	if metadata.OnGCE() {
-		logger.WithField("region", p.ic.Zone.Region).Debug("setting region from zone when on gce")
-		region = p.ic.Zone.Region
+		logger.WithField("region", p.ic.Zones[0].Region).Debug("setting region from zone when on gce")
+		region = p.ic.Zones[0].Region
 	}
 	if p.cfg.IsSet("REGION") {
-		logger.WithField("region", p.ic.Zone.Region).Debug("setting region from config")
+		logger.WithField("region", p.ic.Zones[0].Region).Debug("setting region from config")
 		region = p.cfg.Get("REGION")
 	}
 
@@ -769,7 +785,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		zl, zlErr := p.client.Zones.List(p.projectID).
 			Context(ctx).
 			Filter("status eq UP").
-			Filter(fmt.Sprintf("region eq %s", p.ic.Zone.Region)).Do()
+			Filter(fmt.Sprintf("region eq %s", p.ic.Zones[0].Region)).Do()
 
 		if zlErr != nil {
 			return zlErr
@@ -789,7 +805,12 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	logger.Debug("building machine type self link map")
 
-	for _, zoneName := range append([]string{p.ic.Zone.Name}, p.alternateZones...) {
+	zoneNames := make([]string, len(p.ic.Zones))
+	for i, zone := range p.ic.Zones {
+		zoneNames[i] = zone.Name
+	}
+
+	for _, zoneName := range append(zoneNames, p.alternateZones...) {
 		for _, machineType := range []string{p.ic.MachineType, p.ic.PremiumMachineType} {
 			if zoneName == "" || machineType == "" {
 				continue
@@ -913,7 +934,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 
 	c := &gceStartContext{
 		startAttributes:    startAttributes,
-		zoneName:           p.ic.Zone.Name,
+		zoneName:           p.pickRandomZone(),
 		machineType:        p.ic.MachineType,
 		premiumMachineType: p.ic.PremiumMachineType,
 		progresser:         progresser,
@@ -1612,6 +1633,12 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 	}
 
 	return warmerRes, nil
+}
+
+func (p *gceProvider) pickRandomZone() string {
+	mathrand.Seed(time.Now().Unix())
+
+	return p.ic.Zones[mathrand.Intn(len(p.ic.Zones))].Name
 }
 
 func (p *gceProvider) pickAlternateZone(zoneName string) string {
