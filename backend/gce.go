@@ -706,7 +706,7 @@ func (p *gceProvider) apiRateLimit(ctx gocontext.Context) error {
 func (p *gceProvider) Setup(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
-	logger.WithField("zone", p.cfg.Get("ZONES")).Debug("resolving configured zone")
+	logger.WithField("zones", p.cfg.Get("ZONES")).Debug("resolving configured zone")
 
 	for _, zoneName := range strings.Split(p.cfg.Get("ZONES"), ",") {
 		err := p.backoffRetry(ctx, func() error {
@@ -829,16 +829,26 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 					Do()
 				if mtErr == nil {
 					p.machineTypeSelfLinks[key] = mt.SelfLink
-					return nil
 				}
+
 				return mtErr
 			})
 
 			if err != nil {
-				return errors.Wrap(err, "failed to find machine type self link")
+				logger.WithFields(logrus.Fields{
+					"err":          mtErr,
+					"zone":         zoneName,
+					"machine_type": machineType,
+					"key":          key,
+				}).Warn("failed to find machine type self link")
 			}
 		}
 	}
+
+	if len(p.machineTypeSelfLinks) == 0 {
+		return errors.New("failed to find any machine type self link")
+	}
+
 	logger.WithField("map", p.machineTypeSelfLinks).Debug("built machine type self link map")
 
 	return err
