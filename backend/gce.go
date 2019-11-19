@@ -836,7 +836,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 			if err != nil {
 				logger.WithFields(logrus.Fields{
-					"err":          mtErr,
+					"err":          err,
 					"zone":         zoneName,
 					"machine_type": machineType,
 					"key":          key,
