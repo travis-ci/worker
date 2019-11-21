@@ -338,7 +338,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	// For compatibility, should be removed later
 	if cfg.IsSet("ZONE") {
-		zoneNames = []string{cfg.Get("ZONE")}
+		zoneNames = strings.Split(cfg.Get("ZONE"), ",")
 	}
 
 	if cfg.IsSet("ZONES") {
