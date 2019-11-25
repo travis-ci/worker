@@ -17,6 +17,7 @@ import (
 	lxdconfig "github.com/lxc/lxd/lxc/config"
 	lxdapi "github.com/lxc/lxd/shared/api"
 
+	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
@@ -24,19 +25,20 @@ import (
 )
 
 var (
-	lxdLimitCPU                  = "2"
-	lxdLimitCPUBurst             = false
-	lxdLimitDisk                 = "10GB"
-	lxdLimitMemory               = "4GB"
-	lxdNetworkStatic             = false
-	lxdNetworkDns                = "1.1.1.1,1.0.0.1"
-	lxdLimitNetwork              = "500Mbit"
-	lxdLimitProcess              = "5000"
-	lxdImage                     = "ubuntu:18.04"
-	defaultLxdImageSelectorType  = "env"
-	lxdExecCmd                   = "bash /home/travis/build.sh"
-	lxdDockerPool                = ""
-	lxdDockerDisk                = "10GB"
+	lxdLimitCPU                 = "2"
+	lxdLimitCPUBurst            = false
+	lxdLimitDisk                = "10GB"
+	lxdLimitMemory              = "4GB"
+	lxdNetworkStatic            = false
+	lxdNetworkDns               = "1.1.1.1,1.0.0.1"
+	lxdLimitNetwork             = "500Mbit"
+	lxdLimitProcess             = "5000"
+	lxdImage                    = "ubuntu:18.04"
+	defaultLxdImageSelectorType = "env"
+	lxdExecCmd                  = "bash /home/travis/build.sh"
+	lxdDockerPool               = ""
+	lxdDockerDisk               = "10GB"
+	lxdBackoffRetry             = time.Minute
 
 	lxdHelp = map[string]string{
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
@@ -55,9 +57,6 @@ var (
 		"NETWORK_STATIC":      fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":         fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
-
-
-
 )
 
 func init() {
@@ -842,13 +841,15 @@ func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 		}
 	}
 
-	op, err := i.client.DeleteContainer(container.Name)
-	if err != nil {
-		logger.WithField("err", err).Error("couldn't remove preexisting container before create")
-		return err
-	}
+	err = backoffRetry(ctx, func() error {
+		op, err := i.client.DeleteContainer(container.Name)
+		if err != nil {
+			return err
+		}
 
-	err = op.Wait()
+		return op.Wait()
+	})
+
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't remove preexisting container before create")
 		return err
@@ -972,4 +973,12 @@ func (i *lxdInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	<-args.DataDone
 
 	return &RunResult{Completed: true, ExitCode: int32(opAPI.Metadata["return"].(float64))}, nil
+}
+
+func backoffRetry(ctx gocontext.Context, fn func() error) error {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 1 * time.Second
+	b.MaxElapsedTime = lxdBackoffRetry
+
+	return backoff.Retry(fn, backoff.WithContext(b, ctx))
 }
