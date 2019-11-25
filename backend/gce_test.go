@@ -74,6 +74,7 @@ func gceTestSetup(t *testing.T, cfg *config.ProviderConfig, resp *gceTestRespons
 			"PROJECT_ID":      "project_id",
 			"IMAGE_ALIASES":   "foo",
 			"IMAGE_ALIAS_FOO": "default",
+			"REGION":          "us-central1",
 		})
 	}
 
