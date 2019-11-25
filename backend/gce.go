@@ -107,19 +107,20 @@ var (
 		"RATE_LIMIT_DYNAMIC_CONFIG":     "get max-calls and duration dynamically through redis (default false)",
 		"RATE_LIMIT_DYNAMIC_CONFIG_TTL": fmt.Sprintf("time to cache dynamic config for (default %v)", defaultGCERateLimitDynamicConfigTTL),
 
-		"BACKOFF_RETRY_MAX":     "Maximum allowed duration of generic exponential backoff retries (default 1m)",
-		"REGION":                fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
-		"SKIP_STOP_POLL":        "immediately return after issuing first instance deletion request (default false)",
-		"SSH_DIAL_TIMEOUT":      fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
-		"STOP_POLL_SLEEP":       fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
-		"STOP_PRE_POLL_SLEEP":   fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
-		"SUBNETWORK":            fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
-		"UPLOAD_RETRIES":        fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
-		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
-		"WARMER_URL":            "URL for warmer service",
-		"WARMER_TIMEOUT":        fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
-		"WARMER_SSH_PASSPHRASE": fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
-		"ZONE":                  fmt.Sprintf("zone name (default %q)", defaultGCEZone),
+		"BACKOFF_RETRY_MAX":       "Maximum allowed duration of generic exponential backoff retries (default 1m)",
+		"REGION":                  fmt.Sprintf("only takes effect when SUBNETWORK is defined; region in which to deploy (default %v)", defaultGCERegion),
+		"SKIP_STOP_POLL":          "immediately return after issuing first instance deletion request (default false)",
+		"SSH_DIAL_TIMEOUT":        fmt.Sprintf("connection timeout for ssh connections (default %v)", defaultGCESSHDialTimeout),
+		"STARTUP_SCRIPT_ADDITION": "Additional commands to run during VM startup",
+		"STOP_POLL_SLEEP":         fmt.Sprintf("sleep interval between polling server for instance stop status (default %v)", defaultGCEStopPollSleep),
+		"STOP_PRE_POLL_SLEEP":     fmt.Sprintf("time to sleep prior to polling server for instance stop status (default %v)", defaultGCEStopPrePollSleep),
+		"SUBNETWORK":              fmt.Sprintf("the subnetwork in which to launch build instances (gce internal default \"%v\")", defaultGCESubnet),
+		"UPLOAD_RETRIES":          fmt.Sprintf("number of times to attempt to upload script before erroring (default %d)", defaultGCEUploadRetries),
+		"UPLOAD_RETRY_SLEEP":      fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
+		"WARMER_URL":              "URL for warmer service",
+		"WARMER_TIMEOUT":          fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
+		"WARMER_SSH_PASSPHRASE":   fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
+		"ZONE":                    fmt.Sprintf("zone name (default %q)", defaultGCEZone),
 	}
 
 	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
@@ -131,6 +132,7 @@ cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
 chown -R travis:travis ~travis/.ssh/
+{{ .StartupScriptAddition }}
 `))
 
 	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
@@ -146,11 +148,12 @@ Set-LocalUser -Name travis -Password $pw
 )
 
 type gceStartupScriptData struct {
-	AutoImplode        bool
-	HardTimeoutMinutes int64
-	SSHPubKey          string
-	HardTimeoutSeconds int64
-	WindowsPassword    string
+	AutoImplode           bool
+	HardTimeoutMinutes    int64
+	SSHPubKey             string
+	HardTimeoutSeconds 	  int64
+	WindowsPassword       string
+	StartupScriptAddition string
 }
 
 func init() {
@@ -210,23 +213,24 @@ type gceProvider struct {
 }
 
 type gceInstanceConfig struct {
-	MachineType        string
-	PremiumMachineType string
-	Zone               *compute.Zone
-	Network            *compute.Network
-	Subnetwork         *compute.Subnetwork
-	AcceleratorConfig  *compute.AcceleratorConfig
-	DiskSize           int64
-	SSHPubKey          string
-	AutoImplode        bool
-	HardTimeoutMinutes int64
-	StopPollSleep      time.Duration
-	StopPrePollSleep   time.Duration
-	SkipStopPoll       bool
-	Preemptible        bool
-	PublicIP           bool
-	PublicIPConnect    bool
-	Site               string
+	MachineType           string
+	PremiumMachineType    string
+	Zone                  *compute.Zone
+	Network               *compute.Network
+	Subnetwork            *compute.Subnetwork
+	AcceleratorConfig     *compute.AcceleratorConfig
+	DiskSize              int64
+	SSHPubKey             string
+	AutoImplode           bool
+	HardTimeoutMinutes    int64
+	StartupScriptAddition string
+	StopPollSleep         time.Duration
+	StopPrePollSleep      time.Duration
+	SkipStopPoll          bool
+	Preemptible           bool
+	PublicIP              bool
+	PublicIPConnect       bool
+	Site                  string
 }
 
 type gceStartMultistepWrapper struct {
@@ -467,6 +471,11 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		autoImplode = ai
 	}
 
+	startupScriptAddition := ""
+	if cfg.IsSet("STARTUP_SCRIPT_ADDITION") {
+		startupScriptAddition = cfg.Get("STARTUP_SCRIPT_ADDITION")
+	}
+
 	imageSelectorType := defaultGCEImageSelectorType
 	if cfg.IsSet("IMAGE_SELECTOR_TYPE") {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
@@ -603,19 +612,20 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		sshDialTimeout:       sshDialTimeout,
 
 		ic: &gceInstanceConfig{
-			Preemptible:        preemptible,
-			PublicIP:           publicIP,
-			PublicIPConnect:    publicIPConnect,
-			DiskSize:           diskSize,
-			SSHPubKey:          string(pubKey),
-			AutoImplode:        autoImplode,
-			StopPollSleep:      stopPollSleep,
-			StopPrePollSleep:   stopPrePollSleep,
-			SkipStopPoll:       skipStopPoll,
-			Site:               site,
-			AcceleratorConfig:  defaultAcceleratorConfig,
-			MachineType:        mtName,
-			PremiumMachineType: premiumMTName,
+			Preemptible:           preemptible,
+			PublicIP:              publicIP,
+			PublicIPConnect:       publicIPConnect,
+			DiskSize:              diskSize,
+			SSHPubKey:             string(pubKey),
+			AutoImplode:           autoImplode,
+			StartupScriptAddition: startupScriptAddition,
+			StopPollSleep:         stopPollSleep,
+			StopPrePollSleep:      stopPrePollSleep,
+			SkipStopPoll:          skipStopPoll,
+			Site:                  site,
+			AcceleratorConfig:     defaultAcceleratorConfig,
+			MachineType:           mtName,
+			PremiumMachineType:    premiumMTName,
 		},
 
 		backoffRetryMax:       backoffRetryMax,
@@ -1003,10 +1013,11 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 
 	scriptBuf := bytes.Buffer{}
 	scriptData := gceStartupScriptData{
-		AutoImplode:        p.ic.AutoImplode,
-		HardTimeoutMinutes: int64(c.startAttributes.HardTimeout.Minutes()) + 10,
-		SSHPubKey:          p.ic.SSHPubKey,
-		HardTimeoutSeconds: int64(c.startAttributes.HardTimeout.Seconds()) + 600,
+		AutoImplode:           p.ic.AutoImplode,
+		HardTimeoutMinutes:    int64(c.startAttributes.HardTimeout.Minutes()) + 10,
+		SSHPubKey:             p.ic.SSHPubKey,
+		HardTimeoutSeconds:    int64(c.startAttributes.HardTimeout.Seconds()) + 600,
+		StartupScriptAddition: p.ic.StartupScriptAddition,
 	}
 
 	var err error
