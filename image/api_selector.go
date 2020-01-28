@@ -14,6 +14,8 @@ import (
 
 	"github.com/cenk/backoff"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"github.com/travis-ci/worker/context"
 	workererrors "github.com/travis-ci/worker/errors"
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/trace"
@@ -127,6 +129,12 @@ func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string,
 		Transport: &ochttp.Transport{},
 	}
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "api_selector")
+	logger.WithFields(logrus.Fields{
+		"url":  urlString,
+		"body": bodyLines,
+	}).Debug("selecting image from job-board")
+
 	err := backoff.Retry(func() error {
 		req, err := http.NewRequest("POST", urlString, strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
 		if err != nil {
@@ -145,6 +153,8 @@ func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string,
 		if err != nil {
 			return err
 		}
+
+		logger.WithField("body", string(responseBody)).Debug("received response from job-board")
 
 		if resp.StatusCode != 200 {
 			return errors.Errorf("expected 200 status code from job-board, received status=%d body=%q",
