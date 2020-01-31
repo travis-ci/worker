@@ -374,7 +374,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 	}
 
-	diskSizeWindows := defaultGCEDiskSize
+	diskSizeWindows := diskSize
 	if cfg.IsSet("DISK_SIZE_WINDOWS") {
 		ds, err := strconv.ParseInt(cfg.Get("DISK_SIZE_WINDOWS"), 10, 64)
 		if err == nil {
