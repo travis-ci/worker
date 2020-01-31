@@ -84,6 +84,7 @@ var (
 		"DEFAULT_LANGUAGE":       fmt.Sprintf("default language to use when looking up image (default %q)", defaultGCELanguage),
 		"DETERMINISTIC_HOSTNAME": "assign deterministic hostname based on repo slug and job id (default false)",
 		"DISK_SIZE":              fmt.Sprintf("disk size in GB (default %v)", defaultGCEDiskSize),
+		"DISK_SIZE_WINDOWS":      "disk size in GB for windows OS (defaults to DISK_SIZE value)",
 		"GPU_COUNT":              fmt.Sprintf("number of GPUs to use (default %v)", defaultGCEGpuCount),
 		"GPU_TYPE":               fmt.Sprintf("type of GPU to use (default %q)", defaultGCEGpuType),
 		"IMAGE_ALIASES":          "comma-delimited strings used as stable names for images, used only when image selector type is \"env\"",
@@ -218,6 +219,7 @@ type gceInstanceConfig struct {
 	Subnetwork         *compute.Subnetwork
 	AcceleratorConfig  *compute.AcceleratorConfig
 	DiskSize           int64
+	DiskSizeWindows    int64
 	SSHPubKey          string
 	AutoImplode        bool
 	HardTimeoutMinutes int64
@@ -369,6 +371,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		ds, err := strconv.ParseInt(cfg.Get("DISK_SIZE"), 10, 64)
 		if err == nil {
 			diskSize = ds
+		}
+	}
+
+	diskSizeWindows := diskSize
+	if cfg.IsSet("DISK_SIZE_WINDOWS") {
+		ds, err := strconv.ParseInt(cfg.Get("DISK_SIZE_WINDOWS"), 10, 64)
+		if err == nil {
+			diskSizeWindows = ds
 		}
 	}
 
@@ -615,6 +625,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			PublicIP:           publicIP,
 			PublicIPConnect:    publicIPConnect,
 			DiskSize:           diskSize,
+			DiskSizeWindows:    diskSizeWindows,
 			SSHPubKey:          string(pubKey),
 			AutoImplode:        autoImplode,
 			StopPollSleep:      stopPollSleep,
@@ -1463,10 +1474,15 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		Zone:        c.zoneName,
 	}
 
+	diskSize := p.ic.DiskSize
+	if c.startAttributes.OS == "windows" {
+		diskSize = p.ic.DiskSizeWindows
+	}
+
 	diskInitParams := &compute.AttachedDiskInitializeParams{
 		SourceImage: c.image.SelfLink,
 		DiskType:    gcePdSSDForZone(c.zoneName),
-		DiskSizeGb:  p.ic.DiskSize,
+		DiskSizeGb:  diskSize,
 	}
 
 	inst.Disks = []*compute.AttachedDisk{
