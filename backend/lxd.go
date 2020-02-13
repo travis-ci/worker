@@ -24,19 +24,19 @@ import (
 )
 
 var (
-	lxdLimitCPU                  = "2"
-	lxdLimitCPUBurst             = false
-	lxdLimitDisk                 = "10GB"
-	lxdLimitMemory               = "4GB"
-	lxdNetworkStatic             = false
-	lxdNetworkDns                = "1.1.1.1,1.0.0.1"
-	lxdLimitNetwork              = "500Mbit"
-	lxdLimitProcess              = "5000"
-	lxdImage                     = "ubuntu:18.04"
-	defaultLxdImageSelectorType  = "env"
-	lxdExecCmd                   = "bash /home/travis/build.sh"
-	lxdDockerPool                = ""
-	lxdDockerDisk                = "10GB"
+	lxdLimitCPU                 = "2"
+	lxdLimitCPUBurst            = false
+	lxdLimitDisk                = "10GB"
+	lxdLimitMemory              = "4GB"
+	lxdNetworkStatic            = false
+	lxdNetworkDns               = "1.1.1.1,1.0.0.1"
+	lxdLimitNetwork             = "500Mbit"
+	lxdLimitProcess             = "5000"
+	lxdImage                    = "ubuntu:18.04"
+	defaultLxdImageSelectorType = "env"
+	lxdExecCmd                  = "bash /home/travis/build.sh"
+	lxdDockerPool               = ""
+	lxdDockerDisk               = "10GB"
 
 	lxdHelp = map[string]string{
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
@@ -55,9 +55,6 @@ var (
 		"NETWORK_STATIC":      fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":         fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
-
-
-
 )
 
 func init() {
@@ -458,6 +455,15 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			JobID:    jobID,
 			Repo:     repo,
 		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		apiSelector, ok := p.imageSelector.(*image.APISelector)
+		if ok {
+			err = image.NewManager(ctx, apiSelector).Load(imageName)
+		}
 
 		if err != nil {
 			return nil, err

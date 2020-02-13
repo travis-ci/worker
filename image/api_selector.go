@@ -66,6 +66,51 @@ func (as *APISelector) Select(ctx gocontext.Context, params *Params) (string, er
 	return "default", nil
 }
 
+func (as *APISelector) SelectAll(ctx gocontext.Context, infra string, tags []string) ([]*apiSelectorImageRef, error) {
+	u := *as.baseURL
+	u.Path = "/images"
+
+	req, err := http.NewRequest("GET", u.String(), nil)
+
+	q := req.URL.Query()
+	q.Add("infra", infra)
+	q.Add("tags", strings.Join(tags, ","))
+	req.URL.RawQuery = q.Encode()
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "api_selector")
+	logger.WithFields(logrus.Fields{
+		"url": req.URL.String(),
+	}).Debug("selecting images from job-board")
+
+	client := &http.Client{
+		Transport: &ochttp.Transport{},
+	}
+
+	// TODO
+	// err := backoff.Retry(func() error {}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		// TODO: log
+		return []*apiSelectorImageRef{}, err
+	}
+
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		// TODO: log
+		return []*apiSelectorImageRef{}, err
+	}
+
+	imageResp := &apiSelectorImageResponse{
+		Data: []*apiSelectorImageRef{},
+	}
+
+	err = json.Unmarshal(responseBody, imageResp)
+
+	return imageResp.Data, err
+}
+
 func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags []*tagSet) (string, error) {
 	ctx, span := trace.StartSpan(ctx, "APISelector.querywithTags")
 	defer span.End()
@@ -299,4 +344,14 @@ type apiSelectorImageRef struct {
 	IsDefault bool              `json:"is_default"`
 	CreatedAt string            `json:"created_at"`
 	UpdatedAt string            `json:"updated_at"`
+}
+
+func (a *apiSelectorImageRef) Group() string {
+	for k, v := range a.Tags {
+		if k == "group" {
+			return v
+		}
+	}
+
+	return ""
 }

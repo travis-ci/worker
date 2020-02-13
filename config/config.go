@@ -246,6 +246,9 @@ var (
 		NewConfigDef("list-backend-providers", &cli.BoolFlag{
 			Usage: "echo backend provider list and exit",
 		}),
+		NewConfigDef("update-images", &cli.BoolFlag{
+			Usage: "update images for LXD backend from job-board",
+		}),
 		NewConfigDef("debug", &cli.BoolFlag{
 			Usage: "set log level to debug",
 		}),
