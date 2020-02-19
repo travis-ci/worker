@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -48,18 +49,20 @@ var (
 	tags = []string{"os:linux", "group:stable", "group:edge", "group:dev"}
 )
 
-func NewManager(ctx gocontext.Context, selector *APISelector) *Manager {
+func NewManager(ctx gocontext.Context, selector *APISelector, imagesBaseURL *url.URL) *Manager {
 	logger := context.LoggerFromContext(ctx).WithField("self", "image_manager")
 
 	return &Manager{
-		selector: selector,
-		logger:   logger,
+		selector:      selector,
+		logger:        logger,
+		imagesBaseURL: imagesBaseURL,
 	}
 }
 
 type Manager struct {
-	selector *APISelector
-	logger   *logrus.Entry
+	selector      *APISelector
+	logger        *logrus.Entry
+	imagesBaseURL *url.URL
 }
 
 func (m *Manager) Load(imageName string) error {
@@ -239,6 +242,7 @@ func (m *Manager) exec(command string, args ...string) ([]byte, error) {
 
 // TODO: image URL should be returned by job-board
 func (m *Manager) imageUrl(name string) string {
-	// return "https://golang.org/lib/godoc/images/go-logo-blue.svg"
-	return fmt.Sprintf("https://travis-lxc-images.s3.us-east-2.amazonaws.com/%s/%s.tar.gz", arch, name)
+	u := *m.imagesBaseURL
+	u.Path = fmt.Sprintf("/%s/%s.tar.gz", arch, name)
+	return u.String()
 }

@@ -122,8 +122,13 @@ func (i *CLI) Setup() (bool, error) {
 			return false, err
 		}
 
+		imageBaseURL, err := url.Parse(i.Config.ProviderConfig.Get("IMAGE_BASE_URL"))
+		if err != nil {
+			return false, err
+		}
+
 		selector := image.NewAPISelector(baseURL)
-		manager := image.NewManager(ctx, selector)
+		manager := image.NewManager(ctx, selector, imageBaseURL)
 		err = manager.Update(ctx)
 		if err != nil {
 			logger.WithField("err", err).Error("failed to update images")

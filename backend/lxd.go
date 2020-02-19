@@ -34,6 +34,7 @@ var (
 	lxdLimitNetwork             = "500Mbit"
 	lxdLimitProcess             = "5000"
 	lxdImage                    = "ubuntu:18.04"
+	lxdImageAutoDownload        = false
 	defaultLxdImageSelectorType = "env"
 	lxdExecCmd                  = "bash /home/travis/build.sh"
 	lxdExecUID                  = int64(1000)
@@ -51,6 +52,8 @@ var (
 		"DISK":                fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
 		"PROCESS":             fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
 		"IMAGE":               fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
+		"IMAGE_AUTO_DOWNLOAD": fmt.Sprintf("automatically try to download lxc image if it's missing (default %v)", lxdImageAutoDownload),
+		"IMAGE_BASE_URL":      fmt.Sprintf("base URL for images auto download"),
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultLxdImageSelectorType),
 		"IMAGE_SELECTOR_URL":  fmt.Sprintf("URL for image selector API, used only when image selector is \"api\""),
 		"DOCKER_POOL":         fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
@@ -92,6 +95,8 @@ type lxdProvider struct {
 
 	imageSelectorType string
 	imageSelector     image.Selector
+	imageAutoDownload bool
+	imageBaseURL      *url.URL
 
 	networkStatic     bool
 	networkGateway    string
@@ -233,6 +238,21 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
 	}
 
+	imageAutoDownload := lxdImageAutoDownload
+	if cfg.IsSet("IMAGE_AUTO_DOWNLOAD") {
+		imageAutoDownload = cfg.Get("IMAGE_AUTO_DOWNLOAD") == "true"
+	}
+
+	var imageBaseURL *url.URL
+	if imageAutoDownload {
+		u, err := url.Parse(cfg.Get("IMAGE_BASE_URL"))
+		if err != nil {
+			return nil, err
+		}
+
+		imageBaseURL = u
+	}
+
 	if imageSelectorType != "env" && imageSelectorType != "api" {
 		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
 	}
@@ -284,6 +304,8 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 		imageSelector:     imageSelector,
 		imageSelectorType: imageSelectorType,
+		imageAutoDownload: imageAutoDownload,
+		imageBaseURL:      imageBaseURL,
 
 		networkSubnet:  networkSubnet,
 		networkGateway: networkGateway,
@@ -475,9 +497,11 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			return nil, err
 		}
 
-		apiSelector, ok := p.imageSelector.(*image.APISelector)
-		if ok {
-			err = image.NewManager(ctx, apiSelector).Load(imageName)
+		if p.imageAutoDownload {
+			apiSelector, ok := p.imageSelector.(*image.APISelector)
+			if ok {
+				err = image.NewManager(ctx, apiSelector, p.imageBaseURL).Load(imageName)
+			}
 		}
 
 		if err != nil {
