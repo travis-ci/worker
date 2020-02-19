@@ -91,15 +91,13 @@ func (as *APISelector) SelectAll(ctx gocontext.Context, infra string, tags []str
 	resp, err := client.Do(req)
 
 	if err != nil {
-		// TODO: log
-		return []*apiSelectorImageRef{}, err
+		return []*apiSelectorImageRef{}, fmt.Errorf("failed to select images: %w", err)
 	}
 
 	defer resp.Body.Close()
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		// TODO: log
-		return []*apiSelectorImageRef{}, err
+		return []*apiSelectorImageRef{}, fmt.Errorf("failed to read job board response: %w", err)
 	}
 
 	imageResp := &apiSelectorImageResponse{
