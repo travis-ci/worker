@@ -134,7 +134,7 @@ func (m *Manager) Update(ctx gocontext.Context) error {
 		return err
 	}
 
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 	for _, img := range images {
 		img := img
 
@@ -200,7 +200,7 @@ func (m *Manager) initialize(imageName, path string) error {
 	_, err = m.exec("lxc", "init", imageName, containerName)
 	if err != nil {
 		// Try to delete container even if init failed
-		m.exec("lxc", "delete", "-f", containerName)
+		_ = m.exec("lxc", "delete", "-f", containerName)
 		return err
 	}
 

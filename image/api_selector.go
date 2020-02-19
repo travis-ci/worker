@@ -71,6 +71,9 @@ func (as *APISelector) SelectAll(ctx gocontext.Context, infra string, tags []str
 	u.Path = "/images"
 
 	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return []*apiSelectorImageRef{}, fmt.Errorf("failed to select images: %w", err)
+	}
 
 	q := req.URL.Query()
 	q.Add("infra", infra)
