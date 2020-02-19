@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -35,11 +36,13 @@ var (
 	lxdImage                    = "ubuntu:18.04"
 	defaultLxdImageSelectorType = "env"
 	lxdExecCmd                  = "bash /home/travis/build.sh"
+	lxdExecUID                  = int64(1000)
 	lxdDockerPool               = ""
 	lxdDockerDisk               = "10GB"
 
 	lxdHelp = map[string]string{
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
+		"EXEC_UID":            fmt.Sprintf("UID of travis user (default %s)", lxdExecUID),
 		"MEMORY":              fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
 		"CPUS":                fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
 		"CPUS_BURST":          fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
@@ -85,6 +88,7 @@ type lxdProvider struct {
 
 	image  string
 	runCmd []string
+	runUID int64
 
 	imageSelectorType string
 	imageSelector     image.Selector
@@ -114,6 +118,16 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	execCmd := strings.Split(lxdExecCmd, " ")
 	if cfg.IsSet("EXEC_CMD") {
 		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
+	}
+
+	execUID := lxdExecUID
+	if cfg.IsSet("EXEC_UID") {
+		execUIDStr := cfg.Get("EXEC_UID")
+		var err error
+		execUID, err = strconv.ParseInt(execUIDStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	limitMemory := lxdLimitMemory
@@ -265,6 +279,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		limitProcess:  limitProcess,
 
 		runCmd: execCmd,
+		runUID: execUID,
 		image:  image,
 
 		imageSelector:     imageSelector,
@@ -770,6 +785,7 @@ iface eth0 inet static
 		client:           p.client,
 		provider:         p,
 		container:        container,
+		runUID:           p.runUID,
 		startBooting:     time.Now(),
 		imageFingerprint: image.Fingerprint,
 	}, nil
@@ -794,6 +810,7 @@ type lxdInstance struct {
 	client           lxd.ContainerServer
 	provider         *lxdProvider
 	container        *lxdapi.Container
+	runUID           int64
 	startBooting     time.Time
 	imageFingerprint string
 }
@@ -881,8 +898,8 @@ func (i *lxdInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	args := lxd.ContainerFileArgs{
 		Type:    "file",
 		Mode:    0700,
-		UID:     1000,
-		GID:     1000,
+		UID:     i.runUID,
+		GID:     i.runUID,
 		Content: strings.NewReader(string(script)),
 	}
 

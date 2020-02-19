@@ -45,7 +45,7 @@ var (
 	arch  = runtime.GOARCH
 	infra = fmt.Sprintf("lxd-%s", arch)
 
-	tags = []string{"os:linux", "group:stable", "group:edge", "group:edge"}
+	tags = []string{"os:linux", "group:stable", "group:edge", "group:dev"}
 )
 
 func NewManager(ctx gocontext.Context, selector *APISelector) *Manager {
@@ -187,18 +187,21 @@ func (m *Manager) download(imageURL string) (string, error) {
 	return tmpfile.Name(), nil
 }
 
-func (m *Manager) initialize(name, path string) error {
-	_, err := m.exec("lxc", "image", "import", path, fmt.Sprintf("--alias=%s", name))
+func (m *Manager) initialize(imageName, path string) error {
+	_, err := m.exec("lxc", "image", "import", path, fmt.Sprintf("--alias=%s", imageName))
 	if err != nil {
 		return err
 	}
 
-	_, err = m.exec("lxc", "init", name)
+	containerName := fmt.Sprintf("%s-warmup", imageName)
+	_, err = m.exec("lxc", "init", imageName, containerName)
 	if err != nil {
+		// Try to delete container even if init failed
+		m.exec("lxc", "delete", "-f", containerName)
 		return err
 	}
 
-	_, err = m.exec("lxc", "delete", "-f", name)
+	_, err = m.exec("lxc", "delete", "-f", containerName)
 
 	return err
 }
