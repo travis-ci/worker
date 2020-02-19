@@ -198,13 +198,7 @@ func (m *Manager) initialize(imageName, path string) error {
 
 	containerName := fmt.Sprintf("%s-warmup", imageName)
 	_, err = m.exec("lxc", "init", imageName, containerName)
-	if err != nil {
-		// Try to delete container even if init failed
-		_ = m.exec("lxc", "delete", "-f", containerName)
-		return err
-	}
-
-	_, err = m.exec("lxc", "delete", "-f", containerName)
+	defer m.exec("lxc", "delete", "-f", containerName)
 
 	return err
 }
