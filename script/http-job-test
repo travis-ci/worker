@@ -44,7 +44,7 @@ main() {
     -v "${JOB_BOARD_CLONE_DIR}:/usr/src/app" \
     -v "${TOP:=$(git rev-parse --show-toplevel)}:/worker" \
     -w /usr/src/app \
-    "ruby:2.4" \
+    "ruby:2.5" \
     /worker/script/http-job-test-internal
 }
 

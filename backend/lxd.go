@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -24,22 +25,25 @@ import (
 )
 
 var (
-	lxdLimitCPU                  = "2"
-	lxdLimitCPUBurst             = false
-	lxdLimitDisk                 = "10GB"
-	lxdLimitMemory               = "4GB"
-	lxdNetworkStatic             = false
-	lxdNetworkDns                = "1.1.1.1,1.0.0.1"
-	lxdLimitNetwork              = "500Mbit"
-	lxdLimitProcess              = "5000"
-	lxdImage                     = "ubuntu:18.04"
-	defaultLxdImageSelectorType  = "env"
-	lxdExecCmd                   = "bash /home/travis/build.sh"
-	lxdDockerPool                = ""
-	lxdDockerDisk                = "10GB"
+	lxdLimitCPU                 = "2"
+	lxdLimitCPUBurst            = false
+	lxdLimitDisk                = "10GB"
+	lxdLimitMemory              = "4GB"
+	lxdNetworkStatic            = false
+	lxdNetworkDns               = "1.1.1.1,1.0.0.1"
+	lxdLimitNetwork             = "500Mbit"
+	lxdLimitProcess             = "5000"
+	lxdImage                    = "ubuntu:18.04"
+	lxdImageAutoDownload        = false
+	defaultLxdImageSelectorType = "env"
+	lxdExecCmd                  = "bash /home/travis/build.sh"
+	lxdExecUID                  = int64(1000)
+	lxdDockerPool               = ""
+	lxdDockerDisk               = "10GB"
 
 	lxdHelp = map[string]string{
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
+		"EXEC_UID":            fmt.Sprintf("UID of travis user (default %d)", lxdExecUID),
 		"MEMORY":              fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
 		"CPUS":                fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
 		"CPUS_BURST":          fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
@@ -48,6 +52,8 @@ var (
 		"DISK":                fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
 		"PROCESS":             fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
 		"IMAGE":               fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
+		"IMAGE_AUTO_DOWNLOAD": fmt.Sprintf("automatically try to download lxc image if it's missing (default %v)", lxdImageAutoDownload),
+		"IMAGE_BASE_URL":      fmt.Sprintf("base URL for images auto download"),
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultLxdImageSelectorType),
 		"IMAGE_SELECTOR_URL":  fmt.Sprintf("URL for image selector API, used only when image selector is \"api\""),
 		"DOCKER_POOL":         fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
@@ -55,9 +61,6 @@ var (
 		"NETWORK_STATIC":      fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":         fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 	}
-
-
-
 )
 
 func init() {
@@ -88,9 +91,12 @@ type lxdProvider struct {
 
 	image  string
 	runCmd []string
+	runUID int64
 
 	imageSelectorType string
 	imageSelector     image.Selector
+	imageAutoDownload bool
+	imageBaseURL      *url.URL
 
 	networkStatic     bool
 	networkGateway    string
@@ -117,6 +123,16 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	execCmd := strings.Split(lxdExecCmd, " ")
 	if cfg.IsSet("EXEC_CMD") {
 		execCmd = strings.Split(cfg.Get("EXEC_CMD"), " ")
+	}
+
+	execUID := lxdExecUID
+	if cfg.IsSet("EXEC_UID") {
+		execUIDStr := cfg.Get("EXEC_UID")
+		var err error
+		execUID, err = strconv.ParseInt(execUIDStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	limitMemory := lxdLimitMemory
@@ -222,6 +238,21 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageSelectorType = cfg.Get("IMAGE_SELECTOR_TYPE")
 	}
 
+	imageAutoDownload := lxdImageAutoDownload
+	if cfg.IsSet("IMAGE_AUTO_DOWNLOAD") {
+		imageAutoDownload = cfg.Get("IMAGE_AUTO_DOWNLOAD") == "true"
+	}
+
+	var imageBaseURL *url.URL
+	if imageAutoDownload {
+		u, err := url.Parse(cfg.Get("IMAGE_BASE_URL"))
+		if err != nil {
+			return nil, err
+		}
+
+		imageBaseURL = u
+	}
+
 	if imageSelectorType != "env" && imageSelectorType != "api" {
 		return nil, fmt.Errorf("invalid image selector type %q", imageSelectorType)
 	}
@@ -268,10 +299,13 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		limitProcess:  limitProcess,
 
 		runCmd: execCmd,
+		runUID: execUID,
 		image:  image,
 
 		imageSelector:     imageSelector,
 		imageSelectorType: imageSelectorType,
+		imageAutoDownload: imageAutoDownload,
+		imageBaseURL:      imageBaseURL,
 
 		networkSubnet:  networkSubnet,
 		networkGateway: networkGateway,
@@ -458,6 +492,17 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			JobID:    jobID,
 			Repo:     repo,
 		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if p.imageAutoDownload {
+			apiSelector, ok := p.imageSelector.(*image.APISelector)
+			if ok {
+				err = image.NewManager(ctx, apiSelector, p.imageBaseURL).Load(imageName)
+			}
+		}
 
 		if err != nil {
 			return nil, err
@@ -764,6 +809,7 @@ iface eth0 inet static
 		client:           p.client,
 		provider:         p,
 		container:        container,
+		runUID:           p.runUID,
 		startBooting:     time.Now(),
 		imageFingerprint: image.Fingerprint,
 	}, nil
@@ -788,6 +834,7 @@ type lxdInstance struct {
 	client           lxd.ContainerServer
 	provider         *lxdProvider
 	container        *lxdapi.Container
+	runUID           int64
 	startBooting     time.Time
 	imageFingerprint string
 }
@@ -875,8 +922,8 @@ func (i *lxdInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	args := lxd.ContainerFileArgs{
 		Type:    "file",
 		Mode:    0700,
-		UID:     1000,
-		GID:     1000,
+		UID:     i.runUID,
+		GID:     i.runUID,
 		Content: strings.NewReader(string(script)),
 	}
 
