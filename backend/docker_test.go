@@ -86,7 +86,7 @@ func TestDockerProvider_Start(t *testing.T) {
 			{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-amethyst:packer-1504724461","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
 		]`
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/images/json", dockerAPIVersion), func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, imagesList)
+				fmt.Fprint(w, imagesList)
 			})
 
 			containerCreated := fmt.Sprintf(`{"Id": "%s","Name": "%s","Warnings":null}`, containerID, containerName)
@@ -98,7 +98,7 @@ func TestDockerProvider_Start(t *testing.T) {
 					t.Errorf("Error decoding docker client container create request: %s", err.Error())
 					w.WriteHeader(400)
 				} else {
-					fmt.Fprintf(w, containerCreated)
+					fmt.Fprint(w, containerCreated)
 				}
 			})
 
@@ -176,7 +176,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 			{"Created":1423150056,"Id":"570c738990e5859f3b78036f0fb6822fc54dc252f83cdd6d2127e3c1717bbbfd","Labels":null,"ParentId":"2b412eda4314d97ff8a90d2f8c1b65677399723d6ecc4950f4e1247a5c2193c0","RepoDigests":[],"RepoTags":["travisci/ci-amethyst:packer-1504724461","travis:java","travis:jvm","travis:clojure","travis:groovy","travis:scala"],"Size":1092914295,"VirtualSize":5172004865}
 	]`
 			dockerTestMux.HandleFunc(fmt.Sprintf("/v%s/images/json", dockerAPIVersion), func(w http.ResponseWriter, r *http.Request) {
-				fmt.Fprintf(w, imagesList)
+				fmt.Fprint(w, imagesList)
 			})
 
 			containerCreated := fmt.Sprintf(`{"Id": "%s","Warnings":null}`, containerID)
@@ -191,7 +191,7 @@ func TestDockerProvider_Start_WithPrivileged(t *testing.T) {
 					t.Errorf("Expected Privileged flag to be true, instead false")
 					w.WriteHeader(400)
 				} else {
-					fmt.Fprintf(w, containerCreated)
+					fmt.Fprint(w, containerCreated)
 				}
 			})
 
