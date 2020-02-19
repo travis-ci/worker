@@ -198,7 +198,15 @@ func (m *Manager) initialize(imageName, path string) error {
 
 	containerName := fmt.Sprintf("%s-warmup", imageName)
 	_, err = m.exec("lxc", "init", imageName, containerName)
-	defer m.exec("lxc", "delete", "-f", containerName)
+	defer func() {
+		_, err := m.exec("lxc", "delete", "-f", containerName)
+		if err != nil {
+			m.logger.WithFields(logrus.Fields{
+				"error":          err,
+				"container_name": containerName,
+			}).Error("failed to delete container")
+		}
+	}()
 
 	return err
 }
