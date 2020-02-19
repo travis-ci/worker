@@ -23,7 +23,7 @@ parts:
       - gcc
     plugin: go
     build-snaps:
-      - go/1.12/stable
+      - go/1.13/stable
     go-packages:
       - github.com/travis-ci/worker/cmd/travis-worker
     go-importpath: github.com/travis-ci/worker
