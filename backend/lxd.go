@@ -42,7 +42,7 @@ var (
 
 	lxdHelp = map[string]string{
 		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
-		"EXEC_UID":            fmt.Sprintf("UID of travis user (default %s)", lxdExecUID),
+		"EXEC_UID":            fmt.Sprintf("UID of travis user (default %d)", lxdExecUID),
 		"MEMORY":              fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
 		"CPUS":                fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
 		"CPUS_BURST":          fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
