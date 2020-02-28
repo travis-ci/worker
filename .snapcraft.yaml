@@ -22,11 +22,12 @@ parts:
     build-packages:
       - gcc
     plugin: go
-    build-snaps:
-      - go/1.13/stable
+    build-environment:
+      - GO111MODULE: "off"
     go-packages:
       - github.com/travis-ci/worker/cmd/travis-worker
     go-importpath: github.com/travis-ci/worker
+    go-channel: 1.13/stable
     prime:
       - bin/travis-worker
     override-build: |-
