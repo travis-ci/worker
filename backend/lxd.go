@@ -500,7 +500,8 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		if p.imageAutoDownload {
 			apiSelector, ok := p.imageSelector.(*image.APISelector)
 			if ok {
-				imgManager, err := image.NewManager(ctx, apiSelector, p.imageBaseURL)
+				var imgManager *image.Manager
+				imgManager, err = image.NewManager(ctx, apiSelector, p.imageBaseURL)
 				if err != nil {
 					return nil, err
 				}
