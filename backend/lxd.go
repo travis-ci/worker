@@ -705,7 +705,7 @@ iface eth0 inet static
   netmask 255.255.255.0
   dns-nameservers %s
   mtu %s
-`, address, p.networkGateway, strings.Join(p.networkDNS, ", "), p.networkMTU)
+`, address, p.networkGateway, strings.Join(p.networkDNS, " "), p.networkMTU)
 		default:
 			fileName = "/etc/netplan/50-cloud-init.yaml"
 			content = fmt.Sprintf(`network:
