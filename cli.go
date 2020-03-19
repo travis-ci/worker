@@ -128,7 +128,12 @@ func (i *CLI) Setup() (bool, error) {
 		}
 
 		selector := image.NewAPISelector(baseURL)
-		manager := image.NewManager(ctx, selector, imageBaseURL)
+		manager, err := image.NewManager(ctx, selector, imageBaseURL)
+		if err != nil {
+			logger.WithField("err", err).Error("failed to init image manager")
+			return false, err
+		}
+
 		err = manager.Update(ctx)
 		if err != nil {
 			logger.WithField("err", err).Error("failed to update images")

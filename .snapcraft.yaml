@@ -15,6 +15,12 @@ apps:
       - lxd
       - network
       - network-bind
+  travis-worker:
+    command: bin/travis-worker
+    plugs:
+      - lxd
+      - network
+      - network-bind
 
 parts:
   travis-worker:
@@ -22,8 +28,6 @@ parts:
     build-packages:
       - gcc
     plugin: go
-    build-environment:
-      - GO111MODULE: "off"
     go-packages:
       - github.com/travis-ci/worker/cmd/travis-worker
     go-importpath: github.com/travis-ci/worker

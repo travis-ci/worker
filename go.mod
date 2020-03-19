@@ -51,7 +51,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
 	github.com/pborman/uuid v1.2.0
-	github.com/pkg/errors v0.0.0-20181008045315-2233dee583dc
+	github.com/pkg/errors v0.8.1
 	github.com/pkg/sftp v1.8.3
 	github.com/rackspace/gophercloud v0.0.0-20161013232434-e00690e87603
 	github.com/rcrowley/go-metrics v0.0.0-20180503174638-e2704e165165
@@ -61,8 +61,8 @@ require (
 	github.com/streadway/amqp v0.0.0-20180806233856-70e15c650864
 	github.com/stretchr/testify v1.2.2
 	go.opencensus.io v0.15.0
-	golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
-	golang.org/x/net v0.0.0-20190311183353-d8887717615a
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/net v0.0.0-20191014212845-da9a3fd4c582
 	golang.org/x/oauth2 v0.0.0-20181003184128-c57b0facaced
 	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
 	golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2 // indirect

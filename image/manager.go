@@ -1,65 +1,44 @@
 package image
 
 import (
-	"bytes"
 	gocontext "context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
 	"net/url"
-	"os"
-	"os/exec"
 	"runtime"
-	"time"
 
+	lxd "github.com/lxc/lxd/client"
+	lxdapi "github.com/lxc/lxd/shared/api"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
 	"golang.org/x/sync/errgroup"
 )
 
-type LXCImage struct {
-	Aliases []struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	} `json:"aliases"`
-	Size         int       `json:"size"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	AutoUpdate   bool      `json:"auto_update"`
-	LastUsedAt   time.Time `json:"last_used_at"`
-	Cached       bool      `json:"cached"`
-	UploadedAt   time.Time `json:"uploaded_at"`
-	Fingerprint  string    `json:"fingerprint"`
-	Architecture string    `json:"architecture"`
-	Public       bool      `json:"public"`
-	Properties   struct {
-		Description string `json:"description"`
-	} `json:"properties"`
-	Filename  string    `json:"filename"`
-	Profiles  []string  `json:"profiles"`
-	CreatedAt time.Time `json:"created_at"`
-	Type      string    `json:"type"`
-}
-
 var (
 	arch  = runtime.GOARCH
 	infra = fmt.Sprintf("lxd-%s", arch)
 
-	tags = []string{"os:linux", "group:stable", "group:edge", "group:dev"}
+	tags   = []string{"os:linux"}
+	groups = []string{"group:stable", "group:edge", "group:dev"}
 )
 
-func NewManager(ctx gocontext.Context, selector *APISelector, imagesBaseURL *url.URL) *Manager {
+func NewManager(ctx gocontext.Context, selector *APISelector, imagesBaseURL *url.URL) (*Manager, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "image_manager")
 
+	client, err := lxd.ConnectLXDUnix("", nil)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Manager{
+		client:        client,
 		selector:      selector,
 		logger:        logger,
 		imagesBaseURL: imagesBaseURL,
-	}
+	}, nil
 }
 
 type Manager struct {
+	client        lxd.ContainerServer
 	selector      *APISelector
 	logger        *logrus.Entry
 	imagesBaseURL *url.URL
@@ -79,35 +58,18 @@ func (m *Manager) Load(imageName string) error {
 		return nil
 	}
 
-	url := m.imageUrl(imageName)
+	imageURL := m.imageUrl(imageName)
 
 	m.logger.WithFields(logrus.Fields{
 		"image_name": imageName,
-		"url":        url,
-	}).Info("downloading image")
+		"image_url":  imageURL,
+	}).Info("importing image")
 
-	imgPath, err := m.download(url)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(imgPath)
-
-	m.logger.WithFields(logrus.Fields{
-		"image_name": imageName,
-		"image_path": imgPath,
-	}).Info("initializing image")
-
-	return m.initialize(imageName, imgPath)
+	return m.importImage(imageName, imageURL)
 }
 
 func (m *Manager) Exists(imageName string) (bool, error) {
-	result, err := m.exec("lxc", "image", "list", "--format=json")
-	if err != nil {
-		return false, err
-	}
-
-	images := []LXCImage{}
-	err = json.Unmarshal(result, &images)
+	images, err := m.client.GetImages()
 	if err != nil {
 		return false, err
 	}
@@ -129,9 +91,15 @@ func (m *Manager) Update(ctx gocontext.Context) error {
 		"infra": infra,
 	}).Info("updating lxc images")
 
-	images, err := m.selector.SelectAll(ctx, infra, tags)
-	if err != nil {
-		return err
+	images := []*apiSelectorImageRef{}
+
+	for _, group := range groups {
+		imagesGroup, err := m.selector.SelectAll(ctx, infra, append(tags, group))
+		if err != nil {
+			return err
+		}
+
+		images = append(images, imagesGroup...)
 	}
 
 	g, _ := errgroup.WithContext(ctx)
@@ -146,6 +114,7 @@ func (m *Manager) Update(ctx gocontext.Context) error {
 			}).Info("updating image")
 
 			return m.Load(img.Name)
+
 		})
 
 	}
@@ -159,92 +128,81 @@ func (m *Manager) Cleanup() error {
 	return nil
 }
 
-func (m *Manager) download(imageURL string) (string, error) {
-	tmpfile, err := ioutil.TempFile("", "")
+func (m *Manager) importImage(imageName, imgURL string) error {
+	op, err := m.client.CreateImage(
+		lxdapi.ImagesPost{
+			Filename: imageName,
+			Source: &lxdapi.ImagesPostSource{
+				Type: "url",
+				URL:  imgURL,
+			},
+			Aliases: []lxdapi.ImageAlias{
+				lxdapi.ImageAlias{Name: imageName},
+			},
+		}, nil,
+	)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	// TODO: Should we limit max size of the image?
-	resp, err := http.Get(imageURL)
+	err = op.Wait()
 	if err != nil {
-		return "", fmt.Errorf("failed to download image: %w", err)
+		return err
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code: %s", resp.Status)
-	}
-
-	_, err = io.Copy(tmpfile, resp.Body)
+	alias, _, err := m.client.GetImageAlias(imageName)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	err = tmpfile.Close()
-	if err != nil {
-		return "", err
-	}
-
-	return tmpfile.Name(), nil
-}
-
-func (m *Manager) initialize(imageName, path string) error {
-	_, err := m.exec("lxc", "image", "import", path, fmt.Sprintf("--alias=%s", imageName))
+	image, _, err := m.client.GetImage(alias.Target)
 	if err != nil {
 		return err
 	}
 
 	containerName := fmt.Sprintf("%s-warmup", imageName)
-	_, err = m.exec("lxc", "init", imageName, containerName)
+
+	rop, err := m.client.CreateContainerFromImage(
+		m.client,
+		*image,
+		lxdapi.ContainersPost{
+			Name: containerName,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = rop.Wait()
+	if err != nil {
+		return err
+	}
+
 	defer func() {
-		_, err := m.exec("lxc", "delete", "-f", containerName)
+		op, err := m.client.DeleteContainer(containerName)
 		if err != nil {
 			m.logger.WithFields(logrus.Fields{
 				"error":          err,
 				"container_name": containerName,
 			}).Error("failed to delete container")
+			return
+		}
+
+		err = op.Wait()
+		if err != nil {
+			m.logger.WithFields(logrus.Fields{
+				"error":          err,
+				"container_name": containerName,
+			}).Error("failed to delete container")
+			return
 		}
 	}()
 
 	return err
 }
 
-func (m *Manager) exec(command string, args ...string) ([]byte, error) {
-	var out bytes.Buffer
-
-	cmd := exec.Command(command, args...)
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-
-	defer out.Reset()
-
-	m.logger.WithFields(logrus.Fields{
-		"command": command,
-		"args":    args,
-	}).Debug("running lxc command")
-
-	err := cmd.Run()
-	if err != nil {
-		m.logger.WithFields(logrus.Fields{
-			"command": command,
-			"args":    args,
-			"error":   err,
-			"output":  out.String(),
-		}).Error("lxc command failed")
-	} else {
-		m.logger.WithFields(logrus.Fields{
-			"output": out.String(),
-		}).Debug("lxc command succeeded")
-	}
-
-	return out.Bytes(), err
-}
-
-// TODO: image URL should be returned by job-board
 func (m *Manager) imageUrl(name string) string {
 	u := *m.imagesBaseURL
-	u.Path = fmt.Sprintf("/%s/%s.tar.gz", arch, name)
+	u.Path = fmt.Sprintf("/images/%s", name)
 	return u.String()
 }

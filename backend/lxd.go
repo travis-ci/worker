@@ -500,7 +500,13 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		if p.imageAutoDownload {
 			apiSelector, ok := p.imageSelector.(*image.APISelector)
 			if ok {
-				err = image.NewManager(ctx, apiSelector, p.imageBaseURL).Load(imageName)
+				var imgManager *image.Manager
+				imgManager, err = image.NewManager(ctx, apiSelector, p.imageBaseURL)
+				if err != nil {
+					return nil, err
+				}
+
+				err = imgManager.Load(imageName)
 			}
 		}
 
@@ -699,7 +705,7 @@ iface eth0 inet static
   netmask 255.255.255.0
   dns-nameservers %s
   mtu %s
-`, address, p.networkGateway, strings.Join(p.networkDNS, ", "), p.networkMTU)
+`, address, p.networkGateway, strings.Join(p.networkDNS, " "), p.networkMTU)
 		default:
 			fileName = "/etc/netplan/50-cloud-init.yaml"
 			content = fmt.Sprintf(`network:
