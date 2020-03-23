@@ -21,7 +21,7 @@ var (
 	groups = []string{"group:stable", "group:edge", "group:dev"}
 )
 
-func NewManager(ctx gocontext.Context, selector *APISelector, imagesBaseURL *url.URL) (*Manager, error) {
+func NewManager(ctx gocontext.Context, selector *APISelector, imagesServerURL *url.URL) (*Manager, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "image_manager")
 
 	client, err := lxd.ConnectLXDUnix("", nil)
@@ -30,18 +30,18 @@ func NewManager(ctx gocontext.Context, selector *APISelector, imagesBaseURL *url
 	}
 
 	return &Manager{
-		client:        client,
-		selector:      selector,
-		logger:        logger,
-		imagesBaseURL: imagesBaseURL,
+		client:          client,
+		selector:        selector,
+		logger:          logger,
+		imagesServerURL: imagesServerURL,
 	}, nil
 }
 
 type Manager struct {
-	client        lxd.ContainerServer
-	selector      *APISelector
-	logger        *logrus.Entry
-	imagesBaseURL *url.URL
+	client          lxd.ContainerServer
+	selector        *APISelector
+	logger          *logrus.Entry
+	imagesServerURL *url.URL
 }
 
 func (m *Manager) Load(imageName string) error {
@@ -202,7 +202,7 @@ func (m *Manager) importImage(imageName, imgURL string) error {
 }
 
 func (m *Manager) imageUrl(name string) string {
-	u := *m.imagesBaseURL
-	u.Path = fmt.Sprintf("/images/%s", name)
+	u := *m.imagesServerURL
+	u.Path = fmt.Sprintf("/images/travis/%s", name)
 	return u.String()
 }
