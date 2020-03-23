@@ -53,7 +53,7 @@ var (
 		"PROCESS":             fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
 		"IMAGE":               fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
 		"IMAGE_AUTO_DOWNLOAD": fmt.Sprintf("automatically try to download lxc image if it's missing (default %v)", lxdImageAutoDownload),
-		"IMAGE_BASE_URL":      fmt.Sprintf("base URL for images auto download"),
+		"IMAGE_SERVER_URL":    fmt.Sprintf("base URL for images auto download"),
 		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultLxdImageSelectorType),
 		"IMAGE_SELECTOR_URL":  fmt.Sprintf("URL for image selector API, used only when image selector is \"api\""),
 		"DOCKER_POOL":         fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
@@ -245,7 +245,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	var imageBaseURL *url.URL
 	if imageAutoDownload {
-		u, err := url.Parse(cfg.Get("IMAGE_BASE_URL"))
+		u, err := url.Parse(cfg.Get("IMAGE_SERVER_URL"))
 		if err != nil {
 			return nil, err
 		}

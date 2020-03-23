@@ -122,7 +122,7 @@ func (i *CLI) Setup() (bool, error) {
 			return false, err
 		}
 
-		imageBaseURL, err := url.Parse(i.Config.ProviderConfig.Get("IMAGE_BASE_URL"))
+		imageBaseURL, err := url.Parse(i.Config.ProviderConfig.Get("IMAGE_SERVER_URL"))
 		if err != nil {
 			return false, err
 		}
