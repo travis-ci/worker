@@ -40,26 +40,28 @@ var (
 	lxdExecUID                  = int64(1000)
 	lxdDockerPool               = ""
 	lxdDockerDisk               = "10GB"
+	lxdNetworkIPv6Filtering     = "true"
 
 	lxdHelp = map[string]string{
-		"EXEC_CMD":            fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
-		"EXEC_UID":            fmt.Sprintf("UID of travis user (default %d)", lxdExecUID),
-		"MEMORY":              fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
-		"CPUS":                fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
-		"CPUS_BURST":          fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
-		"NETWORK":             fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
-		"POOL":                fmt.Sprintf("storage pool to use for the instances"),
-		"DISK":                fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
-		"PROCESS":             fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
-		"IMAGE":               fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
-		"IMAGE_AUTO_DOWNLOAD": fmt.Sprintf("automatically try to download lxc image if it's missing (default %v)", lxdImageAutoDownload),
-		"IMAGE_SERVER_URL":    fmt.Sprintf("base URL for images auto download"),
-		"IMAGE_SELECTOR_TYPE": fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultLxdImageSelectorType),
-		"IMAGE_SELECTOR_URL":  fmt.Sprintf("URL for image selector API, used only when image selector is \"api\""),
-		"DOCKER_POOL":         fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
-		"DOCKER_DISK":         fmt.Sprintf("disk size to use for Docker (default %q)", lxdDockerDisk),
-		"NETWORK_STATIC":      fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
-		"NETWORK_DNS":         fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
+		"EXEC_CMD":               fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
+		"EXEC_UID":               fmt.Sprintf("UID of travis user (default %d)", lxdExecUID),
+		"MEMORY":                 fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
+		"CPUS":                   fmt.Sprintf("CPU count to allocate to each container (default %q)", lxdLimitCPU),
+		"CPUS_BURST":             fmt.Sprintf("allow using all CPUs when not in use (default %v)", lxdLimitCPUBurst),
+		"NETWORK":                fmt.Sprintf("network bandwidth (default %q)", lxdLimitNetwork),
+		"POOL":                   fmt.Sprintf("storage pool to use for the instances"),
+		"DISK":                   fmt.Sprintf("disk size (default %q)", lxdLimitDisk),
+		"PROCESS":                fmt.Sprintf("maximum number of processes (default %q)", lxdLimitProcess),
+		"IMAGE":                  fmt.Sprintf("image to use for the containers (default %q)", lxdImage),
+		"IMAGE_AUTO_DOWNLOAD":    fmt.Sprintf("automatically try to download lxc image if it's missing (default %v)", lxdImageAutoDownload),
+		"IMAGE_SERVER_URL":       fmt.Sprintf("base URL for images auto download"),
+		"IMAGE_SELECTOR_TYPE":    fmt.Sprintf("image selector type (\"env\" or \"api\", default %q)", defaultLxdImageSelectorType),
+		"IMAGE_SELECTOR_URL":     fmt.Sprintf("URL for image selector API, used only when image selector is \"api\""),
+		"DOCKER_POOL":            fmt.Sprintf("storage pool to use for Docker (default %q)", lxdDockerPool),
+		"DOCKER_DISK":            fmt.Sprintf("disk size to use for Docker (default %q)", lxdDockerDisk),
+		"NETWORK_STATIC":         fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
+		"NETWORK_DNS":            fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
+		"NETWORK_IPV6_FILTERING": fmt.Sprintf("prevent the containers from spoofing another's IPv6 address (default %s)", lxdNetworkIPv6Filtering),
 	}
 )
 
@@ -98,13 +100,14 @@ type lxdProvider struct {
 	imageAutoDownload bool
 	imageBaseURL      *url.URL
 
-	networkStatic     bool
-	networkGateway    string
-	networkSubnet     *net.IPNet
-	networkMTU        string
-	networkDNS        []string
-	networkLeases     map[string]string
-	networkLeasesLock sync.Mutex
+	networkStatic        bool
+	networkGateway       string
+	networkSubnet        *net.IPNet
+	networkMTU           string
+	networkDNS           []string
+	networkLeases        map[string]string
+	networkLeasesLock    sync.Mutex
+	networkIPv6Filtering string
 
 	pool        string
 	dockerCache string
@@ -153,6 +156,11 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	limitNetwork := lxdLimitNetwork
 	if cfg.IsSet("NETWORK") {
 		limitNetwork = cfg.Get("NETWORK")
+	}
+
+	networkIPv6Filtering := lxdNetworkIPv6Filtering
+	if cfg.IsSet("NETWORK_IPV6_FILTERING") {
+		networkIPv6Filtering = cfg.Get("NETWORK_IPV6_FILTERING")
 	}
 
 	networkStatic := lxdNetworkStatic
@@ -307,12 +315,13 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		imageAutoDownload: imageAutoDownload,
 		imageBaseURL:      imageBaseURL,
 
-		networkSubnet:  networkSubnet,
-		networkGateway: networkGateway,
-		networkStatic:  networkStatic,
-		networkMTU:     networkMTU,
-		networkDNS:     networkDNS,
-		networkLeases:  networkLeases,
+		networkSubnet:        networkSubnet,
+		networkGateway:       networkGateway,
+		networkStatic:        networkStatic,
+		networkMTU:           networkMTU,
+		networkDNS:           networkDNS,
+		networkLeases:        networkLeases,
+		networkIPv6Filtering: networkIPv6Filtering,
 
 		pool:        pool,
 		dockerCache: dockerCache,
@@ -653,7 +662,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	container.Devices["eth0"]["limits.max"] = p.limitNetwork
 	container.Devices["eth0"]["security.mac_filtering"] = "true"
 	container.Devices["eth0"]["security.ipv4_filtering"] = "true"
-	container.Devices["eth0"]["security.ipv6_filtering"] = "true"
+	container.Devices["eth0"]["security.ipv6_filtering"] = p.networkIPv6Filtering
 
 	// Docker storage
 	if p.dockerPool != "" {
