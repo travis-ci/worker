@@ -41,6 +41,7 @@ var (
 	lxdDockerPool               = ""
 	lxdDockerDisk               = "10GB"
 	lxdNetworkIPv6Filtering     = "true"
+	lxdSecurityPrivileged		= "false"
 
 	lxdHelp = map[string]string{
 		"EXEC_CMD":               fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
@@ -62,6 +63,7 @@ var (
 		"NETWORK_STATIC":         fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":            fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 		"NETWORK_IPV6_FILTERING": fmt.Sprintf("prevent the containers from spoofing another's IPv6 address (default %s)", lxdNetworkIPv6Filtering),
+		"SECURITY_PRIVILEGED":	  fmt.Sprintf("request a container to run without a UID mapping when set true (default %s)", lxdSecurityPrivileged),
 	}
 )
 
@@ -108,6 +110,7 @@ type lxdProvider struct {
 	networkLeases        map[string]string
 	networkLeasesLock    sync.Mutex
 	networkIPv6Filtering string
+	securityPrivileged	 string
 
 	pool        string
 	dockerCache string
@@ -161,6 +164,11 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	networkIPv6Filtering := lxdNetworkIPv6Filtering
 	if cfg.IsSet("NETWORK_IPV6_FILTERING") {
 		networkIPv6Filtering = cfg.Get("NETWORK_IPV6_FILTERING")
+	}
+
+	securityPrivileged := lxdSecurityPrivileged
+	if cfg.IsSet("SECURITY_PRIVILEGED") {
+		securityPrivileged = cfg.Get("SECURITY_PRIVILEGED")
 	}
 
 	networkStatic := lxdNetworkStatic
@@ -322,6 +330,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		networkDNS:           networkDNS,
 		networkLeases:        networkLeases,
 		networkIPv6Filtering: networkIPv6Filtering,
+		securityPrivileged:	  securityPrivileged,
 
 		pool:        pool,
 		dockerCache: dockerCache,
@@ -608,6 +617,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		"security.idmap.isolated":              "true",
 		"security.idmap.size":                  "100000",
 		"security.nesting":                     "true",
+		"security.privileged":                  p.securityPrivileged,
 		"security.syscalls.intercept.mknod":    "true",
 		"security.syscalls.intercept.setxattr": "true",
 		"limits.memory":                        p.limitMemory,
