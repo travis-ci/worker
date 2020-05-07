@@ -25,6 +25,7 @@ import (
 )
 
 var (
+	lxdArchOverride             = ""
 	lxdLimitCPU                 = "2"
 	lxdLimitCPUBurst            = false
 	lxdLimitDisk                = "10GB"
@@ -41,9 +42,10 @@ var (
 	lxdDockerPool               = ""
 	lxdDockerDisk               = "10GB"
 	lxdNetworkIPv6Filtering     = "true"
-	lxdSecurityPrivileged		= "false"
+	lxdSecurityPrivileged       = "false"
 
 	lxdHelp = map[string]string{
+		"ARCH_OVERRIDE":          fmt.Sprintf("override arch value from job config (default %q)", lxdArchOverride),
 		"EXEC_CMD":               fmt.Sprintf("command to run via exec/ssh (default %q)", lxdExecCmd),
 		"EXEC_UID":               fmt.Sprintf("UID of travis user (default %d)", lxdExecUID),
 		"MEMORY":                 fmt.Sprintf("memory to allocate to each container (default %q)", lxdLimitMemory),
@@ -63,7 +65,7 @@ var (
 		"NETWORK_STATIC":         fmt.Sprintf("whether to statically set network configuration (default %v)", lxdNetworkStatic),
 		"NETWORK_DNS":            fmt.Sprintf("comma separated list of DNS servers (requires NETWORK_STATIC) (default %q)", lxdNetworkDns),
 		"NETWORK_IPV6_FILTERING": fmt.Sprintf("prevent the containers from spoofing another's IPv6 address (default %s)", lxdNetworkIPv6Filtering),
-		"SECURITY_PRIVILEGED":	  fmt.Sprintf("request a container to run without a UID mapping when set true (default %s)", lxdSecurityPrivileged),
+		"SECURITY_PRIVILEGED":    fmt.Sprintf("request a container to run without a UID mapping when set true (default %s)", lxdSecurityPrivileged),
 	}
 )
 
@@ -110,7 +112,7 @@ type lxdProvider struct {
 	networkLeases        map[string]string
 	networkLeasesLock    sync.Mutex
 	networkIPv6Filtering string
-	securityPrivileged	 string
+	securityPrivileged   string
 
 	pool        string
 	dockerCache string
@@ -124,6 +126,11 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	client, err := lxd.ConnectLXDUnix("", nil)
 	if err != nil {
 		return nil, err
+	}
+
+	archOverride := lxdArchOverride
+	if cfg.IsSet("ARCH_OVERRIDE") {
+		archOverride = cfg.Get("ARCH_OVERRIDE")
 	}
 
 	execCmd := strings.Split(lxdExecCmd, " ")
@@ -307,6 +314,8 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 	return &lxdProvider{
 		client: client,
 
+		archOverride: archOverride,
+
 		limitCPU:      limitCPU,
 		limitCPUBurst: limitCPUBurst,
 		limitDisk:     limitDisk,
@@ -330,7 +339,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 		networkDNS:           networkDNS,
 		networkLeases:        networkLeases,
 		networkIPv6Filtering: networkIPv6Filtering,
-		securityPrivileged:	  securityPrivileged,
+		securityPrivileged:   securityPrivileged,
 
 		pool:        pool,
 		dockerCache: dockerCache,
@@ -500,8 +509,13 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
 	} else {
+		imageArch := startAttributes.Arch
+		if p.archOverride != "" {
+			imageArch = p.archOverride
+		}
+
 		imageName, err = p.imageSelector.Select(ctx, &image.Params{
-			Infra:    "lxd-" + startAttributes.Arch,
+			Infra:    "lxd-" + imageArch,
 			Language: startAttributes.Language,
 			OsxImage: startAttributes.OsxImage,
 			Dist:     startAttributes.Dist,
