@@ -95,9 +95,10 @@ type lxdProvider struct {
 	limitNetwork  string
 	limitProcess  string
 
-	image  string
-	runCmd []string
-	runUID int64
+	archOverride string
+	image        string
+	runCmd       []string
+	runUID       int64
 
 	imageSelectorType string
 	imageSelector     image.Selector
