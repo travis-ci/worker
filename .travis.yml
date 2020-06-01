@@ -1,6 +1,6 @@
 language: go
 
-go: 1.13.x
+go: 1.14.x
 
 dist: xenial
 
@@ -35,7 +35,7 @@ jobs:
   include:
   - stage: test
     name: linux
-    go: 1.13.x
+    go: 1.14.x
     script:
     - make deps
     - make lintall
@@ -58,7 +58,7 @@ jobs:
         - travis-ci/worker/$TRAVIS_BRANCH
   - stage: test
     name: crossbuild
-    go: 1.13.x
+    go: 1.14.x
     script:
     - GO111MODULE=on make build/darwin/amd64/travis-worker
     addons:
