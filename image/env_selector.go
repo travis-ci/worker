@@ -26,7 +26,7 @@ func (es *EnvSelector) buildLookup() {
 
 	es.c.Each(func(key, value string) {
 		if strings.HasPrefix(key, "IMAGE_") {
-			lookup[strings.ToLower(strings.Replace(key, "IMAGE_", "", -1))] = value
+			lookup[strings.ToLower(strings.Replace(key, "IMAGE_", "", 1))] = value
 		}
 	})
 
