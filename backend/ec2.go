@@ -35,9 +35,7 @@ var (
 	defaultEC2ImageSelectorType = "env"
 	defaultEC2SSHUserName       = "travis"
 	defaultEC2ExecCmd           = "bash ~/build.sh"
-	defaultEC2SubnetID          = ""
 	defaultEC2InstanceType      = "t2.micro"
-	defaultEC2Image             = "ami-02790d1ebf3b5181d"
 	defaultEC2SecurityGroupIDs  = "default"
 	defaultEC2EBSOptimized      = false
 	defaultEC2DiskSize          = int64(8)
@@ -124,7 +122,7 @@ func newEC2Provider(cfg *config.ProviderConfig) (Provider, error) {
 		}
 		sshDialTimeout = sd
 	}
-	customTags := make(map[string]string, 0)
+	customTags := make(map[string]string)
 	if cfg.IsSet("CUSTOM_TAGS") {
 		items := strings.Split(cfg.Get("CUSTOM_TAGS"), ",")
 		for _, tag := range items {
@@ -610,28 +608,6 @@ func (i *ec2Instance) UploadScript(ctx gocontext.Context, script []byte) error {
 	}
 
 	//return i.uploadScriptAttempt(ctx, script)
-}
-
-func (i *ec2Instance) waitForSSH(port, timeout int) error {
-
-	host := *i.instance.PrivateIpAddress
-	if i.provider.publicIPConnect {
-		host = *i.instance.PublicIpAddress
-	}
-
-	iter := 0
-	for {
-		_, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", host, port), 1*time.Second)
-		if err == nil {
-			break
-		}
-		iter = iter + 1
-		if iter > timeout {
-			return err
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	return nil
 }
 
 func (i *ec2Instance) uploadScriptAttempt(ctx gocontext.Context, script []byte) error {
