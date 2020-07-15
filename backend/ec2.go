@@ -507,7 +507,7 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			if instances != nil {
 				instance := instances.Reservations[0].Instances[0]
 				address := *instance.PrivateIpAddress
-				if p.publicIPConnect {
+				if instance.PublicIpAddress != nil && p.publicIPConnect {
 					address = *instance.PublicIpAddress
 				}
 				if address != "" {
@@ -633,7 +633,7 @@ func (i *ec2Instance) uploadScriptSCP(ctx gocontext.Context, script []byte) erro
 
 func (i *ec2Instance) sshConnection(ctx gocontext.Context) (ssh.Connection, error) {
 	ip := *i.instance.PrivateIpAddress
-	if i.provider.publicIPConnect {
+	if i.instance.PublicIpAddress != nil && i.provider.publicIPConnect {
 		ip = *i.instance.PublicIpAddress
 	}
 	return i.sshDialer.Dial(fmt.Sprintf("%s:22", ip), defaultEC2SSHUserName, i.provider.sshDialTimeout)
