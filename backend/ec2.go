@@ -38,7 +38,7 @@ var (
 	defaultEC2InstanceType      = "t2.micro"
 	defaultEC2SecurityGroupIDs  = "default"
 	defaultEC2EBSOptimized      = false
-	defaultEC2DiskSize          = int64(8)
+	defaultEC2DiskSize          = int64(100)
 	defaultEC2UploadRetries     = uint64(120)
 	defaultEC2UploadRetrySleep  = 1 * time.Second
 	defaultEC2Region            = "eu-west-1"
