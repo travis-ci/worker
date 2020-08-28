@@ -504,7 +504,7 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			}
 
 			instances, lastErr = svc.DescribeInstances(describeInstancesInput)
-			if instances != nil {
+			if instances != nil && len(instances.Reservations) > 0 && len(instances.Reservations
 				instance := instances.Reservations[0].Instances[0]
 				address := *instance.PrivateIpAddress
 				if instance.PublicIpAddress != nil && p.publicIPConnect {
@@ -516,6 +516,9 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 						instanceChan <- instance
 						return
 					}
+					if reservation.Instances[0].InstanceId != nil {
+                        logger.Debugf("instance %s is not ready", *reservation.Instances[0].InstanceId)
+                    }
 				}
 			}
 			errCount++
