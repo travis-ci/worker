@@ -516,9 +516,6 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 						instanceChan <- instance
 						return
 					}
-					if reservation.Instances[0].InstanceId != nil {
-                        logger.Debugf("instance %s is not ready", *reservation.Instances[0].InstanceId)
-                    }
 				}
 			}
 			errCount++
@@ -526,6 +523,9 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 				instanceChan <- nil
 				return
 			}
+			if reservation.Instances[0].InstanceId != nil {
+                logger.Debugf("instance %s is not ready", *reservation.Instances[0].InstanceId)
+            }
 			time.Sleep(500 * time.Millisecond)
 		}
 	}()
