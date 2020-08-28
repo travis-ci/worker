@@ -504,7 +504,7 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			}
 
 			instances, lastErr = svc.DescribeInstances(describeInstancesInput)
-			if instances != nil && len(instances.Reservations) > 0 && len(instances.Reservations
+			if instances != nil && len(instances.Reservations) > 0 && len(instances.Reservations[0].Instances) > 0 {
 				instance := instances.Reservations[0].Instances[0]
 				address := *instance.PrivateIpAddress
 				if instance.PublicIpAddress != nil && p.publicIPConnect {
