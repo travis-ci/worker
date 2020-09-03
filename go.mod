@@ -22,7 +22,6 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/dylanmei/iso8601 v0.1.0 // indirect
 	github.com/flosch/pongo2 v0.0.0-20190505152737-8914e1cf9164 // indirect
-	github.com/garyburd/redigo v0.0.0-20180404160726-569eae59ada9
 	github.com/getsentry/raven-go v0.0.0-20180903072508-084a9de9eb03
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
