@@ -14,6 +14,13 @@ apps:
     plugs:
       - lxd
       - network
+      - network-bind
+  travis-worker:
+    command: bin/travis-worker
+    plugs:
+      - lxd
+      - network
+      - network-bind
 
 parts:
   travis-worker:
@@ -24,6 +31,7 @@ parts:
     go-packages:
       - github.com/travis-ci/worker/cmd/travis-worker
     go-importpath: github.com/travis-ci/worker
+    go-channel: 1.14/stable
     prime:
       - bin/travis-worker
     override-build: |-
@@ -35,13 +43,13 @@ parts:
       REVISION_URL="https://github.com/travis-ci/worker/tree/${REVISION}"
       GENERATED="$(date -u +'%Y-%m-%dT%H:%M:%S%z')"
       COPYRIGHT="$(grep -i ^copyright LICENSE | sed 's/^[Cc]opyright //')"
-      cd -
 
-      sed -i "s#VersionString =.*#VersionString = \"${VERSION}\"#g" ../go/src/github.com/travis-ci/worker/version.go
-      sed -i "s#RevisionString =.*#RevisionString = \"${REVISION}\"#g" ../go/src/github.com/travis-ci/worker/version.go
-      sed -i "s#RevisionURLString =.*#RevisionURLString = \"${REVISION_URL}\"#g" ../go/src/github.com/travis-ci/worker/version.go
-      sed -i "s#GeneratedString =.*#GeneratedString = \"${GENERATED}\"#g" ../go/src/github.com/travis-ci/worker/version.go
-      sed -i "s#CopyrightString =.*#CopyrightString = \"${COPYRIGHT}\"#g" ../go/src/github.com/travis-ci/worker/version.go
+      cd ${SNAPCRAFT_PART_SRC}
+      sed -i "s#VersionString =.*#VersionString = \"${VERSION}\"#g" version.go
+      sed -i "s#RevisionString =.*#RevisionString = \"${REVISION}\"#g" version.go
+      sed -i "s#RevisionURLString =.*#RevisionURLString = \"${REVISION_URL}\"#g" version.go
+      sed -i "s#GeneratedString =.*#GeneratedString = \"${GENERATED}\"#g" version.go
+      sed -i "s#CopyrightString =.*#CopyrightString = \"${COPYRIGHT}\"#g" version.go
 
       set +ex
       snapcraftctl build

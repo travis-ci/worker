@@ -155,7 +155,7 @@ func TestNewAPISelector(t *testing.T) {
 
 func TestAPISelector_Select(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, testAPIServerString)
+		fmt.Fprint(w, testAPIServerString)
 	}))
 	defer ts.Close()
 
@@ -176,7 +176,7 @@ func TestAPISelector_Select(t *testing.T) {
 
 func TestAPISelector_SelectDefault(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, testAPIServerEmptyResponseString)
+		fmt.Fprint(w, testAPIServerEmptyResponseString)
 	}))
 	defer ts.Close()
 	u, _ := url.Parse(ts.URL)
@@ -212,7 +212,7 @@ func TestAPISelector_SelectDefaultWhenBadJSON(t *testing.T) {
 
 func TestAPISelector_SelectTrailingComma(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		fmt.Fprintf(w, testAPIServerString)
+		fmt.Fprint(w, testAPIServerString)
 	}))
 	defer ts.Close()
 

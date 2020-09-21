@@ -176,6 +176,8 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 					startAttributes: &backend.StartAttributes{},
 					stateUpdatePool: q.stateUpdatePool,
 					withLogSharding: q.withLogSharding,
+					logWriterChan:   logWriterChannel,
+					delivery:        delivery,
 				}
 				startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
@@ -194,10 +196,17 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				err = json.Unmarshal(delivery.Body, &startAttrs)
 				if err != nil {
 					logger.WithField("err", err).Error("start attributes JSON parse error, attempting to ack+drop delivery")
+
 					err := delivery.Ack(false)
 					if err != nil {
 						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't ack+drop delivery")
 					}
+
+					err = buildJob.Error(ctx, "An error occured while parsing the job config. Please consider enabling the build config validation feature for the repository: https://docs.travis-ci.com/user/build-config-validation")
+					if err != nil {
+						logger.WithField("err", err).Error("couldn't error the job")
+					}
+
 					continue
 				}
 
@@ -217,8 +226,6 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.Warmer = buildJob.payload.Warmer
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultArch, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 				buildJob.conn = q.conn
-				buildJob.logWriterChan = logWriterChannel
-				buildJob.delivery = delivery
 				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount
 
 				jobSendBegin := time.Now()

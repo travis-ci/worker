@@ -36,7 +36,7 @@ func init() {
 func helpPrinter(w io.Writer, templ string, data interface{}) {
 	cliHelpPrinter(w, templ, data)
 
-	fmt.Fprintf(w, providerHelpHeader)
+	fmt.Fprint(w, providerHelpHeader)
 
 	margin := 4
 	maxLen := 0

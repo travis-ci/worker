@@ -31,7 +31,7 @@ func TestHTTPJobQueue_Jobs(t *testing.T) {
 	})
 	mux.HandleFunc(`/jobs/100001`, func(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, strings.Replace(`{
+		fmt.Fprint(w, strings.Replace(`{
 			"data": {
 				"type": "job",
 				"job": {

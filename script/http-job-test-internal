@@ -22,6 +22,7 @@ main() {
   install -D /worker/build/linux/amd64/travis-worker \
     ./spec/support/bin/travis-worker
 
+  gem install bundler -v 2.0.1
   bundle install
   find . -type d -exec chmod a+rwx {} \;
   find . -type f -exec chmod a+rw {} \;

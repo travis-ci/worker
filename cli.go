@@ -36,6 +36,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 	travismetrics "github.com/travis-ci/worker/metrics"
 	cli "gopkg.in/urfave/cli.v1"
 )
@@ -113,6 +114,32 @@ func (i *CLI) Setup() (bool, error) {
 			fmt.Println(b.Alias)
 		})
 		return false, nil
+	}
+
+	if i.c.Bool("update-images") {
+		baseURL, err := url.Parse(i.Config.ProviderConfig.Get("IMAGE_SELECTOR_URL"))
+		if err != nil {
+			return false, err
+		}
+
+		imageBaseURL, err := url.Parse(i.Config.ProviderConfig.Get("IMAGE_SERVER_URL"))
+		if err != nil {
+			return false, err
+		}
+
+		selector := image.NewAPISelector(baseURL)
+		manager, err := image.NewManager(ctx, selector, imageBaseURL)
+		if err != nil {
+			logger.WithField("err", err).Error("failed to init image manager")
+			return false, err
+		}
+
+		err = manager.Update(ctx)
+		if err != nil {
+			logger.WithField("err", err).Error("failed to update images")
+		}
+
+		return false, err
 	}
 
 	logger.WithField("cfg", fmt.Sprintf("%#v", i.Config)).Debug("read config")
