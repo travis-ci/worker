@@ -82,8 +82,9 @@ jobs:
     - make docker-push
     addons:
       snaps:
-       - google-cloud-sdk
-       - vault
+      - name: google-cloud-sdk
+        confinement: classic
+      - name: vault
       apt:
         update: true
         packages:
