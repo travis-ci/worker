@@ -1025,7 +1025,7 @@ func (i *lxdInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	}
 
 	// Setup the arguments
-	cmd := []string{"sudo", "-E", "-u", "travis", "--"}
+	cmd := []string{"sudo", "-h", "localhost", "-E", "-u", "travis", "--"}
 	cmd = append(cmd, i.provider.runCmd...)
 	exec := lxdapi.ContainerExecPost{
 		Command:     cmd,
