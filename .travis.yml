@@ -71,13 +71,20 @@ jobs:
         - travis-ci/worker/$TRAVIS_BRANCH
   - stage: test
     name: docker
-    if: type != 'pull_request' && env(DOCKER_LOGIN_PASSWORD) is present && env(DOCKER_LOGIN_USERNAME) is present
+    if: type != 'pull_request' && env(VAULT_PASS) is present && env(VAULT_USERNAME) is present
     script:
+    - vault login -method=userpass username=$VAULT_USERNAME password=$VAULT_PASS
+    - vault kv get -field=secret gcp/gcr-sa-key > /tmp/gcr_key.json;
+    - gcloud -q auth activate-service-account --key-file /tmp/gcr_key.json;
+    - gcloud -q config set project ${GCE_PROJECT}
+    - gcloud auth configure-docker
     - make docker-build
-    - make smoke-docker
     - make docker-push
-    - make send-docker-hub-trigger
     addons:
+      snaps:
+      - name: google-cloud-sdk
+        confinement: classic
+      - name: vault
       apt:
         update: true
         packages:
