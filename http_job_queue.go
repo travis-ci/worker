@@ -385,7 +385,7 @@ func (q *HTTPJobQueue) fetchJob(ctx gocontext.Context, jobID uint64) (Job, <-cha
 			return q.deleteJob(ctx, jobID)
 		},
 		cancelSelf: func(ctx gocontext.Context) {
-			q.cb.Broadcast(jobID)
+			q.cb.Broadcast(jobID, CancellationCommand{})
 		},
 	}
 	startAttrs := &httpJobPayloadStartAttrs{
@@ -495,7 +495,7 @@ func (q *HTTPJobQueue) generateJobRefreshClaimFunc(jobID uint64) (func(gocontext
 					"err":    err,
 					"job_id": jobID,
 				}).Error("cancelling")
-				q.cb.Broadcast(jobID)
+				q.cb.Broadcast(jobID, CancellationCommand{})
 				return
 			}
 

@@ -33,7 +33,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	instance := state.Get("instance").(backend.Instance)
 	logWriter := state.Get("logWriter").(LogWriter)
-	cancelChan := state.Get("cancelChan").(<-chan struct{})
+	cancelChan := state.Get("cancelChan").(<-chan CancellationCommand)
 
 	defer context.TimeSince(ctx, "step_run_script_run", time.Now())
 
@@ -134,7 +134,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 
 		logger.Info("context was cancelled, stopping job")
 		return multistep.ActionHalt
-	case <-cancelChan:
+	case cancelCommand := <-cancelChan:
 		state.Put("err", JobCancelledError)
 
 		span.SetStatus(trace.Status{
@@ -142,7 +142,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			Message: JobCancelledError.Error(),
 		})
 
-		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
+		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateCancelled, fmt.Sprintf("\n\nDone: Job Cancelled\n\n%s", cancelCommand.Reason))
 
 		return multistep.ActionHalt
 	case <-logWriter.Timeout():

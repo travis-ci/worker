@@ -2,24 +2,28 @@ package worker
 
 import "sync"
 
+type CancellationCommand struct {
+	Reason string
+}
+
 // A CancellationBroadcaster allows you to subscribe to and unsubscribe from
 // cancellation messages for a given job ID.
 type CancellationBroadcaster struct {
 	registryMutex sync.Mutex
-	registry      map[uint64][](chan struct{})
+	registry      map[uint64][](chan CancellationCommand)
 }
 
 // NewCancellationBroadcaster sets up a new cancellation broadcaster with an
 // empty registry.
 func NewCancellationBroadcaster() *CancellationBroadcaster {
 	return &CancellationBroadcaster{
-		registry: make(map[uint64][](chan struct{})),
+		registry: make(map[uint64][](chan CancellationCommand)),
 	}
 }
 
 // Broadcast broacasts a cancellation message to all currently subscribed
 // cancellers.
-func (cb *CancellationBroadcaster) Broadcast(id uint64) {
+func (cb *CancellationBroadcaster) Broadcast(id uint64, command CancellationCommand) {
 	cb.registryMutex.Lock()
 	defer cb.registryMutex.Unlock()
 
@@ -27,6 +31,7 @@ func (cb *CancellationBroadcaster) Broadcast(id uint64) {
 	delete(cb.registry, id)
 
 	for _, ch := range chans {
+		ch <- command
 		close(ch)
 	}
 }
@@ -34,22 +39,22 @@ func (cb *CancellationBroadcaster) Broadcast(id uint64) {
 // Subscribe will set up a subscription for cancellation messages for the
 // given job ID. When a cancellation message comes in, the returned channel
 // will be closed.
-func (cb *CancellationBroadcaster) Subscribe(id uint64) <-chan struct{} {
+func (cb *CancellationBroadcaster) Subscribe(id uint64) <-chan CancellationCommand {
 	cb.registryMutex.Lock()
 	defer cb.registryMutex.Unlock()
 
 	if _, ok := cb.registry[id]; !ok {
-		cb.registry[id] = make([](chan struct{}), 0, 1)
+		cb.registry[id] = make([](chan CancellationCommand), 0, 1)
 	}
 
-	ch := make(chan struct{})
+	ch := make(chan CancellationCommand)
 	cb.registry[id] = append(cb.registry[id], ch)
 
 	return ch
 }
 
 // Unsubscribe removes an existing subscription for the channel.
-func (cb *CancellationBroadcaster) Unsubscribe(id uint64, ch <-chan struct{}) {
+func (cb *CancellationBroadcaster) Unsubscribe(id uint64, ch <-chan CancellationCommand) {
 	cb.registryMutex.Lock()
 	defer cb.registryMutex.Unlock()
 

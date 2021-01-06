@@ -12,8 +12,8 @@ func TestCancellationBroadcaster(t *testing.T) {
 
 	cb.Unsubscribe(1, ch1_2)
 
-	cb.Broadcast(1)
-	cb.Broadcast(1)
+	cb.Broadcast(1, CancellationCommand{})
+	cb.Broadcast(1, CancellationCommand{})
 
 	assertClosed(t, "ch1_1", ch1_1)
 	assertWaiting(t, "ch1_2", ch1_2)
@@ -21,7 +21,7 @@ func TestCancellationBroadcaster(t *testing.T) {
 	assertWaiting(t, "ch2", ch2)
 }
 
-func assertClosed(t *testing.T, name string, ch <-chan struct{}) {
+func assertClosed(t *testing.T, name string, ch <-chan CancellationCommand) {
 	select {
 	case _, ok := (<-ch):
 		if ok {
@@ -32,7 +32,7 @@ func assertClosed(t *testing.T, name string, ch <-chan struct{}) {
 	}
 }
 
-func assertWaiting(t *testing.T, name string, ch <-chan struct{}) {
+func assertWaiting(t *testing.T, name string, ch <-chan CancellationCommand) {
 	select {
 	case _, ok := (<-ch):
 		if ok {
