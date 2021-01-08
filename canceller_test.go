@@ -1,6 +1,8 @@
 package worker
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestCancellationBroadcaster(t *testing.T) {
 	cb := NewCancellationBroadcaster()
@@ -12,23 +14,27 @@ func TestCancellationBroadcaster(t *testing.T) {
 
 	cb.Unsubscribe(1, ch1_2)
 
-	cb.Broadcast(1, CancellationCommand{})
-	cb.Broadcast(1, CancellationCommand{})
+	cb.Broadcast(CancellationCommand{JobID: 1, Reason: "42"})
+	cb.Broadcast(CancellationCommand{JobID: 1, Reason: "42"})
 
-	assertClosed(t, "ch1_1", ch1_1)
+	assertReceived(t, "ch1_1", ch1_1, CancellationCommand{JobID: 1, Reason: "42"})
 	assertWaiting(t, "ch1_2", ch1_2)
-	assertClosed(t, "ch1_3", ch1_3)
+	assertReceived(t, "ch1_3", ch1_3, CancellationCommand{JobID: 1, Reason: "42"})
 	assertWaiting(t, "ch2", ch2)
 }
 
-func assertClosed(t *testing.T, name string, ch <-chan CancellationCommand) {
+func assertReceived(t *testing.T, name string, ch <-chan CancellationCommand, expected CancellationCommand) {
 	select {
-	case _, ok := (<-ch):
+	case val, ok := (<-ch):
 		if ok {
-			t.Errorf("expected %s to be closed, but it received a value", name)
+			if expected != val {
+				t.Errorf("expected to receive %v, got %v", expected, val)
+			}
+		} else {
+			t.Errorf("expected %s to not be closed, but it was closed", name)
 		}
 	default:
-		t.Errorf("expected %s to be closed, but it wasn't", name)
+		t.Errorf("expected %s to receive a value, but it didn't", name)
 	}
 }
 
@@ -36,9 +42,9 @@ func assertWaiting(t *testing.T, name string, ch <-chan CancellationCommand) {
 	select {
 	case _, ok := (<-ch):
 		if ok {
-			t.Errorf("expected %s to be not be closed and not have a value, but it received a value", name)
+			t.Errorf("expected %s to not be closed and not have a value, but it received a value", name)
 		} else {
-			t.Errorf("expected %s to be not be closed and not have a value, but it was closed", name)
+			t.Errorf("expected %s to not be closed and not have a value, but it was closed", name)
 		}
 	default:
 	}

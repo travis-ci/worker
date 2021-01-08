@@ -114,7 +114,7 @@ func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
 		return nil
 	}
 
-	d.cancellationBroadcaster.Broadcast(command.JobID, CancellationCommand{Reason: command.Reason})
+	d.cancellationBroadcaster.Broadcast(CancellationCommand{JobID: command.JobID, Reason: command.Reason})
 
 	return nil
 }

@@ -3,6 +3,7 @@ package worker
 import "sync"
 
 type CancellationCommand struct {
+	JobID  uint64
 	Reason string
 }
 
@@ -23,12 +24,12 @@ func NewCancellationBroadcaster() *CancellationBroadcaster {
 
 // Broadcast broacasts a cancellation message to all currently subscribed
 // cancellers.
-func (cb *CancellationBroadcaster) Broadcast(id uint64, command CancellationCommand) {
+func (cb *CancellationBroadcaster) Broadcast(command CancellationCommand) {
 	cb.registryMutex.Lock()
 	defer cb.registryMutex.Unlock()
 
-	chans := cb.registry[id]
-	delete(cb.registry, id)
+	chans := cb.registry[command.JobID]
+	delete(cb.registry, command.JobID)
 
 	for _, ch := range chans {
 		ch <- command
@@ -47,7 +48,7 @@ func (cb *CancellationBroadcaster) Subscribe(id uint64) <-chan CancellationComma
 		cb.registry[id] = make([](chan CancellationCommand), 0, 1)
 	}
 
-	ch := make(chan CancellationCommand)
+	ch := make(chan CancellationCommand, 1)
 	cb.registry[id] = append(cb.registry[id], ch)
 
 	return ch
