@@ -184,6 +184,10 @@ func (j *amqpJob) createStateUpdateBody(ctx gocontext.Context, state string) map
 		body["meta"].(map[string]interface{})["uuid"] = uuid
 	}
 
+	if j.startAttributes.VMSize != "" {
+		body["vm_size"] = j.startAttributes.VMSize
+	}
+
 	if j.Payload().Job.QueuedAt != nil {
 		body["queued_at"] = j.Payload().Job.QueuedAt.UTC().Format(time.RFC3339)
 	}

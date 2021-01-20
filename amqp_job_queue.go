@@ -222,6 +222,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 				buildJob.startAttributes = startAttrs.Config
 				buildJob.startAttributes.VMType = buildJob.payload.VMType
+				buildJob.startAttributes.VMSize = buildJob.payload.VMSize
 				buildJob.startAttributes.VMConfig = buildJob.payload.VMConfig
 				buildJob.startAttributes.Warmer = buildJob.payload.Warmer
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultArch, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
