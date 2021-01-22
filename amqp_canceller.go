@@ -15,6 +15,7 @@ type cancelCommand struct {
 	Type   string `json:"type"`
 	JobID  uint64 `json:"job_id"`
 	Source string `json:"source"`
+	Reason string `json:"reason"`
 }
 
 // AMQPCanceller is responsible for listening to a command queue on AMQP and
@@ -113,7 +114,7 @@ func (d *AMQPCanceller) processCommand(delivery amqp.Delivery) error {
 		return nil
 	}
 
-	d.cancellationBroadcaster.Broadcast(command.JobID)
+	d.cancellationBroadcaster.Broadcast(CancellationCommand{JobID: command.JobID, Reason: command.Reason})
 
 	return nil
 }
