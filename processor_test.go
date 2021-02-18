@@ -120,7 +120,7 @@ func TestProcessor(t *testing.T) {
 		if tc.isCancelled {
 			go func(sl time.Duration, i uint64) {
 				time.Sleep(sl)
-				cancellationBroadcaster.Broadcast(i)
+				cancellationBroadcaster.Broadcast(CancellationCommand{JobID: i})
 			}(tc.runSleep-1, jobID)
 		}
 
