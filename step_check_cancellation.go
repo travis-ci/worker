@@ -3,6 +3,7 @@ package worker
 import (
 	gocontext "context"
 	"errors"
+	"fmt"
 
 	"github.com/mitchellh/multistep"
 	"github.com/travis-ci/worker/context"
@@ -14,7 +15,7 @@ var JobCancelledError = errors.New("job cancelled")
 type stepCheckCancellation struct{}
 
 func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepAction {
-	cancelChan := state.Get("cancelChan").(<-chan struct{})
+	cancelChan := state.Get("cancelChan").(<-chan CancellationCommand)
 
 	ctx := state.Get("ctx").(gocontext.Context)
 
@@ -22,12 +23,12 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 	defer span.End()
 
 	select {
-	case <-cancelChan:
+	case command := <-cancelChan:
 		ctx := state.Get("ctx").(gocontext.Context)
 		buildJob := state.Get("buildJob").(Job)
 		if _, ok := state.GetOk("logWriter"); ok {
 			logWriter := state.Get("logWriter").(LogWriter)
-			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, "\n\nDone: Job Cancelled\n\n")
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, fmt.Sprintf("\n\nDone: Job Cancelled\n\n%s", command.Reason))
 		} else {
 			err := buildJob.Finish(ctx, FinishStateCancelled)
 			if err != nil {
