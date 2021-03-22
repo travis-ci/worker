@@ -54,6 +54,13 @@ chown -R travis:travis ~travis/.ssh/
 
 {{ .UserData }}
 `))
+
+	ec2VMSizeMapping = map[string]string{
+		"medium": "m6g.large",
+		"large": "m6g.xlarge",
+		"x-large": "m6g.2xlarge",
+		"2x-large": "m6g.4xlarge",
+	}
 )
 
 type ec2StartupScriptData struct {
@@ -438,11 +445,19 @@ func (p *ec2Provider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	if p.keyName != "" {
 		keyName = aws.String(p.keyName)
 	}
-	//RequestSpotInstances
 
+	instanceType := p.instanceType
+
+	if startAttributes.VMSize != "" {
+		if mtype, ok:= ec2VMSizeMapping[startAttributes.VMSize]; ok {
+			instanceType = mtype
+			startAttributes.VMSize = instanceType // convert provided vm_size to EC2 machine size
+		}
+	}
+	//RequestSpotInstances
 	runOpts := &ec2.RunInstancesInput{
 		ImageId:             aws.String(imageID),
-		InstanceType:        aws.String(p.instanceType),
+		InstanceType:        aws.String(instanceType),
 		MaxCount:            aws.Int64(1),
 		MinCount:            aws.Int64(1),
 		KeyName:             keyName,

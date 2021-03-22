@@ -145,6 +145,13 @@ Set-LocalUser -Name travis -Password $pw
 	// FIXME: get rid of the need for this global goop
 	gceCustomHTTPTransport     http.RoundTripper
 	gceCustomHTTPTransportLock sync.Mutex
+
+	gceVMSizeMapping = map[string]string{
+		"medium": "n2-standard-2",
+		"large": "n2-standard-4",
+		"x-large": "n2-standard-8",
+		"2x-large": "n2-standard-16",
+	}
 )
 
 type gceStartupScriptData struct {
@@ -818,8 +825,12 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 		zoneNames[i] = zone.Name
 	}
 
+	machineTypes := []string{p.ic.MachineType, p.ic.PremiumMachineType}
+	for _, machineType := range gceVMSizeMapping {
+		machineTypes = append(machineTypes, machineType);
+	}
 	for _, zoneName := range append(zoneNames, p.alternateZones...) {
-		for _, machineType := range []string{p.ic.MachineType, p.ic.PremiumMachineType} {
+		for _, machineType := range machineTypes {
 			if zoneName == "" || machineType == "" {
 				continue
 			}
@@ -1497,7 +1508,14 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	machineType := p.ic.MachineType
 	if c.startAttributes.VMType == "premium" {
+		c.startAttributes.VMSize = "premium"
 		machineType = p.ic.PremiumMachineType
+	} else if c.startAttributes.VMSize != "" {
+		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
+			machineType = mtype;
+			//storing converted machine type for instance size identification
+			c.startAttributes.VMSize = machineType
+		}
 	}
 
 	var ok bool

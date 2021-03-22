@@ -36,6 +36,7 @@ type JobPayload struct {
 	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
 	VMType     string                 `json:"vm_type"`
 	VMConfig   backend.VmConfig       `json:"vm_config"`
+	VMSize     string                 `json:"vm_size"`
 	Meta       JobMetaPayload         `json:"meta"`
 	Queue      string                 `json:"queue"`
 	Trace      bool                   `json:"trace"`
