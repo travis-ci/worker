@@ -183,11 +183,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 				err := json.Unmarshal(delivery.Body, buildJob.payload)
 				if err != nil {
-					logger.WithField("err", err).Error("payload JSON parse error, attempting to ack+drop delivery")
-					err := delivery.Ack(false)
-					if err != nil {
-						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't ack+drop delivery")
-					}
+					logger.WithField("err", err).Error("payload JSON parse error")
 					continue
 				}
 
@@ -195,12 +191,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 
 				err = json.Unmarshal(delivery.Body, &startAttrs)
 				if err != nil {
-					logger.WithField("err", err).Error("start attributes JSON parse error, attempting to ack+drop delivery")
-
-					err := delivery.Ack(false)
-					if err != nil {
-						logger.WithField("err", err).WithField("delivery", delivery).Error("couldn't ack+drop delivery")
-					}
+					logger.WithField("err", err).Error("start attributes JSON parse error")
 
 					err = buildJob.Error(ctx, "An error occured while parsing the job config. Please consider enabling the build config validation feature for the repository: https://docs.travis-ci.com/user/build-config-validation")
 					if err != nil {
