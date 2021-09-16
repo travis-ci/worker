@@ -8,10 +8,12 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20180810175552-4a21cbd618b4 // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20170922090931-c385f95c6022 // indirect
+	github.com/IBM/go-sdk-core/v5 v5.6.5
+	github.com/IBM/vpc-go-sdk v1.0.1
 	github.com/Jeffail/tunny v0.0.0-20180304204616-59cfa8fcb19f
 	github.com/Microsoft/go-winio v0.4.11 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/aws/aws-sdk-go v1.15.31
+	github.com/aws/aws-sdk-go v1.34.28
 	github.com/bitly/go-simplejson v0.0.0-20171023175154-0c965951289c
 	github.com/cenk/backoff v2.1.0+incompatible
 	github.com/certifi/gocertifi v0.0.0-20180905225744-ee1a9a0726d2 // indirect
@@ -26,7 +28,6 @@ require (
 	github.com/getsentry/raven-go v0.0.0-20180903072508-084a9de9eb03
 	github.com/gogo/protobuf v1.2.1 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
-	github.com/google/uuid v1.1.0 // indirect
 	github.com/googleapis/gax-go v2.0.0+incompatible // indirect
 	github.com/gorilla/mux v0.0.0-20181012153151-deb579d6e030
 	github.com/gorilla/websocket v1.4.2 // indirect
@@ -44,27 +45,25 @@ require (
 	github.com/masterzen/simplexml v0.0.0-20160608183007-4572e39b1ab9 // indirect
 	github.com/masterzen/winrm v0.0.0-20180702085143-58761a495ca4
 	github.com/mihasya/go-metrics-librato v0.0.0-20171227215858-c2a1624c7a80
-	github.com/mitchellh/mapstructure v1.1.2 // indirect
 	github.com/mitchellh/multistep v0.0.0-20170316185339-391576a156a5
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
 	github.com/pborman/uuid v1.2.0
-	github.com/pkg/errors v0.8.1
+	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.8.3
 	github.com/rackspace/gophercloud v0.0.0-20161013232434-e00690e87603
 	github.com/rcrowley/go-metrics v0.0.0-20180503174638-e2704e165165
 	github.com/rogpeppe/fastuuid v1.1.0 // indirect
-	github.com/sirupsen/logrus v0.0.0-20181010200618-458213699411
-	github.com/smartystreets/goconvey v0.0.0-20190330032615-68dc04aab96a // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/streadway/amqp v0.0.0-20180806233856-70e15c650864
-	github.com/stretchr/testify v1.2.2
+	github.com/stretchr/testify v1.6.1
 	go.opencensus.io v0.15.0
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 	golang.org/x/oauth2 v0.0.0-20181003184128-c57b0facaced
-	golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
 	google.golang.org/api v0.0.0-20181012000736-72df7e5ac770
