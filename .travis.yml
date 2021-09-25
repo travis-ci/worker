@@ -96,3 +96,1225 @@ jobs:
     - mkdir -p build/linux/amd64
     - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make http-job-test
+travis_fold:start:worker_info
+[0K[33;1mWorker information[0m
+hostname: 9e0edda3-0cd6-4760-bbff-f1a29a513505@133965.lxd-arm64-04-org
+version: ? ?
+instance: travis-job-unicorn-engine-unicorn-765082951 03e95732d355bb6061689d41d23ad21c759bbde32a2ce0d53b0ee90b1424e2c5 (via amqp)
+startup: 7.079828898s
+travis_fold:end:worker_info
+[0Ktravis_time:start:0c8ed976
+[0Ktravis_time:end:0c8ed976:start=1617118393778153409,finish=1617118393989222307,duration=211068898,event=no_world_writable_dirs
+[0Ktravis_time:start:076c1dc9
+[0Ktravis_time:end:076c1dc9:start=1617118393995077661,finish=1617118394009042952,duration=13965291,event=agent
+[0Ktravis_time:start:04897d70
+[0Ktravis_time:end:04897d70:start=1617118394014159562,finish=1617118394018144206,duration=3984644,event=check_unsupported
+[0Ktravis_time:start:22ea2846
+[0Ktravis_fold:start:system_info
+[0K[33;1mBuild system information[0m
+Build language: c
+Build dist: xenial
+Build id: 765082948
+Job id: 765082951
+Runtime kernel version: 5.4.0-54-generic
+travis-build version: 091d532a
+[34m[1mBuild image provisioning date and time[0m
+Fri Jul 10 13:20:51 UTC 2020
+[34m[1mOperating System Details[0m
+Distributor ID:	Ubuntu
+Description:	Ubuntu 16.04.6 LTS
+Release:	16.04
+Codename:	xenial
+[34m[1mLinux Version[0m
+5.0.0-23-generic
+[34m[1mGit version[0m
+git version 2.7.4
+[34m[1mbash version[0m
+GNU bash, version 4.3.48(1)-release (aarch64-unknown-linux-gnu)
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+
+This is free software; you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+[34m[1mGCC version[0m
+gcc (Ubuntu/Linaro 5.4.0-6ubuntu1~16.04.12) 5.4.0 20160609
+Copyright (C) 2015 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+[34m[1mDocker version[0m
+Client:
+ Version:           18.09.7
+ API version:       1.39
+ Go version:        go1.10.4
+ Git commit:        2d0083d
+ Built:             Fri Aug 16 14:20:40 2019
+ OS/Arch:           linux/arm64
+ Experimental:      false
+[34m[1mLLVM version[0m
+clang version 3.8.0-2ubuntu4 (tags/RELEASE_380/final)
+Target: aarch64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+[34m[1mPre-installed Ruby versions[0m
+ruby-2.6.3
+ruby-2.6.5
+ruby-2.7.0
+[34m[1mPre-installed Node.js versions[0m
+v10.21.0
+v12.18.2
+v4.9.1
+v6.17.1
+v8.12.0
+v8.17.0
+[34m[1mmysql --version[0m
+mysql  Ver 14.14 Distrib 5.7.30, for Linux (aarch64) using  EditLine wrapper
+[34m[1mPre-installed PostgreSQL versions[0m
+9.5.21
+[34m[1mRedis version[0m
+redis-server 5.0.6
+[34m[1mMongoDB version[0m
+MongoDB 4.0.19
+[34m[1mCouchDB version[0m
+couchdb 1.6.0
+[34m[1mkiex list[0m
+
+kiex elixirs
+
+=* elixir-1.9.1
+
+# => - current
+# =* - current && default
+#  * - default
+
+[34m[1mphpenv versions[0m
+  7.2
+  7.2.31
+* 7.3 (set by /home/travis/.phpenv/version)
+  7.3.19
+  7.4
+  7.4.7
+[34m[1mcomposer --version[0m
+Composer version 1.10.8 2020-06-24 21:23:30
+travis_fold:end:system_info
+[0K
+travis_time:end:22ea2846:start=1617118394023292615,finish=1617118394032567043,duration=9274428,event=show_system_info
+[0Ktravis_time:start:049b6d6a
+[0Ktravis_time:end:049b6d6a:start=1617118394037857951,finish=1617118394059217009,duration=21359058,event=rm_riak_source
+[0Ktravis_time:start:02029890
+[0Ktravis_time:end:02029890:start=1617118394064511343,finish=1617118394074406390,duration=9895047,event=fix_rwky_redis
+[0Ktravis_time:start:01e6cbb2
+[0Ktravis_time:end:01e6cbb2:start=1617118394079610824,finish=1617118394792559193,duration=712948369,event=wait_for_network
+[0Ktravis_time:start:0c4eabcc
+[0Ktravis_time:end:0c4eabcc:start=1617118394798284948,finish=1617118395056723650,duration=258438702,event=update_apt_keys
+[0Ktravis_time:start:04e51d0a
+[0Ktravis_time:end:04e51d0a:start=1617118395062089033,finish=1617118395193629003,duration=131539970,event=fix_hhvm_source
+[0Ktravis_time:start:023a9111
+[0Ktravis_time:end:023a9111:start=1617118395199081235,finish=1617118395219778873,duration=20697638,event=update_mongo_arch
+[0Ktravis_time:start:02c4a79c
+[0Ktravis_time:end:02c4a79c:start=1617118395225088907,finish=1617118395326191840,duration=101102933,event=fix_sudo_enabled_trusty
+[0Ktravis_time:start:007963f5
+[0Ktravis_time:end:007963f5:start=1617118395331502549,finish=1617118395335553642,duration=4051093,event=update_glibc
+[0Ktravis_time:start:34403a18
+[0Ktravis_time:end:34403a18:start=1617118395340919100,finish=1617118395355645660,duration=14726560,event=clean_up_path
+[0Ktravis_time:start:18ce2418
+[0Ktravis_time:end:18ce2418:start=1617118395360897394,finish=1617118395365151535,duration=4254141,event=fix_mvn_settings_xml
+[0Ktravis_time:start:086846e9
+[0Ktravis_time:end:086846e9:start=1617118395370739692,finish=1617118395391170082,duration=20430390,event=no_ipv6_localhost
+[0Ktravis_time:start:1aade4a4
+[0Ktravis_time:end:1aade4a4:start=1617118395396563264,finish=1617118395400677532,duration=4114268,event=fix_etc_mavenrc
+[0Ktravis_time:start:23c7e642
+[0Ktravis_time:end:23c7e642:start=1617118395406020090,finish=1617118395412014344,duration=5994254,event=fix_wwdr_certificate
+[0Ktravis_time:start:06aa9acd
+[0Ktravis_time:end:06aa9acd:start=1617118395417250028,finish=1617118395465635649,duration=48385621,event=put_localhost_first
+[0Ktravis_time:start:18d5134a
+[0Ktravis_time:end:18d5134a:start=1617118395470931907,finish=1617118395475497347,duration=4565440,event=home_paths
+[0Ktravis_time:start:345a21c8
+[0Ktravis_time:end:345a21c8:start=1617118395480827005,finish=1617118395503639601,duration=22812596,event=disable_initramfs
+[0Ktravis_time:start:03c3695d
+[0Ktravis_time:end:03c3695d:start=1617118395509039459,finish=1617118395532009829,duration=22970370,event=disable_ssh_roaming
+[0Ktravis_time:start:04ee2d44
+[0Ktravis_time:end:04ee2d44:start=1617118395537355312,finish=1617118395541508655,duration=4153343,event=debug_tools
+[0Ktravis_time:start:312db911
+[0Ktravis_time:end:312db911:start=1617118395546714789,finish=1617118395552642868,duration=5928079,event=uninstall_oclint
+[0Ktravis_time:start:0b8316e2
+[0Ktravis_time:end:0b8316e2:start=1617118395558056725,finish=1617118395563411033,duration=5354308,event=rvm_use
+[0Ktravis_time:start:02f5a40c
+[0Ktravis_time:end:02f5a40c:start=1617118395568701117,finish=1617118395584871090,duration=16169973,event=rm_etc_boto_cfg
+[0Ktravis_time:start:027cf05a
+[0Ktravis_time:end:027cf05a:start=1617118395590089349,finish=1617118395594221242,duration=4131893,event=rm_oraclejdk8_symlink
+[0Ktravis_time:start:26fe8c7f
+[0Ktravis_time:end:26fe8c7f:start=1617118395599474826,finish=1617118395606032125,duration=6557299,event=enable_i386
+[0Ktravis_time:start:087036f0
+[0Ktravis_time:end:087036f0:start=1617118395611320608,finish=1617118395618058155,duration=6737547,event=update_rubygems
+[0Ktravis_time:start:260e4ed8
+[0Ktravis_time:end:260e4ed8:start=1617118395623388539,finish=1617118395631907372,duration=8518833,event=ensure_path_components
+[0Ktravis_time:start:1c4796ff
+[0Ktravis_time:end:1c4796ff:start=1617118395637136006,finish=1617118395641121875,duration=3985869,event=redefine_curl
+[0Ktravis_time:start:0c2b3101
+[0Ktravis_time:end:0c2b3101:start=1617118395646464333,finish=1617118395650550601,duration=4086268,event=nonblock_pipe
+[0Ktravis_time:start:1061685e
+[0Ktravis_time:end:1061685e:start=1617118395655768585,finish=1617118401719093018,duration=6063324433,event=apt_get_update
+[0Ktravis_time:start:267463bc
+[0Ktravis_time:end:267463bc:start=1617118401724750549,finish=1617118401729067265,duration=4316716,event=deprecate_xcode_64
+[0Ktravis_time:start:18d25d98
+[0Ktravis_time:end:18d25d98:start=1617118401734500647,finish=1617118401742077263,duration=7576616,event=update_heroku
+[0Ktravis_time:start:1a6095af
+[0Ktravis_time:end:1a6095af:start=1617118401747325197,finish=1617118401751453215,duration=4128018,event=shell_session_update
+[0Ktravis_time:start:00151ae4
+[0Ktravis_fold:start:docker_mtu_and_registry_mirrors
+[0Ktravis_fold:end:docker_mtu_and_registry_mirrors
+[0Ktravis_time:end:00151ae4:start=1617118401756902747,finish=1617118408492376718,duration=6735473971,event=set_docker_mtu_and_registry_mirrors
+[0Ktravis_time:start:02d9e10a
+[0Ktravis_fold:start:resolvconf
+[0Ktravis_fold:end:resolvconf
+[0Ktravis_time:end:02d9e10a:start=1617118408497937299,finish=1617118408603042602,duration=105105303,event=resolvconf
+[0Ktravis_time:start:2e5a15de
+[0Ktravis_time:end:2e5a15de:start=1617118408608576508,finish=1617118408613002449,duration=4425941,event=maven_central_mirror
+[0Ktravis_time:start:077b7e77
+[0Ktravis_time:end:077b7e77:start=1617118408618454731,finish=1617118408622681823,duration=4227092,event=maven_https
+[0Ktravis_fold:start:apt
+[0Ktravis_time:start:189a2505
+[0K$ travis_apt_get_update
+travis_time:end:189a2505:start=1617118408628900824,finish=1617118419212045225,duration=10583144401,event=prepare
+[0K[33;1mInstalling APT Packages[0m
+travis_time:start:06402b40
+[0K$ sudo -E apt-get -yq --no-install-suggests --no-install-recommends $(travis_apt_get_options) install libpthread-stubs0-dev libcmocka-dev
+Reading package lists...
+Building dependency tree...
+Reading state information...
+libpthread-stubs0-dev is already the newest version (0.3-4).
+libpthread-stubs0-dev set to manually installed.
+Recommended packages:
+  cmocka-doc
+The following NEW packages will be installed:
+  libcmocka-dev libcmocka0
+0 upgraded, 2 newly installed, 0 to remove and 155 not upgraded.
+Need to get 40.7 kB of archives.
+After this operation, 247 kB of additional disk space will be used.
+Get:1 http://ports.ubuntu.com/ubuntu-ports xenial/universe arm64 libcmocka0 arm64 1.0.1-2 [15.2 kB]
+Get:2 http://ports.ubuntu.com/ubuntu-ports xenial/universe arm64 libcmocka-dev arm64 1.0.1-2 [25.5 kB]
+Fetched 40.7 kB in 0s (82.2 kB/s)
+Selecting previously unselected package libcmocka0:arm64.
+(Reading database ... 
+(Reading database ... 5%
+(Reading database ... 10%
+(Reading database ... 15%
+(Reading database ... 20%
+(Reading database ... 25%
+(Reading database ... 30%
+(Reading database ... 35%
+(Reading database ... 40%
+(Reading database ... 45%
+(Reading database ... 50%
+(Reading database ... 55%
+(Reading database ... 60%
+(Reading database ... 65%
+(Reading database ... 70%
+(Reading database ... 75%
+(Reading database ... 80%
+(Reading database ... 85%
+(Reading database ... 90%
+(Reading database ... 95%
+(Reading database ... 100%
+(Reading database ... 47604 files and directories currently installed.)
+Preparing to unpack .../libcmocka0_1.0.1-2_arm64.deb ...
+Unpacking libcmocka0:arm64 (1.0.1-2) ...
+Selecting previously unselected package libcmocka-dev.
+Preparing to unpack .../libcmocka-dev_1.0.1-2_arm64.deb ...
+Unpacking libcmocka-dev (1.0.1-2) ...
+Setting up libcmocka0:arm64 (1.0.1-2) ...
+Setting up libcmocka-dev (1.0.1-2) ...
+Processing triggers for libc-bin (2.23-0ubuntu11.2) ...
+travis_time:end:06402b40:start=1617118419218123702,finish=1617118423112282617,duration=3894158915,event=prepare
+[0Ktravis_fold:end:apt
+[0Ktravis_time:start:0892eb14
+[0Ktravis_time:end:0892eb14:start=1617118423117833774,finish=1617118423121983341,duration=4149567,event=fix_ps4
+[0Ktravis_time:start:064089a8
+[0K
+travis_fold:start:git.checkout
+[0Ktravis_time:start:201e1d0b
+[0K$ git clone --depth=50 --branch=master https://github.com/unicorn-engine/unicorn.git unicorn-engine/unicorn
+Cloning into 'unicorn-engine/unicorn'...
+travis_time:end:201e1d0b:start=1617118423133643725,finish=1617118426323516204,duration=3189872479,event=checkout
+[0K$ cd unicorn-engine/unicorn
+$ git checkout -qf 4440310f14f3521baa185d51c9e1c7365ef2fec9
+travis_fold:end:git.checkout
+[0K
+travis_time:end:201e1d0b:start=1617118423133643725,finish=1617118426532349344,duration=3398705619,event=checkout
+[0Ktravis_time:start:039a75aa
+[0K
+[33;1mSetting environment variables from .travis.yml[0m
+$ export PATH=$PATH:/usr/local/opt/binutils/bin
+
+travis_time:end:039a75aa:start=1617118426538171798,finish=1617118426549117788,duration=10945990,event=env
+[0K$ export TRAVIS_COMPILER=clang
+$ export CC=${CC:-clang}
+$ export CC_FOR_BUILD=${CC_FOR_BUILD:-clang}
+$ clang --version
+clang version 3.8.0-2ubuntu4 (tags/RELEASE_380/final)
+Target: aarch64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /usr/bin
+travis_time:start:033cba66
+[0K$ if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+    if [[ "$TRAVIS_COMPILER" == "clang" ]]; then
+       choco install cygwin cyg-get && \
+       cyg-get.bat default autoconf automake make gcc-core clang pkg-config libpcre-devel cmake python27-setuptools ruby wget && \
+       export SHELLOPTS && set -o igncr && \
+       cmd.exe //C "C:\\tools\\cygwin\\bin\\bash.exe -lc 'cd /cygdrive/$TRAVIS_BUILD_DIR; make header; make'" 
+    else
+       choco install cygwin cyg-get && \
+       cyg-get.bat default autoconf automake make gcc-core clang pkg-config libpcre-devel cmake python27-setuptools ruby wget && \
+       export SHELLOPTS && set -o igncr && \
+       cmd.exe //C "C:\\tools\\cygwin\\bin\\bash.exe -lc 'cd /cygdrive/$TRAVIS_BUILD_DIR; make header; make; ./install-cmocka-linux.sh; export PATH="$PATH":/cygdrive/$TRAVIS_BUILD_DIR:/cygdrive/$TRAVIS_BUILD_DIR/cmocka/src; make test'"
+    fi 
+elif [[ "$TRAVIS_CPU_ARCH" == "arm64" ]]; then
+    make header && make && make -C tests/unit test && make -C tests/regress test
+else
+    make header && make && make -C bindings/go && make -C bindings/go test && make test    
+fi
+
+Generated headers for m68k arm armeb aarch64 aarch64eb mips mipsel mips64 mips64el sparc sparc64 x86_64.
+cd qemu && \
+./configure --cc="clang" --extra-cflags="-DUNICORN_HAS_X86 -DUNICORN_HAS_ARM -DUNICORN_HAS_ARMEB -DUNICORN_HAS_M68K -DUNICORN_HAS_ARM64 -DUNICORN_HAS_ARM64EB -DUNICORN_HAS_MIPS -DUNICORN_HAS_MIPSEL -DUNICORN_HAS_MIPS64 -DUNICORN_HAS_MIPS64EL -DUNICORN_HAS_SPARC -fPIC -fvisibility=hidden" --target-list="x86_64-softmmu, arm-softmmu, armeb-softmmu, m68k-softmmu, aarch64-softmmu, aarch64eb-softmmu, mips-softmmu, mipsel-softmmu, mips64-softmmu, mips64el-softmmu, sparc-softmmu,sparc64-softmmu," 
+Source path       /home/travis/build/unicorn-engine/unicorn/qemu
+C compiler        clang
+Host C compiler   cc
+Objective-C compiler clang
+ARFLAGS           rv
+CFLAGS            -g 
+QEMU_CFLAGS        -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -Wstrict-prototypes -Wredundant-decls -Wall -Wundef -Wwrite-strings -Wmissing-prototypes -fno-strict-aliasing -fno-common -DUNICORN_HAS_X86 -DUNICORN_HAS_ARM -DUNICORN_HAS_ARMEB -DUNICORN_HAS_M68K -DUNICORN_HAS_ARM64 -DUNICORN_HAS_ARM64EB -DUNICORN_HAS_MIPS -DUNICORN_HAS_MIPSEL -DUNICORN_HAS_MIPS64 -DUNICORN_HAS_MIPS64EL -DUNICORN_HAS_SPARC -fPIC -fvisibility=hidden  -Wno-string-plus-int -Wno-initializer-overrides -Wendif-labels -Wmissing-include-dirs -Wempty-body -Wnested-externs -Wformat-security -Wformat-y2k -Winit-self -Wignored-qualifiers -Wold-style-definition -Wtype-limits -fstack-protector-strong
+LDFLAGS           -Wl,--warn-common -g 
+make              make
+host CPU          aarch64
+host big endian   no
+target list       x86_64-softmmu  arm-softmmu  armeb-softmmu  m68k-softmmu  aarch64-softmmu  aarch64eb-softmmu  mips-softmmu  mipsel-softmmu  mips64-softmmu  mips64el-softmmu  sparc-softmmu sparc64-softmmu 
+tcg debug enabled no
+strip binaries    yes
+static build      no
+mingw32 support   no
+PIE               no
+make -C qemu -j4
+make[1]: Entering directory '/home/travis/build/unicorn-engine/unicorn/qemu'
+  GEN   x86_64-softmmu/config-devices.mak
+  GEN   arm-softmmu/config-devices.mak
+  GEN   armeb-softmmu/config-devices.mak
+  GEN   m68k-softmmu/config-devices.mak
+  GEN   aarch64-softmmu/config-devices.mak
+  GEN   aarch64eb-softmmu/config-devices.mak
+  GEN   mips-softmmu/config-devices.mak
+  GEN   mipsel-softmmu/config-devices.mak
+  GEN   mips64-softmmu/config-devices.mak
+  GEN   mips64el-softmmu/config-devices.mak
+  GEN   sparc-softmmu/config-devices.mak
+  GEN   sparc64-softmmu/config-devices.mak
+  GEN   config-host.h
+  GEN   config-all-devices.mak
+  CC    accel.o
+  CC    vl.o
+  CC    qemu-timer.o
+  CC    ../uc.o
+  CC    ../list.o
+  CC    glib_compat.o
+  CC    qemu-log.o
+  CC    tcg-runtime.o
+  CC    hw/core/qdev.o
+  CC    hw/core/machine.o
+  CC    qom/object.o
+  CC    qom/container.o
+  CC    qom/qom-qobject.o
+  CC    qom/cpu.o
+  CC    qapi-types.o
+  CC    qapi-visit.o
+  CC    qapi/qapi-visit-core.o
+  CC    qapi/qapi-dealloc-visitor.o
+  CC    qapi/qmp-input-visitor.o
+  CC    qapi/qmp-output-visitor.o
+  CC    qapi/string-input-visitor.o
+  CC    qobject/qint.o
+  CC    qobject/qstring.o
+  CC    qobject/qdict.o
+  CC    qobject/qlist.o
+  CC    qobject/qfloat.o
+  CC    qobject/qbool.o
+  CC    qobject/qerror.o
+  CC    util/cutils.o
+  CC    util/qemu-timer-common.o
+  CC    util/oslib-posix.o
+  CC    util/qemu-thread-posix.o
+  CC    util/module.o
+  CC    util/bitmap.o
+  CC    util/bitops.o
+  CC    util/error.o
+  CC    util/aes.o
+  CC    util/crc32c.o
+  CC    util/host-utils.o
+  CC    util/getauxval.o
+  GEN   m68k-softmmu/config-target.h
+  GEN   arm-softmmu/config-target.h
+  GEN   x86_64-softmmu/config-target.h
+  GEN   armeb-softmmu/config-target.h
+  CC    m68k-softmmu/exec.o
+  CC    x86_64-softmmu/exec.o
+  CC    arm-softmmu/exec.o
+  CC    armeb-softmmu/exec.o
+  CC    m68k-softmmu/translate-all.o
+  CC    x86_64-softmmu/translate-all.o
+  CC    armeb-softmmu/translate-all.o
+  CC    arm-softmmu/translate-all.o
+  CC    m68k-softmmu/cpu-exec.o
+  CC    armeb-softmmu/cpu-exec.o
+  CC    x86_64-softmmu/cpu-exec.o
+  CC    arm-softmmu/cpu-exec.o
+  CC    m68k-softmmu/tcg/tcg.o
+  CC    x86_64-softmmu/tcg/tcg.o
+  CC    armeb-softmmu/tcg/tcg.o
+  CC    arm-softmmu/tcg/tcg.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+4 warnings generated.
+  CC    m68k-softmmu/tcg/optimize.o
+4 warnings generated.
+  CC    armeb-softmmu/tcg/optimize.o
+4 warnings generated.
+  CC    arm-softmmu/tcg/optimize.o
+4 warnings generated.
+  CC    x86_64-softmmu/tcg/optimize.o
+  CC    m68k-softmmu/fpu/softfloat.o
+  CC    arm-softmmu/fpu/softfloat.o
+  CC    armeb-softmmu/fpu/softfloat.o
+  CC    x86_64-softmmu/fpu/softfloat.o
+  CC    m68k-softmmu/cpus.o
+  CC    m68k-softmmu/ioport.o
+  CC    armeb-softmmu/cpus.o
+  CC    m68k-softmmu/memory.o
+  CC    arm-softmmu/cpus.o
+  CC    x86_64-softmmu/cpus.o
+  CC    armeb-softmmu/ioport.o
+  CC    arm-softmmu/ioport.o
+  CC    x86_64-softmmu/ioport.o
+  CC    m68k-softmmu/cputlb.o
+  CC    armeb-softmmu/memory.o
+  CC    arm-softmmu/memory.o
+  CC    x86_64-softmmu/memory.o
+  CC    arm-softmmu/cputlb.o
+  CC    armeb-softmmu/cputlb.o
+  CC    x86_64-softmmu/cputlb.o
+  CC    m68k-softmmu/memory_mapping.o
+  CC    m68k-softmmu/hw/m68k/dummy_m68k.o
+  CC    m68k-softmmu/target-m68k/translate.o
+  CC    arm-softmmu/memory_mapping.o
+  CC    armeb-softmmu/memory_mapping.o
+  CC    x86_64-softmmu/memory_mapping.o
+  CC    arm-softmmu/hw/arm/tosa.o
+  CC    armeb-softmmu/hw/arm/tosa.o
+  CC    x86_64-softmmu/hw/intc/apic.o
+  CC    arm-softmmu/hw/arm/virt.o
+  CC    armeb-softmmu/hw/arm/virt.o
+  CC    x86_64-softmmu/hw/intc/apic_common.o
+  CC    m68k-softmmu/target-m68k/op_helper.o
+  CC    arm-softmmu/target-arm/translate.o
+  CC    armeb-softmmu/target-arm/translate.o
+  CC    x86_64-softmmu/hw/i386/pc.o
+  CC    m68k-softmmu/target-m68k/helper.o
+  CC    x86_64-softmmu/hw/i386/pc_piix.o
+  CC    m68k-softmmu/target-m68k/cpu.o
+  CC    x86_64-softmmu/target-i386/translate.o
+  CC    m68k-softmmu/target-m68k/unicorn.o
+  CC    x86_64-softmmu/target-i386/helper.o
+  CC    x86_64-softmmu/target-i386/cpu.o
+  CC    arm-softmmu/target-arm/op_helper.o
+  CC    arm-softmmu/target-arm/helper.o
+  CC    armeb-softmmu/target-arm/op_helper.o
+  CC    x86_64-softmmu/target-i386/excp_helper.o
+  CC    armeb-softmmu/target-arm/helper.o
+  CC    arm-softmmu/target-arm/cpu.o
+  CC    x86_64-softmmu/target-i386/fpu_helper.o
+  CC    x86_64-softmmu/target-i386/cc_helper.o
+  CC    arm-softmmu/target-arm/neon_helper.o
+  CC    arm-softmmu/target-arm/iwmmxt_helper.o
+  CC    armeb-softmmu/target-arm/cpu.o
+  CC    arm-softmmu/target-arm/psci.o
+  CC    armeb-softmmu/target-arm/neon_helper.o
+  CC    armeb-softmmu/target-arm/iwmmxt_helper.o
+  CC    x86_64-softmmu/target-i386/int_helper.o
+  CC    arm-softmmu/target-arm/unicorn_arm.o
+  CC    x86_64-softmmu/target-i386/svm_helper.o
+  CC    x86_64-softmmu/target-i386/smm_helper.o
+  CC    arm-softmmu/target-arm/crypto_helper.o
+  CC    armeb-softmmu/target-arm/psci.o
+  CC    armeb-softmmu/target-arm/unicorn_arm.o
+  CC    x86_64-softmmu/target-i386/misc_helper.o
+  CC    x86_64-softmmu/target-i386/mem_helper.o
+  CC    armeb-softmmu/target-arm/crypto_helper.o
+  GEN   aarch64-softmmu/config-target.h
+  CC    x86_64-softmmu/target-i386/seg_helper.o
+  CC    aarch64-softmmu/exec.o
+  GEN   aarch64eb-softmmu/config-target.h
+  CC    aarch64eb-softmmu/exec.o
+  CC    aarch64eb-softmmu/translate-all.o
+  CC    aarch64-softmmu/translate-all.o
+  CC    x86_64-softmmu/target-i386/arch_memory_mapping.o
+  CC    aarch64eb-softmmu/cpu-exec.o
+  GEN   mips-softmmu/config-target.h
+  CC    mips-softmmu/exec.o
+  CC    x86_64-softmmu/target-i386/unicorn.o
+  CC    aarch64-softmmu/cpu-exec.o
+  CC    aarch64eb-softmmu/tcg/tcg.o
+  CC    aarch64-softmmu/tcg/tcg.o
+  CC    mips-softmmu/translate-all.o
+  CC    mips-softmmu/cpu-exec.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+  CC    aarch64eb-softmmu/tcg/optimize.o
+  CC    mips-softmmu/tcg/tcg.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+4 warnings generated.
+  CC    mips-softmmu/tcg/optimize.o
+  CC    aarch64eb-softmmu/fpu/softfloat.o
+4 warnings generated.
+  CC    aarch64-softmmu/tcg/optimize.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+4 warnings generated.
+  CC    aarch64-softmmu/fpu/softfloat.o
+  CC    mips-softmmu/fpu/softfloat.o
+  CC    mips-softmmu/cpus.o
+  CC    aarch64eb-softmmu/cpus.o
+  CC    aarch64eb-softmmu/ioport.o
+  CC    aarch64-softmmu/cpus.o
+  CC    aarch64eb-softmmu/memory.o
+  CC    aarch64eb-softmmu/cputlb.o
+  CC    mips-softmmu/ioport.o
+  CC    aarch64-softmmu/ioport.o
+  CC    aarch64-softmmu/memory.o
+  CC    mips-softmmu/memory.o
+  CC    aarch64-softmmu/cputlb.o
+  CC    aarch64eb-softmmu/memory_mapping.o
+  CC    mips-softmmu/cputlb.o
+  CC    aarch64eb-softmmu/hw/arm/tosa.o
+  CC    aarch64-softmmu/memory_mapping.o
+  GEN   mipsel-softmmu/config-target.h
+  CC    mipsel-softmmu/exec.o
+  CC    aarch64eb-softmmu/hw/arm/virt.o
+  CC    aarch64-softmmu/hw/arm/tosa.o
+  CC    mips-softmmu/memory_mapping.o
+  CC    mipsel-softmmu/translate-all.o
+  CC    aarch64eb-softmmu/target-arm/translate.o
+  CC    aarch64-softmmu/hw/arm/virt.o
+  CC    mips-softmmu/hw/mips/mips_r4k.o
+  CC    aarch64-softmmu/target-arm/translate.o
+  CC    mipsel-softmmu/cpu-exec.o
+  CC    mips-softmmu/hw/mips/addr.o
+  CC    mipsel-softmmu/tcg/tcg.o
+  CC    mips-softmmu/hw/mips/cputimer.o
+  CC    mips-softmmu/target-mips/translate.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+4 warnings generated.
+  CC    mipsel-softmmu/tcg/optimize.o
+  CC    aarch64eb-softmmu/target-arm/op_helper.o
+  CC    aarch64-softmmu/target-arm/op_helper.o
+  CC    aarch64eb-softmmu/target-arm/helper.o
+  CC    mipsel-softmmu/fpu/softfloat.o
+  CC    aarch64-softmmu/target-arm/helper.o
+  CC    aarch64eb-softmmu/target-arm/cpu.o
+  CC    mipsel-softmmu/cpus.o
+  CC    mips-softmmu/target-mips/dsp_helper.o
+  CC    aarch64-softmmu/target-arm/cpu.o
+  CC    mipsel-softmmu/ioport.o
+  CC    aarch64eb-softmmu/target-arm/neon_helper.o
+  CC    mipsel-softmmu/memory.o
+  CC    aarch64-softmmu/target-arm/neon_helper.o
+  CC    mips-softmmu/target-mips/op_helper.o
+  CC    mipsel-softmmu/cputlb.o
+  CC    aarch64eb-softmmu/target-arm/iwmmxt_helper.o
+  CC    aarch64-softmmu/target-arm/iwmmxt_helper.o
+  CC    aarch64eb-softmmu/target-arm/psci.o
+  CC    mips-softmmu/target-mips/lmi_helper.o
+  CC    mipsel-softmmu/memory_mapping.o
+  CC    aarch64-softmmu/target-arm/psci.o
+  CC    aarch64eb-softmmu/target-arm/cpu64.o
+  CC    mipsel-softmmu/hw/mips/mips_r4k.o
+  CC    mips-softmmu/target-mips/helper.o
+  CC    aarch64-softmmu/target-arm/cpu64.o
+  CC    aarch64eb-softmmu/target-arm/translate-a64.o
+  CC    mipsel-softmmu/hw/mips/addr.o
+  CC    mips-softmmu/target-mips/cpu.o
+  CC    aarch64-softmmu/target-arm/translate-a64.o
+  CC    mipsel-softmmu/hw/mips/cputimer.o
+  CC    mips-softmmu/target-mips/msa_helper.o
+  CC    mipsel-softmmu/target-mips/translate.o
+  CC    mips-softmmu/target-mips/unicorn.o
+  CC    aarch64eb-softmmu/target-arm/helper-a64.o
+  CC    aarch64eb-softmmu/target-arm/unicorn_aarch64.o
+  CC    aarch64-softmmu/target-arm/helper-a64.o
+  CC    aarch64-softmmu/target-arm/unicorn_aarch64.o
+  CC    aarch64eb-softmmu/target-arm/crypto_helper.o
+  CC    aarch64-softmmu/target-arm/crypto_helper.o
+  CC    mipsel-softmmu/target-mips/dsp_helper.o
+  GEN   mips64-softmmu/config-target.h
+  CC    mips64-softmmu/exec.o
+  CC    mips64-softmmu/translate-all.o
+  CC    mips64-softmmu/cpu-exec.o
+  CC    mipsel-softmmu/target-mips/op_helper.o
+  GEN   mips64el-softmmu/config-target.h
+  GEN   sparc-softmmu/config-target.h
+  CC    mips64el-softmmu/exec.o
+  CC    sparc-softmmu/exec.o
+  CC    mips64-softmmu/tcg/tcg.o
+  CC    sparc-softmmu/translate-all.o
+  CC    mips64el-softmmu/translate-all.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+  CC    mips64el-softmmu/cpu-exec.o
+  CC    sparc-softmmu/cpu-exec.o
+  CC    mipsel-softmmu/target-mips/lmi_helper.o
+  CC    sparc-softmmu/tcg/tcg.o
+  CC    mips64el-softmmu/tcg/tcg.o
+  CC    mipsel-softmmu/target-mips/helper.o
+4 warnings generated.
+  CC    mips64-softmmu/tcg/optimize.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+  CC    mipsel-softmmu/target-mips/cpu.o
+4 warnings generated.
+  CC    sparc-softmmu/tcg/optimize.o
+  CC    mipsel-softmmu/target-mips/msa_helper.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+  CC    mips64-softmmu/fpu/softfloat.o
+  CC    sparc-softmmu/fpu/softfloat.o
+4 warnings generated.
+  CC    mips64el-softmmu/tcg/optimize.o
+  CC    mipsel-softmmu/target-mips/unicorn.o
+  CC    mips64-softmmu/cpus.o
+  CC    sparc-softmmu/cpus.o
+  CC    sparc-softmmu/ioport.o
+  CC    mips64-softmmu/ioport.o
+  CC    mips64el-softmmu/fpu/softfloat.o
+  CC    mips64el-softmmu/cpus.o
+  CC    sparc-softmmu/memory.o
+  CC    mips64-softmmu/memory.o
+  CC    mips64-softmmu/cputlb.o
+  CC    sparc-softmmu/cputlb.o
+  CC    sparc-softmmu/memory_mapping.o
+  CC    mips64el-softmmu/ioport.o
+  CC    mips64-softmmu/memory_mapping.o
+  CC    mips64-softmmu/hw/mips/mips_r4k.o
+  CC    mips64el-softmmu/memory.o
+  CC    mips64el-softmmu/cputlb.o
+  CC    mips64-softmmu/hw/mips/addr.o
+  CC    sparc-softmmu/hw/sparc/leon3.o
+  CC    mips64-softmmu/hw/mips/cputimer.o
+  CC    sparc-softmmu/target-sparc/translate.o
+  CC    sparc-softmmu/target-sparc/helper.o
+  CC    mips64-softmmu/target-mips/translate.o
+  CC    mips64-softmmu/target-mips/dsp_helper.o
+  CC    mips64el-softmmu/memory_mapping.o
+  CC    mips64el-softmmu/hw/mips/mips_r4k.o
+  CC    sparc-softmmu/target-sparc/cpu.o
+  CC    mips64el-softmmu/hw/mips/addr.o
+  CC    sparc-softmmu/target-sparc/fop_helper.o
+  CC    sparc-softmmu/target-sparc/cc_helper.o
+  CC    mips64el-softmmu/hw/mips/cputimer.o
+  CC    mips64el-softmmu/target-mips/translate.o
+  CC    sparc-softmmu/target-sparc/win_helper.o
+  CC    sparc-softmmu/target-sparc/mmu_helper.o
+  CC    mips64el-softmmu/target-mips/dsp_helper.o
+  CC    sparc-softmmu/target-sparc/ldst_helper.o
+  CC    sparc-softmmu/target-sparc/int32_helper.o
+  CC    sparc-softmmu/target-sparc/unicorn.o
+  CC    mips64-softmmu/target-mips/op_helper.o
+  CC    mips64-softmmu/target-mips/lmi_helper.o
+  CC    mips64el-softmmu/target-mips/op_helper.o
+  CC    mips64el-softmmu/target-mips/lmi_helper.o
+  CC    mips64-softmmu/target-mips/helper.o
+  CC    mips64el-softmmu/target-mips/helper.o
+  CC    mips64-softmmu/target-mips/cpu.o
+  CC    mips64-softmmu/target-mips/msa_helper.o
+  CC    mips64-softmmu/target-mips/unicorn.o
+  GEN   sparc64-softmmu/config-target.h
+  CC    sparc64-softmmu/exec.o
+  CC    sparc64-softmmu/translate-all.o
+  CC    mips64el-softmmu/target-mips/cpu.o
+  CC    mips64el-softmmu/target-mips/msa_helper.o
+  CC    sparc64-softmmu/cpu-exec.o
+  CC    mips64el-softmmu/target-mips/unicorn.o
+  CC    sparc64-softmmu/tcg/tcg.o
+  CC    sparc64-softmmu/tcg/optimize.o
+  CC    sparc64-softmmu/fpu/softfloat.o
+In file included from /home/travis/build/unicorn-engine/unicorn/qemu/tcg/tcg.c:256:
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:863:24: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_cmp(s, ext, a, b, b_const);
+        ~~~~~~~~~~~    ^~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:877:36: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:879:37: warning: implicit conversion from enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') to different enumeration type 'TCGType' (aka 'enum TCGType') [-Wenum-conversion]
+        tcg_out_insn(s, 3201, CBNZ, ext, a, offset);
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:372:65: note: expanded from macro 'tcg_out_insn'
+    glue(tcg_out_insn_,FMT)(S, glue(glue(glue(I,FMT),_),OP), ## __VA_ARGS__)
+    ~~~~~~~~~~~~~~~~~~~~~~~                                     ^~~~~~~~~~~
+/home/travis/build/unicorn-engine/unicorn/qemu/tcg/aarch64/tcg-target.c:1498:27: warning: implicit conversion from enumeration type 'TCGType' (aka 'enum TCGType') to different enumeration type 'TCGMemOp' (aka 'enum TCGMemOp') [-Wenum-conversion]
+        tcg_out_brcond(s, ext, a2, a0, a1, const_args[1], args[3]);
+        ~~~~~~~~~~~~~~    ^~~
+  CC    sparc64-softmmu/cpus.o
+4 warnings generated.
+  CC    sparc64-softmmu/ioport.o
+  CC    sparc64-softmmu/memory.o
+  CC    sparc64-softmmu/cputlb.o
+  CC    sparc64-softmmu/memory_mapping.o
+  CC    sparc64-softmmu/hw/sparc64/sun4u.o
+  CC    sparc64-softmmu/target-sparc/translate.o
+  CC    sparc64-softmmu/target-sparc/helper.o
+  CC    sparc64-softmmu/target-sparc/cpu.o
+  CC    sparc64-softmmu/target-sparc/fop_helper.o
+  CC    sparc64-softmmu/target-sparc/cc_helper.o
+  CC    sparc64-softmmu/target-sparc/win_helper.o
+  CC    sparc64-softmmu/target-sparc/mmu_helper.o
+  CC    sparc64-softmmu/target-sparc/ldst_helper.o
+  CC    sparc64-softmmu/target-sparc/int64_helper.o
+  CC    sparc64-softmmu/target-sparc/vis_helper.o
+  CC    sparc64-softmmu/target-sparc/unicorn64.o
+make[1]: Leaving directory '/home/travis/build/unicorn-engine/unicorn/qemu'
+  GEN     libunicorn.so.1
+  GEN     libunicorn.a
+ar: creating libunicorn.a
+make -C samples
+make[1]: Entering directory '/home/travis/build/unicorn-engine/unicorn/samples'
+  CC      sample_arm.o
+  CC      sample_armeb.o
+  CC      sample_arm64.o
+  CC      sample_arm64eb.o
+  CC      sample_mips.o
+  CC      sample_sparc.o
+  CC      sample_x86.o
+  CC      shellcode.o
+  CC      mem_apis.o
+  CC      sample_x86_32_gdt_and_seg_regs.o
+  CC      sample_batch_reg.o
+  CC      sample_m68k.o
+  LINK    sample_arm
+  LINK    sample_armeb
+  LINK    sample_arm64
+  LINK    sample_arm64eb
+  LINK    sample_mips
+  LINK    sample_sparc
+  LINK    sample_x86
+  LINK    shellcode
+  LINK    mem_apis
+  LINK    sample_x86_32_gdt_and_seg_regs
+  LINK    sample_batch_reg
+  LINK    sample_m68k
+make[1]: Leaving directory '/home/travis/build/unicorn-engine/unicorn/samples'
+make: Entering directory '/home/travis/build/unicorn-engine/unicorn/tests/unit'
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_hang.c  -pthread -lrt -lcmocka -lunicorn -o test_hang
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_tb_x86.c  -pthread -lrt -lcmocka -lunicorn -o test_tb_x86
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_hookcounts.c  -pthread -lrt -lcmocka -lunicorn -o test_hookcounts
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_x86_rip_bug.c  -pthread -lrt -lcmocka -lunicorn -o test_x86_rip_bug
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_mem_high.c  -pthread -lrt -lcmocka -lunicorn -o test_mem_high
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_x86_shl_enter_leave.c  -pthread -lrt -lcmocka -lunicorn -o test_x86_shl_enter_leave
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_mem_map_ptr.c  -pthread -lrt -lcmocka -lunicorn -o test_mem_map_ptr
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_pc_change.c  -pthread -lrt -lcmocka -lunicorn -o test_pc_change
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_x86.c  -pthread -lrt -lcmocka -lunicorn -o test_x86
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_gdt_idt_x86.c  -pthread -lrt -lcmocka -lunicorn -o test_gdt_idt_x86
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_sanity.c  -pthread -lrt -lcmocka -lunicorn -o test_sanity
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_multihook.c  -pthread -lrt -lcmocka -lunicorn -o test_multihook
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_mem_map.c  -pthread -lrt -lcmocka -lunicorn -o test_mem_map
+clang -Wall -Werror -Wno-unused-function -g -D__USE_MINGW_ANSI_STDIO=1 -L ../../ -I ../../include -L ../../cmocka/src -I ../../cmocka/include -L /usr/local/lib -I /usr/local/include    test_x86_soft_paging.c  -pthread -lrt -lcmocka -lunicorn -o test_x86_soft_paging
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_sanity
+[==========] Running 3 test(s).
+[ RUN      ] test_uc_assert_macros_constants
+[       OK ] test_uc_assert_macros_constants
+[ RUN      ] test_uc_assert_macros_func_calls
+[       OK ] test_uc_assert_macros_func_calls
+[ RUN      ] test_uc_assert_macros_fail
+
+
+--------------------------------------------------------------------------------
+START: Failure of the following tests is expected.
+
+[==========] Running 3 test(s).
+[ RUN      ] fail_uc_assert_success
+ERROR: No memory available or memory not present (UC_ERR_NOMEM)
+test_sanity.c:43: error: Failure!
+
+ERROR: OK (UC_ERR_OK)
+test_sanity.c:49: error: Failure!
+
+ERROR: OK (UC_ERR_OK)
+test_sanity.c:54: error: Failure!
+
+[  PASSED  ] 0 test(s).
+[  FAILED  ] 3 test(s), listed below:
+[  FAILED  ] fail_uc_assert_success
+[  FAILED  ] fail_uc_assert_err
+[  FAILED  ] fail_uc_assert_fail
+
+ 3 FAILED TEST(S)
+[  PASSED  ] 3 test(s).
+[  FAILED  ] fail_uc_assert_success
+[ RUN      ] fail_uc_assert_err
+[  FAILED  ] fail_uc_assert_err
+[ RUN      ] fail_uc_assert_fail
+[  FAILED  ] fail_uc_assert_fail
+[==========] 3 test(s) run.
+
+
+END: Failure of the preceding tests was expected.
+--------------------------------------------------------------------------------
+
+[       OK ] test_uc_assert_macros_fail
+[==========] 3 test(s) run.
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_x86
+[==========] Running 12 test(s).
+[ RUN      ] test_i386
+[       OK ] test_i386
+[ RUN      ] test_i386_jump
+[       OK ] test_i386_jump
+[ RUN      ] test_i386_inout
+[       OK ] test_i386_inout
+[ RUN      ] test_i386_loop
+[       OK ] test_i386_loop
+[ RUN      ] test_i386_invalid_mem_read
+[       OK ] test_i386_invalid_mem_read
+[ RUN      ] test_i386_invalid_mem_write
+[       OK ] test_i386_invalid_mem_write
+[ RUN      ] test_i386_jump_invalid
+[       OK ] test_i386_jump_invalid
+[ RUN      ] test_i386_reg_save
+[       OK ] test_i386_reg_save
+[ RUN      ] test_x86_64
+[       OK ] test_x86_64
+[ RUN      ] test_x86_64_syscall
+[       OK ] test_x86_64_syscall
+[ RUN      ] test_x86_16
+[       OK ] test_x86_16
+[ RUN      ] test_basic_blocks
+[       OK ] test_basic_blocks
+[==========] 12 test(s) run.
+[  PASSED  ] 12 test(s).
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_mem_map
+[==========] Running 9 test(s).
+[ RUN      ] test_basic
+[       OK ] test_basic
+[ RUN      ] test_bad_offset
+[       OK ] test_bad_offset
+[ RUN      ] test_assertion_fail
+[       OK ] test_assertion_fail
+[ RUN      ] test_bad_unmap
+[       OK ] test_bad_unmap
+[ RUN      ] test_rw_across_boundaries
+[       OK ] test_rw_across_boundaries
+[ RUN      ] test_unmap_double_map
+[       OK ] test_unmap_double_map
+[ RUN      ] test_overlap_unmap_double_map
+[       OK ] test_overlap_unmap_double_map
+[ RUN      ] test_strange_map
+[       OK ] test_strange_map
+[ RUN      ] test_query_page_size
+[       OK ] test_query_page_size
+[==========] 9 test(s) run.
+[  PASSED  ] 9 test(s).
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_mem_map_ptr
+[==========] Running 1 test(s).
+[ RUN      ] test_basic
+[       OK ] test_basic
+[==========] 1 test(s) run.
+[  PASSED  ] 1 test(s).
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_mem_high
+[==========] Running 4 test(s).
+[ RUN      ] test_last_page_map
+[       OK ] test_last_page_map
+[ RUN      ] test_high_address_reads
+>>> Memory is being accessed at 0x10000000000001, data size = 8
+[       OK ] test_high_address_reads
+[ RUN      ] test_high_address_read_values
+[       OK ] test_high_address_read_values
+[ RUN      ] test_nullptr_deref_wrong_perms
+[       OK ] test_nullptr_deref_wrong_perms
+[==========] 4 test(s) run.
+[  PASSED  ] 4 test(s).
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_multihook
+[==========] Running 1 test(s).
+[ RUN      ] test_basic_blocks
+block hook 1: 6 == 6
+block hook 2: 6 == 6
+block hook 1: 3 == 3
+block hook 2: 3 == 3
+[       OK ] test_basic_blocks
+[==========] 1 test(s) run.
+[  PASSED  ] 1 test(s).
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_pc_change
+[==========] Running 1 test(s).
+[ RUN      ] test_pc_change
+[       OK ] test_pc_change
+[==========] 1 test(s) run.
+[  PASSED  ] 1 test(s).
+LD_LIBRARY_PATH=../../cmocka/src:../../ DYLD_LIBRARY_PATH=../../ ./test_hookcounts
+[==========] Running 7 test(s).
+[ RUN      ] test_hook_count_1_begin
+Address: 1200000
+Start  : 1200000
+End    : 1200000
+Count  : 1
+instruction at 0x1200000: 0x41 
+[       OK ] test_hook_count_1_begin
+[ RUN      ] test_hook_count_1_midpoint
+Address: 1200000
+Start  : 1200004
+End    : 1200007
+Count  : 1
+instruction at 0x1200004: 0x41 
+[       OK ] test_hook_count_1_midpoint
+[ RUN      ] test_hook_count_1_end
+Address: 1200000
+Start  : 1200007
+End    : 1200007
+Count  : 1
+instruction at 0x1200007: 0x42 
+[       OK ] test_hook_count_1_end
+[ RUN      ] test_hook_count_begins
+Address: 1600000
+Start  : 1600000
+End    : 1600007
+Count  : 3
+instruction at 0x1600000: 0x41 
+instruction at 0x1600001: 0x41 
+instruction at 0x1600002: 0x41 
+[       OK ] test_hook_count_begins
+[ RUN      ] test_hook_count_range
+Iteration 2
+Address: 1400000
+Start  : 1400002
+End    : 1400007
+Count  : 2
+instruction at 0x1400002: 0x41 
+instruction at 0x1400003: 0x41 
+Iteration 3
+Address: 1400000
+Start  : 1400003
+End    : 1400007
+Count  : 2
+instruction at 0x1400003: 0x41 
+instruction at 0x1400004: 0x41 
+Iteration 4
+Address: 1400000
+Start  : 1400004
+End    : 1400007
+Count  : 2
+instruction at 0x1400004: 0x41 
+instruction at 0x1400005: 0x41 
+Iteration 5
+Address: 1400000
+Start  : 1400005
+End    : 1400007
+Count  : 2
+instruction at 0x1400005: 0x41 
+instruction at 0x1400006: 0x42 
+[       OK ] test_hook_count_range
+[ RUN      ] test_hook_count_midpoint
+Address: 1600000
+Start  : 1600002
+End    : 1600007
+Count  : 3
+instruction at 0x1600002: 0x41 
+instruction at 0x1600003: 0x41 
+instruction at 0x1600004: 0x41 
+[       OK ] test_hook_count_midpoint
+[ RUN      ] test_hook_count_end
+Address: 1600000
+Start  : 1600005
+End    : 1600007
+Count  : 3
+instruction at 0x1600005: 0x41 
+instruction at 0x1600006: 0x42 
+instruction at 0x1600007: 0x42 
+[       OK ] test_hook_count_end
+[==========] 7 test(s) run.
+[  PASSED  ] 7 test(s).
+echo "skipping test_tb_x86"
+skipping test_tb_x86
+echo "skipping test_x86_soft_paging"
+skipping test_x86_soft_paging
+echo "skipping test_hang"
+skipping test_hang
+echo "skipping test_x86_sh1_enter_leave"
+skipping test_x86_sh1_enter_leave
+echo "skipping test_x86_rip_bug"
+skipping test_x86_rip_bug
+make: Leaving directory '/home/travis/build/unicorn-engine/unicorn/tests/unit'
+make: Entering directory '/home/travis/build/unicorn-engine/unicorn/tests/regress'
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    map_crash.c  -L../../ -lm -lunicorn -pthread -lrt -o map_crash
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    memleak_m68k.c  -L../../ -lm -lunicorn -pthread -lrt -o memleak_m68k
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_double_unmap.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_double_unmap
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_exec.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_exec
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    map_write.c  -L../../ -lm -lunicorn -pthread -lrt -o map_write
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    nr_mem_test.c  -L../../ -lm -lunicorn -pthread -lrt -o nr_mem_test
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mips_branch_likely_issue.c  -L../../ -lm -lunicorn -pthread -lrt -o mips_branch_likely_issue
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    004-segmentation_fault_1.c  -L../../ -lm -lunicorn -pthread -lrt -o 004-segmentation_fault_1
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_unmap.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_unmap
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_map_large.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_map_large
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mips_invalid_read_of_size_4_when_tracing.c  -L../../ -lm -lunicorn -pthread -lrt -o mips_invalid_read_of_size_4_when_tracing
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_protect.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_protect
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mips_delay_slot_code_hook.c  -L../../ -lm -lunicorn -pthread -lrt -o mips_delay_slot_code_hook
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    x86_vex.c  -L../../ -lm -lunicorn -pthread -lrt -o x86_vex
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    memleak_arm.c  -L../../ -lm -lunicorn -pthread -lrt -o memleak_arm
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    eflags_nosync.c  -L../../ -lm -lunicorn -pthread -lrt -o eflags_nosync
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    rw_hookstack.c  -L../../ -lm -lunicorn -pthread -lrt -o rw_hookstack
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    invalid_write_in_cpu_tb_exec_x86_64.c  -L../../ -lm -lunicorn -pthread -lrt -o invalid_write_in_cpu_tb_exec_x86_64
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_fuzz.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_fuzz
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    arm_enable_vfp.c  -L../../ -lm -lunicorn -pthread -lrt -o arm_enable_vfp
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    001-bad_condition_code_0xe.c  -L../../ -lm -lunicorn -pthread -lrt -o 001-bad_condition_code_0xe
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_map_0x100000000.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_map_0x100000000
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    005-qemu__fatal__illegal_instruction__0000___00000404.c  -L../../ -lm -lunicorn -pthread -lrt -o 005-qemu__fatal__illegal_instruction__0000___00000404
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    eflags_noset.c  -L../../ -lm -lunicorn -pthread -lrt -o eflags_noset
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    003-qemu__fatal__wdebug_not_implemented.c  -L../../ -lm -lunicorn -pthread -lrt -o 003-qemu__fatal__wdebug_not_implemented
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    sysenter_hook_x86.c  -L../../ -lm -lunicorn -pthread -lrt -o sysenter_hook_x86
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    ro_mem_test.c  -L../../ -lm -lunicorn -pthread -lrt -o ro_mem_test
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    invalid_read_in_tb_flush_x86_64.c  -L../../ -lm -lunicorn -pthread -lrt -o invalid_read_in_tb_flush_x86_64
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_nofree.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_nofree
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    sigill.c  -L../../ -lm -lunicorn -pthread -lrt -o sigill
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    002-qemu__fatal__unimplemented_control_register_write_0xffb___0x0.c  -L../../ -lm -lunicorn -pthread -lrt -o 002-qemu__fatal__unimplemented_control_register_write_0xffb___0x0
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    00opcode_uc_crash.c  -L../../ -lm -lunicorn -pthread -lrt -o 00opcode_uc_crash
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    timeout_segfault.c  -L../../ -lm -lunicorn -pthread -lrt -o timeout_segfault
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    memleak_mips.c  -L../../ -lm -lunicorn -pthread -lrt -o memleak_mips
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    memleak_arm64.c  -L../../ -lm -lunicorn -pthread -lrt -o memleak_arm64
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    memleak_sparc.c  -L../../ -lm -lunicorn -pthread -lrt -o memleak_sparc
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mips_kseg0_1.c  -L../../ -lm -lunicorn -pthread -lrt -o mips_kseg0_1
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    memleak_x86.c  -L../../ -lm -lunicorn -pthread -lrt -o memleak_x86
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    sparc_jump_to_zero.c  -L../../ -lm -lunicorn -pthread -lrt -o sparc_jump_to_zero
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    x86_16_segfault.c  -L../../ -lm -lunicorn -pthread -lrt -o x86_16_segfault
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    block_test.c  -L../../ -lm -lunicorn -pthread -lrt -o block_test
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    emu_clear_errors.c  -L../../ -lm -lunicorn -pthread -lrt -o emu_clear_errors
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    threaded_emu_start.c  -L../../ -lm -lunicorn -pthread -lrt -o threaded_emu_start
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    006-qemu__fatal__illegal_instruction__0421___00040026.c  -L../../ -lm -lunicorn -pthread -lrt -o 006-qemu__fatal__illegal_instruction__0421___00040026
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    mem_64_c.c  -L../../ -lm -lunicorn -pthread -lrt -o mem_64_c
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    sigill2.c  -L../../ -lm -lunicorn -pthread -lrt -o sigill2
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    invalid_read_in_cpu_tb_exec.c  -L../../ -lm -lunicorn -pthread -lrt -o invalid_read_in_cpu_tb_exec
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    rep_movsb.c  -L../../ -lm -lunicorn -pthread -lrt -o rep_movsb
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    hook_extrainvoke.c  -L../../ -lm -lunicorn -pthread -lrt -o hook_extrainvoke
+clang -Wall -Werror -I../../include -D__USE_MINGW_ANSI_STDIO=1    emu_stop_in_hook_overrun.c  -L../../ -lm -lunicorn -pthread -lrt -o emu_stop_in_hook_overrun
+make: Leaving directory '/home/travis/build/unicorn-engine/unicorn/tests/regress'
+travis_time:end:033cba66:start=1617118426714866115,finish=1617118488746859031,duration=62031992916,event=script
+[0K[32;1mThe command "if [[ "$TRAVIS_OS_NAME" == "windows" ]]; then
+    if [[ "$TRAVIS_COMPILER" == "clang" ]]; then
+       choco install cygwin cyg-get && \
+       cyg-get.bat default autoconf automake make gcc-core clang pkg-config libpcre-devel cmake python27-setuptools ruby wget && \
+       export SHELLOPTS && set -o igncr && \
+       cmd.exe //C "C:\\tools\\cygwin\\bin\\bash.exe -lc 'cd /cygdrive/$TRAVIS_BUILD_DIR; make header; make'" 
+    else
+       choco install cygwin cyg-get && \
+       cyg-get.bat default autoconf automake make gcc-core clang pkg-config libpcre-devel cmake python27-setuptools ruby wget && \
+       export SHELLOPTS && set -o igncr && \
+       cmd.exe //C "C:\\tools\\cygwin\\bin\\bash.exe -lc 'cd /cygdrive/$TRAVIS_BUILD_DIR; make header; make; ./install-cmocka-linux.sh; export PATH="$PATH":/cygdrive/$TRAVIS_BUILD_DIR:/cygdrive/$TRAVIS_BUILD_DIR/cmocka/src; make test'"
+    fi 
+elif [[ "$TRAVIS_CPU_ARCH" == "arm64" ]]; then
+    make header && make && make -C tests/unit test && make -C tests/regress test
+else
+    make header && make && make -C bindings/go && make -C bindings/go test && make test    
+fi
+" exited with 0.[0m
+
+
+Done. Your build exited with 0.
