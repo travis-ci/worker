@@ -68,6 +68,19 @@ func (m *Manager) Load(imageName string) error {
 	return m.importImage(imageName, imageURL)
 }
 
+func (m *Manager) LoadCustom(imageName string, tamToken string) error {
+	// TODO: Image cleanup
+
+	imageURL := m.customImageUrl(imageName, tamToken)
+
+	m.logger.WithFields(logrus.Fields{
+		"image_name": imageName,
+		"image_url":  imageURL,
+	}).Info("importing image")
+
+	return m.importImage(imageName, imageURL)
+}
+
 func (m *Manager) Exists(imageName string) (bool, error) {
 	images, err := m.client.GetImages()
 	if err != nil {
@@ -204,5 +217,11 @@ func (m *Manager) importImage(imageName, imgURL string) error {
 func (m *Manager) imageUrl(name string) string {
 	u := *m.imagesServerURL
 	u.Path = fmt.Sprintf("/images/travis/%s", name)
+	return u.String()
+}
+
+func (m *Manager) customImageUrl(name string, tamToken string) string {
+	u := *m.imagesServerURL
+	u.Path = fmt.Sprintf("/images/custom/%s/%s", name, tamToken)
 	return u.String()
 }

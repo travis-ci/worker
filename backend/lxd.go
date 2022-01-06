@@ -509,6 +509,19 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Select the image
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
+	} else if startAttributes.OSCustom != "" {
+		imageName = startAttributes.OSCustom
+
+		var imgManager *image.Manager
+		imgManager, err = image.NewManager(ctx, nil, p.imageBaseURL)
+		if err != nil {
+			return nil, err
+		}
+		err = imgManager.LoadCustom(imageName, startAttributes.TamToken)
+
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		imageArch := startAttributes.Arch
 		if p.archOverride != "" {
