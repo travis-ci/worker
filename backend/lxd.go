@@ -506,6 +506,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
 
+	logger.WithField("ImageName", startAttributes.ImageName).WithField("OSCustom", startAttributes.OSCustom).Info("DEBUG")
 	// Select the image
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
