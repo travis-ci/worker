@@ -69,7 +69,19 @@ func (m *Manager) Load(imageName string) error {
 }
 
 func (m *Manager) LoadCustom(imageName string, tamToken string) error {
-	// TODO: Image cleanup
+	ok, err := m.Exists(imageName)
+	if err != nil {
+		return err
+	}
+
+	if ok {
+		m.logger.WithFields(logrus.Fields{
+			"image_name": imageName,
+			"token": tamToken,
+		}).Info("image already present")
+
+		return nil
+	}
 
 	imageURL := m.customImageUrl(imageName, tamToken)
 
