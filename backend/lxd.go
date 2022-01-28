@@ -758,7 +758,7 @@ iface eth0 inet static
   mtu %s
 `, address, p.networkGateway, strings.Join(p.networkDNS, " "), p.networkMTU)
 		default:
-			fileName = "/etc/netplan/50-cloud-init.yaml"
+			fileName = "/etc/netplan/51-cloud-init.yaml"
 			content = fmt.Sprintf(`network:
   version: 2
   ethernets:
