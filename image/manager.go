@@ -234,6 +234,6 @@ func (m *Manager) imageUrl(name string) string {
 
 func (m *Manager) customImageUrl(name string, tamToken string) string {
 	u := *m.imagesServerURL
-	u.Path = fmt.Sprintf("/images/custom/%s/%s", name, tamToken)
+	u.Path = fmt.Sprintf("/images/custom/%s/%s", url.QueryEscape(name), tamToken)
 	return u.String()
 }
