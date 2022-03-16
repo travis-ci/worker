@@ -472,7 +472,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	}).Debug("creating container")
 
 	container, err := p.client.ContainerCreate(
-		ctx, dockerConfig, dockerHostConfig, nil, containerName)
+		ctx, dockerConfig, dockerHostConfig, nil, nil, containerName)
 
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create container")
