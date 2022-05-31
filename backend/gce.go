@@ -128,11 +128,18 @@ var (
 	errGCEInstanceDeletionNotDone = fmt.Errorf("instance deletion not done")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
+echo "PubkeyAcceptedKeyTypes +ssh-rsa" >> /etc/ssh/ssh_config
+echo "HostKeyAlgorithms +ssh-rsa" >> /etc/ssh/ssh_config
+echo "PubkeyAcceptedKeyTypes +ssh-rsa" >> /etc/ssh/sshd_config
+echo "HostKeyAlgorithms +ssh-rsa" >> /etc/ssh/sshd_config
+
 {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
 cat > ~travis/.ssh/authorized_keys <<EOF
 {{ .SSHPubKey }}
 EOF
 chown -R travis:travis ~travis/.ssh/
+
+sudo systemctl reload sshd
 `))
 
 	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
@@ -147,9 +154,9 @@ Set-LocalUser -Name travis -Password $pw
 	gceCustomHTTPTransportLock sync.Mutex
 
 	gceVMSizeMapping = map[string]string{
-		"medium": "n2-standard-2",
-		"large": "n2-standard-4",
-		"x-large": "n2-standard-8",
+		"medium":   "n2-standard-2",
+		"large":    "n2-standard-4",
+		"x-large":  "n2-standard-8",
 		"2x-large": "n2-standard-16",
 	}
 )
@@ -827,7 +834,7 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	machineTypes := []string{p.ic.MachineType, p.ic.PremiumMachineType}
 	for _, machineType := range gceVMSizeMapping {
-		machineTypes = append(machineTypes, machineType);
+		machineTypes = append(machineTypes, machineType)
 	}
 	for _, zoneName := range append(zoneNames, p.alternateZones...) {
 		for _, machineType := range machineTypes {
@@ -1512,7 +1519,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		machineType = p.ic.PremiumMachineType
 	} else if c.startAttributes.VMSize != "" {
 		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
-			machineType = mtype;
+			machineType = mtype
 			//storing converted machine type for instance size identification
 			c.startAttributes.VMSize = machineType
 		}
