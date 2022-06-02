@@ -357,7 +357,7 @@ func TestNewDockerProvider_WithInvalidInspectInterval(t *testing.T) {
 	defer dockerTestTeardown()
 
 	assert.NotNil(t, err)
-	assert.Equal(t, "time: invalid duration mraaaaaaa", err.Error())
+	assert.Equal(t, "time: invalid duration \"mraaaaaaa\"", err.Error())
 	assert.Nil(t, provider)
 }
 
