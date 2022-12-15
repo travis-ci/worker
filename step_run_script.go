@@ -135,6 +135,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		logger.Info("context was cancelled, stopping job")
 		return multistep.ActionHalt
 	case cancelCommand := <-cancelChan:
+		JobCancelledError := errors.New(fmt.Sprintf("job cancelled %s", cancelCommand.Reason))
 		state.Put("err", JobCancelledError)
 
 		span.SetStatus(trace.Status{

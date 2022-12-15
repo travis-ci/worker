@@ -35,7 +35,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 				context.LoggerFromContext(ctx).WithField("err", err).WithField("state", FinishStateCancelled).Error("couldn't update job state")
 			}
 		}
-		state.Put("err", JobCancelledError)
+		state.Put("err", errors.New(fmt.Sprintf("job cancelled %s", command.Reason)))
 		return multistep.ActionHalt
 	default:
 	}
