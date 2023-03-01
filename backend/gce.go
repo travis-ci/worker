@@ -233,8 +233,6 @@ func GpuDefaultGpuType(vmSize string) (gpuTypeString string) {
 	return GpuMapping(vmSize).GpuType
 }
 
-var GPUInstance string = "";
-
 func GPUType(varSize string) string {
   switch varSize {
     case "gpu-medium":
@@ -248,17 +246,17 @@ func GPUType(varSize string) string {
   }
 }
 
-func OverrideDefaultsForGPU(p *gceProvider) {
+func OverrideDefaultsForGPU(p *gceProvider, gpuVMType string) {
    if !p.cfg.IsSet("GPU_TYPE") {
-     p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(GPUInstance)
+     p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(gpuVMType)
    }
 
    if !p.cfg.IsSet("GPU_COUNT") {
-     p.ic.AcceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(GPUInstance)
+     p.ic.AcceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(gpuVMType)
    }
 
    if !p.cfg.IsSet("DISK_SIZE") {
-     p.ic.DiskSize = GpuDefaultGpuDiskSize((GPUInstance))
+     p.ic.DiskSize = GpuDefaultGpuDiskSize(gpuVMType)
    }
 }
 
@@ -1571,22 +1569,22 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		Zone:        c.zoneName,
 	}
 
+    var gpuVMType = GPUType(c.startAttributes.VMSize)
+
 	machineType := p.ic.MachineType
     	if c.startAttributes.VMType == "premium" {
-    	    GPUInstance = GPUType(c.startAttributes.VMSize)
     		c.startAttributes.VMSize = "premium"
     		machineType = p.ic.PremiumMachineType
     	} else if c.startAttributes.VMSize != "" {
     		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
     			machineType = mtype;
-    			GPUInstance = GPUType(c.startAttributes.VMSize)
     			//storing converted machine type for instance size identification
     			c.startAttributes.VMSize = machineType
     		}
     	}
 
-    if GPUInstance != "" {
-        OverrideDefaultsForGPU(p)
+    if gpuVMType != "" {
+        OverrideDefaultsForGPU(p, gpuVMType)
     }
 
 	diskSize := p.ic.DiskSize
