@@ -153,7 +153,7 @@ Set-LocalUser -Name travis -Password $pw
 		"2x-large": "n2-standard-16",
 		"gpu-medium": "n1-standard-2",
 		"gpu-large": "n1-standard-2",
-		"gpu-xlarge": "n1-standard-2"
+		"gpu-xlarge": "n1-standard-2",
 	}
 )
 
