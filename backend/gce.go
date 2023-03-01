@@ -249,15 +249,15 @@ func GPUType(varSize string) string {
 }
 
 func OverrideDefaultsForGPU(p *gceProvider) {
-   if !p.cfg("GPU_TYPE") {
+   if !p.cfg.IsSet("GPU_TYPE") {
      p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(GPUInstance)
    }
 
-   if !p.cfg("GPU_COUNT") {
+   if !p.cfg.IsSet("GPU_COUNT") {
      p.ic.AcceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(GPUInstance)
    }
 
-   if !p.cfg("DISK_SIZE") {
+   if !p.cfg.IsSet("DISK_SIZE") {
      p.ic.DiskSize = GpuDefaultGpuDiskSize((GPUInstance))
    }
 }
