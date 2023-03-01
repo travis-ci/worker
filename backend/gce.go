@@ -151,8 +151,20 @@ Set-LocalUser -Name travis -Password $pw
 		"large": "n2-standard-4",
 		"x-large": "n2-standard-8",
 		"2x-large": "n2-standard-16",
+		"gpu-medium": "n1-standard-2",
+		"gpu-large": "n1-standard-2",
+		"gpu-xlarge": "n1-standard-2"
 	}
 )
+
+func stringInSlice(a string, list []string) bool {
+    for _, b := range list {
+        if b == a {
+            return true
+        }
+    }
+    return false
+}
 
 type gceStartupScriptData struct {
 	AutoImplode        bool
@@ -179,6 +191,78 @@ func (oe *gceOpError) Error() string {
 
 	return strings.Join(errStrs, ", ")
 }
+
+type singleGpuMapping struct {
+	GpuCount int64
+	GpuType string
+	DiskSize int64
+}
+
+var gpuMedium = singleGpuMapping{
+	GpuCount: 1,
+	GpuType: "nvidia-tesla-t4",
+	DiskSize: 300,}
+var gpuLarge = singleGpuMapping{
+	GpuCount: 1,
+	GpuType: "nvidia-tesla-p4",
+	DiskSize: 300,}
+var gpuXLarge = singleGpuMapping{
+	GpuCount: 1,
+	GpuType: "nvidia-tesla-p100",
+	DiskSize: 300,}
+
+func GpuMapping(vmSize string) (value singleGpuMapping) {
+	gpuMapping := map[string] singleGpuMapping{
+		"gpu-medium": gpuMedium,
+		"gpu-large": gpuLarge,
+		"gpu-xlarge": gpuXLarge,
+	}
+	return gpuMapping[vmSize]
+}
+
+
+func GpuDefaultGpuCount(vmSize string) (gpuCountInt int64) {
+	return GpuMapping(vmSize).GpuCount
+}
+
+func GpuDefaultGpuDiskSize(vmSize string) (gpuDiskSizeInt int64) {
+	return GpuMapping(vmSize).DiskSize
+}
+
+func GpuDefaultGpuType(vmSize string) (gpuTypeString string) {
+	return GpuMapping(vmSize).GpuType
+}
+
+var GPUInstance string = "";
+
+func GPUType(varSize string) string {
+  switch varSize {
+    case "gpu-medium":
+      return "gpu-medium"
+    case  "gpu-large":
+      return "gpu-large"
+    case  "gpu-xlarge":
+      return "gpu-xlarge"
+    default:
+      return ""
+  }
+}
+
+func OverrideDefaultsForGPU(p *gceProvider) {
+   if !p.cfg("GPU_TYPE") {
+     p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(GPUInstance)
+   }
+
+   if !p.cfg("GPU_COUNT") {
+     p.ic.AcceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(GPUInstance)
+   }
+
+   if !p.cfg("DISK_SIZE") {
+     p.ic.DiskSize = GpuDefaultGpuDiskSize((GPUInstance))
+   }
+}
+
+
 
 type gceAccountJSON struct {
 	ClientEmail string `json:"client_email"`
@@ -827,7 +911,9 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	machineTypes := []string{p.ic.MachineType, p.ic.PremiumMachineType}
 	for _, machineType := range gceVMSizeMapping {
-		machineTypes = append(machineTypes, machineType);
+	    if !stringInSlice(machineType, machineTypes) {
+		  machineTypes = append(machineTypes, machineType);
+		}
 	}
 	for _, zoneName := range append(zoneNames, p.alternateZones...) {
 		for _, machineType := range machineTypes {
@@ -1485,6 +1571,24 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		Zone:        c.zoneName,
 	}
 
+	machineType := p.ic.MachineType
+    	if c.startAttributes.VMType == "premium" {
+    	    GPUInstance = GPUType(c.startAttributes.VMSize)
+    		c.startAttributes.VMSize = "premium"
+    		machineType = p.ic.PremiumMachineType
+    	} else if c.startAttributes.VMSize != "" {
+    		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
+    			machineType = mtype;
+    			GPUInstance = GPUType(c.startAttributes.VMSize)
+    			//storing converted machine type for instance size identification
+    			c.startAttributes.VMSize = machineType
+    		}
+    	}
+
+    if GPUInstance != "" {
+        OverrideDefaultsForGPU(p)
+    }
+
 	diskSize := p.ic.DiskSize
 	if c.startAttributes.OS == "windows" {
 		diskSize = p.ic.DiskSizeWindows
@@ -1504,18 +1608,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			AutoDelete:       true,
 			InitializeParams: diskInitParams,
 		},
-	}
-
-	machineType := p.ic.MachineType
-	if c.startAttributes.VMType == "premium" {
-		c.startAttributes.VMSize = "premium"
-		machineType = p.ic.PremiumMachineType
-	} else if c.startAttributes.VMSize != "" {
-		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
-			machineType = mtype;
-			//storing converted machine type for instance size identification
-			c.startAttributes.VMSize = machineType
-		}
 	}
 
 	var ok bool
