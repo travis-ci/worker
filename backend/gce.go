@@ -151,9 +151,8 @@ Set-LocalUser -Name travis -Password $pw
 		"large": "n2-standard-4",
 		"x-large": "n2-standard-8",
 		"2x-large": "n2-standard-16",
-		"gpu-medium": "n1-standard-2",
-		"gpu-large": "n1-standard-2",
-		"gpu-xlarge": "n1-standard-2",
+		"gpu-medium": "n1-standard-8",
+		"gpu-xlarge": "n1-standard-8",
 	}
 )
 
@@ -202,19 +201,14 @@ var gpuMedium = singleGpuMapping{
 	GpuCount: 1,
 	GpuType: "nvidia-tesla-t4",
 	DiskSize: 300,}
-var gpuLarge = singleGpuMapping{
-	GpuCount: 1,
-	GpuType: "nvidia-tesla-p4",
-	DiskSize: 300,}
 var gpuXLarge = singleGpuMapping{
 	GpuCount: 1,
-	GpuType: "nvidia-tesla-p100",
+	GpuType: "nvidia-tesla-v100",
 	DiskSize: 300,}
 
 func GpuMapping(vmSize string) (value singleGpuMapping) {
 	gpuMapping := map[string] singleGpuMapping{
 		"gpu-medium": gpuMedium,
-		"gpu-large": gpuLarge,
 		"gpu-xlarge": gpuXLarge,
 	}
 	return gpuMapping[vmSize]
@@ -237,8 +231,6 @@ func GPUType(varSize string) string {
   switch varSize {
     case "gpu-medium":
       return "gpu-medium"
-    case  "gpu-large":
-      return "gpu-large"
     case  "gpu-xlarge":
       return "gpu-xlarge"
     default:
