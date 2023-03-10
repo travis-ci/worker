@@ -244,7 +244,7 @@ func newLXDProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	limitProcess := lxdLimitProcess
 	if cfg.IsSet("PROCESS") {
-		limitNetwork = cfg.Get("PROCESS")
+		limitProcess = cfg.Get("PROCESS")
 	}
 
 	limitDisk := lxdLimitDisk
