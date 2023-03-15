@@ -48,10 +48,10 @@ require (
 	github.com/streadway/amqp v0.0.0-20180806233856-70e15c650864
 	github.com/stretchr/testify v1.7.0
 	go.opencensus.io v0.23.0
-	golang.org/x/crypto v0.7.0
-	golang.org/x/net v0.8.0
+	golang.org/x/crypto v0.1.0
+	golang.org/x/net v0.7.0
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
-	golang.org/x/sync v0.1.0
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	google.golang.org/api v0.43.0
 	gopkg.in/httprequest.v1 v1.2.0 // indirect
 	gopkg.in/juju/environschema.v1 v1.0.0 // indirect
