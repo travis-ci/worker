@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go v1.15.31
 	github.com/bitly/go-simplejson v0.5.0
 	github.com/cenk/backoff v2.1.0+incompatible
-	github.com/containerd/containerd v1.6.1 // indirect
+	github.com/containerd/containerd v1.6.18 // indirect
 	github.com/docker/docker v20.10.13+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/dustin/go-humanize v1.0.0
