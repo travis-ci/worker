@@ -239,7 +239,6 @@ func GPUType(varSize string) string {
 }
 
 func OverrideDefaultsForGPU(p *gceProvider, gpuVMType string) {
-
    if !p.cfg.IsSet("GPU_TYPE") {
      p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(gpuVMType)
    }
@@ -1626,6 +1625,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	// Set accelerator config based on number and type of requested GPUs (empty if none)
+	logger.WithField("AccelerateType", p.ic.AcceleratorType).Debug("and here we have AcceleratorType - pre if")
 	acceleratorConfig := &compute.AcceleratorConfig{}
 	if c.startAttributes.VMConfig.GpuCount > 0 {
 		acceleratorConfig.AcceleratorCount = c.startAttributes.VMConfig.GpuCount
@@ -1633,6 +1633,16 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			p.projectID,
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
+	} else if p.ic.AcceleratorConfig.GPU_COUNT > 0 {
+	  logger.Debug("Finally we are here!")
+	  logger.WithField("Region", p.cfg.Get("REGION")).Debug("and here we have region")
+	  logger.WithField("AccelerateType", p.ic.AcceleratorType).Debug("and here we have AcceleratorType")
+	  acceleratorConfig = p.ic.AcceleratorConfig
+	  acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
+      		p.projectID,
+      		p.cfg.Get("REGION"),
+      		p.ic.AcceleratorType)
+	// here
 	}
 
 	var subnetwork string
