@@ -1621,7 +1621,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	var ok bool
 	inst.MachineType, ok = p.machineTypeSelfLinks[gceMtKey(c.zoneName, machineType)]
-	logger.withField("gceMtKey", gceMtKey(c.zoneName, machineType)).Debug("gceMtKey ppp")
+	logger.WithField("gceMtKey", gceMtKey(c.zoneName, machineType)).Debug("gceMtKey ppp")
 	logger.WithField("inst.MachineType", inst.MachineType).Debug("inst.MachineType ppp")
 	if !ok {
 		return nil, fmt.Errorf("no machine type %s for zone %s", machineType, c.zoneName)
