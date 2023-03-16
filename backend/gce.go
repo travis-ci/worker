@@ -1639,6 +1639,10 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	  logger.WithField("Region", p.cfg.Get("REGION")).Debug("and here we have region")
 	  logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorType).Debug("and here we have AcceleratorType")
 	  acceleratorConfig = p.ic.AcceleratorConfig
+	  acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
+      		p.projectID,
+      		p.cfg.Get("REGION"),
+      		p.ic.AcceleratorConfig.AcceleratorType)
 	// here
 	}
 
