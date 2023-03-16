@@ -239,6 +239,7 @@ func GPUType(varSize string) string {
 }
 
 func OverrideDefaultsForGPU(p *gceProvider, gpuVMType string) {
+
    if !p.cfg.IsSet("GPU_TYPE") {
      p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(gpuVMType)
    }
@@ -1576,6 +1577,21 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
     	}
     logger.Debug("the debugging works")
     logger.WithField("gpuVMType", gpuVMType).Debug("Lets decide")
+     if p.cfg.IsSet("GPU_TYPE") {
+        logger.WithField("GPU_TYPE", p.cfg.Get("GPU_TYPE")).Debug("GPU IS:")
+     } else {
+        logger.Debug("No GPU Type")
+     }
+     if p.cfg.IsSet("GPU_COUNT") {
+        logger.WithField("GPU_COUNT", p.cfg.Get("GPU_COUNT")).Debug("GPU_COUNT IS:")
+     } else {
+        logger.Debug("No GPU COUNT")
+     }
+     if p.cfg.IsSet("DISK_SIZE") {
+        logger.WithField("DISK_SIZE", p.cfg.Get("DISK_SIZE")).Debug("DISK_SIZE IS:")
+     } else {
+        logger.Debug("No DISK_SIZE")
+     }
     if gpuVMType != "" {
         logger.WithField("gpuVMType", gpuVMType).Debug("Ok, looks good so far")
         OverrideDefaultsForGPU(p, gpuVMType)
@@ -1680,6 +1696,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	inst.GuestAccelerators = []*compute.AcceleratorConfig{}
+
+	logger.WithField("acceleratorConfig.AcceleratorCount", acceleratorConfig.AcceleratorCount).Debug("acceleratorConfig.AcceleratorCount - p")
+
 	if acceleratorConfig.AcceleratorCount > 0 {
 		logger.Debug("GPU requested, setting acceleratorConfig")
 		inst.GuestAccelerators = append(inst.GuestAccelerators, acceleratorConfig)
