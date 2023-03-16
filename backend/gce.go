@@ -1574,10 +1574,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
     			c.startAttributes.VMSize = machineType
     		}
     	}
-
+    logger.Debug("the debugging works")
+    logger.WithField("gpuVMType", gpuVMType).Debug("Lets decide")
     if gpuVMType != "" {
+        logger.WithField("gpuVMType", gpuVMType).Debug("Ok, looks good so far")
         OverrideDefaultsForGPU(p, gpuVMType)
     }
+    logger.WithField("gpuVMType", gpuVMType).Debug("And of it went")
 
 	diskSize := p.ic.DiskSize
 	if c.startAttributes.OS == "windows" {
