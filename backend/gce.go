@@ -1171,9 +1171,12 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
+    logger.WithField("c.startAttributes.VMConfig.Zone", c.startAttributes.VMConfig.Zone).Debug("c.startAttributes.VMConfig.Zone outside")
 	if c.startAttributes.VMConfig.Zone != "" {
 		err := p.backoffRetry(ctx, func() error {
 			_ = p.apiRateLimit(ctx)
+			logger.WithField("p.projectID", p.projectID).Debug("Our Project Id")
+			logger.WithField("c.startAttributes.VMConfig.Zone", c.startAttributes.VMConfig.Zone).Debug("Our c.startAttributes.VMConfig.Zone")
 			zone, zErr := p.client.Zones.Get(p.projectID, c.startAttributes.VMConfig.Zone).Context(ctx).Do()
 			if zErr != nil {
 				return zErr
