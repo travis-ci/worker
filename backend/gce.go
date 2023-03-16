@@ -1625,7 +1625,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	// Set accelerator config based on number and type of requested GPUs (empty if none)
-	logger.WithField("AccelerateType", p.ic.AcceleratorType).Debug("and here we have AcceleratorType - pre if")
+	logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorType).Debug("and here we have AcceleratorType - pre if")
+	logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorCount).Debug("and here we have p.ic.AcceleratorConfig.AcceleratorCount - pre if")
 	acceleratorConfig := &compute.AcceleratorConfig{}
 	if c.startAttributes.VMConfig.GpuCount > 0 {
 		acceleratorConfig.AcceleratorCount = c.startAttributes.VMConfig.GpuCount
@@ -1633,15 +1634,15 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			p.projectID,
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
-	} else if p.ic.AcceleratorConfig.GPU_COUNT > 0 {
+	} else if p.ic.AcceleratorConfig.AcceleratorCount > 0 {
 	  logger.Debug("Finally we are here!")
 	  logger.WithField("Region", p.cfg.Get("REGION")).Debug("and here we have region")
-	  logger.WithField("AccelerateType", p.ic.AcceleratorType).Debug("and here we have AcceleratorType")
+	  logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorType).Debug("and here we have AcceleratorType")
 	  acceleratorConfig = p.ic.AcceleratorConfig
 	  acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
       		p.projectID,
       		p.cfg.Get("REGION"),
-      		p.ic.AcceleratorType)
+      		p.ic.AcceleratorConfig.AcceleratorType)
 	// here
 	}
 
