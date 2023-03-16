@@ -1563,6 +1563,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
     var gpuVMType = GPUType(c.startAttributes.VMSize)
 
+    logger.WithField("c.startAttributes.VMSize", c.startAttributes.VMSize).Debug("Debugging c.startAttributes.VMSize")
 	machineType := p.ic.MachineType
     	if c.startAttributes.VMType == "premium" {
     		c.startAttributes.VMSize = "premium"
@@ -1574,7 +1575,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
     			c.startAttributes.VMSize = machineType
     		}
     	}
-    logger.Debug("the debugging works")
+    logger.WithField("machineType", c.startAttributes.VMSize ).Debug("Machine Type after change")
     logger.WithField("gpuVMType", gpuVMType).Debug("Lets decide")
      if p.cfg.IsSet("GPU_TYPE") {
         logger.WithField("GPU_TYPE", p.cfg.Get("GPU_TYPE")).Debug("GPU IS:")
@@ -1620,6 +1621,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	var ok bool
 	inst.MachineType, ok = p.machineTypeSelfLinks[gceMtKey(c.zoneName, machineType)]
+	logger.WithField("inst.MachineType", inst.MachineType).Debug("inst.MachineType ppp")
 	if !ok {
 		return nil, fmt.Errorf("no machine type %s for zone %s", machineType, c.zoneName)
 	}
