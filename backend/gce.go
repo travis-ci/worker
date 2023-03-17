@@ -1568,16 +1568,16 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
     logger.WithField("c.startAttributes.VMSize", c.startAttributes.VMSize).Debug("Debugging c.startAttributes.VMSize")
 	machineType := p.ic.MachineType
-    	if c.startAttributes.VMType == "premium" {
-    		c.startAttributes.VMSize = "premium"
-    		machineType = p.ic.PremiumMachineType
-    	} else if c.startAttributes.VMSize != "" {
-    		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
-    			machineType = mtype;
-    			//storing converted machine type for instance size identification
-    			c.startAttributes.VMSize = machineType
-    		}
+    if c.startAttributes.VMType == "premium" {
+    	c.startAttributes.VMSize = "premium"
+    	machineType = p.ic.PremiumMachineType
+    } else if c.startAttributes.VMSize != "" {
+    	if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
+    		machineType = mtype;
+    		//storing converted machine type for instance size identification
+    		c.startAttributes.VMSize = machineType
     	}
+    }
     logger.WithField("machineType", c.startAttributes.VMSize ).Debug("Machine Type after change")
     logger.WithField("gpuVMType", gpuVMType).Debug("Lets decide")
      if p.cfg.IsSet("GPU_TYPE") {
