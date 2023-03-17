@@ -1642,13 +1642,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			c.startAttributes.VMConfig.GpuType)
 	} else if p.ic.AcceleratorConfig.AcceleratorCount > 0 {
 	  logger.Debug("Finally we are here!")
-	  logger.WithField("Region", p.cfg.Get("REGION")).Debug("and here we have region")
 	  logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorType).Debug("and here we have AcceleratorType")
-	  acceleratorConfig = p.ic.AcceleratorConfig
-	  acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
-      		p.projectID,
-      		c.zoneName,
-      		p.ic.AcceleratorConfig.AcceleratorType)
+	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
+	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
+      		    p.projectID,
+      		    c.zoneName,
+      		    p.ic.AcceleratorConfig.AcceleratorType)
+      }
 	}
 
 	var subnetwork string
