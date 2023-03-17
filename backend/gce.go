@@ -1647,9 +1647,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	  acceleratorConfig = p.ic.AcceleratorConfig
 	  acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
       		p.projectID,
-      		p.cfg.Get("REGION"),
+      		c.zoneName,
       		p.ic.AcceleratorConfig.AcceleratorType)
-	// here
 	}
 
 	var subnetwork string
