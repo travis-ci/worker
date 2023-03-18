@@ -1171,12 +1171,9 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
 
-    logger.WithField("c.startAttributes.VMConfig.Zone", c.startAttributes.VMConfig.Zone).Debug("c.startAttributes.VMConfig.Zone outside")
 	if c.startAttributes.VMConfig.Zone != "" {
 		err := p.backoffRetry(ctx, func() error {
 			_ = p.apiRateLimit(ctx)
-			logger.WithField("p.projectID", p.projectID).Debug("Our Project Id")
-			logger.WithField("c.startAttributes.VMConfig.Zone", c.startAttributes.VMConfig.Zone).Debug("Our c.startAttributes.VMConfig.Zone")
 			zone, zErr := p.client.Zones.Get(p.projectID, c.startAttributes.VMConfig.Zone).Context(ctx).Do()
 			if zErr != nil {
 				return zErr
@@ -1566,7 +1563,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
     var gpuVMType = GPUType(c.startAttributes.VMSize)
 
-    logger.WithField("c.startAttributes.VMSize", c.startAttributes.VMSize).Debug("Debugging c.startAttributes.VMSize")
 	machineType := p.ic.MachineType
     if c.startAttributes.VMType == "premium" {
     	c.startAttributes.VMSize = "premium"
@@ -1578,28 +1574,10 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
     		c.startAttributes.VMSize = machineType
     	}
     }
-    logger.WithField("machineType", c.startAttributes.VMSize ).Debug("Machine Type after change")
-    logger.WithField("gpuVMType", gpuVMType).Debug("Lets decide")
-     if p.cfg.IsSet("GPU_TYPE") {
-        logger.WithField("GPU_TYPE", p.cfg.Get("GPU_TYPE")).Debug("GPU IS:")
-     } else {
-        logger.Debug("No GPU Type")
-     }
-     if p.cfg.IsSet("GPU_COUNT") {
-        logger.WithField("GPU_COUNT", p.cfg.Get("GPU_COUNT")).Debug("GPU_COUNT IS:")
-     } else {
-        logger.Debug("No GPU COUNT")
-     }
-     if p.cfg.IsSet("DISK_SIZE") {
-        logger.WithField("DISK_SIZE", p.cfg.Get("DISK_SIZE")).Debug("DISK_SIZE IS:")
-     } else {
-        logger.Debug("No DISK_SIZE")
-     }
+
     if gpuVMType != "" {
-        logger.WithField("gpuVMType", gpuVMType).Debug("Ok, looks good so far")
         OverrideDefaultsForGPU(p, gpuVMType)
     }
-    logger.WithField("gpuVMType", gpuVMType).Debug("And of it went")
 
 	diskSize := p.ic.DiskSize
 	if c.startAttributes.OS == "windows" {
@@ -1624,15 +1602,11 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 
 	var ok bool
 	inst.MachineType, ok = p.machineTypeSelfLinks[gceMtKey(c.zoneName, machineType)]
-	logger.WithField("gceMtKey", gceMtKey(c.zoneName, machineType)).Debug("gceMtKey ppp")
-	logger.WithField("inst.MachineType", inst.MachineType).Debug("inst.MachineType ppp")
 	if !ok {
 		return nil, fmt.Errorf("no machine type %s for zone %s", machineType, c.zoneName)
 	}
 
 	// Set accelerator config based on number and type of requested GPUs (empty if none)
-	logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorType).Debug("and here we have AcceleratorType - pre if")
-	logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorCount).Debug("and here we have p.ic.AcceleratorConfig.AcceleratorCount - pre if")
 	acceleratorConfig := &compute.AcceleratorConfig{}
 	if c.startAttributes.VMConfig.GpuCount > 0 {
 		acceleratorConfig.AcceleratorCount = c.startAttributes.VMConfig.GpuCount
@@ -1641,8 +1615,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
 	} else if p.ic.AcceleratorConfig.AcceleratorCount > 0 {
-	  logger.Debug("Finally we are here!")
-	  logger.WithField("AccelerateType", p.ic.AcceleratorConfig.AcceleratorType).Debug("and here we have AcceleratorType")
 	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
 	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
       		    p.projectID,
@@ -1712,8 +1684,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	inst.GuestAccelerators = []*compute.AcceleratorConfig{}
-
-	logger.WithField("acceleratorConfig.AcceleratorCount", acceleratorConfig.AcceleratorCount).Debug("acceleratorConfig.AcceleratorCount - p")
 
 	if acceleratorConfig.AcceleratorCount > 0 {
 		logger.Debug("GPU requested, setting acceleratorConfig")
