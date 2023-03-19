@@ -1608,6 +1608,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			c.startAttributes.VMConfig.GpuType)
 	} else if p.ic.AcceleratorConfig.AcceleratorCount > 0 {
 	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
+	      acceleratorConfig = p.ic.AcceleratorConfig
 	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
       		    p.projectID,
       		    c.zoneName,
