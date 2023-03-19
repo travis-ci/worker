@@ -1611,7 +1611,8 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
 	      notUrlAcceleratorType := p.ic.AcceleratorConfig.AcceleratorType
 	      logger.WithField("notUrlAcceleratorType", notUrlAcceleratorType).Debug("Retrieving AcceleratorType from defaults")
-	      acceleratorConfig = p.ic.AcceleratorConfig
+	      logger.WithField("AcceleratorCount", p.ic.AcceleratorConfig.AcceleratorCount).Debug("Retrieving AcceleratorCount from defaults")
+	      acceleratorConfig.AcceleratorCount = p.ic.AcceleratorConfig.AcceleratorCount
 	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
       		    p.projectID,
       		    c.zoneName,
