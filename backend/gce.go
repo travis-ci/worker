@@ -1607,12 +1607,16 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
 	} else if p.ic.AcceleratorConfig.AcceleratorCount > 0 {
+	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Setting AcceleratorConfig")
 	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
+	      notUrlAcceleratorType := p.ic.AcceleratorConfig.AcceleratorType
+	      logger.WithField("notUrlAcceleratorType", notUrlAcceleratorType).Debug("Retrieving AcceleratorType from defaults")
 	      acceleratorConfig = p.ic.AcceleratorConfig
 	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
       		    p.projectID,
       		    c.zoneName,
-      		    p.ic.AcceleratorConfig.AcceleratorType)
+      		    notUrlAcceleratorType)
+      	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Url for Accelerator Type is:")
       }
 	}
 
