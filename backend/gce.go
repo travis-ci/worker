@@ -1606,7 +1606,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			p.projectID,
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
-	} else if p.ic.AcceleratorConfig.AcceleratorCount > 0 {
+	} else if (p.ic.AcceleratorConfig.AcceleratorCount > 0) && (gpuVMType != "") {
 	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Setting AcceleratorConfig")
 	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
 	      notUrlAcceleratorType := p.ic.AcceleratorConfig.AcceleratorType
