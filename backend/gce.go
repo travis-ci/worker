@@ -238,13 +238,6 @@ func GPUType(varSize string) string {
   }
 }
 
-func OverrideDefaultsForGPU(p *gceProvider, gpuVMType string) {
-   p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(gpuVMType)
-   p.ic.AcceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(gpuVMType)
-}
-
-
-
 type gceAccountJSON struct {
 	ClientEmail string `json:"client_email"`
 	PrivateKey  string `json:"private_key"`
@@ -1566,10 +1559,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
     	}
     }
 
-    if gpuVMType != "" {
-        OverrideDefaultsForGPU(p, gpuVMType)
-    }
-
 	diskSize := p.ic.DiskSize
 	if c.startAttributes.OS == "windows" {
 		diskSize = p.ic.DiskSizeWindows
@@ -1609,13 +1598,13 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			p.projectID,
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
-	} else if (p.ic.AcceleratorConfig.AcceleratorCount > 0) && (gpuVMType != "") {
+	} else if gpuVMType != "" {
 	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Setting AcceleratorConfig")
 	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
-	      notUrlAcceleratorType := p.ic.AcceleratorConfig.AcceleratorType
+	      notUrlAcceleratorType := GpuDefaultGpuType(gpuVMType)
 	      logger.WithField("notUrlAcceleratorType", notUrlAcceleratorType).Debug("Retrieving AcceleratorType from defaults")
 	      logger.WithField("AcceleratorCount", p.ic.AcceleratorConfig.AcceleratorCount).Debug("Retrieving AcceleratorCount from defaults")
-	      acceleratorConfig.AcceleratorCount = p.ic.AcceleratorConfig.AcceleratorCount
+	      acceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(gpuVMType)
 	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
       		    p.projectID,
       		    c.zoneName,
