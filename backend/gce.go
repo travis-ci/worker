@@ -241,7 +241,6 @@ func GPUType(varSize string) string {
 func OverrideDefaultsForGPU(p *gceProvider, gpuVMType string) {
    p.ic.AcceleratorConfig.AcceleratorType = GpuDefaultGpuType(gpuVMType)
    p.ic.AcceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(gpuVMType)
-   p.ic.DiskSize = GpuDefaultGpuDiskSize(gpuVMType)
 }
 
 
@@ -1574,6 +1573,10 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	diskSize := p.ic.DiskSize
 	if c.startAttributes.OS == "windows" {
 		diskSize = p.ic.DiskSizeWindows
+	}
+
+	if gpuVMType != "" {
+	  diskSize = GpuDefaultGpuDiskSize(gpuVMType)
 	}
 
 	diskInitParams := &compute.AttachedDiskInitializeParams{
