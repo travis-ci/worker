@@ -1555,7 +1555,9 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
     	if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
     		machineType = mtype;
     		//storing converted machine type for instance size identification
-    		c.startAttributes.VMSize = machineType
+    		if gpuVMType == "" {
+    		  c.startAttributes.VMSize = machineType
+    		}
     	}
     }
 
