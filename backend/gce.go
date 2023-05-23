@@ -119,7 +119,7 @@ var (
 		"UPLOAD_RETRY_SLEEP":    fmt.Sprintf("sleep interval between script upload attempts (default %v)", defaultGCEUploadRetrySleep),
 		"WARMER_URL":            "URL for warmer service",
 		"WARMER_TIMEOUT":        fmt.Sprintf("timeout for requests to warmer service (default %v)", defaultGCEWarmerTimeout),
-		"WARMER_SSH_PASSPHRASE": fmt.Sprintf("The passphrase used to decipher instace SSH keys"),
+		"WARMER_SSH_PASSPHRASE": "The passphrase used to decipher instace SSH keys",
 		"ZONE":                  fmt.Sprintf("[DEPRECATED] Use ZONES instead. Zone name (default %q)", defaultGCEZone),
 		"ZONES":                 fmt.Sprintf("comma-delimited list of zone names (default %q)", defaultGCEZone),
 	}
@@ -907,7 +907,7 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 		if err != nil {
 			return nil, errors.Wrap(err, "could not build default client")
 		}
-		return compute.New(client)
+		return compute.New(client) //nolint:staticcheck
 	}
 
 	a, err := loadGoogleAccountJSON(cfg.Get("ACCOUNT_JSON"))
@@ -931,7 +931,7 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 		client.Transport = gceCustomHTTPTransport
 	}
 
-	return compute.New(client)
+	return compute.New(client) //nolint:staticcheck
 }
 
 func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {

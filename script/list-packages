@@ -5,7 +5,7 @@ main() {
   cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")"
 
   find . -maxdepth 1 -type d | grep -v '^\.$' | sed 's@./@@' | while read -r pkg; do
-    if [[ "x$(bash -c "shopt -s nullglob; echo ${pkg}/*.go")" == "x" ]]; then
+    if [[ "_$(bash -c "shopt -s nullglob; echo ${pkg}/*.go")" == "_" ]]; then
       continue
     fi
     echo "github.com/travis-ci/worker/${pkg}"

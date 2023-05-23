@@ -91,7 +91,7 @@ func WithTimings(ctx context.Context) context.Context {
 func TimeSince(ctx context.Context, name string, since time.Time) {
 	if timings, ok := ctx.Value(timingsKey).(map[string]time.Duration); ok {
 		elapsed := time.Since(since)
-		if _, ok := timings[name]; ok {
+		if _, ok := timings[name]; ok { //nolint:gosimple
 			timings[name] += elapsed
 		} else {
 			timings[name] = elapsed

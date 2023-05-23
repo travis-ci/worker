@@ -4,6 +4,15 @@ go: 1.17.x
 
 dist: xenial
 
+git:
+  depth: 10
+
+# Build master and PRs which merge into those branches
+# We don't automatically build other branches when they're pushed; create a PR to cause the CI to run.
+branches:
+  only:
+    - master
+
 cache:
   directories:
   - vendor
@@ -26,7 +35,8 @@ env:
   - REDIS_URL="redis://"
 
 stages:
-- test
+  - name: test
+    if: (type = push OR type = pull_request) AND branch = master
 
 before_cache:
 - make clean
@@ -34,17 +44,24 @@ before_cache:
 jobs:
   include:
   - stage: test
-    name: linux
-    go: 1.17.x
+    name: lint
+
     script:
     - make deps
     - make lintall
+
+  - stage: test
+    name: linux
+
+    script:
+    - make deps
     - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
     - cp ${GOPATH%%:*}/bin/travis-worker build/linux/amd64
     - make test-no-cover
     - make test-cover
     - make smoke
+
     addons:
       apt:
         packages:
@@ -56,11 +73,13 @@ jobs:
         - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
+
   - stage: test
     name: crossbuild
-    go: 1.17.x
+
     script:
     - GO111MODULE=on make build/darwin/amd64/travis-worker
+
     addons:
       artifacts:
         paths:
@@ -69,9 +88,11 @@ jobs:
         - travis-ci/worker/$TRAVIS_BUILD_NUMBER/$TRAVIS_JOB_NUMBER
         - travis-ci/worker/$(git describe --always --dirty --tags)
         - travis-ci/worker/$TRAVIS_BRANCH
+
   - stage: test
     name: docker
     if: type != 'pull_request' && env(VAULT_PASS) is present && env(VAULT_USERNAME) is present
+
     script:
     - vault login -method=userpass username=$VAULT_USERNAME password=$VAULT_PASS
     - vault kv get -field=secret gcp/gcr-sa-key > /tmp/gcr_key.json;
@@ -80,6 +101,7 @@ jobs:
     - gcloud auth configure-docker
     - make docker-build
     - make docker-push
+
     addons:
       snaps:
       - name: google-cloud-sdk
@@ -89,8 +111,10 @@ jobs:
         update: true
         packages:
         - docker-ce
+
   - stage: test
     name: http-job-test
+
     script:
     - GO111MODULE=on make build
     - mkdir -p build/linux/amd64
