@@ -1481,6 +1481,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
+	var gpuVMType = GPUType(startAttributes.VMSize)
 
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
@@ -1494,6 +1495,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 			OS:       startAttributes.OS,
 			JobID:    jobID,
 			Repo:     repo,
+			GpuVMType: gpuVMType,
 		})
 
 		if err != nil {

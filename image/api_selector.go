@@ -272,6 +272,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	hasDist := params.Dist != ""
 	hasGroup := params.Group != ""
 	hasOS := params.OS != ""
+	hasGpuVMType := params.GpuVMType != ""
 
 	if params.OS == "osx" && params.OsxImage != "" {
 		addTags("osx_image:"+params.OsxImage, "os:osx")
@@ -296,6 +297,10 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	if hasDist {
 		addTags("dist:" + params.Dist)
 	}
+
+	if hasGpuVMType {
+    	addTags("gpu:true")
+    }
 
 	if hasLang {
 		addDefaultTag("language_" + params.Language + ":true")
