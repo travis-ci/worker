@@ -50,10 +50,10 @@ func (as *APISelector) SetMaxElapsedTime(maxElapsedTime time.Duration) {
 
 func (as *APISelector) Select(ctx gocontext.Context, params *Params) (string, error) {
 	tagSets, err := as.buildCandidateTags(params)
-	fmt.Println("--- mk-debug-worker --- inside Select start")
+	fmt.Println("--- mk-debug-worker --- inside api_selector.go#Select start")
 	fmt.Println("params value:")
 	fmt.Printf("%v", params)
-	fmt.Println("\n--- mk-debug-worker --- inside Select end")
+	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#Select end")
 	if err != nil {
 		return "default", err
 	}
@@ -123,6 +123,7 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 	bodyLines := []string{}
 	lastJobID := uint64(0)
 	lastRepo := ""
+	gpuVMType := ""
 
 	for _, ts := range tags {
 		qs := url.Values{}
@@ -131,6 +132,7 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 		qs.Set("limit", "1")
 		qs.Set("job_id", fmt.Sprintf("%v", ts.JobID))
 		qs.Set("repo", ts.Repo)
+		qs.Set("gpu_vm_type", ts.GpuVMType)
 		qs.Set("is_default", fmt.Sprintf("%v", ts.IsDefault))
 		if len(ts.Tags) > 0 {
 			qs.Set("tags", strings.Join(ts.Tags, ","))
@@ -139,6 +141,7 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 		bodyLines = append(bodyLines, qs.Encode())
 		lastJobID = ts.JobID
 		lastRepo = ts.Repo
+		gpuVMType = ts.GpuVMType
 	}
 
 	qs := url.Values{}
@@ -148,8 +151,16 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 	qs.Set("limit", "1")
 	qs.Set("job_id", fmt.Sprintf("%v", lastJobID))
 	qs.Set("repo", lastRepo)
+	qs.Set("gpu_vm_type", gpuVMType)
 
 	bodyLines = append(bodyLines, qs.Encode())
+
+	fmt.Println("--- mk-debug-worker --- inside api_selector.go#queryWithTags start")
+	fmt.Println("tags value:")
+	fmt.Printf("%v", tags)
+	fmt.Println("bodyLines value:")
+	fmt.Printf("%v", bodyLines)
+	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#queryWithTags end")
 
 	u, err := url.Parse(as.baseURL.String())
 	if err != nil {
@@ -185,10 +196,10 @@ func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string,
 		"body": bodyLines,
 	}).Debug("selecting image from job-board")
 
-	fmt.Println("--- mk-debug-worker --- inside makeImageRequest start")
+	fmt.Println("--- mk-debug-worker --- inside api_selector.go#makeImageRequest start")
 	fmt.Println("bodyLines value:")
 	fmt.Printf("%v", strings.Join(bodyLines, "\n"))
-	fmt.Println("\n--- mk-debug-worker --- inside makeImageRequest end")
+	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#makeImageRequest end")
 
 	err := backoff.Retry(func() error {
 		req, err := http.NewRequest("POST", urlString, strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
@@ -242,6 +253,7 @@ type tagSet struct {
 
 	JobID uint64
 	Repo  string
+	GpuVMType  string
 }
 
 func (ts *tagSet) GoString() string {
@@ -253,6 +265,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 		Tags:  []string{},
 		JobID: params.JobID,
 		Repo:  params.Repo,
+		GpuVMType:  params.GpuVMType,
 	}
 	candidateTags := []*tagSet{}
 
@@ -264,6 +277,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 				Tags:      []string{tag},
 				JobID:     params.JobID,
 				Repo:      params.Repo,
+				GpuVMType:      params.GpuVMType,
 			})
 	}
 
@@ -274,6 +288,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 				Tags:      tags,
 				JobID:     params.JobID,
 				Repo:      params.Repo,
+				GpuVMType:      params.GpuVMType,
 			})
 	}
 
@@ -281,14 +296,13 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	hasDist := params.Dist != ""
 	hasGroup := params.Group != ""
 	hasOS := params.OS != ""
-	hasGpuVMType := params.GpuVMType != ""
 
-	fmt.Println("\n--- mk-debug-worker --- inside gce.go#imageSelect start \n")
+	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#buildCandidateTags start \n")
 	fmt.Println("params value:")
 	fmt.Printf("%v", params)
-	fmt.Println("params value:")
-	fmt.Printf("%v", hasGpuVMType)
-	fmt.Println("\n--- mk-debug-worker --- inside gce.go#imageSelect end \n")
+	fmt.Println("candidateTags value:")
+	fmt.Printf("%v", candidateTags)
+	fmt.Println("\n--- mk-debug-worker --- inside api_selector#buildCandidateTags end \n")
 
 	if params.OS == "osx" && params.OsxImage != "" {
 		addTags("osx_image:"+params.OsxImage, "os:osx")
@@ -313,10 +327,6 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	if hasDist {
 		addTags("dist:" + params.Dist)
 	}
-
-	if hasGpuVMType {
-    	addTags("gpu:true")
-    }
 
 	if hasLang {
 		addDefaultTag("language_" + params.Language + ":true")
