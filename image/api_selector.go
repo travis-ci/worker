@@ -50,6 +50,10 @@ func (as *APISelector) SetMaxElapsedTime(maxElapsedTime time.Duration) {
 
 func (as *APISelector) Select(ctx gocontext.Context, params *Params) (string, error) {
 	tagSets, err := as.buildCandidateTags(params)
+	fmt.Println("--- mk-debug-worker --- inside Select start")
+	fmt.Println("params value:")
+	fmt.Printf("%v", params)
+	fmt.Println("\n--- mk-debug-worker --- inside Select end")
 	if err != nil {
 		return "default", err
 	}
@@ -181,6 +185,11 @@ func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string,
 		"body": bodyLines,
 	}).Debug("selecting image from job-board")
 
+	fmt.Println("--- mk-debug-worker --- inside makeImageRequest start")
+	fmt.Println("bodyLines value:")
+	fmt.Printf("%v", strings.Join(bodyLines, "\n"))
+	fmt.Println("\n--- mk-debug-worker --- inside makeImageRequest end")
+
 	err := backoff.Retry(func() error {
 		req, err := http.NewRequest("POST", urlString, strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
 		if err != nil {
@@ -273,6 +282,13 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	hasGroup := params.Group != ""
 	hasOS := params.OS != ""
 	hasGpuVMType := params.GpuVMType != ""
+
+	fmt.Println("\n--- mk-debug-worker --- inside gce.go#imageSelect start \n")
+	fmt.Println("params value:")
+	fmt.Printf("%v", params)
+	fmt.Println("params value:")
+	fmt.Printf("%v", hasGpuVMType)
+	fmt.Println("\n--- mk-debug-worker --- inside gce.go#imageSelect end \n")
 
 	if params.OS == "osx" && params.OsxImage != "" {
 		addTags("osx_image:"+params.OsxImage, "os:osx")
