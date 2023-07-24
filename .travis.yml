@@ -94,7 +94,7 @@ jobs:
     if: type != 'pull_request' && env(VAULT_PASS) is present && env(VAULT_USERNAME) is present
 
     script:
-    - vault login -method=userpass username=$VAULT_USERNAME password=$VAULT_PASS --no-print
+    - vault login --no-print -method=userpass username=$VAULT_USERNAME password=$VAULT_PASS
     - vault kv get -field=secret gcp/gcr-sa-key > /tmp/gcr_key.json;
     - gcloud -q auth activate-service-account --key-file /tmp/gcr_key.json;
     - gcloud -q config set project ${GCE_PROJECT}
