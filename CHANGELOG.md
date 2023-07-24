@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/).
 
 ### Removed
 
+### Added
+- Adding GPU Support
+
 ### Fixed
 
 ## [6.2.4] - 2019-10-29

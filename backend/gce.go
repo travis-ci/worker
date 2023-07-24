@@ -151,8 +151,19 @@ Set-LocalUser -Name travis -Password $pw
 		"large": "n2-standard-4",
 		"x-large": "n2-standard-8",
 		"2x-large": "n2-standard-16",
+		"gpu-medium": "n1-standard-8",
+		"gpu-xlarge": "n1-standard-8",
 	}
 )
+
+func stringInSlice(a string, list []string) bool {
+    for _, b := range list {
+        if b == a {
+            return true
+        }
+    }
+    return false
+}
 
 type gceStartupScriptData struct {
 	AutoImplode        bool
@@ -178,6 +189,53 @@ func (oe *gceOpError) Error() string {
 	}
 
 	return strings.Join(errStrs, ", ")
+}
+
+type singleGpuMapping struct {
+	GpuCount int64
+	GpuType string
+	DiskSize int64
+}
+
+var gpuMedium = singleGpuMapping{
+	GpuCount: 1,
+	GpuType: "nvidia-tesla-t4",
+	DiskSize: 300,}
+var gpuXLarge = singleGpuMapping{
+	GpuCount: 1,
+	GpuType: "nvidia-tesla-v100",
+	DiskSize: 300,}
+
+func GpuMapping(vmSize string) (value singleGpuMapping) {
+	gpuMapping := map[string] singleGpuMapping{
+		"gpu-medium": gpuMedium,
+		"gpu-xlarge": gpuXLarge,
+	}
+	return gpuMapping[vmSize]
+}
+
+
+func GpuDefaultGpuCount(vmSize string) (gpuCountInt int64) {
+	return GpuMapping(vmSize).GpuCount
+}
+
+func GpuDefaultGpuDiskSize(vmSize string) (gpuDiskSizeInt int64) {
+	return GpuMapping(vmSize).DiskSize
+}
+
+func GpuDefaultGpuType(vmSize string) (gpuTypeString string) {
+	return GpuMapping(vmSize).GpuType
+}
+
+func GPUType(varSize string) string {
+  switch varSize {
+    case "gpu-medium":
+      return "gpu-medium"
+    case  "gpu-xlarge":
+      return "gpu-xlarge"
+    default:
+      return ""
+  }
 }
 
 type gceAccountJSON struct {
@@ -827,7 +885,9 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	machineTypes := []string{p.ic.MachineType, p.ic.PremiumMachineType}
 	for _, machineType := range gceVMSizeMapping {
-		machineTypes = append(machineTypes, machineType);
+	    if !stringInSlice(machineType, machineTypes) {
+		  machineTypes = append(machineTypes, machineType);
+		}
 	}
 	for _, zoneName := range append(zoneNames, p.alternateZones...) {
 		for _, machineType := range machineTypes {
@@ -1421,6 +1481,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
+	var gpuVMType = GPUType(startAttributes.VMSize)
 
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
@@ -1434,6 +1495,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 			OS:       startAttributes.OS,
 			JobID:    jobID,
 			Repo:     repo,
+			GpuVMType: gpuVMType,
 		})
 
 		if err != nil {
@@ -1485,9 +1547,29 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		Zone:        c.zoneName,
 	}
 
+    var gpuVMType = GPUType(c.startAttributes.VMSize)
+
+	machineType := p.ic.MachineType
+    if c.startAttributes.VMType == "premium" {
+    	c.startAttributes.VMSize = "premium"
+    	machineType = p.ic.PremiumMachineType
+    } else if c.startAttributes.VMSize != "" {
+    	if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
+    		machineType = mtype;
+    		//storing converted machine type for instance size identification
+    		if gpuVMType == "" {
+    		  c.startAttributes.VMSize = machineType
+    		}
+    	}
+    }
+
 	diskSize := p.ic.DiskSize
 	if c.startAttributes.OS == "windows" {
 		diskSize = p.ic.DiskSizeWindows
+	}
+
+	if gpuVMType != "" {
+	  diskSize = GpuDefaultGpuDiskSize(gpuVMType)
 	}
 
 	diskInitParams := &compute.AttachedDiskInitializeParams{
@@ -1506,18 +1588,6 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		},
 	}
 
-	machineType := p.ic.MachineType
-	if c.startAttributes.VMType == "premium" {
-		c.startAttributes.VMSize = "premium"
-		machineType = p.ic.PremiumMachineType
-	} else if c.startAttributes.VMSize != "" {
-		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
-			machineType = mtype;
-			//storing converted machine type for instance size identification
-			c.startAttributes.VMSize = machineType
-		}
-	}
-
 	var ok bool
 	inst.MachineType, ok = p.machineTypeSelfLinks[gceMtKey(c.zoneName, machineType)]
 	if !ok {
@@ -1532,6 +1602,19 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			p.projectID,
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
+	} else if gpuVMType != "" {
+	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Setting AcceleratorConfig")
+	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
+	      notUrlAcceleratorType := GpuDefaultGpuType(gpuVMType)
+	      logger.WithField("notUrlAcceleratorType", notUrlAcceleratorType).Debug("Retrieving AcceleratorType from defaults")
+	      logger.WithField("AcceleratorCount", p.ic.AcceleratorConfig.AcceleratorCount).Debug("Retrieving AcceleratorCount from defaults")
+	      acceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(gpuVMType)
+	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
+      		    p.projectID,
+      		    c.zoneName,
+      		    notUrlAcceleratorType)
+      	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Url for Accelerator Type is:")
+      }
 	}
 
 	var subnetwork string
@@ -1595,6 +1678,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	inst.GuestAccelerators = []*compute.AcceleratorConfig{}
+
 	if acceleratorConfig.AcceleratorCount > 0 {
 		logger.Debug("GPU requested, setting acceleratorConfig")
 		inst.GuestAccelerators = append(inst.GuestAccelerators, acceleratorConfig)

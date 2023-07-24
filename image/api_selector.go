@@ -119,6 +119,7 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 	bodyLines := []string{}
 	lastJobID := uint64(0)
 	lastRepo := ""
+	gpuVMType := ""
 
 	for _, ts := range tags {
 		qs := url.Values{}
@@ -127,6 +128,7 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 		qs.Set("limit", "1")
 		qs.Set("job_id", fmt.Sprintf("%v", ts.JobID))
 		qs.Set("repo", ts.Repo)
+		qs.Set("gpu_vm_type", ts.GpuVMType)
 		qs.Set("is_default", fmt.Sprintf("%v", ts.IsDefault))
 		if len(ts.Tags) > 0 {
 			qs.Set("tags", strings.Join(ts.Tags, ","))
@@ -135,6 +137,7 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 		bodyLines = append(bodyLines, qs.Encode())
 		lastJobID = ts.JobID
 		lastRepo = ts.Repo
+		gpuVMType = ts.GpuVMType
 	}
 
 	qs := url.Values{}
@@ -144,6 +147,7 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 	qs.Set("limit", "1")
 	qs.Set("job_id", fmt.Sprintf("%v", lastJobID))
 	qs.Set("repo", lastRepo)
+	qs.Set("gpu_vm_type", gpuVMType)
 
 	bodyLines = append(bodyLines, qs.Encode())
 
@@ -233,6 +237,7 @@ type tagSet struct {
 
 	JobID uint64
 	Repo  string
+	GpuVMType  string
 }
 
 func (ts *tagSet) GoString() string {
@@ -244,6 +249,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 		Tags:  []string{},
 		JobID: params.JobID,
 		Repo:  params.Repo,
+		GpuVMType:  params.GpuVMType,
 	}
 	candidateTags := []*tagSet{}
 
@@ -255,6 +261,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 				Tags:      []string{tag},
 				JobID:     params.JobID,
 				Repo:      params.Repo,
+				GpuVMType:      params.GpuVMType,
 			})
 	}
 
@@ -265,6 +272,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 				Tags:      tags,
 				JobID:     params.JobID,
 				Repo:      params.Repo,
+				GpuVMType:      params.GpuVMType,
 			})
 	}
 
