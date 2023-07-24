@@ -10,4 +10,5 @@ type Params struct {
 
 	JobID uint64
 	Repo  string
+	GpuVMType  string
 }
