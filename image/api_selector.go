@@ -50,10 +50,6 @@ func (as *APISelector) SetMaxElapsedTime(maxElapsedTime time.Duration) {
 
 func (as *APISelector) Select(ctx gocontext.Context, params *Params) (string, error) {
 	tagSets, err := as.buildCandidateTags(params)
-	fmt.Println("--- mk-debug-worker --- inside api_selector.go#Select start")
-	fmt.Println("params value:")
-	fmt.Printf("%v", params)
-	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#Select end")
 	if err != nil {
 		return "default", err
 	}
@@ -155,13 +151,6 @@ func (as *APISelector) queryWithTags(ctx gocontext.Context, infra string, tags [
 
 	bodyLines = append(bodyLines, qs.Encode())
 
-	fmt.Println("--- mk-debug-worker --- inside api_selector.go#queryWithTags start")
-	fmt.Println("tags value:")
-	fmt.Printf("%v", tags)
-	fmt.Println("bodyLines value:")
-	fmt.Printf("%v", bodyLines)
-	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#queryWithTags end")
-
 	u, err := url.Parse(as.baseURL.String())
 	if err != nil {
 		return "", err
@@ -195,11 +184,6 @@ func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string,
 		"url":  urlString,
 		"body": bodyLines,
 	}).Debug("selecting image from job-board")
-
-	fmt.Println("--- mk-debug-worker --- inside api_selector.go#makeImageRequest start")
-	fmt.Println("bodyLines value:")
-	fmt.Printf("%v", strings.Join(bodyLines, "\n"))
-	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#makeImageRequest end")
 
 	err := backoff.Retry(func() error {
 		req, err := http.NewRequest("POST", urlString, strings.NewReader(strings.Join(bodyLines, "\n")+"\n"))
@@ -296,13 +280,6 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	hasDist := params.Dist != ""
 	hasGroup := params.Group != ""
 	hasOS := params.OS != ""
-
-	fmt.Println("\n--- mk-debug-worker --- inside api_selector.go#buildCandidateTags start \n")
-	fmt.Println("params value:")
-	fmt.Printf("%v", params)
-	fmt.Println("candidateTags value:")
-	fmt.Printf("%v", candidateTags)
-	fmt.Println("\n--- mk-debug-worker --- inside api_selector#buildCandidateTags end \n")
 
 	if params.OS == "osx" && params.OsxImage != "" {
 		addTags("osx_image:"+params.OsxImage, "os:osx")

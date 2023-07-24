@@ -1482,10 +1482,6 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	jobID, _ := context.JobIDFromContext(ctx)
 	repo, _ := context.RepositoryFromContext(ctx)
 	var gpuVMType = GPUType(startAttributes.VMSize)
-	fmt.Println("--- mk-debug-worker --- inside gce.go#imageSelect start")
-	fmt.Println("gpuVMType value:")
-	fmt.Printf("%v", gpuVMType)
-	fmt.Println("\n--- mk-debug-worker --- inside gce.go#imageSelect end")
 
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
