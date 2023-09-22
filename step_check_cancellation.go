@@ -28,7 +28,7 @@ func (s *stepCheckCancellation) Run(state multistep.StateBag) multistep.StepActi
 		buildJob := state.Get("buildJob").(Job)
 		if _, ok := state.GetOk("logWriter"); ok {
 			logWriter := state.Get("logWriter").(LogWriter)
-			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, fmt.Sprintf("\n\nDone: Job Cancelled\n\n%s", command.Reason))
+			s.writeLogAndFinishWithState(ctx, logWriter, buildJob, FinishStateCancelled, fmt.Sprintf("\n\nDone: Job Cancelled\n%s\n", command.Reason))
 		} else {
 			err := buildJob.Finish(ctx, FinishStateCancelled)
 			if err != nil {
