@@ -8,7 +8,7 @@ require (
 	github.com/Azure/go-ntlmssp v0.0.0-20180810175552-4a21cbd618b4 // indirect
 	github.com/ChrisTrenkamp/goxpath v0.0.0-20170922090931-c385f95c6022 // indirect
 	github.com/Jeffail/tunny v0.0.0-20180304204616-59cfa8fcb19f
-	github.com/aws/aws-sdk-go v1.15.31
+	github.com/aws/aws-sdk-go v1.34.0
 	github.com/bitly/go-simplejson v0.5.0
 	github.com/cenk/backoff v2.1.0+incompatible
 	github.com/containerd/containerd v1.6.1 // indirect
