@@ -509,6 +509,19 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	// Select the image
 	if startAttributes.ImageName != "" {
 		imageName = startAttributes.ImageName
+	} else if startAttributes.OSCustom != "" {
+		imageName = startAttributes.OSCustom
+
+		var imgManager *image.Manager
+		imgManager, err = image.NewManager(ctx, nil, p.imageBaseURL)
+		if err != nil {
+			return nil, err
+		}
+		err = imgManager.LoadCustom(imageName, startAttributes.TamToken)
+
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		imageArch := startAttributes.Arch
 		if p.archOverride != "" {
@@ -724,6 +737,10 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 		container.Devices["eth0"]["ipv4.address"] = strings.Split(address, "/")[0]
 
+    if startAttributes.OSCustom != "" {
+      startAttributes.Dist = ""
+    }
+
 		var fileName, content string
 		switch startAttributes.Dist {
 		case "xenial":
@@ -741,7 +758,7 @@ iface eth0 inet static
   mtu %s
 `, address, p.networkGateway, strings.Join(p.networkDNS, " "), p.networkMTU)
 		default:
-			fileName = "/etc/netplan/50-cloud-init.yaml"
+			fileName = "/etc/netplan/51-cloud-init.yaml"
 			content = fmt.Sprintf(`network:
   version: 2
   ethernets:
