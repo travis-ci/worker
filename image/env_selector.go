@@ -105,7 +105,6 @@ func (es *EnvSelector) buildCandidateKeys(params *Params) []string {
 	if hasLang {
 		candidateKeys = append(candidateKeys, "language_"+params.Language)
 		candidateKeys = append(candidateKeys, params.Language)
-		candidateKeys = append(candidateKeys, params.Language)
 	}
 
 	if hasOS {
