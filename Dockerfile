@@ -1,4 +1,4 @@
-FROM golang:1.17 as builder
+FROM golang:1.21 as builder
 MAINTAINER Travis CI GmbH <support+travis-worker-docker-image@travis-ci.org>
 
 COPY . /go/src/github.com/travis-ci/worker
