@@ -11,7 +11,7 @@ git:
 # We don't automatically build other branches when they're pushed; create a PR to cause the CI to run.
 branches:
   only:
-    - kw-updated_worker
+    - master
 
 cache:
   directories:
@@ -36,7 +36,7 @@ env:
 
 stages:
   - name: test
-    if: (type = push OR type = pull_request) AND branch = kw-updated_worker
+    if: (type = push OR type = pull_request) AND branch = master
 
 before_cache:
 - make clean
