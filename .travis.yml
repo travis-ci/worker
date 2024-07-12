@@ -1,6 +1,6 @@
 language: go
 
-go: 1.17.x
+go: 1.18.x
 
 dist: xenial
 
@@ -11,7 +11,7 @@ git:
 # We don't automatically build other branches when they're pushed; create a PR to cause the CI to run.
 branches:
   only:
-    - master
+    - kw-updated_worker
 
 cache:
   directories:
@@ -36,7 +36,7 @@ env:
 
 stages:
   - name: test
-    if: (type = push OR type = pull_request) AND branch = master
+    if: (type = push OR type = pull_request) AND branch = kw-updated_worker
 
 before_cache:
 - make clean
@@ -78,6 +78,7 @@ jobs:
     name: crossbuild
 
     script:
+    - go mod vendor
     - GO111MODULE=on make build/darwin/amd64/travis-worker
 
     addons:
