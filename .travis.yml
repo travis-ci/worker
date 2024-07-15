@@ -1,6 +1,6 @@
 language: go
 
-go: 1.17.x
+go: 1.18.x
 
 dist: xenial
 
@@ -78,6 +78,7 @@ jobs:
     name: crossbuild
 
     script:
+    - go mod vendor
     - GO111MODULE=on make build/darwin/amd64/travis-worker
 
     addons:
