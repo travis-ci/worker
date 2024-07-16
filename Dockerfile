@@ -7,7 +7,7 @@ ENV CGO_ENABLED 0
 RUN make build
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates curl bash
+RUN apk --no-cache add ca-certificates curl bash && apk upgrade
 
 COPY --from=builder /go/bin/travis-worker /usr/local/bin/travis-worker
 COPY --from=builder /go/src/github.com/travis-ci/worker/systemd.service /app/systemd.service
