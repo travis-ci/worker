@@ -1,4 +1,4 @@
-FROM golang:1.18 as builder
+FROM golang:1.19 as builder
 MAINTAINER Travis CI GmbH <support+travis-worker-docker-image@travis-ci.org>
 
 COPY . /go/src/github.com/travis-ci/worker
@@ -7,6 +7,7 @@ ENV CGO_ENABLED 0
 RUN make build
 
 FROM alpine:latest
+RUN apk upgrade
 RUN apk --no-cache add ca-certificates curl bash
 
 COPY --from=builder /go/bin/travis-worker /usr/local/bin/travis-worker

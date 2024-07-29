@@ -840,8 +840,8 @@ func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 	defer i.provider.checkinCPUSets(ctx, i.container.HostConfig.Resources.CpusetCpus)
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
 
-	timeout := 30 * time.Second
-	err := i.client.ContainerStop(ctx, i.container.ID, &timeout)
+	timeout := 30
+	err := i.client.ContainerStop(ctx, i.container.ID, dockercontainer.StopOptions{Timeout: &timeout})
 	if err != nil {
 		logger.Warn("couldn't stop container")
 		return err
