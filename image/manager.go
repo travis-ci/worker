@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"runtime"
 
-	lxd "github.com/lxc/lxd/client"
-	lxdapi "github.com/lxc/lxd/shared/api"
+	lxd "github.com/canonical/lxd/client"
+	lxdapi "github.com/canonical/lxd/shared/api"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
 	"golang.org/x/sync/errgroup"

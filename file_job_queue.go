@@ -3,7 +3,6 @@ package worker
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,7 +91,7 @@ func (f *FileJobQueue) pollInDirForJobs(ctx gocontext.Context) {
 
 func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "file_job_queue")
-	entries, err := ioutil.ReadDir(f.createdDir)
+	entries, err := os.ReadDir(f.createdDir)
 	if err != nil {
 		logger.WithField("err", err).Error("input directory read error")
 		return
@@ -115,7 +114,7 @@ func (f *FileJobQueue) pollInDirTick(ctx gocontext.Context) {
 		}
 		startAttrs := &jobPayloadStartAttrs{Config: &backend.StartAttributes{}}
 
-		fb, err := ioutil.ReadFile(buildJob.createdFile)
+		fb, err := os.ReadFile(buildJob.createdFile)
 		if err != nil {
 			logger.WithField("err", err).Error("input file read error")
 			continue

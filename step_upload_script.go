@@ -44,8 +44,8 @@ func (s *stepUploadScript) Run(state multistep.StateBag) multistep.StepAction {
 		defer func() {
 			_, err := writeFoldEnd(logWriter, "step_upload_script", []byte(""))
 			if err != nil {
-			    logger.WithFields(logrus.Fields{
-					"err":            err,
+				logger.WithFields(logrus.Fields{
+					"err": err,
 				}).Error("couldn't write fold end")
 			}
 		}()

@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"io"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -66,7 +65,7 @@ func NewDialerWithKeyWithoutPassPhrase(pemBytes []byte) (*AuthDialer, error) {
 }
 
 func NewDialer(keyPath, keyPassphrase string) (*AuthDialer, error) {
-	file, err := ioutil.ReadFile(keyPath)
+	file, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't read SSH key")
 	}
@@ -80,7 +79,7 @@ func NewDialer(keyPath, keyPassphrase string) (*AuthDialer, error) {
 		return NewDialerWithKeyWithoutPassPhrase(file)
 	}
 
-	der, err := x509.DecryptPEMBlock(block, []byte(keyPassphrase))
+	der, err := x509.DecryptPEMBlock(block, []byte(keyPassphrase)) //nolint:staticcheck
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't decrypt SSH key")
 	}
@@ -156,7 +155,7 @@ func (c *sshConnection) DownloadFile(path string) ([]byte, error) {
 		return nil, errors.Wrap(err, "couldn't open file")
 	}
 
-	buf, err := ioutil.ReadAll(f)
+	buf, err := io.ReadAll(f)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't read contents of file")
 	}

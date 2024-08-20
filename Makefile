@@ -22,7 +22,6 @@ GO ?= go
 GOPATH := $(shell echo $${GOPATH%%:*})
 GOPATH_BIN := $(GOPATH)/bin
 GOBUILD_LDFLAGS ?= \
-	-extldflags '-static' \
 	-X '$(VERSION_VAR)=$(VERSION_VALUE)' \
 	-X '$(REV_VAR)=$(REV_VALUE)' \
 	-X '$(REV_URL_VAR)=$(REV_URL_VALUE)' \

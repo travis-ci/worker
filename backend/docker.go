@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -19,6 +18,7 @@ import (
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
+	dockerimage "github.com/docker/docker/api/types/image"
 	docker "github.com/docker/docker/client"
 	"github.com/docker/go-connections/tlsconfig"
 	humanize "github.com/dustin/go-humanize"
@@ -322,7 +322,7 @@ func buildDockerClient(cfg *config.ProviderConfig) (*docker.Client, error) {
 		dockerAPIVersion = cfg.Get("API_VERSION")
 	}
 
-	return docker.NewClient(endpoint, dockerAPIVersion, httpClient, nil)
+	return docker.NewClientWithOpts(docker.WithHost(endpoint), docker.WithVersion(dockerAPIVersion), docker.WithHTTPClient(httpClient), docker.WithHTTPHeaders(nil))
 }
 
 func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *config.ProviderConfig) (image.Selector, error) {
@@ -345,7 +345,7 @@ func buildDockerImageSelector(selectorType string, client *docker.Client, cfg *c
 // dockerImageNameForID returns a human-readable name for the image with the requested ID.
 // Currently, we are using the tag that includes the stack-name (e.g "travisci/ci-garnet:packer-1505167479") and reverting back to the ID if nothing is found.
 func (p *dockerProvider) dockerImageNameForID(ctx gocontext.Context, imageID string) string {
-	images, err := p.client.ImageList(ctx, dockertypes.ImageListOptions{All: true})
+	images, err := p.client.ImageList(ctx, dockerimage.ListOptions{All: true})
 	if err != nil {
 		return imageID
 	}
@@ -396,7 +396,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 	existingContainer, err := p.client.ContainerInspect(ctx, containerName)
 	if err == nil {
 		err := p.client.ContainerRemove(ctx, existingContainer.ID,
-			dockertypes.ContainerRemoveOptions{
+			dockercontainer.RemoveOptions{
 				Force:         true,
 				RemoveLinks:   false,
 				RemoveVolumes: true,
@@ -481,7 +481,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 		}
 
 		err := p.client.ContainerRemove(ctx, container.ID,
-			dockertypes.ContainerRemoveOptions{
+			dockercontainer.RemoveOptions{
 				Force:         true,
 				RemoveLinks:   false,
 				RemoveVolumes: true,
@@ -495,7 +495,7 @@ func (p *dockerProvider) Start(ctx gocontext.Context, startAttributes *StartAttr
 
 	startBooting := time.Now()
 
-	err = p.client.ContainerStart(ctx, container.ID, dockertypes.ContainerStartOptions{})
+	err = p.client.ContainerStart(ctx, container.ID, dockercontainer.StartOptions{})
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't start container")
 		if useCPUSets {
@@ -653,7 +653,7 @@ func (i *dockerInstance) uploadScriptNative(ctx gocontext.Context, script []byte
 	}
 
 	return i.client.CopyToContainer(ctx, i.container.ID, "/",
-		bytes.NewReader(tarBuf.Bytes()), dockertypes.CopyToContainerOptions{})
+		bytes.NewReader(tarBuf.Bytes()), dockercontainer.CopyToContainerOptions{})
 }
 
 func (i *dockerInstance) uploadScriptSCP(ctx gocontext.Context, script []byte) error {
@@ -682,7 +682,7 @@ func (i *dockerInstance) RunScript(ctx gocontext.Context, output io.Writer) (*Ru
 }
 
 func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) (*RunResult, error) {
-	execConfig := dockertypes.ExecConfig{
+	execConfig := dockercontainer.ExecOptions{
 		AttachStdin:  false,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -714,7 +714,7 @@ func (i *dockerInstance) runScriptExec(ctx gocontext.Context, output io.Writer) 
 		return &RunResult{Completed: false}, err
 	}
 
-	hijackedResponse, err := i.client.ContainerExecAttach(ctx, exec.ID, dockertypes.ExecStartCheck{
+	hijackedResponse, err := i.client.ContainerExecAttach(ctx, exec.ID, dockercontainer.ExecStartOptions{
 		Detach: execConfig.Detach,
 		Tty:    execConfig.Tty,
 	})
@@ -813,7 +813,7 @@ func (i *dockerInstance) downloadTraceNative(ctx gocontext.Context) ([]byte, err
 		return nil, errors.Wrap(err, "couldn't find trace in tar")
 	}
 
-	buf, err := ioutil.ReadAll(tr)
+	buf, err := io.ReadAll(tr)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't read contents of file")
 	}
@@ -840,15 +840,15 @@ func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 	defer i.provider.checkinCPUSets(ctx, i.container.HostConfig.Resources.CpusetCpus)
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")
 
-	timeout := 30 * time.Second
-	err := i.client.ContainerStop(ctx, i.container.ID, &timeout)
+	timeout := 30
+	err := i.client.ContainerStop(ctx, i.container.ID, dockercontainer.StopOptions{Timeout: &timeout})
 	if err != nil {
 		logger.Warn("couldn't stop container")
 		return err
 	}
 
 	return i.client.ContainerRemove(ctx, i.container.ID,
-		dockertypes.ContainerRemoveOptions{
+		dockercontainer.RemoveOptions{
 			Force:         true,
 			RemoveLinks:   false,
 			RemoveVolumes: true,
@@ -879,7 +879,7 @@ func (i *dockerInstance) StartupDuration() time.Duration {
 }
 
 func (s *dockerTagImageSelector) Select(ctx gocontext.Context, params *image.Params) (string, error) {
-	images, err := s.client.ImageList(ctx, dockertypes.ImageListOptions{All: true})
+	images, err := s.client.ImageList(ctx, dockerimage.ListOptions{All: true})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list docker images")
 	}
@@ -894,8 +894,8 @@ func (s *dockerTagImageSelector) Select(ctx gocontext.Context, params *image.Par
 	return imageID, err
 }
 
-//findDockerImageByTag returns the ID of the image which matches the requested search tags
-func findDockerImageByTag(searchTags []string, images []dockertypes.ImageSummary) (string, error) {
+// findDockerImageByTag returns the ID of the image which matches the requested search tags
+func findDockerImageByTag(searchTags []string, images []dockerimage.Summary) (string, error) {
 	for _, searchTag := range searchTags {
 		for _, image := range images {
 			if searchTag == image.ID {

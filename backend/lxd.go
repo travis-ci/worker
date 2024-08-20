@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/url"
 	"strconv"
@@ -14,9 +13,9 @@ import (
 
 	gocontext "context"
 
-	lxd "github.com/lxc/lxd/client"
-	lxdconfig "github.com/lxc/lxd/lxc/config"
-	lxdapi "github.com/lxc/lxd/shared/api"
+	lxd "github.com/canonical/lxd/client"
+	lxdconfig "github.com/canonical/lxd/lxc/config"
+	lxdapi "github.com/canonical/lxd/shared/api"
 
 	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/config"
@@ -986,7 +985,7 @@ func (i *lxdInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 	}
 	defer r.Close()
 
-	buf, err := ioutil.ReadAll(r)
+	buf, err := io.ReadAll(r)
 	if err != nil {
 		logger.WithField("err", err).Error("failed to read trace content")
 		return nil, errors.Wrap(err, "couldn't read contents of file")

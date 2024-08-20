@@ -81,8 +81,9 @@ func (pc *ProviderConfig) IsSet(key string) bool {
 // environment by loading values from keys with prefixes that match either the
 // uppercase provider name + "_" or "TRAVIS_WORKER_" + uppercase provider name +
 // "_", e.g., for provider "foo":
-//   env: TRAVIS_WORKER_FOO_BAR=ham FOO_BAZ=bones
-//   map equiv: {"BAR": "ham", "BAZ": "bones"}
+//
+//	env: TRAVIS_WORKER_FOO_BAR=ham FOO_BAZ=bones
+//	map equiv: {"BAR": "ham", "BAZ": "bones"}
 func ProviderConfigFromEnviron(providerName string) *ProviderConfig {
 	upperProvider := strings.ToUpper(providerName)
 

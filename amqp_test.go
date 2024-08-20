@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func setupAMQPConn(t *testing.T) (*amqp.Connection, *amqp.Channel) {

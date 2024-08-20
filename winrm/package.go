@@ -2,6 +2,7 @@ package winrm
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"time"
@@ -69,7 +70,9 @@ func (r *Remoter) DownloadFile(path string) ([]byte, error) {
 }
 
 func (r *Remoter) RunCommand(command string, output io.Writer) (int32, error) {
-	exitCode, err := r.winrmClient.Run(command, output, output)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	exitCode, err := r.winrmClient.RunWithContext(ctx, command, output, output)
 	return int32(exitCode), err
 }
 

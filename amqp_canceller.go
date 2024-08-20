@@ -6,8 +6,8 @@ import (
 
 	gocontext "context"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/context"
 )
 

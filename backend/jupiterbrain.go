@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -658,7 +657,7 @@ func (ac *jupiterBrainAPIClient) Start(ctx gocontext.Context, baseImage string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return nil, errors.Errorf("expected 2xx from Jupiter Brain API, got %d (error: %s)", resp.StatusCode, body)
 	}
 
@@ -693,7 +692,7 @@ func (ac *jupiterBrainAPIClient) Get(ctx gocontext.Context, id string) (*jupiter
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return nil, errors.Errorf("unknown status code: %d, expected 200 (body: %q)", resp.StatusCode, string(body))
 	}
 

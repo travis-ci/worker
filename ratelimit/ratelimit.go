@@ -7,7 +7,7 @@ import (
 
 	gocontext "context"
 
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/context"
 	"go.opencensus.io/trace"
