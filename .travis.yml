@@ -2,7 +2,7 @@ language: go
 
 go: 1.22.x
 
-dist: focal
+dist: xenial
 
 git:
   depth: 10
