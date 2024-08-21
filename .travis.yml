@@ -9,10 +9,6 @@ git:
 
 # Build master and PRs which merge into those branches
 # We don't automatically build other branches when they're pushed; create a PR to cause the CI to run.
-branches:
-  only:
-    - master
-
 cache:
   directories:
   - vendor
