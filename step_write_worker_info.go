@@ -13,6 +13,18 @@ import (
 type stepWriteWorkerInfo struct {
 }
 
+func(s *stepWriteWorkerInfo) getVMConfig(buildJob Job) string {
+	if buildJob.Payload().VMType == "premium" {
+		gpuInfo := ""
+		if buildJob.Payload().VMConfig.GpuCount > 0 {
+			gpuInfo = fmt.Sprintf(", gpu count: %d, gpu type: %s", buildJob.Payload().VMConfig.GpuCount, buildJob.Payload().VMConfig.GpuType)
+		}
+		return fmt.Sprintf("vm: premium, size: %s%s", buildJob.Payload().VMSize, gpuInfo)
+	} else {
+		return fmt.Sprintf("vm: default")
+	}
+}
+
 func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
 	buildJob := state.Get("buildJob").(Job)
@@ -28,6 +40,7 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 			fmt.Sprintf("hostname: %s", hostname),
 			fmt.Sprintf("version: %s %s", VersionString, RevisionURLString),
 			fmt.Sprintf("instance: %s %s (via %s)", instance.ID(), instance.ImageName(), buildJob.Name()),
+			s.getVMConfig(buildJob),
 			fmt.Sprintf("startup: %v", instance.StartupDuration()),
 		}, "\n")))
 	}

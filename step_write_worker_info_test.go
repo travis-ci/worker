@@ -42,7 +42,7 @@ func (w *byteBufferLogWriter) MaxLengthReached() bool {
 	return false
 }
 
-func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *byteBufferLogWriter, multistep.StateBag) {
+func setupStepWriteWorkerInfo(premium bool, gpu bool) (*stepWriteWorkerInfo, *byteBufferLogWriter, multistep.StateBag) {
 	s := &stepWriteWorkerInfo{}
 
 	bp, _ := backend.NewBackendProvider("fake",
@@ -62,13 +62,38 @@ func setupStepWriteWorkerInfo() (*stepWriteWorkerInfo, *byteBufferLogWriter, mul
 	state.Put("logWriter", logWriter)
 	state.Put("instance", instance)
 	state.Put("hostname", "frizzlefry.example.local")
-	state.Put("buildJob", &fakeJob{payload: &JobPayload{Job: JobJobPayload{ID: 4}}})
-
+	if (premium) {
+		if gpu {
+			state.Put("buildJob", &fakeJob{payload: &JobPayload{Job: JobJobPayload{ID: 4}, VMType: "premium", VMSize: "2x-large", VMConfig: backend.VmConfig{GpuCount: 1, GpuType: "nvidia-tesla-p100"}}})
+		} else {
+			state.Put("buildJob", &fakeJob{payload: &JobPayload{Job: JobJobPayload{ID: 4}, VMType: "premium", VMSize: "2x-large"}})
+		}
+	} else {
+		state.Put("buildJob", &fakeJob{payload: &JobPayload{Job: JobJobPayload{ID: 4}}})
+	}
 	return s, logWriter, state
 }
 
+func TestStepWriteWorkerInfoPremiumNoGPU_Run(t *testing.T) {
+	s, logWriter, state := setupStepWriteWorkerInfo(true, false)
+
+	s.Run(state)
+
+	out := logWriter.String()
+	assert.Contains(t, out, "\nvm: premium, size: 2x-large")
+}
+
+func TestStepWriteWorkerInfoPremiumGPU_Run(t *testing.T) {
+	s, logWriter, state := setupStepWriteWorkerInfo(true, true)
+
+	s.Run(state)
+
+	out := logWriter.String()
+	assert.Contains(t, out, "\nvm: premium, size: 2x-large, gpu count: 1, gpu type: nvidia-tesla-p100")
+}
+
 func TestStepWriteWorkerInfo_Run(t *testing.T) {
-	s, logWriter, state := setupStepWriteWorkerInfo()
+	s, logWriter, state := setupStepWriteWorkerInfo(false, false)
 
 	s.Run(state)
 
@@ -79,5 +104,6 @@ func TestStepWriteWorkerInfo_Run(t *testing.T) {
 	assert.Contains(t, out, "\nversion: "+VersionString+" "+RevisionURLString+"\n")
 	assert.Contains(t, out, "\ninstance: fake fake (via fake)\n")
 	assert.Contains(t, out, "\nstartup: 42.17s\n")
+	assert.Contains(t, out, "\nvm: default")
 	assert.Contains(t, out, "\ntravis_fold:end:worker_info\r\033[0K")
 }
