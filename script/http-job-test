@@ -4,7 +4,7 @@ set -o errexit
 main() {
   : "${JOB_BOARD_CLONE_DIR:=$(mktemp -d /tmp/job-board-clone.XXXXXXX)}"
   : "${JOB_BOARD_CLONE_URL:=https://github.com/travis-ci/job-board.git}"
-  : "${JOB_BOARD_CLONE_BRANCH:=master}"
+  : "${JOB_BOARD_CLONE_BRANCH:=ga-tbt181-job_board}"
 
   trap __cleanup EXIT QUIT INT
 
@@ -44,7 +44,7 @@ main() {
     -v "${JOB_BOARD_CLONE_DIR}:/usr/src/app" \
     -v "${TOP:=$(git rev-parse --show-toplevel)}:/worker" \
     -w /usr/src/app \
-    "ruby:2.5" \
+    "ruby:3.2.5" \
     /worker/script/http-job-test-internal
 }
 
