@@ -1057,5 +1057,7 @@ func (i *lxdInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	// Wait for any remaining I/O to be flushed
 	<-args.DataDone
 
+	fmt.Printf("meta: %v\n", opAPI.Metadata)
+	fmt.Printf("ret: %v\n", opAPI.Metadata["return"])
 	return &RunResult{Completed: true, ExitCode: int32(opAPI.Metadata["return"].(float64))}, nil
 }
