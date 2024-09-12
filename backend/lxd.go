@@ -85,7 +85,7 @@ func (w lxdWriteCloser) Close() error {
 }
 
 type lxdProvider struct {
-	client lxd.ContainerServer
+	client lxd.InstanceServer
 
 	limitCPU      string
 	limitCPUBurst bool
@@ -558,17 +558,17 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 
 	// Handle existing containers
-	existingContainer, _, err := p.client.GetContainer(containerName)
+	existingContainer, _, err := p.client.GetIntance(containerName)
 	if err == nil {
 		if existingContainer.StatusCode != lxdapi.Stopped {
 			// Force stop the container
-			req := lxdapi.ContainerStatePut{
+			req := lxdapi.InstanceStatePut{
 				Action:  "stop",
 				Timeout: -1,
 				Force:   true,
 			}
 
-			op, err := p.client.UpdateContainerState(containerName, req, "")
+			op, err := p.client.UpdateInstanceState(containerName, req, "")
 			if err != nil {
 				logger.WithField("err", err).Error("couldn't stop preexisting container before create")
 				return nil, err
@@ -581,7 +581,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 			}
 		}
 
-		op, err := p.client.DeleteContainer(containerName)
+		op, err := p.client.DeleteInstance(containerName)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't remove preexisting container before create")
 			return nil, err
@@ -645,7 +645,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		config["limits.cpu.allowance"] = fmt.Sprintf("%s00%%", p.limitCPU)
 	}
 
-	req := lxdapi.ContainersPost{
+	req := lxdapi.InstancesPost{
 		Name: containerName,
 	}
 	req.Config = config
@@ -658,7 +658,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 		req.Devices["root"]["pool"] = p.pool
 	}
 
-	rop, err := p.client.CreateContainerFromImage(imageServer, *image, req)
+	rop, err := p.client.CreateInstanceFromImage(imageServer, *image, req)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't create a new container")
 		return nil, err
@@ -671,7 +671,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 
 	// Configure the container devices
-	container, etag, err := p.client.GetContainer(containerName)
+	container, etag, err := p.client.GetInstance(containerName)
 	if err != nil {
 		logger.WithField("err", err).Error("failed to get the container")
 		return nil, err
@@ -754,7 +754,7 @@ iface eth0 inet static
 `, address, p.networkGateway, dns, p.networkMTU)
 		}
 
-		args := lxd.ContainerFileArgs{
+		args := lxd.InstanceFileArgs{
 			Type:    "file",
 			Mode:    0644,
 			UID:     0,
@@ -762,7 +762,7 @@ iface eth0 inet static
 			Content: strings.NewReader(string(content)),
 		}
 
-		err = p.client.CreateContainerFile(containerName, fileName, args)
+		err = p.client.CreateInstanceFile(containerName, fileName, args)
 		if err != nil {
 			logger.WithField("err", err).Error("failed to upload netplan/interfaces to container")
 			return nil, err
@@ -770,7 +770,7 @@ iface eth0 inet static
 	}
 
 	// Save the changes
-	op, err := p.client.UpdateContainer(containerName, container.Writable(), etag)
+	op, err := p.client.UpdateInstance(containerName, container.Writable(), etag)
 	if err != nil {
 		logger.WithField("err", err).Error("failed to update the container config")
 		return nil, err
@@ -783,7 +783,7 @@ iface eth0 inet static
 	}
 
 	// Start the container
-	op, err = p.client.UpdateContainerState(containerName, lxdapi.ContainerStatePut{Action: "start", Timeout: -1}, "")
+	op, err = p.client.UpdateInstanceState(containerName, lxdapi.InstanceStatePut{Action: "start", Timeout: -1}, "")
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't start new container")
 		return nil, err
@@ -797,12 +797,12 @@ iface eth0 inet static
 
 	// Wait for connectivity
 	connectivityCheck := func() error {
-		exec := lxdapi.ContainerExecPost{
+		exec := lxdapi.InstanceExecPost{
 			Command: []string{"ping", "www.google.com", "-c", "1"},
 		}
 
 		// Spawn the command
-		op, err := p.client.ExecContainer(containerName, exec, nil)
+		op, err := p.client.ExecInstance(containerName, exec, nil)
 		if err != nil {
 			return err
 		}
@@ -838,7 +838,7 @@ iface eth0 inet static
 	}
 
 	// Get the container
-	container, _, err = p.client.GetContainer(containerName)
+	container, _, err = p.client.GetInstance(containerName)
 	if err != nil {
 		logger.WithField("err", err).Error("failed to get the container")
 		return nil, err
@@ -870,9 +870,9 @@ func (i *lxdInstance) SupportsProgress() bool {
 }
 
 type lxdInstance struct {
-	client           lxd.ContainerServer
+	client           lxd.InstanceServer
 	provider         *lxdProvider
-	container        *lxdapi.Container
+	container        *lxdapi.Instance
 	runUID           int64
 	startBooting     time.Time
 	imageFingerprint string
@@ -901,7 +901,7 @@ func (i *lxdInstance) StartupDuration() time.Duration {
 func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/lxd_provider")
 
-	container, _, err := i.client.GetContainer(i.container.Name)
+	container, _, err := i.client.GetInstance(i.container.Name)
 	if err != nil {
 		logger.WithField("err", err).Error("failed to find container to stop")
 		return err
@@ -909,13 +909,13 @@ func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 
 	if container.StatusCode != lxdapi.Stopped {
 		// Force stop the container
-		req := lxdapi.ContainerStatePut{
+		req := lxdapi.InstanceStatePut{
 			Action:  "stop",
 			Timeout: -1,
 			Force:   true,
 		}
 
-		op, err := i.client.UpdateContainerState(container.Name, req, "")
+		op, err := i.client.UpdateInstanceState(container.Name, req, "")
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't stop preexisting container before create")
 			return err
@@ -928,7 +928,7 @@ func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 		}
 	}
 
-	op, err := i.client.DeleteContainer(container.Name)
+	op, err := i.client.DeleteInstance(container.Name)
 	if err != nil {
 		logger.WithField("err", err).Error("couldn't remove preexisting container before create")
 		return err
@@ -958,7 +958,7 @@ func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 func (i *lxdInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/lxd_provider")
 
-	args := lxd.ContainerFileArgs{
+	args := lxd.InstanceFileArgs{
 		Type:    "file",
 		Mode:    0700,
 		UID:     i.runUID,
@@ -966,7 +966,7 @@ func (i *lxdInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 		Content: strings.NewReader(string(script)),
 	}
 
-	err := i.client.CreateContainerFile(i.container.Name, "/home/travis/build.sh", args)
+	err := i.client.CreateInstanceFile(i.container.Name, "/home/travis/build.sh", args)
 	if err != nil {
 		logger.WithField("err", err).Error("failed to upload file to container")
 		return err
@@ -978,7 +978,7 @@ func (i *lxdInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 func (i *lxdInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/lxd_provider")
 
-	r, _, err := i.client.GetContainerFile(i.container.Name, "/tmp/build.trace")
+	r, _, err := i.client.GetInstanceFile(i.container.Name, "/tmp/build.trace")
 	if err != nil {
 		logger.WithField("err", err).Error("failed to retrieve file from container")
 		return nil, err
