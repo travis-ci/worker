@@ -558,7 +558,7 @@ func (p *lxdProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	}
 
 	// Handle existing containers
-	existingContainer, _, err := p.client.GetIntance(containerName)
+	existingContainer, _, err := p.client.GetInstance(containerName)
 	if err == nil {
 		if existingContainer.StatusCode != lxdapi.Stopped {
 			// Force stop the container
