@@ -1026,14 +1026,14 @@ func (i *lxdInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	// Setup the arguments
 	cmd := []string{"sudo", "-h", "localhost", "-E", "-u", "travis", "--"}
 	cmd = append(cmd, i.provider.runCmd...)
-	exec := lxdapi.ContainerExecPost{
+	exec := lxdapi.InstanceExecPost{
 		Command:     cmd,
 		WaitForWS:   true,
 		Interactive: false,
 		Environment: env,
 	}
 
-	args := lxd.ContainerExecArgs{
+	args := lxd.InstanceExecArgs{
 		Stdin:    nil,
 		Stdout:   lxdWriteCloser{Writer: output},
 		Stderr:   nil,
@@ -1041,7 +1041,7 @@ func (i *lxdInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	}
 
 	// Spawn the command
-	op, err := i.client.ExecContainer(i.container.Name, exec, &args)
+	op, err := i.client.ExecInstance(i.container.Name, exec, &args)
 	if err != nil {
 		logger.WithField("err", err).Error("failed to exec command")
 		return nil, err
