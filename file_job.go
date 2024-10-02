@@ -2,7 +2,6 @@ package worker
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -108,7 +107,7 @@ func (j *fileJob) Finish(ctx gocontext.Context, state FinishState) error {
 		return err
 	}
 
-	return ioutil.WriteFile(strings.Replace(j.finishedFile, ".json", ".state", -1),
+	return os.WriteFile(strings.Replace(j.finishedFile, ".json", ".state", -1),
 		[]byte(state), os.FileMode(0644))
 }
 

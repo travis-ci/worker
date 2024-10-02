@@ -2,7 +2,6 @@ package backend
 
 import (
 	"io"
-	"io/ioutil"
 )
 
 var textProgressHeads = map[ProgressState]string{
@@ -17,7 +16,7 @@ type TextProgresser struct {
 
 func NewTextProgresser(w io.Writer) *TextProgresser {
 	if w == nil {
-		w = ioutil.Discard
+		w = io.Discard
 	}
 	return &TextProgresser{w: w}
 }

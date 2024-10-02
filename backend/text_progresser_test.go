@@ -2,7 +2,7 @@ package backend
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,7 +18,7 @@ func TestNewTextProgresser(t *testing.T) {
 	tp = NewTextProgresser(nil)
 	assert.NotNil(t, tp)
 	assert.NotNil(t, tp.w)
-	assert.Equal(t, tp.w, ioutil.Discard)
+	assert.Equal(t, tp.w, io.Discard)
 }
 
 var testTextProgresserProgressCases = []struct {

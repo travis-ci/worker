@@ -29,11 +29,9 @@ type StartAttributes struct {
 	// the job payload, see the worker.JobPayload struct.
 	VMConfig VmConfig `json:"-"`
 
-
 	// The VMSize isn't stored in the config directly, but in the top level of
 	// the job payload, see the worker.JobPayload struct.
 	VMSize string `json:"-"`
-
 
 	// Warmer isn't stored in the config directly, but in the top level of
 	// the job payload, see the worker.JobPayload struct.

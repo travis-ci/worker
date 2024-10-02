@@ -8,7 +8,7 @@ type Params struct {
 	Group    string
 	OS       string
 
-	JobID uint64
-	Repo  string
-	GpuVMType  string
+	JobID     uint64
+	Repo      string
+	GpuVMType string
 }

@@ -4,7 +4,7 @@ import (
 	gocontext "context"
 	"time"
 
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type AMQPLogWriterFactory struct {

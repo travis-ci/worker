@@ -9,7 +9,7 @@ import (
 	gocontext "context"
 
 	"github.com/bitly/go-simplejson"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/travis-ci/worker/backend"
 )

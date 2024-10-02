@@ -10,10 +10,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	mathrand "math/rand"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -45,6 +45,7 @@ import (
 	"golang.org/x/oauth2/jwt"
 	compute "google.golang.org/api/compute/v1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 )
 
 const (
@@ -147,22 +148,22 @@ Set-LocalUser -Name travis -Password $pw
 	gceCustomHTTPTransportLock sync.Mutex
 
 	gceVMSizeMapping = map[string]string{
-		"medium": "n2-standard-2",
-		"large": "n2-standard-4",
-		"x-large": "n2-standard-8",
-		"2x-large": "n2-standard-16",
+		"medium":     "n2-standard-2",
+		"large":      "n2-standard-4",
+		"x-large":    "n2-standard-8",
+		"2x-large":   "n2-standard-16",
 		"gpu-medium": "n1-standard-8",
 		"gpu-xlarge": "n1-standard-8",
 	}
 )
 
 func stringInSlice(a string, list []string) bool {
-    for _, b := range list {
-        if b == a {
-            return true
-        }
-    }
-    return false
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
 }
 
 type gceStartupScriptData struct {
@@ -193,27 +194,26 @@ func (oe *gceOpError) Error() string {
 
 type singleGpuMapping struct {
 	GpuCount int64
-	GpuType string
+	GpuType  string
 	DiskSize int64
 }
 
 var gpuMedium = singleGpuMapping{
 	GpuCount: 1,
-	GpuType: "nvidia-tesla-t4",
-	DiskSize: 300,}
+	GpuType:  "nvidia-tesla-t4",
+	DiskSize: 300}
 var gpuXLarge = singleGpuMapping{
 	GpuCount: 1,
-	GpuType: "nvidia-tesla-v100",
-	DiskSize: 300,}
+	GpuType:  "nvidia-tesla-v100",
+	DiskSize: 300}
 
 func GpuMapping(vmSize string) (value singleGpuMapping) {
-	gpuMapping := map[string] singleGpuMapping{
+	gpuMapping := map[string]singleGpuMapping{
 		"gpu-medium": gpuMedium,
 		"gpu-xlarge": gpuXLarge,
 	}
 	return gpuMapping[vmSize]
 }
-
 
 func GpuDefaultGpuCount(vmSize string) (gpuCountInt int64) {
 	return GpuMapping(vmSize).GpuCount
@@ -228,14 +228,14 @@ func GpuDefaultGpuType(vmSize string) (gpuTypeString string) {
 }
 
 func GPUType(varSize string) string {
-  switch varSize {
-    case "gpu-medium":
-      return "gpu-medium"
-    case  "gpu-xlarge":
-      return "gpu-xlarge"
-    default:
-      return ""
-  }
+	switch varSize {
+	case "gpu-medium":
+		return "gpu-medium"
+	case "gpu-xlarge":
+		return "gpu-xlarge"
+	default:
+		return ""
+	}
 }
 
 type gceAccountJSON struct {
@@ -373,14 +373,14 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		err error
 	)
 
-	client, err := buildGoogleComputeService(cfg)
+	client, ctx, err := buildGoogleComputeService(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	projectID := cfg.Get("PROJECT_ID")
 	if metadata.OnGCE() {
-		projectID, err = metadata.ProjectID()
+		projectID, err = metadata.ProjectIDWithContext(ctx)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not get project id from metadata api")
 		}
@@ -396,7 +396,7 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 
 	zoneNames := []string{defaultGCEZone}
 	if metadata.OnGCE() {
-		zoneName, err := metadata.Zone()
+		zoneName, err := metadata.ZoneWithContext(ctx)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not get zone from metadata api")
 		}
@@ -885,8 +885,8 @@ func (p *gceProvider) Setup(ctx gocontext.Context) error {
 
 	machineTypes := []string{p.ic.MachineType, p.ic.PremiumMachineType}
 	for _, machineType := range gceVMSizeMapping {
-	    if !stringInSlice(machineType, machineTypes) {
-		  machineTypes = append(machineTypes, machineType);
+		if !stringInSlice(machineType, machineTypes) {
+			machineTypes = append(machineTypes, machineType)
 		}
 	}
 	for _, zoneName := range append(zoneNames, p.alternateZones...) {
@@ -954,7 +954,7 @@ func (m *MetricsTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	return m.Transport.RoundTrip(req)
 }
 
-func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, error) {
+func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, gocontext.Context, error) {
 	ctx := gocontext.WithValue(gocontext.Background(), oauth2.HTTPClient, &http.Client{
 		Transport: &MetricsTransport{
 			Name:      "worker.google.compute.api.client",
@@ -965,14 +965,15 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 	if !cfg.IsSet("ACCOUNT_JSON") {
 		client, err := google.DefaultClient(ctx, compute.DevstorageFullControlScope, compute.ComputeScope)
 		if err != nil {
-			return nil, errors.Wrap(err, "could not build default client")
+			return nil, ctx, errors.Wrap(err, "could not build default client")
 		}
-		return compute.New(client) //nolint:staticcheck
+		svc, err := compute.NewService(ctx, option.WithHTTPClient(client))
+		return svc, ctx, err //nolint:staticcheck
 	}
 
 	a, err := loadGoogleAccountJSON(cfg.Get("ACCOUNT_JSON"))
 	if err != nil {
-		return nil, err
+		return nil, ctx, err
 	}
 
 	config := jwt.Config{
@@ -991,7 +992,8 @@ func buildGoogleComputeService(cfg *config.ProviderConfig) (*compute.Service, er
 		client.Transport = gceCustomHTTPTransport
 	}
 
-	return compute.New(client) //nolint:staticcheck
+	svc, err := compute.NewService(ctx, option.WithHTTPClient(client))
+	return svc, ctx, err //nolint:staticcheck
 }
 
 func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
@@ -1003,7 +1005,7 @@ func loadGoogleAccountJSON(filenameOrJSON string) (*gceAccountJSON, error) {
 	if strings.HasPrefix(strings.TrimSpace(filenameOrJSON), "{") {
 		bytes = []byte(filenameOrJSON)
 	} else {
-		bytes, err = ioutil.ReadFile(filenameOrJSON)
+		bytes, err = os.ReadFile(filenameOrJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -1073,7 +1075,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 }
 
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	return p.StartWithProgress(ctx, startAttributes, NewTextProgresser(ioutil.Discard))
+	return p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
@@ -1220,7 +1222,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 				c.errChan <- errors.Wrap(err, "ssh key does not contain a valid PEM block")
 				return multistep.ActionHalt
 			}
-			der, err := x509.DecryptPEMBlock(block, []byte(p.warmerSSHPassphrase))
+			der, err := x509.DecryptPEMBlock(block, []byte(p.warmerSSHPassphrase)) //nolint:staticcheck
 			if err != nil {
 				c.errChan <- errors.Wrap(err, "couldn't decrypt SSH key")
 				return multistep.ActionHalt
@@ -1487,14 +1489,14 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 		imageName = startAttributes.ImageName
 	} else {
 		imageName, err = p.imageSelector.Select(ctx, &image.Params{
-			Infra:    "gce",
-			Language: startAttributes.Language,
-			OsxImage: startAttributes.OsxImage,
-			Dist:     startAttributes.Dist,
-			Group:    startAttributes.Group,
-			OS:       startAttributes.OS,
-			JobID:    jobID,
-			Repo:     repo,
+			Infra:     "gce",
+			Language:  startAttributes.Language,
+			OsxImage:  startAttributes.OsxImage,
+			Dist:      startAttributes.Dist,
+			Group:     startAttributes.Group,
+			OS:        startAttributes.OS,
+			JobID:     jobID,
+			Repo:      repo,
 			GpuVMType: gpuVMType,
 		})
 
@@ -1547,21 +1549,21 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 		Zone:        c.zoneName,
 	}
 
-    var gpuVMType = GPUType(c.startAttributes.VMSize)
+	var gpuVMType = GPUType(c.startAttributes.VMSize)
 
 	machineType := p.ic.MachineType
-    if c.startAttributes.VMType == "premium" {
-    	c.startAttributes.VMSize = "premium"
-    	machineType = p.ic.PremiumMachineType
-    } else if c.startAttributes.VMSize != "" {
-    	if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
-    		machineType = mtype;
-    		//storing converted machine type for instance size identification
-    		if gpuVMType == "" {
-    		  c.startAttributes.VMSize = machineType
-    		}
-    	}
-    }
+	if c.startAttributes.VMType == "premium" {
+		c.startAttributes.VMSize = "premium"
+		machineType = p.ic.PremiumMachineType
+	} else if c.startAttributes.VMSize != "" {
+		if mtype, ok := gceVMSizeMapping[c.startAttributes.VMSize]; ok {
+			machineType = mtype
+			// storing converted machine type for instance size identification
+			if gpuVMType == "" {
+				c.startAttributes.VMSize = machineType
+			}
+		}
+	}
 
 	diskSize := p.ic.DiskSize
 	if c.startAttributes.OS == "windows" {
@@ -1569,7 +1571,7 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 	}
 
 	if gpuVMType != "" {
-	  diskSize = GpuDefaultGpuDiskSize(gpuVMType)
+		diskSize = GpuDefaultGpuDiskSize(gpuVMType)
 	}
 
 	diskInitParams := &compute.AttachedDiskInitializeParams{
@@ -1603,18 +1605,18 @@ func (p *gceProvider) buildInstance(ctx gocontext.Context, c *gceStartContext) (
 			c.startAttributes.VMConfig.Zone,
 			c.startAttributes.VMConfig.GpuType)
 	} else if gpuVMType != "" {
-	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Setting AcceleratorConfig")
-	  if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
-	      notUrlAcceleratorType := GpuDefaultGpuType(gpuVMType)
-	      logger.WithField("notUrlAcceleratorType", notUrlAcceleratorType).Debug("Retrieving AcceleratorType from defaults")
-	      logger.WithField("AcceleratorCount", p.ic.AcceleratorConfig.AcceleratorCount).Debug("Retrieving AcceleratorCount from defaults")
-	      acceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(gpuVMType)
-	      acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
-      		    p.projectID,
-      		    c.zoneName,
-      		    notUrlAcceleratorType)
-      	  logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Url for Accelerator Type is:")
-      }
+		logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Setting AcceleratorConfig")
+		if !strings.HasPrefix(acceleratorConfig.AcceleratorType, "https") {
+			notUrlAcceleratorType := GpuDefaultGpuType(gpuVMType)
+			logger.WithField("notUrlAcceleratorType", notUrlAcceleratorType).Debug("Retrieving AcceleratorType from defaults")
+			logger.WithField("AcceleratorCount", p.ic.AcceleratorConfig.AcceleratorCount).Debug("Retrieving AcceleratorCount from defaults")
+			acceleratorConfig.AcceleratorCount = GpuDefaultGpuCount(gpuVMType)
+			acceleratorConfig.AcceleratorType = fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%s/zones/%s/acceleratorTypes/%s",
+				p.projectID,
+				c.zoneName,
+				notUrlAcceleratorType)
+			logger.WithField("acceleratorConfig.AcceleratorType", acceleratorConfig.AcceleratorType).Debug("Url for Accelerator Type is:")
+		}
 	}
 
 	var subnetwork string
@@ -1761,8 +1763,6 @@ func (p *gceProvider) warmerRequestInstance(ctx gocontext.Context, zone string, 
 }
 
 func (p *gceProvider) pickRandomZone() string {
-	mathrand.Seed(time.Now().Unix())
-
 	return p.ic.Zones[mathrand.Intn(len(p.ic.Zones))].Name
 }
 

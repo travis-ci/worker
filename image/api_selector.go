@@ -3,7 +3,7 @@ package image
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -98,7 +98,7 @@ func (as *APISelector) SelectAll(ctx gocontext.Context, infra string, tags []str
 	}
 
 	defer resp.Body.Close()
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []*apiSelectorImageRef{}, fmt.Errorf("failed to read job board response: %w", err)
 	}
@@ -199,7 +199,7 @@ func (as *APISelector) makeImageRequest(ctx gocontext.Context, urlString string,
 		}
 		defer resp.Body.Close()
 
-		responseBody, err = ioutil.ReadAll(resp.Body)
+		responseBody, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
@@ -235,9 +235,9 @@ type tagSet struct {
 	Tags      []string
 	IsDefault bool
 
-	JobID uint64
-	Repo  string
-	GpuVMType  string
+	JobID     uint64
+	Repo      string
+	GpuVMType string
 }
 
 func (ts *tagSet) GoString() string {
@@ -246,10 +246,10 @@ func (ts *tagSet) GoString() string {
 
 func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 	fullTagSet := &tagSet{
-		Tags:  []string{},
-		JobID: params.JobID,
-		Repo:  params.Repo,
-		GpuVMType:  params.GpuVMType,
+		Tags:      []string{},
+		JobID:     params.JobID,
+		Repo:      params.Repo,
+		GpuVMType: params.GpuVMType,
 	}
 	candidateTags := []*tagSet{}
 
@@ -261,7 +261,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 				Tags:      []string{tag},
 				JobID:     params.JobID,
 				Repo:      params.Repo,
-				GpuVMType:      params.GpuVMType,
+				GpuVMType: params.GpuVMType,
 			})
 	}
 
@@ -272,7 +272,7 @@ func (as *APISelector) buildCandidateTags(params *Params) ([]*tagSet, error) {
 				Tags:      tags,
 				JobID:     params.JobID,
 				Repo:      params.Repo,
-				GpuVMType:      params.GpuVMType,
+				GpuVMType: params.GpuVMType,
 			})
 	}
 

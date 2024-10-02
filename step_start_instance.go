@@ -55,7 +55,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 				_, err := writeFoldEnd(logWriter, "step_start_instance", []byte(""))
 				if err != nil {
 					logger.WithFields(logrus.Fields{
-						"err":            err,
+						"err": err,
 					}).Error("couldn't write fold end")
 				}
 			}()

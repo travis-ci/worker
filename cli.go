@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -30,9 +29,9 @@ import (
 	"github.com/getsentry/raven-go"
 	librato "github.com/mihasya/go-metrics-librato"
 	"github.com/pkg/errors"
+	amqp "github.com/rabbitmq/amqp091-go"
 	metrics "github.com/rcrowley/go-metrics"
 	"github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
@@ -274,7 +273,7 @@ func (i *CLI) setupHeartbeat() {
 
 	hbTok := i.c.String("heartbeat-url-auth-token")
 	if strings.HasPrefix(hbTok, "file://") {
-		hbTokBytes, err := ioutil.ReadFile(strings.Split(hbTok, "://")[1])
+		hbTokBytes, err := os.ReadFile(strings.Split(hbTok, "://")[1])
 		if err != nil {
 			i.logger.WithField("err", err).Error("failed to read auth token from file")
 		} else {
@@ -404,7 +403,7 @@ func loadBytes(filenameOrJSON string) ([]byte, error) {
 	if strings.HasPrefix(strings.TrimSpace(filenameOrJSON), "{") {
 		bytes = []byte(filenameOrJSON)
 	} else {
-		bytes, err = ioutil.ReadFile(filenameOrJSON)
+		bytes, err = os.ReadFile(filenameOrJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -660,7 +659,7 @@ func (i *CLI) buildAMQPJobQueueAndCanceller() (*AMQPJobQueue, *AMQPCanceller, er
 			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.AmqpTlsCert))
 		}
 		if i.Config.AmqpTlsCertPath != "" {
-			cert, err := ioutil.ReadFile(i.Config.AmqpTlsCertPath)
+			cert, err := os.ReadFile(i.Config.AmqpTlsCertPath)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -782,7 +781,7 @@ func (i *CLI) buildAMQPLogWriterFactory() (*AMQPLogWriterFactory, error) {
 			cfg.RootCAs.AppendCertsFromPEM([]byte(i.Config.LogsAmqpTlsCert))
 		}
 		if i.Config.LogsAmqpTlsCertPath != "" {
-			cert, err := ioutil.ReadFile(i.Config.LogsAmqpTlsCertPath)
+			cert, err := os.ReadFile(i.Config.LogsAmqpTlsCertPath)
 			if err != nil {
 				return nil, err
 			}

@@ -1,8 +1,8 @@
 language: go
 
-go: 1.18.x
+go: 1.22.x
 
-dist: xenial
+dist: focal
 
 git:
   depth: 10

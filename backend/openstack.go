@@ -386,9 +386,9 @@ func (p *osProvider) waitForSSH(ctx gocontext.Context, ip string) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_provider")
 
 	logger.WithField("duration", p.sshPollTimeout).Info("Polling for instance to be ready for ssh")
-	
+
 	timeout := time.After(p.sshPollTimeout)
-	
+
 	tick := time.NewTicker(p.bootPollDialSleep)
 	defer tick.Stop()
 
@@ -421,7 +421,7 @@ func (p *osProvider) waitForStatus(ctx gocontext.Context, id string, status stri
 
 	logger.WithField("duration", p.bootPollSleep).Info("Waiting for instance to be ACTIVE")
 	timeout := time.After(p.bootPollSleep)
-	
+
 	tick := time.NewTicker(p.bootPollDialSleep)
 	defer tick.Stop()
 
