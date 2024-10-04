@@ -106,7 +106,6 @@ jobs:
     addons:
       snaps:
       - name: google-cloud-sdk
-        confinement: classic
       - name: vault
       apt:
         update: true
