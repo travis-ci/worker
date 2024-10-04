@@ -105,7 +105,8 @@ jobs:
 
     addons:
       snaps:
-      - name: google-cloud-sdk
+      # google-cloud-sdk is available on focal
+      # - name: google-cloud-sdk
       - name: vault
       apt:
         update: true
