@@ -142,7 +142,7 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			Message: JobCancelledError.Error(),
 		})
 
-		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateCancelled, fmt.Sprintf("\n\nDone: Job Cancelled\n\n%s", cancelCommand.Reason))
+		s.writeLogAndFinishWithState(preTimeoutCtx, ctx, logWriter, buildJob, FinishStateCancelled, fmt.Sprintf("\n\nDone: Job Cancelled\n%s\n", cancelCommand.Reason))
 
 		return multistep.ActionHalt
 	case <-logWriter.Timeout():
