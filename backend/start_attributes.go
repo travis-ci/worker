@@ -20,6 +20,7 @@ type StartAttributes struct {
 	Group     string `json:"group"`
 	OS        string `json:"os"`
 	ImageName string `json:"image_name"`
+	OSCustom  string `json:"os_custom"`
 
 	// The VMType isn't stored in the config directly, but in the top level of
 	// the job payload, see the worker.JobPayload struct.
@@ -44,6 +45,10 @@ type StartAttributes struct {
 	// ProgressType isn't stored in the config directly, but is injected from
 	// the processor
 	ProgressType string `json:"-"`
+
+	// TamToken isn't stored in the config directly, but in the top level of
+	// the job payload, see the worker.JobPayload struct.
+	TamToken string `json:"-"`
 }
 
 // SetDefaults sets any missing required attributes to the default values provided
