@@ -587,12 +587,15 @@ func (p *lxdWatchdog) killWorker(singleRun bool) error {
 			p.lastSleep *= 2
 		}
 
-		p.setStartInterval(p.lastSleep)
+		_ = p.setStartInterval(p.lastSleep)
 		os.Exit(-1)
 	}
 	pid := os.Getpid()
-	syscall.Kill(pid, syscall.SIGINT)
-	fmt.Printf("[LXDWATCHDOG] Sent SIGINT to worker process [%d]\n", pid)
+	if syscall.Kill(pid, syscall.SIGINT) != nil {
+		fmt.Printf("[LXDWATCHDOG] Couldn't send SIGINT to worker process [%d]\n", pid)
+	} else {
+		fmt.Printf("[LXDWATCHDOG] Sent SIGINT to worker process [%d]\n", pid)
+	}
 	return nil
 }
 
@@ -644,7 +647,7 @@ func (p *lxdWatchdog) getStartInterval() int {
 	defer file.Close()
 	data := make([]byte, 64)
 
-	var count int = 0
+	var count int
 	count, err = file.Read(data)
 	if err != nil {
 		return defaultInterval
@@ -658,11 +661,9 @@ func (p *lxdWatchdog) getStartInterval() int {
 }
 
 func (p *lxdWatchdog) handleSleep() {
-	sleepTime := 60 * time.Minute
-
 	t := p.getStartInterval()
 	if t > 0 {
-		sleepTime = time.Duration(p.getStartInterval()) * time.Minute
+		sleepTime := time.Duration(p.getStartInterval()) * time.Minute
 		p.lastSleep = t
 		fmt.Printf("[LXDWATCHDOG] last run was unsuccessful waiting for %d minutes before retry\n", t)
 		time.Sleep(sleepTime)
