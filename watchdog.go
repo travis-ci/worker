@@ -591,8 +591,8 @@ func (p *lxdWatchdog) killWorker(singleRun bool) error {
 		os.Exit(-1)
 	}
 	pid := os.Getpid()
-	syscall.Kill(pid, syscall.SIGUSR2)
-	fmt.Printf("[LXDWATCHDOG] Sent SIGUSR2 to worker process [%d]\n", pid)
+	syscall.Kill(pid, syscall.SIGINT)
+	fmt.Printf("[LXDWATCHDOG] Sent SIGINT to worker process [%d]\n", pid)
 	return nil
 }
 

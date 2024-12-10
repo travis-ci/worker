@@ -69,6 +69,8 @@ type CLI struct {
 
 	heartbeatErrSleep time.Duration
 	heartbeatSleep    time.Duration
+
+	lastPoolSize int
 }
 
 // NewCLI creates a new *CLI from a *cli.Context
@@ -561,7 +563,7 @@ func (i *CLI) signalHandler() {
 	signal.Notify(signalChan,
 		syscall.SIGTERM, syscall.SIGINT, syscall.SIGUSR1,
 		syscall.SIGTTIN, syscall.SIGTTOU,
-		syscall.SIGUSR2)
+		syscall.SIGUSR2, syscall.Signal(0x22), syscall.Signal(0x23))
 
 	for {
 		select {
@@ -580,8 +582,23 @@ func (i *CLI) signalHandler() {
 				i.logger.Info("SIGTTOU received, removing processor from pool")
 				i.ProcessorPool.Decr()
 			case syscall.SIGUSR2:
+				i.lastPoolSize = i.ProcessorPool.Size()
 				i.logger.Warn("SIGUSR2 received, toggling graceful shutdown and pause")
 				i.ProcessorPool.GracefulShutdown(true)
+			case syscall.Signal(0x22): //SIGRTMIN
+				i.lastPoolSize = i.ProcessorPool.Size()
+				i.logger.Warn("SIGRTMIN received, pause processing")
+				i.ProcessorPool.SetSize(0)
+			case syscall.Signal(0x23): //SIGRTMIN + 1
+				i.logProcessorInfo("received SIGRTMIN+1, resuming processor pool")
+				if i.lastPoolSize == 0 {
+					if i.ProcessorPool.Size() > 0 {
+						i.lastPoolSize = i.ProcessorPool.Size()
+					} else {
+						i.lastPoolSize = 1
+					}
+				}
+				i.ProcessorPool.SetSize(i.lastPoolSize)
 			case syscall.SIGUSR1:
 				i.logProcessorInfo("received SIGUSR1")
 			default:

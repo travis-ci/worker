@@ -15,10 +15,11 @@ import (
 
 // RemoteController provides an HTTP API for controlling worker.
 type RemoteController struct {
-	pool       *ProcessorPool
-	auth       string
-	workerInfo func() workerInfo
-	cancel     func()
+	pool         *ProcessorPool
+	auth         string
+	workerInfo   func() workerInfo
+	cancel       func()
+	lastPoolSize int
 }
 
 // Setup installs the HTTP routes that will handle requests to the HTTP API.
@@ -36,6 +37,9 @@ func (api *RemoteController) Setup() {
 	// as it does not depend on the current state of worker.
 	r.HandleFunc("/pool/increment", api.IncrementPool).Methods("POST")
 	r.HandleFunc("/pool/decrement", api.DecrementPool).Methods("POST")
+
+	r.HandleFunc("/pause", api.Pause).Methods("POST")
+	r.HandleFunc("/resume", api.Resume).Methods("POST")
 
 	r.Use(api.SetContext)
 	r.Use(api.CheckAuth)
@@ -175,6 +179,33 @@ func (api *RemoteController) ShutdownWorker(w http.ResponseWriter, req *http.Req
 		"graceful": options.Graceful,
 		"pause":    options.Pause,
 	}).Info("asked worker to shutdown")
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// IncrementPool tells the worker to spin up another processor.
+func (api *RemoteController) Pause(w http.ResponseWriter, req *http.Request) {
+	log := context.LoggerFromContext(req.Context()).WithField("method", "Pause")
+
+	api.lastPoolSize = api.pool.Size()
+	api.pool.SetSize(0)
+	log.Info("pool size set to 0")
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// IncrementPool tells the worker to spin up another processor.
+func (api *RemoteController) Resume(w http.ResponseWriter, req *http.Request) {
+	log := context.LoggerFromContext(req.Context()).WithField("method", "Resume")
+	if api.lastPoolSize == 0 {
+		if api.pool.Size() > 0 {
+			api.lastPoolSize = api.pool.Size()
+		} else {
+			api.lastPoolSize = 1
+		}
+	}
+	api.pool.SetSize(api.lastPoolSize)
+	log.Info("pool size set to " + fmt.Sprintf("%d", api.lastPoolSize))
 
 	w.WriteHeader(http.StatusNoContent)
 }
