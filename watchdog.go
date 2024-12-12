@@ -58,8 +58,8 @@ func newLxdWatchdog() (*lxdWatchdog, error) {
 	var networkSubnet *net.IPNet
 	var networkLeases map[string]string
 
-	if os.Getenv("NETWORK_STATIC") != "" {
-		networkStatic = os.Getenv("NETWORK_STATIC") == "true"
+	if os.Getenv("TRAVIS_WORKER_LXD_NETWORK_STATIC") != "" {
+		networkStatic = os.Getenv("TRAVIS_WORKER_LXD_NETWORK_STATIC") == "true"
 
 		network, _, err := client.GetNetwork("lxdbr0")
 		if err != nil {
@@ -112,14 +112,14 @@ func newLxdWatchdog() (*lxdWatchdog, error) {
 	}
 
 	networkDNS := []string{"1.1.1.1", "1.0.0.1"}
-	if os.Getenv("NETWORK_DNS") != "" {
-		networkDNS = strings.Split(os.Getenv("NETWORK_DNS"), ",")
+	if os.Getenv("TRAVIS_WORKER_LXD_NETWORK_DNS") != "" {
+		networkDNS = strings.Split(os.Getenv("TRAVIS_WORKER_LXD_NETWORK_DNS"), ",")
 	}
 
-	httpProxy := os.Getenv("HTTP_PROXY")
-	httpsProxy := os.Getenv("HTTPS_PROXY")
-	ftpProxy := os.Getenv("FTP_PROXY")
-	noProxy := os.Getenv("NO_PROXY")
+	httpProxy := os.Getenv("TRAVIS_WORKER_LXD_HTTP_PROXY")
+	httpsProxy := os.Getenv("TRAVIS_WORKER_LXD_HTTPS_PROXY")
+	ftpProxy := os.Getenv("TRAVIS_WORKER_LXD_FTP_PROXY")
+	noProxy := os.Getenv("TRAVIS_WORKER_LXD_NO_PROXY")
 	url := "www.google.com"
 
 	if os.Getenv("WATCHDOG_PING_URL") != "" {
