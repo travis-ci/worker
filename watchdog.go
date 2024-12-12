@@ -507,6 +507,7 @@ iface eth0 inet static
 		return nil
 	}
 
+	testStartTime := time.Now().Unix()
 	// Wait 30s for network
 	time.Sleep(1 * time.Second)
 	for i := 0; i < 60; i++ {
@@ -517,6 +518,13 @@ iface eth0 inet static
 		fmt.Printf("[LXDWATCHDOG] wait for connection\n")
 
 		time.Sleep(500 * time.Millisecond)
+
+		testCurrentTime := time.Now().Unix()
+		if testCurrentTime - testStartTime > 30 {
+			fmt.Printf("[LXDWATCHDOG] timeout while waiting for connection\n")
+			err = fmt.Errorf("connection test timeout")
+			break
+		}
 	}
 
 	if err != nil {
