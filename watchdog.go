@@ -485,7 +485,7 @@ iface eth0 inet static
 			}
 		}
 		exec := lxdapi.InstanceExecPost{
-			Command: []string{"ping", p.url, "-c", "1"},
+			Command: []string{"ping", p.url, "-c", "1", "-w", "5"},
 		}
 
 		// Spawn the command
@@ -525,6 +525,7 @@ iface eth0 inet static
 			err = fmt.Errorf("connection test timeout")
 			break
 		}
+		fmt.Printf("[LXDWATCHDOG] test running for %ds\n", testCurrentTime - testStartTime)
 	}
 
 	if err != nil {
