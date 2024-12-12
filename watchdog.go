@@ -571,6 +571,7 @@ iface eth0 inet static
 		p.releaseAddress(container.Name)
 	}
 
+	_ = p.setStartInterval(1)
 	fmt.Printf("[LXDWATCHDOG] CLEANUP DONE\n")
 	return nil
 }
