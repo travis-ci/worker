@@ -473,20 +473,17 @@ iface eth0 inet static
 
 	fmt.Printf("STARTED - check connection\n")
 
-	if p.networkStatic {
-		exec := lxdapi.InstanceExecPost{
-			Command: []string{"route", "add", "default", "gw", "_gateway.lxd"},
-		}
-
-		// Spawn the command
-		_, err = p.client.ExecInstance(containerName, exec, nil)
-		if err != nil {
-			fmt.Printf("[LXDWATCHDOG] couldn't add default gateway: %v\n", err)
-		}
-	}
-
 	// Wait for connectivity
 	connectivityCheck := func() error {
+		if p.networkStatic {
+			exec := lxdapi.InstanceExecPost{
+				Command: []string{"route", "add", "default", "gw", p.networkGateway},
+			}
+			_, err = p.client.ExecInstance(containerName, exec, nil)
+			if err != nil {
+				fmt.Printf("[LXDWATCHDOG] couldn't add default gateway: %v\n", err)
+			}
+		}
 		exec := lxdapi.InstanceExecPost{
 			Command: []string{"ping", p.url, "-c", "1"},
 		}
