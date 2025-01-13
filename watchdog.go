@@ -15,6 +15,7 @@ package worker
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -43,6 +44,8 @@ type lxdWatchdog struct {
 
 	httpProxy, httpsProxy, ftpProxy, noProxy string
 	lastSleep                                int
+	isAlpine                                 bool
+	timeout                                  int
 }
 
 func newLxdWatchdog() (*lxdWatchdog, error) {
@@ -299,11 +302,15 @@ func (p *lxdWatchdog) Start(singleRun bool) error {
 	var (
 		err error
 	)
-
+	p.timeout = 30
+	p.isAlpine = false
 	containerName := "watchdogContainer"
 	imageName := os.Getenv("WATCHDOG_IMAGE")
 	if imageName == "" {
 		imageName = "images:alpine/3.20"
+		p.isAlpine = true
+	} else if strings.Contains(imageName, "alpine") {
+		p.isAlpine = true
 	}
 
 	imageServer, image, err := p.getImage(imageName)
@@ -399,52 +406,104 @@ func (p *lxdWatchdog) Start(singleRun bool) error {
 
 	// Static networking
 	if p.networkStatic {
+
 		address, err := p.allocateAddress(containerName)
 		if err != nil {
 			return err
 		}
 
 		container.Devices["eth0"]["ipv4.address"] = strings.Split(address, "/")[0]
-
 		var fileName, content string
-		fileName = "/etc/network/interfaces"
-		content = fmt.Sprintf(`auto eth0		
+
+		if p.isAlpine {
+			fmt.Printf("[LXDWATCHDOG] USING ALPINE IMAGE\n")
+			fileName = "/etc/network/interfaces"
+			content = fmt.Sprintf(`auto eth0		
 iface eth0 inet static
   address %s
   gateway: %s
   netmask: 255.255.255.0
 `, strings.Split(address, "/")[0], p.networkGateway)
 
-		args := lxd.InstanceFileArgs{
-			Type:    "file",
-			Mode:    0644,
-			UID:     0,
-			GID:     0,
-			Content: strings.NewReader(string(content)),
-		}
+			args := lxd.InstanceFileArgs{
+				Type:    "file",
+				Mode:    0644,
+				UID:     0,
+				GID:     0,
+				Content: strings.NewReader(string(content)),
+			}
 
-		err = p.client.CreateInstanceFile(containerName, fileName, args)
-		if err != nil {
-			fmt.Printf("failed to upload network/interfaces to container: %v\n", err)
-		}
+			err = p.client.CreateInstanceFile(containerName, fileName, args)
+			if err != nil {
+				fmt.Printf("failed to upload network/interfaces to container: %v\n", err)
+			}
 
-		fileName = "/etc/resolv.conf"
-		content = fmt.Sprintf("search lxd\nnameserver %s\n", p.networkGateway)
-		for _, d := range p.networkDNS {
-			content = fmt.Sprintf("%snameserver %s\n", content, d)
-		}
+			fileName = "/etc/resolv.conf"
+			content = fmt.Sprintf("search lxd\nnameserver %s\n", p.networkGateway)
+			for _, d := range p.networkDNS {
+				content = fmt.Sprintf("%snameserver %s\n", content, d)
+			}
 
-		args = lxd.InstanceFileArgs{
-			Type:    "file",
-			Mode:    0644,
-			UID:     0,
-			GID:     0,
-			Content: strings.NewReader(string(content)),
-		}
+			args = lxd.InstanceFileArgs{
+				Type:    "file",
+				Mode:    0644,
+				UID:     0,
+				GID:     0,
+				Content: strings.NewReader(string(content)),
+			}
 
-		err = p.client.CreateInstanceFile(containerName, fileName, args)
-		if err != nil {
-			fmt.Printf("[LXDWATCHDOG] failed to upload resolv.conf to container: %v\n", err)
+			err = p.client.CreateInstanceFile(containerName, fileName, args)
+			if err != nil {
+				fmt.Printf("[LXDWATCHDOG] failed to upload resolv.conf to container: %v\n", err)
+			}
+		} else {
+			p.timeout = 60
+			dns, err := json.Marshal(p.networkDNS)
+			if err != nil {
+				fmt.Printf("[LXDWATCHDOG] failed to parse dns records: %v\n", err)
+			}
+			fileName = "/etc/netplan/50-cloud-init.yaml"
+			content = fmt.Sprintf(`network:
+  version: 2
+  ethernets:
+    eth0:
+      addresses:
+        - %s
+      gateway4: %s
+      nameservers:
+        addresses: %s
+      mtu: %s
+`, address, p.networkGateway, dns, p.networkMTU)
+
+			args := lxd.InstanceFileArgs{
+				Type:    "file",
+				Mode:    0400,
+				UID:     0,
+				GID:     0,
+				Content: strings.NewReader(string(content)),
+			}
+
+			_ = p.client.DeleteInstanceFile(containerName, fileName)
+			err = p.client.CreateInstanceFile(containerName, fileName, args)
+			if err != nil {
+				fmt.Printf("failed to upload netplan/interfaces to container: %v\n", err)
+			}
+
+			fileName = "/etc/cloud/cloud.cfg.d/99-disable-network-config.cfg"
+			content = "network: {config: disabled}"
+
+			args = lxd.InstanceFileArgs{
+				Type:    "file",
+				Mode:    0400,
+				UID:     0,
+				GID:     0,
+				Content: strings.NewReader(string(content)),
+			}
+			_ = p.client.DeleteInstanceFile(containerName, fileName)
+			err = p.client.CreateInstanceFile(containerName, fileName, args)
+			if err != nil {
+				fmt.Printf("[LXDWATCHDOG] failed to upload disable-network-config.cfg to container: %v\n", err)
+			}
 		}
 	}
 
@@ -485,7 +544,7 @@ iface eth0 inet static
 			}
 		}
 		exec := lxdapi.InstanceExecPost{
-			Command: []string{"ping", p.url, "-c", "1", "-w", "5"},
+			Command: []string{"ping", p.url, "-4", "-c", "1", "-w", "5"},
 		}
 
 		// Spawn the command
@@ -510,7 +569,7 @@ iface eth0 inet static
 	testStartTime := time.Now().Unix()
 	// Wait 30s for network
 	time.Sleep(1 * time.Second)
-	for i := 0; i < 60; i++ {
+	for i := 0; i < 2*p.timeout; i++ {
 		err = connectivityCheck()
 		if err == nil {
 			break
@@ -520,22 +579,22 @@ iface eth0 inet static
 		time.Sleep(500 * time.Millisecond)
 
 		testCurrentTime := time.Now().Unix()
-		if testCurrentTime - testStartTime > 30 {
+		if testCurrentTime-testStartTime > int64(p.timeout) {
 			fmt.Printf("[LXDWATCHDOG] timeout while waiting for connection\n")
 			err = fmt.Errorf("connection test timeout")
 			break
 		}
-		fmt.Printf("[LXDWATCHDOG] test running for %ds\n", testCurrentTime - testStartTime)
+		fmt.Printf("[LXDWATCHDOG] test running for %ds\n", testCurrentTime-testStartTime)
 	}
 
 	if err != nil {
-		fmt.Printf("[LXDWATCHDOG] container didn't have connectivity after 30s: %v\n", err)
+		fmt.Printf("[LXDWATCHDOG] container didn't have connectivity after %ds: %v\n", p.timeout, err)
 		err = p.killWorker(singleRun)
 		if err != nil {
 			fmt.Printf("kill worker error: %v\n", err)
 		}
 
-		p.datadogAlert("[TRAVIS][LXC] Watchdog error", "container didn't have connectivity after 30s")
+		p.datadogAlert("[TRAVIS][LXC] Watchdog error", fmt.Sprintf("container didn't have connectivity after %ds", p.timeout))
 	}
 	fmt.Printf("[LXDWATCHDOG] STARTED - OK\n")
 
