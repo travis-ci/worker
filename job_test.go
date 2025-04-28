@@ -12,6 +12,9 @@ var jsonPayload = `
 {
 	"type": "test",
 	"vm_type": "default",
+	"created_custom_image_id": 100,
+	"owner_id": 123,
+	"owner_type": "org",
 	"queue": "builds.docker",
 	"config": {
 		"language": "rust",

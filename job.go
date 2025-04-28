@@ -27,20 +27,24 @@ type httpJobPayloadStartAttrs struct {
 
 // JobPayload is the payload we receive over RabbitMQ.
 type JobPayload struct {
-	Type       string                 `json:"type"`
-	Job        JobJobPayload          `json:"job"`
-	Build      BuildPayload           `json:"source"`
-	Repository RepositoryPayload      `json:"repository"`
-	UUID       string                 `json:"uuid"`
-	Config     map[string]interface{} `json:"config"`
-	Timeouts   TimeoutsPayload        `json:"timeouts,omitempty"`
-	VMType     string                 `json:"vm_type"`
-	VMConfig   backend.VmConfig       `json:"vm_config"`
-	VMSize     string                 `json:"vm_size"`
-	Meta       JobMetaPayload         `json:"meta"`
-	Queue      string                 `json:"queue"`
-	Trace      bool                   `json:"trace"`
-	Warmer     bool                   `json:"warmer"`
+	Type                 string                 `json:"type"`
+	Job                  JobJobPayload          `json:"job"`
+	Build                BuildPayload           `json:"source"`
+	Repository           RepositoryPayload      `json:"repository"`
+	UUID                 string                 `json:"uuid"`
+	Config               map[string]interface{} `json:"config"`
+	Timeouts             TimeoutsPayload        `json:"timeouts,omitempty"`
+	VMType               string                 `json:"vm_type"`
+	VMConfig             backend.VmConfig       `json:"vm_config"`
+	VMSize               string                 `json:"vm_size"`
+	CreatedCustomImageId int                    `json:"created_custom_image_id"`
+	UsedCustomImageId    int                    `json:"used_custom_image_id"`
+	OwnerId              int                    `json:"owner_id"`
+	OwnerType            string                 `json:"owner_type"`
+	Meta                 JobMetaPayload         `json:"meta"`
+	Queue                string                 `json:"queue"`
+	Trace                bool                   `json:"trace"`
+	Warmer               bool                   `json:"warmer"`
 }
 
 // JobMetaPayload contains meta information about the job.

@@ -836,6 +836,14 @@ func (i *dockerInstance) downloadTraceSSH(ctx gocontext.Context) ([]byte, error)
 	return buf, nil
 }
 
+func (i *dockerInstance) StopOnly(ctx gocontext.Context) error {
+	return nil
+}
+
+func (i *dockerInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, error) {
+	return 0, nil
+}
+
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {
 	defer i.provider.checkinCPUSets(ctx, i.container.HostConfig.Resources.CpusetCpus)
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/docker_provider")

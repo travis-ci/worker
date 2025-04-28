@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"time"
 
 	gocontext "context"
@@ -137,9 +138,27 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		return
 	}
 
+	createCustomImageName, ok1 := state.Get("createCustomImageName").(string)
+	createCustomImageId, ok2 := state.Get("createCustomImageId").(int)
+	if ok1 && ok2 && createCustomImageName != "" {
+		logger.WithField("instance", instance).Error("creating custom image")
+		if err := instance.StopOnly(ctx); err != nil {
+			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
+		} else {
+			logger.Info("stopped instance")
+		}
+		if size, err := instance.CreateImage(ctx, createCustomImageName); err != nil {
+			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
+		} else {
+			logger.Info(fmt.Sprintf("custom image created, size: %d", size))
+
+			UpdateArtifactSize(ctx, createCustomImageId, size)
+		}
+	}
+
 	if err := instance.Stop(ctx); err != nil {
 		logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
 	} else {
-		logger.Info("stopped instance")
+		logger.Info("stopped and deleted instance")
 	}
 }

@@ -207,6 +207,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("ctx", ctx)
 	state.Put("processedAt", time.Now().UTC())
 	state.Put("infra", p.config.Infra)
+	customImageName := ""
+	if buildJob.Payload().CreatedCustomImageId != 0 {
+		customImageName = GenerateCustomImageName(buildJob.Payload().OwnerId, buildJob.Payload().OwnerType, buildJob.Payload().CreatedCustomImageId)
+	}
+	state.Put("createCustomImageName", customImageName)
+	state.Put("createCustomImageId", buildJob.Payload().CreatedCustomImageId)
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,

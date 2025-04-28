@@ -898,6 +898,14 @@ func (i *lxdInstance) StartupDuration() time.Duration {
 	return i.startBooting.Sub(i.container.CreatedAt)
 }
 
+func (i *lxdInstance) StopOnly(ctx gocontext.Context) error {
+	return nil
+}
+
+func (i *lxdInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, error) {
+	return 0, nil
+}
+
 func (i *lxdInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/lxd_provider")
 

@@ -77,6 +77,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		"--queue-name=name",
 		"--queue-type=type",
 		"--sentry-dsn=dsn",
+		"--artifact-manager-api-uri=http://artifact-manager/api",
 	}, func(c *cli.Context) error {
 		cfg := FromCLIContext(c)
 
@@ -105,6 +106,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		assert.Equal(t, "name", cfg.QueueName, "QueueName")
 		assert.Equal(t, "type", cfg.QueueType, "QueueType")
 		assert.Equal(t, "dsn", cfg.SentryDSN, "SentryDSN")
+		assert.Equal(t, "http://artifact-manager/api", cfg.ArtifactManagerAPIURI, "ArtifactManagerAPIURI")
 
 		return nil
 	})
