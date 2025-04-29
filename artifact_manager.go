@@ -17,7 +17,7 @@ func SetupArtifactManager(uri string) {
 func UpdateArtifactSize(ctx gocontext.Context, customImageId int, size int64) (bool, error) {
 	client := &http.Client{}
 	d := map[string]int64{
-		"size": size,
+		"size_bytes": size,
 	}
 	marshalled, err := json.Marshal(d)
 	if err != nil {
