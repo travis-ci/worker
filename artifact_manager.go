@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/travis-ci/worker/context"
 )
 
 var artifactManagerAPIURI string
@@ -29,7 +31,19 @@ func UpdateArtifactSize(ctx gocontext.Context, customImageId int, size int64) (b
 		return false, fmt.Errorf("failed to make http request: %s", err)
 	}
 
+	jwt, ok := context.JWTFromContext(ctx)
+	if !ok {
+		return false, fmt.Errorf("failed to delete job; no jwt in context")
+	}
+
+	processorID, ok := context.ProcessorFromContext(ctx)
+	if !ok {
+		processorID = "unknown-processor"
+	}
+
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", "Bearer "+jwt)
+	req.Header.Add("From", processorID)
 	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
