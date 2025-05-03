@@ -11,6 +11,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 	"go.opencensus.io/trace"
 )
 
@@ -44,6 +45,8 @@ type Processor struct {
 
 	// LastJobID contains the ID of the last job the processor processed.
 	LastJobID uint64
+
+	artifactManager *image.ArtifactManager
 }
 
 type ProcessorConfig struct {
@@ -84,7 +87,8 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		graceful:  make(chan struct{}),
 		terminate: cancel,
 
-		CurrentStatus: "new",
+		CurrentStatus:   "new",
+		artifactManager: image.NewArtifactManager(config.Config.ArtifactManagerAPIURI),
 	}, nil
 }
 
@@ -207,12 +211,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("ctx", ctx)
 	state.Put("processedAt", time.Now().UTC())
 	state.Put("infra", p.config.Infra)
-	customImageName := ""
-	if buildJob.Payload().CreatedCustomImageId != 0 {
-		customImageName = GenerateCustomImageName(buildJob.Payload().OwnerId, buildJob.Payload().OwnerType, buildJob.Payload().CreatedCustomImageId)
-	}
-	state.Put("createCustomImageName", customImageName)
-	state.Put("createCustomImageId", buildJob.Payload().CreatedCustomImageId)
+
+	state.Put("createdCustomImageId", buildJob.Payload().CreatedCustomImageId)
+	state.Put("usedCustomImageId", buildJob.Payload().UsedCustomImageId)
+	state.Put("ownerId", buildJob.Payload().OwnerId)
+	state.Put("ownerType", buildJob.Payload().OwnerType)
+	state.Put("userId", buildJob.Payload().UserId)
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,
@@ -243,8 +247,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		},
 		&stepCheckCancellation{},
 		&stepStartInstance{
-			provider:     p.provider,
-			startTimeout: p.config.StartupTimeout,
+			provider:        p.provider,
+			startTimeout:    p.config.StartupTimeout,
+			artifactManager: p.artifactManager,
 		},
 		&stepCheckCancellation{},
 		&stepUploadScript{

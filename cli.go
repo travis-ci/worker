@@ -224,8 +224,6 @@ func (i *CLI) Setup() (bool, error) {
 		return false, err
 	}
 
-	SetupArtifactManager(i.Config.ArtifactManagerAPIURI)
-
 	return true, nil
 }
 

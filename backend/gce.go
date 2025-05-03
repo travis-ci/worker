@@ -276,6 +276,8 @@ type gceProvider struct {
 	warmerUrl           *url.URL
 	warmerTimeout       time.Duration
 	warmerSSHPassphrase string
+
+	artifactManager *image.ArtifactManager
 }
 
 type gceInstanceConfig struct {
@@ -1041,6 +1043,8 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 		errChan:            make(chan error),
 	}
 
+	p.artifactManager = startAttributes.ArtifactManager
+
 	state := &multistep.BasicStateBag{}
 
 	wp, err := makeWindowsPassword()
@@ -1488,32 +1492,40 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 		err       error
 	)
 
-	jobID, _ := context.JobIDFromContext(ctx)
-	repo, _ := context.RepositoryFromContext(ctx)
-	var gpuVMType = GPUType(startAttributes.VMSize)
-
-	if startAttributes.ImageName != "" {
-		imageName = startAttributes.ImageName
-	} else {
-		imageName, err = p.imageSelector.Select(ctx, &image.Params{
-			Infra:     "gce",
-			Language:  startAttributes.Language,
-			OsxImage:  startAttributes.OsxImage,
-			Dist:      startAttributes.Dist,
-			Group:     startAttributes.Group,
-			OS:        startAttributes.OS,
-			JobID:     jobID,
-			Repo:      repo,
-			GpuVMType: gpuVMType,
-		})
-
+	if startAttributes.UsedCustomImageId != 0 {
+		_, err := p.artifactManager.GetImage(ctx, startAttributes.UsedCustomImageId, startAttributes.UserId)
 		if err != nil {
 			return nil, err
 		}
-	}
+		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
+	} else {
+		jobID, _ := context.JobIDFromContext(ctx)
+		repo, _ := context.RepositoryFromContext(ctx)
+		var gpuVMType = GPUType(startAttributes.VMSize)
 
-	if imageName == "default" {
-		imageName = p.defaultImage
+		if startAttributes.ImageName != "" {
+			imageName = startAttributes.ImageName
+		} else {
+			imageName, err = p.imageSelector.Select(ctx, &image.Params{
+				Infra:     "gce",
+				Language:  startAttributes.Language,
+				OsxImage:  startAttributes.OsxImage,
+				Dist:      startAttributes.Dist,
+				Group:     startAttributes.Group,
+				OS:        startAttributes.OS,
+				JobID:     jobID,
+				Repo:      repo,
+				GpuVMType: gpuVMType,
+			})
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if imageName == "default" {
+			imageName = p.defaultImage
+		}
 	}
 
 	if image, ok := p.imageCache.Load(imageName); ok {

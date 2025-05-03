@@ -12,12 +12,16 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
 	workererrors "github.com/travis-ci/worker/errors"
+	"github.com/travis-ci/worker/image"
 	"go.opencensus.io/trace"
 )
 
 type stepStartInstance struct {
-	provider     backend.Provider
-	startTimeout time.Duration
+	provider        backend.Provider
+	startTimeout    time.Duration
+	artifactManager *image.ArtifactManager
+	ownerId         int
+	userId          int
 }
 
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
@@ -45,6 +49,19 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		instance backend.Instance
 		err      error
 	)
+
+	userId := state.Get("usedCustomImageId").(int)
+	ownerId := state.Get("ownerId").(int)
+	ownerType := state.Get("ownerType").(string)
+	createdCustomImageId := state.Get("createdCustomImageId").(int)
+	usedCustomImageId := state.Get("usedCustomImageId").(int)
+
+	buildJob.StartAttributes().ArtifactManager = s.artifactManager
+	buildJob.StartAttributes().UserId = userId
+	buildJob.StartAttributes().OwnerId = ownerId
+	buildJob.StartAttributes().OwnerType = ownerType
+	buildJob.StartAttributes().CreatedCustomImageId = createdCustomImageId
+	buildJob.StartAttributes().UsedCustomImageId = usedCustomImageId
 
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
 		var progresser backend.Progresser
@@ -138,9 +155,11 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		return
 	}
 
-	createCustomImageName, ok1 := state.Get("createCustomImageName").(string)
-	createCustomImageId, ok2 := state.Get("createCustomImageId").(int)
-	if ok1 && ok2 && createCustomImageName != "" {
+	createdCustomImageId, ok1 := state.Get("createdCustomImageId").(int)
+	ownerId, ok2 := state.Get("ownerId").(int)
+	ownerType, ok3 := state.Get("ownerType").(string)
+	if ok1 && ok2 && ok3 && createdCustomImageId != 0 {
+		createCustomImageName := s.artifactManager.GenerateCustomImageName(ownerId, ownerType, createdCustomImageId)
 		logger.WithField("instance", instance).Error("creating custom image")
 		if err := instance.StopOnly(ctx); err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
@@ -152,7 +171,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		} else {
 			logger.Info(fmt.Sprintf("custom image created, size: %d", size))
 
-			UpdateArtifactSize(ctx, createCustomImageId, size)
+			s.artifactManager.UpdateImageSize(ctx, createdCustomImageId, size)
 		}
 	}
 

@@ -41,6 +41,7 @@ type JobPayload struct {
 	UsedCustomImageId    int                    `json:"used_custom_image_id"`
 	OwnerId              int                    `json:"owner_id"`
 	OwnerType            string                 `json:"owner_type"`
+	UserId               int                    `json:"user_id"`
 	Meta                 JobMetaPayload         `json:"meta"`
 	Queue                string                 `json:"queue"`
 	Trace                bool                   `json:"trace"`
