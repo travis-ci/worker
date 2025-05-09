@@ -447,8 +447,6 @@ type Config struct {
 	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
 	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
 
-	ArtifactManagerAPIURI string `config:"artifact-manager-api-uri"`
-
 	ProviderConfig *ProviderConfig
 }
 

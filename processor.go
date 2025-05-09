@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"os"
 	"time"
 
 	gocontext "context"
@@ -88,7 +89,7 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		terminate: cancel,
 
 		CurrentStatus:   "new",
-		artifactManager: image.NewArtifactManager(config.Config.ArtifactManagerAPIURI),
+		artifactManager: image.NewArtifactManager(os.Getenv("TRAVIS_ARTIFACT_MANAGER_URL"), os.Getenv("TRAVIS_ARTIFACT_MANAGER_AUTH_TOKEN")),
 	}, nil
 }
 

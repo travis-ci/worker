@@ -36,12 +36,14 @@ type artifaxctManagerImageResponse struct {
 }
 
 type ArtifactManager struct {
-	baseURL string
+	baseURL   string
+	authToken string
 }
 
-func NewArtifactManager(u string) *ArtifactManager {
+func NewArtifactManager(u string, t string) *ArtifactManager {
 	return &ArtifactManager{
-		baseURL: u,
+		baseURL:   u,
+		authToken: t,
 	}
 }
 
@@ -60,18 +62,13 @@ func (am *ArtifactManager) UpdateImageSize(ctx gocontext.Context, customImageId 
 		return false, fmt.Errorf("failed to make http request: %s", err)
 	}
 
-	jwt, ok := context.JWTFromContext(ctx)
-	if !ok {
-		return false, fmt.Errorf("failed to UpdateImageSize; no jwt in context")
-	}
-
 	processorID, ok := context.ProcessorFromContext(ctx)
 	if !ok {
 		processorID = "unknown-processor"
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+jwt)
+	req.Header.Add("Authorization", "Basic "+am.authToken)
 	req.Header.Add("From", processorID)
 	req = req.WithContext(ctx)
 
@@ -96,18 +93,13 @@ func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, us
 		return ArtifactManagerImage{}, fmt.Errorf("failed to make http request: %s", err)
 	}
 
-	jwt, ok := context.JWTFromContext(ctx)
-	if !ok {
-		return ArtifactManagerImage{}, fmt.Errorf("failed to GetImage; no jwt in context")
-	}
-
 	processorID, ok := context.ProcessorFromContext(ctx)
 	if !ok {
 		processorID = "unknown-processor"
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Bearer "+jwt)
+	req.Header.Add("Authorization", "Basic "+am.authToken)
 	req.Header.Add("From", processorID)
 	req.Header.Add("HTTP_X_TRAVIS_USER_ID", strconv.Itoa(userId))
 	req = req.WithContext(ctx)
