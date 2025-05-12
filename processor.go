@@ -213,11 +213,16 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("processedAt", time.Now().UTC())
 	state.Put("infra", p.config.Infra)
 
-	state.Put("createdCustomImageId", buildJob.Payload().CreatedCustomImageId)
-	state.Put("usedCustomImageId", buildJob.Payload().UsedCustomImageId)
-	state.Put("ownerId", buildJob.Payload().OwnerId)
-	state.Put("ownerType", buildJob.Payload().OwnerType)
-	state.Put("userId", buildJob.Payload().UserId)
+	state.Put("createdCustomImageId", buildJob.Payload().CreatedCustomImage.Id)
+	state.Put("usedCustomImageId", buildJob.Payload().UsedCustomImage.Id)
+	if buildJob.Payload().CreatedCustomImage.Id != 0 {
+		state.Put("ownerId", buildJob.Payload().CreatedCustomImage.Owner.Id)
+		state.Put("ownerType", buildJob.Payload().CreatedCustomImage.Owner.Type)
+	} else {
+		state.Put("ownerId", buildJob.Payload().UsedCustomImage.Id)
+		state.Put("ownerType", buildJob.Payload().UsedCustomImage.Owner.Type)
+	}
+	state.Put("userId", buildJob.Payload().TriggererId)
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
 		"job_id": buildJob.Payload().Job.ID,

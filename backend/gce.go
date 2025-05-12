@@ -1480,12 +1480,13 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 	return imagesByName[imageNames[len(imageNames)-1]], nil
 }
 
-// TODO use custom image should be around here
 func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartAttributes) (*compute.Image, error) {
 	ctx, span := trace.StartSpan(ctx, "GCE.imageSelect")
 	defer span.End()
 
 	defer context.TimeSince(ctx, "image_select", time.Now())
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 
 	var (
 		imageName string
@@ -1498,6 +1499,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 			return nil, err
 		}
 		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
+		logger.Info(fmt.Sprintf("using custom image %s", imageName))
 	} else {
 		jobID, _ := context.JobIDFromContext(ctx)
 		repo, _ := context.RepositoryFromContext(ctx)
@@ -2186,6 +2188,8 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	}
 
 	i.createCustomImageName = createCustomImageName
+
+	logger.Info(fmt.Sprintf("creating custom image %s", createCustomImageName))
 
 	runner := &multistep.BasicRunner{
 		Steps: []multistep.Step{
