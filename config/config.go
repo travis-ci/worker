@@ -280,9 +280,6 @@ var (
 			Usage: "sample rate for trace as an inverse fraction - for sample rate n, every nth event will be sampled",
 			Value: 1,
 		}),
-		NewConfigDef("ArtifactManagerAPIURI", &cli.StringFlag{
-			Usage: "The full URL to the ArtifactManager API endpoint to use. Note that this also requires the path of the URL. If a username is included in the URL, this will be translated to a token passed in the Authorization header",
-		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker

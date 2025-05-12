@@ -106,7 +106,6 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		assert.Equal(t, "name", cfg.QueueName, "QueueName")
 		assert.Equal(t, "type", cfg.QueueType, "QueueType")
 		assert.Equal(t, "dsn", cfg.SentryDSN, "SentryDSN")
-		assert.Equal(t, "http://artifact-manager/api", cfg.ArtifactManagerAPIURI, "ArtifactManagerAPIURI")
 
 		return nil
 	})
