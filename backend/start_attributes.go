@@ -51,10 +51,12 @@ type StartAttributes struct {
 	ArtifactManager *image.ArtifactManager `json:"-"`
 
 	// Custom image id if needs to be used
-	UsedCustomImageId int `json:"-"`
+	UsedCustomImageId   int    `json:"-"`
+	UsedCustomImageName string `json:"-"`
 
 	// Custom image id if needs to saved
-	CreatedCustomImageId int `json:"-"`
+	CreatedCustomImageId   int    `json:"-"`
+	CreatedCustomImageName string `json:"-"`
 
 	// Owner Id
 	OwnerId int `json:"-"`

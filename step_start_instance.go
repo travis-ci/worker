@@ -54,20 +54,26 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	ownerId := state.Get("ownerId").(int)
 	ownerType := state.Get("ownerType").(string)
 	createdCustomImageId := state.Get("createdCustomImageId").(int)
+	createdCustomImageName := state.Get("createdCustomImageName").(string)
 	usedCustomImageId := state.Get("usedCustomImageId").(int)
+	usedCustomImageName := state.Get("usedCustomImageId").(string)
 
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run userId: %d", userId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run ownerId: %d", ownerId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run ownerType: %s", ownerType))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run createdCustomImageId: %d", createdCustomImageId))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run createdCustomImageName: %s", createdCustomImageName))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run usedCustomImageId: %d", usedCustomImageId))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run usedCustomImageId: %s", usedCustomImageName))
 
 	buildJob.StartAttributes().ArtifactManager = s.artifactManager
 	buildJob.StartAttributes().UserId = userId
 	buildJob.StartAttributes().OwnerId = ownerId
 	buildJob.StartAttributes().OwnerType = ownerType
 	buildJob.StartAttributes().CreatedCustomImageId = createdCustomImageId
+	buildJob.StartAttributes().CreatedCustomImageName = createdCustomImageName
 	buildJob.StartAttributes().UsedCustomImageId = usedCustomImageId
+	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
 		var progresser backend.Progresser
@@ -162,12 +168,13 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	}
 
 	createdCustomImageId, ok1 := state.Get("createdCustomImageId").(int)
-	ownerId, ok2 := state.Get("ownerId").(int)
-	ownerType, ok3 := state.Get("ownerType").(string)
+	createdCustomImageName, ok2 := state.Get("createdCustomImageId").(string)
+	ownerId, ok3 := state.Get("ownerId").(int)
+	ownerType, ok4 := state.Get("ownerType").(string)
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createdCustomImageId:%d", createdCustomImageId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerId:%d", ownerId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerType:%s", ownerType))
-	if ok1 && ok2 && ok3 && createdCustomImageId != 0 {
+	if ok1 && ok2 && ok3 && ok4 && createdCustomImageId != 0 && createdCustomImageName != "" {
 		createCustomImageName := s.artifactManager.GenerateCustomImageName(ownerId, ownerType, createdCustomImageId)
 		logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createCustomImageName:%s", createCustomImageName))
 		logger.WithField("instance", instance).Info(fmt.Sprintf("creating custom image id: %d", createdCustomImageId))
