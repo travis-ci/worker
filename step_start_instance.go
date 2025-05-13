@@ -14,6 +14,7 @@ import (
 	workererrors "github.com/travis-ci/worker/errors"
 	"github.com/travis-ci/worker/image"
 	"go.opencensus.io/trace"
+	"gorm.io/gorm/logger"
 )
 
 type stepStartInstance struct {
@@ -28,7 +29,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 	logWriter := state.Get("logWriter").(LogWriter)
-
+	logger.Info("DEBUGDEBUG stepStartInstance.Run")
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 
 	defer context.TimeSince(ctx, "step_start_instance_run", time.Now())
@@ -148,7 +149,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		logger.Info("no instance to stop")
 		return
 	}
-
+	logger.Info("DEBUGDEBUG stepStartInstance.Cleanup")
 	skipShutdown, ok := state.Get("skipShutdown").(bool)
 	if ok && skipShutdown {
 		logger.WithField("instance", instance).Error("skipping shutdown, VM will be left running")
@@ -160,7 +161,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ownerType, ok3 := state.Get("ownerType").(string)
 	if ok1 && ok2 && ok3 && createdCustomImageId != 0 {
 		createCustomImageName := s.artifactManager.GenerateCustomImageName(ownerId, ownerType, createdCustomImageId)
-		logger.WithField("instance", instance).Error("creating custom image")
+		logger.WithField("instance", instance).Info(fmt.Sprintf("creating custom image id: %d", createdCustomImageId))
 		if err := instance.StopOnly(ctx); err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
 		} else {
