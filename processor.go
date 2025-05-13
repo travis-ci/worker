@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -228,6 +229,14 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		"job_id": buildJob.Payload().Job.ID,
 		"self":   "processor",
 	})
+
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().TriggererId: %d", buildJob.Payload().TriggererId))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Id: %d", buildJob.Payload().CreatedCustomImage.Owner.Id))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Type: %s", buildJob.Payload().CreatedCustomImage.Owner.Type))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Id: %d", buildJob.Payload().UsedCustomImage.Owner.Id))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Type: %s", buildJob.Payload().UsedCustomImage.Owner.Type))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process createdCustomImageId: %d", buildJob.Payload().CreatedCustomImage.Id))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process usedCustomImageId: %d", buildJob.Payload().UsedCustomImage.Id))
 
 	logTimeout := p.config.LogTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
