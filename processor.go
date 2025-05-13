@@ -231,7 +231,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		"job_id": buildJob.Payload().Job.ID,
 		"self":   "processor",
 	})
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload(): %v", buildJob.Payload()))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload(): %v", buildJob.Payload().Job))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().TriggererId: %d", buildJob.Payload().TriggererId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Id: %d", buildJob.Payload().Job.CreatedCustomImage.Owner.Id))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Type: %s", buildJob.Payload().Job.CreatedCustomImage.Owner.Type))
