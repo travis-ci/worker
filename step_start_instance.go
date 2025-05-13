@@ -14,7 +14,6 @@ import (
 	workererrors "github.com/travis-ci/worker/errors"
 	"github.com/travis-ci/worker/image"
 	"go.opencensus.io/trace"
-	"gorm.io/gorm/logger"
 )
 
 type stepStartInstance struct {
@@ -29,9 +28,9 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob := state.Get("buildJob").(Job)
 	ctx := state.Get("ctx").(gocontext.Context)
 	logWriter := state.Get("logWriter").(LogWriter)
-	logger.Info("DEBUGDEBUG stepStartInstance.Run")
-	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
+	logger.Info("DEBUGDEBUG stepStartInstance.Run")
 	defer context.TimeSince(ctx, "step_start_instance_run", time.Now())
 
 	ctx, span := trace.StartSpan(ctx, "StartInstance.Run")
