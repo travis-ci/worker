@@ -56,7 +56,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	createdCustomImageId := state.Get("createdCustomImageId").(int)
 	createdCustomImageName := state.Get("createdCustomImageName").(string)
 	usedCustomImageId := state.Get("usedCustomImageId").(int)
-	usedCustomImageName := state.Get("usedCustomImageId").(string)
+	usedCustomImageName := state.Get("usedCustomImageName").(string)
 
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run userId: %d", userId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run ownerId: %d", ownerId))
@@ -64,7 +64,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run createdCustomImageId: %d", createdCustomImageId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run createdCustomImageName: %s", createdCustomImageName))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run usedCustomImageId: %d", usedCustomImageId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run usedCustomImageId: %s", usedCustomImageName))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run usedCustomImageName: %s", usedCustomImageName))
 
 	buildJob.StartAttributes().ArtifactManager = s.artifactManager
 	buildJob.StartAttributes().UserId = userId
