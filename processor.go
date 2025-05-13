@@ -214,14 +214,14 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("processedAt", time.Now().UTC())
 	state.Put("infra", p.config.Infra)
 
-	state.Put("createdCustomImageId", buildJob.Payload().CreatedCustomImage.Id)
-	state.Put("usedCustomImageId", buildJob.Payload().UsedCustomImage.Id)
-	if buildJob.Payload().CreatedCustomImage.Id != 0 {
-		state.Put("ownerId", buildJob.Payload().CreatedCustomImage.Owner.Id)
-		state.Put("ownerType", buildJob.Payload().CreatedCustomImage.Owner.Type)
+	state.Put("createdCustomImageId", buildJob.Payload().Job.CreatedCustomImage.Id)
+	state.Put("usedCustomImageId", buildJob.Payload().Job.UsedCustomImage.Id)
+	if buildJob.Payload().Job.CreatedCustomImage.Id != 0 {
+		state.Put("ownerId", buildJob.Payload().Job.CreatedCustomImage.Owner.Id)
+		state.Put("ownerType", buildJob.Payload().Job.CreatedCustomImage.Owner.Type)
 	} else {
-		state.Put("ownerId", buildJob.Payload().UsedCustomImage.Id)
-		state.Put("ownerType", buildJob.Payload().UsedCustomImage.Owner.Type)
+		state.Put("ownerId", buildJob.Payload().Job.UsedCustomImage.Id)
+		state.Put("ownerType", buildJob.Payload().Job.UsedCustomImage.Owner.Type)
 	}
 	state.Put("userId", buildJob.Payload().TriggererId)
 
@@ -231,12 +231,12 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	})
 
 	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().TriggererId: %d", buildJob.Payload().TriggererId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Id: %d", buildJob.Payload().CreatedCustomImage.Owner.Id))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Type: %s", buildJob.Payload().CreatedCustomImage.Owner.Type))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Id: %d", buildJob.Payload().UsedCustomImage.Owner.Id))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Type: %s", buildJob.Payload().UsedCustomImage.Owner.Type))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process createdCustomImageId: %d", buildJob.Payload().CreatedCustomImage.Id))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process usedCustomImageId: %d", buildJob.Payload().UsedCustomImage.Id))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Id: %d", buildJob.Payload().Job.CreatedCustomImage.Owner.Id))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Type: %s", buildJob.Payload().Job.CreatedCustomImage.Owner.Type))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Id: %d", buildJob.Payload().Job.UsedCustomImage.Owner.Id))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Type: %s", buildJob.Payload().Job.UsedCustomImage.Owner.Type))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process createdCustomImageId: %d", buildJob.Payload().Job.CreatedCustomImage.Id))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG process usedCustomImageId: %d", buildJob.Payload().Job.UsedCustomImage.Id))
 
 	logTimeout := p.config.LogTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {

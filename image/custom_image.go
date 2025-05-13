@@ -7,6 +7,7 @@ type CustomImage struct {
 }
 
 type Owner struct {
-	Id   int    `json:"id"`
-	Type string `json:"type"`
+	Id    int    `json:"id"`
+	Type  string `json:"type"`
+	Login string `json:"login"`
 }

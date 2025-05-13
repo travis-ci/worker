@@ -28,23 +28,21 @@ type httpJobPayloadStartAttrs struct {
 
 // JobPayload is the payload we receive over RabbitMQ.
 type JobPayload struct {
-	Type               string                 `json:"type"`
-	Job                JobJobPayload          `json:"job"`
-	Build              BuildPayload           `json:"source"`
-	Repository         RepositoryPayload      `json:"repository"`
-	UUID               string                 `json:"uuid"`
-	Config             map[string]interface{} `json:"config"`
-	Timeouts           TimeoutsPayload        `json:"timeouts,omitempty"`
-	VMType             string                 `json:"vm_type"`
-	VMConfig           backend.VmConfig       `json:"vm_config"`
-	VMSize             string                 `json:"vm_size"`
-	CreatedCustomImage image.CustomImage      `json:"created_custom_image"`
-	UsedCustomImage    image.CustomImage      `json:"used_custom_image"`
-	TriggererId        int                    `json:"triggerer_id"`
-	Meta               JobMetaPayload         `json:"meta"`
-	Queue              string                 `json:"queue"`
-	Trace              bool                   `json:"trace"`
-	Warmer             bool                   `json:"warmer"`
+	Type        string                 `json:"type"`
+	Job         JobJobPayload          `json:"job"`
+	Build       BuildPayload           `json:"source"`
+	Repository  RepositoryPayload      `json:"repository"`
+	UUID        string                 `json:"uuid"`
+	Config      map[string]interface{} `json:"config"`
+	Timeouts    TimeoutsPayload        `json:"timeouts,omitempty"`
+	VMType      string                 `json:"vm_type"`
+	VMConfig    backend.VmConfig       `json:"vm_config"`
+	VMSize      string                 `json:"vm_size"`
+	TriggererId int                    `json:"triggerer_id"`
+	Meta        JobMetaPayload         `json:"meta"`
+	Queue       string                 `json:"queue"`
+	Trace       bool                   `json:"trace"`
+	Warmer      bool                   `json:"warmer"`
 }
 
 // JobMetaPayload contains meta information about the job.
@@ -54,9 +52,11 @@ type JobMetaPayload struct {
 
 // JobJobPayload contains information about the job.
 type JobJobPayload struct {
-	ID       uint64     `json:"id"`
-	Number   string     `json:"number"`
-	QueuedAt *time.Time `json:"queued_at"`
+	ID                 uint64            `json:"id"`
+	Number             string            `json:"number"`
+	QueuedAt           *time.Time        `json:"queued_at"`
+	CreatedCustomImage image.CustomImage `json:"created_custom_image"`
+	UsedCustomImage    image.CustomImage `json:"used_custom_image"`
 }
 
 // BuildPayload contains information about the build.
