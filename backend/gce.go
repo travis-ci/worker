@@ -358,11 +358,11 @@ type gceInstance struct {
 }
 
 type gceInstanceStopContext struct {
-	ctx                  gocontext.Context
-	errChan              chan error
-	instanceDeleteOp     *compute.Operation
-	instanceStopOp       *compute.Operation
-	instancCreateImageOp *compute.Operation
+	ctx                   gocontext.Context
+	errChan               chan error
+	instanceDeleteOp      *compute.Operation
+	instanceStopOp        *compute.Operation
+	instanceCreateImageOp *compute.Operation
 }
 
 type gceInstanceStopMultistepWrapper struct {
@@ -2319,7 +2319,7 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 		if err != nil {
 			return err
 		}
-		c.instancCreateImageOp = op
+		c.instanceCreateImageOp = op
 		return nil
 	})
 
@@ -2369,7 +2369,7 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 	err := i.provider.backoffRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
 		zoneOp, err := i.client.ZoneOperations.
-			Get(i.projectID, i.getZoneName(), c.instancCreateImageOp.Name).
+			Get(i.projectID, c.instanceCreateImageOp.Zone, c.instanceCreateImageOp.Name).
 			Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", zoneOp))
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated err: %v", err))
