@@ -168,7 +168,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	}
 
 	createdCustomImageId, ok1 := state.Get("createdCustomImageId").(int)
-	createdCustomImageName, ok2 := state.Get("createdCustomImageId").(string)
+	createdCustomImageName, ok2 := state.Get("createdCustomImageName").(string)
 	ownerId, ok3 := state.Get("ownerId").(int)
 	ownerType, ok4 := state.Get("ownerType").(string)
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createdCustomImageId:%d", createdCustomImageId))
