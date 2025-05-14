@@ -181,7 +181,8 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		if err := instance.StopOnly(ctx); err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
 		} else {
-			logger.Info("stopped instance")
+			logger.Info("DEBUGDEBUG stopped instance")
+			logger.Info("only stopped instance")
 		}
 		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName); err != nil {
 			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup err: %v", err))
@@ -193,6 +194,11 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			if err != nil {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
 			}
+		}
+		if err := instance.Stop(ctx); err != nil { //Stop deletes instance
+			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
+		} else {
+			logger.Info("stopped instance")
 		}
 	}
 
