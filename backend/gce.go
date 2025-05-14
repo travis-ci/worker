@@ -2190,6 +2190,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	i.createCustomImageName = createCustomImageName
 
 	logger.Info(fmt.Sprintf("creating custom image %s", createCustomImageName))
+	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage createCustomImageName:%s", createCustomImageName))
 
 	runner := &multistep.BasicRunner{
 		Steps: []multistep.Step{
@@ -2309,7 +2310,10 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 			Description: i.instance.Description,
 			Labels:      i.instance.Labels,
 		}
+		fmt.Printf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %v", ci)
 		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
+		fmt.Printf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op)
+		fmt.Printf("DEBUGDEBUG gce.stepCreateImageFromInstance err: %v", err)
 
 		if err != nil {
 			return err
@@ -2366,7 +2370,8 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 		zoneOp, err := i.client.ZoneOperations.
 			Get(i.projectID, i.getZoneName(), c.instancCreateImageOp.Name).
 			Do()
-
+		fmt.Printf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", zoneOp)
+		fmt.Printf("DEBUGDEBUG gce.stepWaitForImageCreated err: %v", err)
 		if err != nil {
 			return err
 		}
