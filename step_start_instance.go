@@ -184,11 +184,15 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			logger.Info("stopped instance")
 		}
 		if size, err := instance.CreateImage(ctx, createCustomImageName); err != nil {
+			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup err: %v", err))
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
 		} else {
 			logger.Info(fmt.Sprintf("custom image created, size: %d", size))
-
-			s.artifactManager.UpdateImageSize(ctx, createdCustomImageId, size)
+			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup size: %d", size))
+			_, err := s.artifactManager.UpdateImageSize(ctx, createdCustomImageId, size)
+			if err != nil {
+				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
+			}
 		}
 	}
 
