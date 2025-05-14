@@ -129,6 +129,7 @@ var (
 	errGCEInstanceDeletionNotDone    = fmt.Errorf("instance deletion not done")
 	errGCEInstanceStopNotDone        = fmt.Errorf("instance stop not done")
 	errGCEInstanceImageCreateNotDone = fmt.Errorf("instance image create not done")
+	errGCEInstanceImageGetNotDone    = fmt.Errorf("instance image get not done")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
 {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
@@ -363,6 +364,9 @@ type gceInstanceStopContext struct {
 	instanceDeleteOp      *compute.Operation
 	instanceStopOp        *compute.Operation
 	instanceCreateImageOp *compute.Operation
+	instanceGetImageOp    *compute.Operation
+	imageSize             int64
+	imageArchitecture     string
 }
 
 type gceInstanceStopMultistepWrapper struct {
@@ -2204,6 +2208,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 		Steps: []multistep.Step{
 			&gceInstanceStopMultistepWrapper{c: c, f: i.stepCreateImageFromInstance},
 			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForImageCreated},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForImageGet},
 		},
 	}
 
@@ -2219,13 +2224,9 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
 		}
-		logger.Info("DEBUGDEBUG gce.CreateImage przed getCustomImage")
-		size, arch, err := i.getCustomImage(createCustomImageName)
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage po getCustomImage:%d, %s, %v", size, arch, err))
-		if err != nil {
-			return 0, "", "", err
-		}
-		return size, arch, i.os, ctx.Err()
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage po getCustomImage:%d, %s", c.imageSize, c.imageArchitecture))
+
+		return c.imageSize, c.imageArchitecture, i.os, ctx.Err()
 	}
 }
 
@@ -2331,6 +2332,7 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 			return err
 		}
 		c.instanceCreateImageOp = op
+		c.instanceGetImageOp.Name = op.Name
 		return nil
 	})
 
@@ -2398,6 +2400,45 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 		}
 
 		return errGCEInstanceImageCreateNotDone
+	})
+
+	c.errChan <- err
+
+	if err != nil {
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+
+	logger.WithFields(logrus.Fields{
+		"duration": i.provider.ic.StopPrePollSleep,
+	}).Debug("sleeping before first checking instance image get operation")
+
+	var span *trace.Span
+	ctx := c.ctx
+	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceImageGet")
+	time.Sleep(i.provider.ic.StopPrePollSleep)
+	span.End()
+
+	err := i.provider.backoffLongerRetry(ctx, func() error {
+		_ = i.provider.apiRateLimit(c.ctx)
+		image, err := i.client.Images.Get(i.projectID, c.instanceGetImageOp.Name).Do()
+
+		if err != nil {
+			return err
+		}
+
+		if image.ArchiveSizeBytes > 0 {
+			c.imageSize = image.ArchiveSizeBytes
+			c.imageArchitecture = image.Architecture
+			return nil
+		}
+
+		return errGCEInstanceImageGetNotDone
 	})
 
 	c.errChan <- err
@@ -2517,14 +2558,4 @@ func (i *gceInstance) ImageName() string {
 
 func (i *gceInstance) StartupDuration() time.Duration {
 	return i.startupDuration
-}
-
-func (i *gceInstance) getCustomImage(customImageName string) (int64, string, error) {
-	image, err := i.client.Images.Get(i.projectID, customImageName).Do()
-
-	if err != nil {
-		return 0, "", err
-	}
-
-	return image.ArchiveSizeBytes, image.Architecture, nil
 }
