@@ -2210,7 +2210,9 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
 		}
+		logger.Info("DEBUGDEBUG gce.CreateImage przed getCustomImage")
 		size, arch, err := i.getCustomImage(createCustomImageName)
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage po getCustomImage:%d, %s, %v", size, arch, err))
 		if err != nil {
 			return 0, "", "", err
 		}
@@ -2368,18 +2370,19 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 
 	err := i.provider.backoffRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
-		zoneOp, err := i.client.GlobalOperations.
+		globalOp, err := i.client.GlobalOperations.
 			Get(i.projectID, c.instanceCreateImageOp.Name).
 			Do()
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", zoneOp))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", globalOp))
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp err: %v", err))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp.Status: %s", globalOp.Status))
 		if err != nil {
 			return err
 		}
 
-		if zoneOp.Status == "DONE" {
-			if zoneOp.Error != nil {
-				return &gceOpError{Err: zoneOp.Error}
+		if globalOp.Status == "DONE" {
+			if globalOp.Error != nil {
+				return &gceOpError{Err: globalOp.Error}
 			}
 
 			return nil
