@@ -2326,14 +2326,14 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %v", ci))
 		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op err: %v", err))
-		if strings.Contains(err.Error(), "is already being used by") { //workaround?
-			err = nil
-		}
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op err: %s", err.Error()))
+		// if strings.Contains(err.Error(), "is already being used by") { //workaround?
+		// 	err = nil
+		// }
 
-		if err != nil {
-			return err
-		}
+		// if err != nil {
+		// 	return err
+		// }
 		c.instanceCreateImageOp = op
 		c.instanceGetImageOp.Name = op.Name
 		return nil
