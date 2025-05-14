@@ -2313,8 +2313,8 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 		}
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %v", ci))
 		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance err: %v", err))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op.Name: %v", op.Name))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op err: %v", err))
 
 		if err != nil {
 			return err
@@ -2368,11 +2368,11 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 
 	err := i.provider.backoffRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
-		zoneOp, err := i.client.ZoneOperations.
-			Get(i.projectID, c.instanceCreateImageOp.Zone, c.instanceCreateImageOp.Name).
+		zoneOp, err := i.client.GlobalOperations.
+			Get(i.projectID, c.instanceCreateImageOp.Name).
 			Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", zoneOp))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated err: %v", err))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp err: %v", err))
 		if err != nil {
 			return err
 		}
