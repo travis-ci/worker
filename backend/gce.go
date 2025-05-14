@@ -2178,7 +2178,7 @@ func (i *gceInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 	return buf, nil
 }
 
-func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, error) {
+func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, string, string, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 	state := &multistep.BasicStateBag{}
 
@@ -2205,16 +2205,16 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	logger.Debug("selecting over error and done channels")
 	select {
 	case err := <-c.errChan:
-		return 0, err
+		return 0, "", "", err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
 		}
-		size, err := i.getCustomImageSize(createCustomImageName)
+		size, arch, err := i.getCustomImage(createCustomImageName)
 		if err != nil {
-			return 0, err
+			return 0, "", "", err
 		}
-		return size, ctx.Err()
+		return size, arch, i.os, ctx.Err()
 	}
 }
 
@@ -2507,12 +2507,12 @@ func (i *gceInstance) StartupDuration() time.Duration {
 	return i.startupDuration
 }
 
-func (i *gceInstance) getCustomImageSize(customImageName string) (int64, error) {
+func (i *gceInstance) getCustomImage(customImageName string) (int64, string, error) {
 	image, err := i.client.Images.Get(i.projectID, customImageName).Do()
 
 	if err != nil {
-		return 0, err
+		return 0, "", err
 	}
 
-	return image.ArchiveSizeBytes, nil
+	return image.ArchiveSizeBytes, image.Architecture, nil
 }

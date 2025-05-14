@@ -98,8 +98,8 @@ type Instance interface {
 	// Stop stops (and deletes) the instance
 	Stop(gocontext.Context) error
 
-	// CreateImage creates image from the instance, returns size od image and error
-	CreateImage(gocontext.Context, string) (int64, error)
+	// CreateImage creates image from the instance, returns size, arch, os of image and error
+	CreateImage(gocontext.Context, string) (int64, string, string, error)
 
 	// ID is used when identifying the instance in logs and such
 	ID() string

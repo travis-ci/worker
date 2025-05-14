@@ -659,8 +659,8 @@ func (i *osInstance) StopOnly(ctx gocontext.Context) error {
 	return nil
 }
 
-func (i *osInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, error) {
-	return 0, nil
+func (i *osInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, string, string, error) {
+	return 0, "", "", nil
 }
 
 func (i *osInstance) Stop(ctx gocontext.Context) error {

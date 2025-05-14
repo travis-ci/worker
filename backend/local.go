@@ -134,8 +134,8 @@ func (i *localInstance) StopOnly(ctx gocontext.Context) error {
 	return nil
 }
 
-func (i *localInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, error) {
-	return 0, nil
+func (i *localInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, string, string, error) {
+	return 0, "", "", nil
 }
 
 func (i *localInstance) Stop(ctx gocontext.Context) error {

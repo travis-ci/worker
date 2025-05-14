@@ -47,10 +47,12 @@ func NewArtifactManager(u string, t string) *ArtifactManager {
 	}
 }
 
-func (am *ArtifactManager) UpdateImageSize(ctx gocontext.Context, customImageId int, size int64) (bool, error) {
+func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int, size int64, architecture string, os_version string) (bool, error) {
 	client := &http.Client{}
-	d := map[string]int64{
-		"size_bytes": size,
+	d := map[string]string{
+		"size_bytes":   strconv.FormatInt(size, 10),
+		"architecture": architecture,
+		"os_version":   os_version,
 	}
 	marshalled, err := json.Marshal(d)
 	if err != nil {

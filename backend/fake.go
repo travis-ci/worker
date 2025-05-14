@@ -99,8 +99,8 @@ func (i *fakeInstance) StopOnly(ctx context.Context) error {
 	return nil
 }
 
-func (i *fakeInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, error) {
-	return 0, nil
+func (i *fakeInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, string, string, error) {
+	return 0, "", "", nil
 }
 
 func (i *fakeInstance) Stop(ctx context.Context) error {

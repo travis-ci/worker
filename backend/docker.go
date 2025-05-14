@@ -840,8 +840,8 @@ func (i *dockerInstance) StopOnly(ctx gocontext.Context) error {
 	return nil
 }
 
-func (i *dockerInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, error) {
-	return 0, nil
+func (i *dockerInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, string, string, error) {
+	return 0, "", "", nil
 }
 
 func (i *dockerInstance) Stop(ctx gocontext.Context) error {
