@@ -2303,6 +2303,7 @@ func (i *gceInstance) stepStopInstance(c *gceInstanceStopContext) multistep.Step
 }
 
 func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 	err := i.provider.backoffRetry(c.ctx, func() error {
 		ci := &compute.Image{
 			Name:        i.createCustomImageName,
@@ -2310,10 +2311,10 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 			Description: i.instance.Description,
 			Labels:      i.instance.Labels,
 		}
-		fmt.Printf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %v", ci)
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %v", ci))
 		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
-		fmt.Printf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op)
-		fmt.Printf("DEBUGDEBUG gce.stepCreateImageFromInstance err: %v", err)
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance err: %v", err))
 
 		if err != nil {
 			return err
@@ -2370,8 +2371,8 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 		zoneOp, err := i.client.ZoneOperations.
 			Get(i.projectID, i.getZoneName(), c.instancCreateImageOp.Name).
 			Do()
-		fmt.Printf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", zoneOp)
-		fmt.Printf("DEBUGDEBUG gce.stepWaitForImageCreated err: %v", err)
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", zoneOp))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated err: %v", err))
 		if err != nil {
 			return err
 		}
