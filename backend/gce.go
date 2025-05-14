@@ -2213,6 +2213,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	logger.Debug("selecting over error and done channels")
 	select {
 	case err := <-c.errChan:
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage przed errChan %v", err))
 		return 0, "", "", err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
