@@ -952,6 +952,14 @@ func (p *gceProvider) backoffRetry(ctx gocontext.Context, fn func() error) error
 	return backoff.Retry(fn, backoff.WithContext(b, ctx))
 }
 
+func (p *gceProvider) backoffLongerRetry(ctx gocontext.Context, fn func() error) error {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 1 * time.Second
+	b.MaxElapsedTime = p.backoffRetryMax * 5
+
+	return backoff.Retry(fn, backoff.WithContext(b, ctx))
+}
+
 type MetricsTransport struct {
 	Name      string
 	Transport http.RoundTripper
@@ -2368,7 +2376,7 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
-	err := i.provider.backoffRetry(ctx, func() error {
+	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
 		globalOp, err := i.client.GlobalOperations.
 			Get(i.projectID, c.instanceCreateImageOp.Name).
