@@ -82,7 +82,7 @@ func (am *ArtifactManager) UpdateImageSize(ctx gocontext.Context, customImageId 
 }
 
 func (am *ArtifactManager) GenerateCustomImageName(ownerId int, ownerType string, customImageId int) string {
-	return fmt.Sprintf("%d_%s_%d", ownerId, ownerType, customImageId)
+	return fmt.Sprintf("%d-%s-%d", ownerId, ownerType, customImageId)
 }
 
 func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, userId int) (ArtifactManagerImage, error) {
