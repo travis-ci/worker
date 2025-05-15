@@ -2443,7 +2443,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 
 		return errGCEInstanceImageGetNotDone
 	})
-
+	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet tu?: %v", err))
 	c.errChan <- err
 
 	if err != nil {
