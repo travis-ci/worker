@@ -964,7 +964,7 @@ func (p *gceProvider) backoffRetry(ctx gocontext.Context, fn func() error) error
 
 func (p *gceProvider) backoffLongerRetry(ctx gocontext.Context, fn func() error) error {
 	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = 10 * time.Second
+	b.InitialInterval = 1 * time.Second
 	b.MaxElapsedTime = p.backoffRetryMax * 100
 
 	return backoff.Retry(fn, backoff.WithContext(b, ctx))
@@ -2388,7 +2388,7 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
-	err := i.provider.backoffRetry(ctx, func() error {
+	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated c.instanceCreateImageOp.Name: %s", c.instanceCreateImageOp.Name))
 		globalOp, err := i.client.GlobalOperations.
@@ -2434,7 +2434,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
-	err := i.provider.backoffRetry(ctx, func() error {
+	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre1: %s", c.imageName))
 		image, err := i.client.Images.Get(i.projectID, c.imageName).Do()

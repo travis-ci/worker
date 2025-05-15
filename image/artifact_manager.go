@@ -78,8 +78,12 @@ func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int,
 	if err != nil {
 		return false, fmt.Errorf("failed to call http request: %s", err)
 	}
-
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return false, fmt.Errorf("ArtifactManager response code: %d, response body: %s", resp.StatusCode, resp.Body)
+	}
+
 	return resp.StatusCode == 200, nil
 }
 
