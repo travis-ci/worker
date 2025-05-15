@@ -364,7 +364,6 @@ type gceInstanceStopContext struct {
 	instanceDeleteOp      *compute.Operation
 	instanceStopOp        *compute.Operation
 	instanceCreateImageOp *compute.Operation
-	instanceGetImageOp    *compute.Operation
 	imageSize             int64
 	imageArchitecture     string
 }
@@ -2335,7 +2334,6 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 		// 	return err
 		// }
 		c.instanceCreateImageOp = op
-		c.instanceGetImageOp = op
 		return nil
 	})
 
@@ -2384,6 +2382,7 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 
 	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated c.instanceCreateImageOp.Name: %s", c.instanceCreateImageOp.Name))
 		globalOp, err := i.client.GlobalOperations.
 			Get(i.projectID, c.instanceCreateImageOp.Name).
 			Do()
@@ -2429,7 +2428,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 
 	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
-		image, err := i.client.Images.Get(i.projectID, c.instanceGetImageOp.Name).Do()
+		image, err := i.client.Images.Get(i.projectID, c.instanceCreateImageOp.Name).Do()
 
 		if err != nil {
 			return err
