@@ -2227,9 +2227,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	select {
 	case err := <-c.errChan:
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan %d, %s, %v", c.imageSize, c.imageArchitecture, err))
-		if err != nil {
-			return c.imageSize, c.imageArchitecture, i.os, err
-		}
+		return c.imageSize, c.imageArchitecture, i.os, err
 	case res := <-c.resChan:
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w resChan %d, %s, %s", res.size, res.arch, i.os))
 		return res.size, res.arch, i.os, nil
