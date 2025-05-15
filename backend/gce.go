@@ -366,7 +366,6 @@ type gceInstance struct {
 type gceInstanceStopContext struct {
 	ctx                   gocontext.Context
 	errChan               chan error
-	errChanCreateImage    chan error
 	resChan               chan ImageSizeResult
 	instanceDeleteOp      *compute.Operation
 	instanceStopOp        *compute.Operation
@@ -2202,9 +2201,9 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	state := &multistep.BasicStateBag{}
 
 	c := &gceInstanceStopContext{
-		ctx:                ctx,
-		errChanCreateImage: make(chan error),
-		resChan:            make(chan ImageSizeResult),
+		ctx:     ctx,
+		errChan: make(chan error),
+		resChan: make(chan ImageSizeResult),
 	}
 
 	i.createCustomImageName = createCustomImageName
@@ -2226,9 +2225,11 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 
 	logger.Debug("selecting over error and done channels")
 	select {
-	case err := <-c.errChanCreateImage:
+	case err := <-c.errChan:
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan %d, %s, %v", c.imageSize, c.imageArchitecture, err))
-		return c.imageSize, c.imageArchitecture, i.os, err
+		if err != nil {
+			return c.imageSize, c.imageArchitecture, i.os, err
+		}
 	case res := <-c.resChan:
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w resChan %d, %s, %s", res.size, res.arch, i.os))
 		return res.size, res.arch, i.os, nil
@@ -2389,7 +2390,7 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
-	err := i.provider.backoffLongerRetry(ctx, func() error {
+	err := i.provider.backoffRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated c.instanceCreateImageOp.Name: %s", c.instanceCreateImageOp.Name))
 		globalOp, err := i.client.GlobalOperations.
@@ -2435,14 +2436,13 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
-	err := i.provider.backoffLongerRetry(ctx, func() error {
+	err := i.provider.backoffRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre1: %s", c.imageName))
 		image, err := i.client.Images.Get(i.projectID, c.imageName).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre2: %v %v", image, err))
 		if err != nil {
 			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre return error?: %v", err))
-			c.errChanCreateImage <- err
 			return err
 		}
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet: %d %s %v", image.ArchiveSizeBytes, image.Architecture, image))
@@ -2461,7 +2461,13 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 	})
 	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet tu?: %v", err))
 
+	//c.errChan <- err
+
 	if err != nil {
+		c.resChan <- ImageSizeResult{
+			size: 0,
+			arch: "",
+		}
 		return multistep.ActionHalt
 	}
 
