@@ -959,7 +959,7 @@ func (p *gceProvider) backoffRetry(ctx gocontext.Context, fn func() error) error
 func (p *gceProvider) backoffLongerRetry(ctx gocontext.Context, fn func() error) error {
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = 1 * time.Second
-	b.MaxElapsedTime = p.backoffRetryMax * 5
+	b.MaxElapsedTime = p.backoffRetryMax * 50
 
 	return backoff.Retry(fn, backoff.WithContext(b, ctx))
 }
