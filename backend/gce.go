@@ -177,6 +177,11 @@ type gceStartupScriptData struct {
 	WindowsPassword    string
 }
 
+type ImageSizeResult struct {
+	size int64
+	arch string
+}
+
 func init() {
 	Register("gce", "Google Compute Engine", gceHelp, newGCEProvider)
 }
@@ -361,6 +366,7 @@ type gceInstance struct {
 type gceInstanceStopContext struct {
 	ctx                   gocontext.Context
 	errChan               chan error
+	resChan               chan ImageSizeResult
 	instanceDeleteOp      *compute.Operation
 	instanceStopOp        *compute.Operation
 	instanceCreateImageOp *compute.Operation
@@ -2197,6 +2203,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	c := &gceInstanceStopContext{
 		ctx:     ctx,
 		errChan: make(chan error),
+		resChan: make(chan ImageSizeResult),
 	}
 
 	i.createCustomImageName = createCustomImageName
@@ -2221,6 +2228,9 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	case err := <-c.errChan:
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan %d, %s, %v", c.imageSize, c.imageArchitecture, err))
 		return c.imageSize, c.imageArchitecture, i.os, err
+	case res := <-c.resChan:
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w resChan %d, %s, %s", res.size, res.arch, i.os))
+		return res.size, res.arch, i.os, nil
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
@@ -2438,6 +2448,10 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 			c.imageSize = image.ArchiveSizeBytes
 			c.imageArchitecture = image.Architecture
 			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet finish!: %d %s", c.imageSize, c.imageArchitecture))
+			c.resChan <- ImageSizeResult{
+				size: c.imageSize,
+				arch: c.imageArchitecture,
+			}
 			return nil
 		}
 
