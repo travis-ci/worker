@@ -193,8 +193,10 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup size plus: %s %d %s %s %v", createCustomImageName, size, arch, os, err))
 			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os)
 			if err != nil {
+				logger.Info("DEBUGDEBUG couldn't create update image size")
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
 			} else {
+				logger.Info("DEBUGDEBUG Custom image successfully created AM updated")
 				fmt.Fprintf(logWriter, "Custom image successfully created.\n")
 			}
 		}

@@ -366,6 +366,7 @@ type gceInstance struct {
 type gceInstanceStopContext struct {
 	ctx                   gocontext.Context
 	errChan               chan error
+	errChanCreateImage    chan error
 	resChan               chan ImageSizeResult
 	instanceDeleteOp      *compute.Operation
 	instanceStopOp        *compute.Operation
@@ -2201,9 +2202,9 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	state := &multistep.BasicStateBag{}
 
 	c := &gceInstanceStopContext{
-		ctx:     ctx,
-		errChan: make(chan error),
-		resChan: make(chan ImageSizeResult),
+		ctx:                ctx,
+		errChanCreateImage: make(chan error),
+		resChan:            make(chan ImageSizeResult),
 	}
 
 	i.createCustomImageName = createCustomImageName
@@ -2225,7 +2226,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 
 	logger.Debug("selecting over error and done channels")
 	select {
-	case err := <-c.errChan:
+	case err := <-c.errChanCreateImage:
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan %d, %s, %v", c.imageSize, c.imageArchitecture, err))
 		return c.imageSize, c.imageArchitecture, i.os, err
 	case res := <-c.resChan:
@@ -2441,7 +2442,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre2: %v %v", image, err))
 		if err != nil {
 			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre return error?: %v", err))
-			c.errChan <- err
+			c.errChanCreateImage <- err
 			return err
 		}
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet: %d %s %v", image.ArchiveSizeBytes, image.Architecture, image))
@@ -2459,7 +2460,6 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 		return errGCEInstanceImageGetNotDone
 	})
 	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet tu?: %v", err))
-	//c.errChan <- err
 
 	if err != nil {
 		return multistep.ActionHalt
