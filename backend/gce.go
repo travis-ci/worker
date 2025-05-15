@@ -2441,6 +2441,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre2: %v %v", image, err))
 		if err != nil {
 			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre return error?: %v", err))
+			c.errChan <- err
 			return err
 		}
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet: %d %s %v", image.ArchiveSizeBytes, image.Architecture, image))
@@ -2458,7 +2459,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 		return errGCEInstanceImageGetNotDone
 	})
 	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet tu?: %v", err))
-	c.errChan <- err
+	//c.errChan <- err
 
 	if err != nil {
 		return multistep.ActionHalt
