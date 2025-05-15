@@ -2429,7 +2429,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 		if err != nil {
 			return err
 		}
-
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet: %d %s %v", image.ArchiveSizeBytes, image.Architecture, image))
 		if image.ArchiveSizeBytes > 0 {
 			c.imageSize = image.ArchiveSizeBytes
 			c.imageArchitecture = image.Architecture
@@ -2450,12 +2450,6 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 
 func (i *gceInstance) stepWaitForInstanceStopped(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
-
-	// if i.provider.ic.SkipStopPoll {
-	// 	logger.Debug("skipping instance stop polling")
-	// 	c.errChan <- nil
-	// 	return multistep.ActionContinue
-	// }
 
 	logger.WithFields(logrus.Fields{
 		"duration": i.provider.ic.StopPrePollSleep,
