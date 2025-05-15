@@ -2455,11 +2455,11 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 func (i *gceInstance) stepWaitForInstanceStopped(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 
-	if i.provider.ic.SkipStopPoll {
-		logger.Debug("skipping instance stop polling")
-		c.errChan <- nil
-		return multistep.ActionContinue
-	}
+	// if i.provider.ic.SkipStopPoll {
+	// 	logger.Debug("skipping instance stop polling")
+	// 	c.errChan <- nil
+	// 	return multistep.ActionContinue
+	// }
 
 	logger.WithFields(logrus.Fields{
 		"duration": i.provider.ic.StopPrePollSleep,
