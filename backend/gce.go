@@ -2335,7 +2335,7 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 		// 	return err
 		// }
 		c.instanceCreateImageOp = op
-		c.instanceGetImageOp.Name = op.Name
+		c.instanceGetImageOp = op
 		return nil
 	})
 
