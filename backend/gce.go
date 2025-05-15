@@ -958,8 +958,8 @@ func (p *gceProvider) backoffRetry(ctx gocontext.Context, fn func() error) error
 
 func (p *gceProvider) backoffLongerRetry(ctx gocontext.Context, fn func() error) error {
 	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = 1 * time.Second
-	b.MaxElapsedTime = p.backoffRetryMax * 50
+	b.InitialInterval = 10 * time.Second
+	b.MaxElapsedTime = p.backoffRetryMax * 100
 
 	return backoff.Retry(fn, backoff.WithContext(b, ctx))
 }
@@ -2430,13 +2430,14 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 		image, err := i.client.Images.Get(i.projectID, c.imageName).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre2: %v %v", image, err))
 		if err != nil {
+			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre return error?: %v", err))
 			return err
 		}
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet: %d %s %v", image.ArchiveSizeBytes, image.Architecture, image))
 		if image.ArchiveSizeBytes > 0 {
 			c.imageSize = image.ArchiveSizeBytes
 			c.imageArchitecture = image.Architecture
-			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet finish!: %d %s", image.ArchiveSizeBytes, image.Architecture))
+			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet finish!: %d %s", c.imageSize, c.imageArchitecture))
 			return nil
 		}
 
