@@ -2219,8 +2219,8 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	logger.Debug("selecting over error and done channels")
 	select {
 	case err := <-c.errChan:
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage przed errChan %v", err))
-		return 0, "", "", err
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan %d, %s, %v", c.imageSize, c.imageArchitecture, err))
+		return c.imageSize, c.imageArchitecture, i.os, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
