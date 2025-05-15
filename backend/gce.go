@@ -2204,7 +2204,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	logger.Info(fmt.Sprintf("creating custom image %s", createCustomImageName))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage createCustomImageName:%s", createCustomImageName))
 
-	c.imageName = i.imageName
+	c.imageName = createCustomImageName
 	runner := &multistep.BasicRunner{
 		Steps: []multistep.Step{
 			&gceInstanceStopMultistepWrapper{c: c, f: i.stepCreateImageFromInstance},
