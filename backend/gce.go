@@ -2436,6 +2436,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 		if image.ArchiveSizeBytes > 0 {
 			c.imageSize = image.ArchiveSizeBytes
 			c.imageArchitecture = image.Architecture
+			logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGet finish!: %d %s", image.ArchiveSizeBytes, image.Architecture))
 			return nil
 		}
 
