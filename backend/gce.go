@@ -2424,8 +2424,9 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 
 	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre1: %s", c.instanceCreateImageOp.Name))
 		image, err := i.client.Images.Get(i.projectID, c.instanceCreateImageOp.Name).Do()
-
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre2: %v %v", image, err))
 		if err != nil {
 			return err
 		}
