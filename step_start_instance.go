@@ -148,6 +148,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
+	logWriter := state.Get("logWriter").(LogWriter)
 
 	defer context.TimeSince(ctx, "step_start_instance_cleanup", time.Now())
 
@@ -193,6 +194,8 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os)
 			if err != nil {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
+			} else {
+				fmt.Fprintf(logWriter, "Custom image successfully created.\n")
 			}
 		}
 		if err := instance.Stop(ctx); err != nil { //Stop deletes instance
