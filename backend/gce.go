@@ -1481,7 +1481,7 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 	err := p.backoffRetry(ctx, func() error {
 		_ = p.apiRateLimit(ctx)
 		//images, ilErr := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
-		images, ilErr := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
+		images, ilErr := p.client.Images.List(p.imageProjectID).Context(ctx).Do()
 		if ilErr != nil {
 			return ilErr
 		}
