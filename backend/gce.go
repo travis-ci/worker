@@ -1518,6 +1518,13 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 		}
 		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
 		logger.Info(fmt.Sprintf("using custom image %s", imageName))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG using custom image %s", imageName))
+		_, err = p.artifactManager.UseImage(ctx, startAttributes.UsedCustomImageId)
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
+			logger.Error(fmt.Sprintf("DEBUGDEBUG failed to call UseImage at ArtifactManager %v", err))
+			return nil, err
+		}
 	} else {
 		jobID, _ := context.JobIDFromContext(ctx)
 		repo, _ := context.RepositoryFromContext(ctx)
@@ -1556,6 +1563,8 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Error(fmt.Sprintf("DEBUGDEBUG umage used %s %v", imageName, image))
 
 	p.imageCache.Store(imageName, image)
 
