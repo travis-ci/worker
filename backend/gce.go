@@ -366,7 +366,6 @@ type gceInstance struct {
 type gceInstanceStopContext struct {
 	ctx                   gocontext.Context
 	errChan               chan error
-	resChan               chan ImageSizeResult
 	instanceDeleteOp      *compute.Operation
 	instanceStopOp        *compute.Operation
 	instanceCreateImageOp *compute.Operation
@@ -2203,7 +2202,6 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	c := &gceInstanceStopContext{
 		ctx:     ctx,
 		errChan: make(chan error),
-		resChan: make(chan ImageSizeResult),
 	}
 
 	i.createCustomImageName = createCustomImageName
@@ -2216,7 +2214,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 		Steps: []multistep.Step{
 			&gceInstanceStopMultistepWrapper{c: c, f: i.stepCreateImageFromInstance},
 			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForImageCreated},
-			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForImageGet},
+			//&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForImageGet},
 		},
 	}
 
@@ -2226,11 +2224,13 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	logger.Debug("selecting over error and done channels")
 	select {
 	case err := <-c.errChan:
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan %d, %s, %v", c.imageSize, c.imageArchitecture, err))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan1 %v", err))
+		image, err := i.client.Images.Get(i.projectID, createCustomImageName).Do()
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan2 %d, %s, %v", image.ArchiveSizeBytes, image.Architecture, err))
 		return c.imageSize, c.imageArchitecture, i.os, err
-	case res := <-c.resChan:
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w resChan %d, %s, %s", res.size, res.arch, i.os))
-		return res.size, res.arch, i.os, nil
+	// case res := <-c.resChan:
+	// 	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w resChan %d, %s, %s", res.size, res.arch, i.os))
+	// 	return res.size, res.arch, i.os, nil
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
@@ -2390,7 +2390,6 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 
 	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated c.instanceCreateImageOp.Name: %s", c.instanceCreateImageOp.Name))
 		globalOp, err := i.client.GlobalOperations.
 			Get(i.projectID, c.instanceCreateImageOp.Name).
 			Do()
@@ -2421,7 +2420,7 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 	return multistep.ActionContinue
 }
 
-func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.StepAction {
+/*func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 
 	logger.WithFields(logrus.Fields{
@@ -2470,7 +2469,7 @@ func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.S
 	}
 
 	return multistep.ActionContinue
-}
+}*/
 
 func (i *gceInstance) stepWaitForInstanceStopped(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
