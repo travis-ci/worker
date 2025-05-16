@@ -1512,7 +1512,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	defer context.TimeSince(ctx, "image_select", time.Now())
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
-	logger.Error(fmt.Sprintf("DEBUGDEBUG imageSelect %v", startAttributes))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG imageSelect %d, %s, %d", startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId))
 	var (
 		imageName string
 		err       error

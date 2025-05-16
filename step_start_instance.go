@@ -50,7 +50,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		err      error
 	)
 
-	userId := state.Get("usedCustomImageId").(int)
+	userId := state.Get("usedId").(int)
 	ownerId := state.Get("ownerId").(int)
 	ownerType := state.Get("ownerType").(string)
 	createdCustomImageId := state.Get("createdCustomImageId").(int)
