@@ -81,7 +81,7 @@ func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int,
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return false, fmt.Errorf("ArtifactManager response code: %d, response body: %s", resp.StatusCode, resp.Body)
+		return false, fmt.Errorf("ArtifactManager (token: %s) response code: %d, response body: %s", am.authToken, resp.StatusCode, resp.Body)
 	}
 
 	return resp.StatusCode == 200, nil
