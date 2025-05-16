@@ -1564,10 +1564,32 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	var image *compute.Image
 	if startAttributes.UsedCustomImageId != 0 {
-		image, err = p.imageByFilter(ctx, fmt.Sprintf("name = %q", imageName))
+		image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq %q", imageName))
 		if err != nil {
-			return nil, err
+			logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq %q", imageName))
+			image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq %s", imageName))
+			if err != nil {
+				logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq %s", imageName))
+				image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
+				if err != nil {
+					logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq ^%s", imageName))
+					image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq ^%q", imageName))
+					if err != nil {
+						logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq ^%q", imageName))
+						image, err = p.imageByFilter(ctx, fmt.Sprintf("name = %s", imageName))
+						if err != nil {
+							logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name = %s", imageName))
+							image, err = p.imageByFilter(ctx, fmt.Sprintf("name = %q", imageName))
+							if err != nil {
+								logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name = %q", imageName))
+								return nil, err
+							}
+						}
+					}
+				}
+			}
 		}
+
 	} else {
 		image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
 		if err != nil {
