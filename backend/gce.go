@@ -2227,7 +2227,7 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan1 %v", err))
 		image, err := i.client.Images.Get(i.projectID, createCustomImageName).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan2 %d, %s, %v", image.ArchiveSizeBytes, image.Architecture, err))
-		return c.imageSize, c.imageArchitecture, i.os, err
+		return image.ArchiveSizeBytes, image.Architecture, i.os, err
 	// case res := <-c.resChan:
 	// 	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w resChan %d, %s, %s", res.size, res.arch, i.os))
 	// 	return res.size, res.arch, i.os, nil

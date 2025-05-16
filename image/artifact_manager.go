@@ -76,7 +76,7 @@ func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int,
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("failed to call http request: %s", err)
+		return false, fmt.Errorf("failed to call http (token: %s) request: %s", am.authToken, err)
 	}
 	defer resp.Body.Close()
 
