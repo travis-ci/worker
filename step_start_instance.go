@@ -185,7 +185,10 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			logger.Info("DEBUGDEBUG stopped instance")
 			logger.Info("only stopped instance")
 		}
-		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName); err != nil {
+		logWriterFunc := func(value string) {
+			fmt.Fprintf(logWriter, value)
+		}
+		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName, logWriterFunc); err != nil {
 			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup err: %v", err))
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
 		} else {

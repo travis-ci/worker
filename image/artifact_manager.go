@@ -2,6 +2,7 @@ package image
 
 import (
 	"bytes"
+	"encoding/base64"
 	gocontext "context"
 	"encoding/json"
 	"fmt"
@@ -70,7 +71,8 @@ func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int,
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Basic "+am.authToken)
+	sEnc := base64.StdEncoding.EncodeToString([]byte("_:"+am.authToken))
+	req.Header.Add("Authorization", "Basic "+sEnc)
 	req.Header.Add("From", processorID)
 	req = req.WithContext(ctx)
 
@@ -105,7 +107,8 @@ func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, us
 	}
 
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", "Basic "+am.authToken)
+	sEnc := base64.StdEncoding.EncodeToString([]byte("_:"+am.authToken))
+	req.Header.Add("Authorization", "Basic "+sEnc)
 	req.Header.Add("From", processorID)
 	req.Header.Add("HTTP_X_TRAVIS_USER_ID", strconv.Itoa(userId))
 	req = req.WithContext(ctx)

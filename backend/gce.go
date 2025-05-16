@@ -372,6 +372,7 @@ type gceInstanceStopContext struct {
 	imageName             string
 	imageSize             int64
 	imageArchitecture     string
+	logWriterFunc         func(string)
 }
 
 type gceInstanceStopMultistepWrapper struct {
@@ -2195,13 +2196,14 @@ func (i *gceInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 	return buf, nil
 }
 
-func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName string) (int64, string, string, error) {
+func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName string, logWriterFunc func(string)) (int64, string, string, error) {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 	state := &multistep.BasicStateBag{}
 
 	c := &gceInstanceStopContext{
-		ctx:     ctx,
-		errChan: make(chan error),
+		ctx:           ctx,
+		errChan:       make(chan error),
+		logWriterFunc: logWriterFunc,
 	}
 
 	i.createCustomImageName = createCustomImageName
@@ -2377,6 +2379,7 @@ func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.St
 
 func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+	logWriterFunc := c.logWriterFunc
 
 	logger.WithFields(logrus.Fields{
 		"duration": i.provider.ic.StopPrePollSleep,
@@ -2385,11 +2388,13 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 	var span *trace.Span
 	ctx := c.ctx
 	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceImageCreate")
+	logWriterFunc(".")
 	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
 	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
+		logWriterFunc(".")
 		globalOp, err := i.client.GlobalOperations.
 			Get(i.projectID, c.instanceCreateImageOp.Name).
 			Do()
@@ -2422,6 +2427,7 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 
 /*func (i *gceInstance) stepWaitForImageGet(c *gceInstanceStopContext) multistep.StepAction {
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+	logWriterFunc := c.logWriterFunc
 
 	logger.WithFields(logrus.Fields{
 		"duration": i.provider.ic.StopPrePollSleep,
@@ -2430,11 +2436,13 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 	var span *trace.Span
 	ctx := c.ctx
 	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceImageGet")
+	logWriterFunc(".")
 	time.Sleep(i.provider.ic.StopPrePollSleep)
 	span.End()
 
 	err := i.provider.backoffLongerRetry(ctx, func() error {
 		_ = i.provider.apiRateLimit(c.ctx)
+		logWriterFunc(".")
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre1: %s", c.imageName))
 		image, err := i.client.Images.Get(i.projectID, c.imageName).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageGetPre2: %v %v", image, err))

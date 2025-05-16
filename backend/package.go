@@ -99,7 +99,7 @@ type Instance interface {
 	Stop(gocontext.Context) error
 
 	// CreateImage creates image from the instance, returns size, arch, os of image and error
-	CreateImage(gocontext.Context, string) (int64, string, string, error)
+	CreateImage(gocontext.Context, string, func(string)) (int64, string, string, error)
 
 	// ID is used when identifying the instance in logs and such
 	ID() string
