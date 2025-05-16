@@ -91,13 +91,8 @@ func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int,
 
 func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (bool, error) {
 	client := &http.Client{}
-	d := map[string]string{}
-	marshalled, err := json.Marshal(d)
-	if err != nil {
-		return false, fmt.Errorf("failed to marshall in UpdateImageSize: %s", err)
-	}
 	url := fmt.Sprintf("%s/image/%d/use", am.baseURL, customImageId)
-	req, err := http.NewRequest("PATCH", url, bytes.NewReader(marshalled))
+	req, err := http.NewRequest("PATCH", url, bytes.NewReader([]byte("")))
 	if err != nil {
 		return false, fmt.Errorf("failed to make http request: %s", err)
 	}
