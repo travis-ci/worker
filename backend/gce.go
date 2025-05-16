@@ -1564,7 +1564,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	var image *compute.Image
 	if startAttributes.UsedCustomImageId != 0 {
-		image, err = p.imageByFilter(ctx, fmt.Sprintf("name=%s", imageName))
+		image, err = p.imageByFilter(ctx, fmt.Sprintf("name = %q", imageName))
 		if err != nil {
 			return nil, err
 		}
