@@ -1562,9 +1562,17 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 		return image.(*compute.Image), nil
 	}
 
-	image, err := p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
-	if err != nil {
-		return nil, err
+	var image *compute.Image
+	if startAttributes.UsedCustomImageId != 0 {
+		image, err = p.imageByFilter(ctx, fmt.Sprintf("name=%s", imageName))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	logger.Error(fmt.Sprintf("DEBUGDEBUG umage used %s %v", imageName, image))
