@@ -1143,6 +1143,9 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 	_, span := trace.StartSpan(c.ctx, "GCE.RenderScript")
 	defer span.End()
 
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+	logger.Error(fmt.Sprintf("DEBUGDEBUG stepRenderScript %v", c.startAttributes))
+
 	scriptBuf := bytes.Buffer{}
 	scriptData := gceStartupScriptData{
 		AutoImplode:        p.ic.AutoImplode,
@@ -1186,6 +1189,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	defer span.End()
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
+	logger.Error(fmt.Sprintf("DEBUGDEBUG stepInsertInstance %v", c.startAttributes))
 
 	if c.startAttributes.VMConfig.Zone != "" {
 		err := p.backoffRetry(ctx, func() error {
@@ -1325,6 +1329,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	defer context.TimeSince(c.ctx, "boot_poll_ip", time.Now())
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
+	logger.Error(fmt.Sprintf("DEBUGDEBUG stepWaitForInstanceIP %v", c.startAttributes))
 
 	gceInst := &gceInstance{
 		zoneName: c.zoneName,
