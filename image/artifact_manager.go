@@ -132,7 +132,7 @@ func (am *ArtifactManager) GenerateCustomImageName(ownerId int, ownerType string
 
 func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, userId int) (ArtifactManagerImage, error) {
 	client := &http.Client{}
-	url := fmt.Sprintf("%s/image/%d/use", am.baseURL, customImageId)
+	url := fmt.Sprintf("%s/image/%d", am.baseURL, customImageId)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return ArtifactManagerImage{}, fmt.Errorf("failed to make http request: %s", err)

@@ -1519,20 +1519,15 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	)
 
 	if startAttributes.UsedCustomImageId != 0 {
-		_, err := p.artifactManager.GetImage(ctx, startAttributes.UsedCustomImageId, startAttributes.UserId)
-		if err != nil {
-			logger.Error(fmt.Sprintf("error while calling GetImage at ArtifactManager UsedCustomImageId:%d UserId:%d err:%s", startAttributes.UsedCustomImageId, startAttributes.UserId, err))
-			return nil, err
-		}
-		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
-		logger.Info(fmt.Sprintf("using custom image %s", imageName))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG using custom image %s", imageName))
 		_, err = p.artifactManager.UseImage(ctx, startAttributes.UsedCustomImageId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
 			logger.Error(fmt.Sprintf("DEBUGDEBUG failed to call UseImage at ArtifactManager %v", err))
 			return nil, err
 		}
+		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
+		logger.Info(fmt.Sprintf("using custom image %s", imageName))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG using custom image %s", imageName))
 	} else {
 		jobID, _ := context.JobIDFromContext(ctx)
 		repo, _ := context.RepositoryFromContext(ctx)
