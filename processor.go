@@ -222,7 +222,7 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		state.Put("ownerId", buildJob.Payload().Job.CreatedCustomImage.Owner.Id)
 		state.Put("ownerType", buildJob.Payload().Job.CreatedCustomImage.Owner.Type)
 	} else {
-		state.Put("ownerId", buildJob.Payload().Job.UsedCustomImage.Id)
+		state.Put("ownerId", buildJob.Payload().Job.UsedCustomImage.Owner.Id)
 		state.Put("ownerType", buildJob.Payload().Job.UsedCustomImage.Owner.Type)
 	}
 	state.Put("userId", buildJob.Payload().TriggererId)
