@@ -1471,17 +1471,23 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	}
 }
 
+func (p *gceProvider) imageByName(ctx gocontext.Context, name string) (*compute.Image, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.imageByFilter")
+	defer span.End()
+
+	return p.client.Images.Get(p.imageProjectID, name).Context(ctx).Do()
+}
+
 func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
 	ctx, span := trace.StartSpan(ctx, "GCE.imageByFilter")
 	defer span.End()
-	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+
 	imagesByName := map[string]*compute.Image{}
 	imageNames := []string{}
 
 	err := p.backoffRetry(ctx, func() error {
 		_ = p.apiRateLimit(ctx)
-		//images, ilErr := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
-		images, ilErr := p.client.Images.List(p.imageProjectID).Context(ctx).Do()
+		images, ilErr := p.client.Images.List(p.imageProjectID).Filter(filter).Context(ctx).Do()
 		if ilErr != nil {
 			return ilErr
 		}
@@ -1491,7 +1497,6 @@ func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*comp
 		}
 
 		for _, image := range images.Items {
-			logger.Error(fmt.Sprintf("DEBUGDEBUG allImages %s", image.Name))
 			imagesByName[image.Name] = image
 			imageNames = append(imageNames, image.Name)
 		}
@@ -1566,34 +1571,9 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	var image *compute.Image
 	if startAttributes.UsedCustomImageId != 0 {
-		// image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq %q", imageName))
-		// if err != nil {
-		// 	logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq %q", imageName))
-		// 	image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq %s", imageName))
-		// 	if err != nil {
-		// 		logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq %s", imageName))
-		// 		image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
-		// 		if err != nil {
-		// 			logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq ^%s", imageName))
-		// 			image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq ^%q", imageName))
-		// 			if err != nil {
-		// 				logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name eq ^%q", imageName))
-		// 				image, err = p.imageByFilter(ctx, fmt.Sprintf("name = %s", imageName))
-		// 				if err != nil {
-		// 					logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name = %s", imageName))
-		// 					image, err = p.imageByFilter(ctx, fmt.Sprintf("name = %q", imageName))
-		// 					if err != nil {
-		// 						logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name = %q", imageName))
-		// 						return nil, err
-		// 					}
-		// 				}
-		// 			}
-		// 		}
-		// 	}
-		// }
-		image, err = p.imageByFilter(ctx, fmt.Sprintf("name = %q", imageName))
+		image, err = p.imageByName(ctx, imageName)
 		if err != nil {
-			logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala name = %q", imageName))
+			logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala getByName %s %v", imageName, err))
 			return nil, err
 		}
 	} else {
