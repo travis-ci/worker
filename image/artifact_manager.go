@@ -163,7 +163,7 @@ func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, us
 	}
 
 	if resp.StatusCode != 200 {
-		return ArtifactManagerImage{}, errors.Errorf("expected 200 status code from job-board, received status=%d body=%q",
+		return ArtifactManagerImage{}, errors.Errorf("expected 200 status code from ArtifactManager, received status=%d body=%q",
 			resp.StatusCode,
 			responseBody)
 	}

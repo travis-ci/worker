@@ -1521,6 +1521,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	if startAttributes.UsedCustomImageId != 0 {
 		_, err := p.artifactManager.GetImage(ctx, startAttributes.UsedCustomImageId, startAttributes.UserId)
 		if err != nil {
+			logger.Error(fmt.Sprintf("error while calling GetImage at ArtifactManager UsedCustomImageId:%d UserId:%d err:%s", startAttributes.UsedCustomImageId, startAttributes.UserId, err))
 			return nil, err
 		}
 		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
