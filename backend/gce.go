@@ -1107,9 +1107,11 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+
 	_, span := trace.StartSpan(c.ctx, "GCE.GetImage")
 	defer span.End()
-
+	logger.Error(fmt.Sprintf("DEBUGDEBUG stepGetImage %v", c.startAttributes))
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
