@@ -1475,7 +1475,7 @@ func (p *gceProvider) imageByName(ctx gocontext.Context, name string) (*compute.
 	ctx, span := trace.StartSpan(ctx, "GCE.imageByFilter")
 	defer span.End()
 
-	return p.client.Images.Get(p.imageProjectID, name).Context(ctx).Do()
+	return p.client.Images.Get(p.projectID, name).Context(ctx).Do()
 }
 
 func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
@@ -1571,6 +1571,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	var image *compute.Image
 	if startAttributes.UsedCustomImageId != 0 {
+		logger.Error(fmt.Sprintf("DEBUGDEBUG imageByName w projekcie %s", p.projectID))
 		image, err = p.imageByName(ctx, imageName)
 		if err != nil {
 			logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala getByName %s %v", imageName, err))
@@ -2367,6 +2368,7 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %v", ci))
 		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance i.projectID: %s", i.projectID))
 
 		if err != nil {
 			return err
