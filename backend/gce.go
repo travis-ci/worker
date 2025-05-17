@@ -1282,7 +1282,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			return multistep.ActionContinue
 		}
 	}
-
+	logger.Error(fmt.Sprintf("DEBUGDEBUG Instance p.projectID:%s, c.zoneName:%s, c.instance:%s", p.projectID, c.zoneName, prettyPrint(c.instance)))
 	err = p.backoffRetry(c.ctx, func() error {
 		_ = p.apiRateLimit(c.ctx)
 
@@ -2611,4 +2611,10 @@ func (i *gceInstance) ImageName() string {
 
 func (i *gceInstance) StartupDuration() time.Duration {
 	return i.startupDuration
+}
+
+// DEBUGDEBUG TODO remove it!
+func prettyPrint(i interface{}) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
 }
