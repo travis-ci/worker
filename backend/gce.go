@@ -2260,9 +2260,6 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 		image, err := i.client.Images.Get(i.projectID, createCustomImageName).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan2 %d, %s, %v", image.ArchiveSizeBytes, image.Architecture, err))
 		return image.ArchiveSizeBytes, image.Architecture, i.os, err
-	// case res := <-c.resChan:
-	// 	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w resChan %d, %s, %s", res.size, res.arch, i.os))
-	// 	return res.size, res.arch, i.os, nil
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
@@ -2361,9 +2358,8 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 	err := i.provider.backoffRetry(c.ctx, func() error {
 		ci := &compute.Image{
-			Name: i.createCustomImageName,
-			//SourceDisk:  i.instance.Disks[0].Source,
-			SourceDisk:  fmt.Sprintf("zones/%s/disks/%s", i.getZoneName(), i.instance.Disks[0].DeviceName),
+			Name:        i.createCustomImageName,
+			SourceDisk:  i.instance.Disks[0].Source,
 			Description: i.instance.Description,
 			Labels:      i.instance.Labels,
 		}
