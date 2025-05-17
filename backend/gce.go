@@ -1283,7 +1283,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		}
 	}
 	logger.Error(fmt.Sprintf("DEBUGDEBUG Instance p.projectID:%s, c.zoneName:%s, c.instance:%s", p.projectID, c.zoneName, prettyPrint(c.instance)))
-	err = p.backoffRetry(c.ctx, func() error {
+	err = p.backoffLongerRetry(c.ctx, func() error {
 		_ = p.apiRateLimit(c.ctx)
 
 		op, insErr := p.client.Instances.Insert(p.projectID, c.zoneName, c.instance).Context(c.ctx).Do()
@@ -1388,7 +1388,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 		zoneOp := &compute.Operation{}
 
-		err := p.backoffRetry(ctx, func() error {
+		err := p.backoffLongerRetry(ctx, func() error {
 			_ = p.apiRateLimit(c.ctx)
 			op, zoErr := p.client.ZoneOperations.
 				Get(p.projectID, c.zoneName, c.instanceInsertOpName).
