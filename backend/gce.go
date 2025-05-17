@@ -1282,7 +1282,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			return multistep.ActionContinue
 		}
 	}
-	logger.Error(fmt.Sprintf("DEBUGDEBUG Instance p.projectID:%s, c.zoneName:%s, c.instance:%s", p.projectID, c.zoneName, prettyPrint(c.instance)))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG stepInsertInstance before Instances.Insert Instance p.projectID:%s, c.zoneName:%s, c.instance:%s", p.projectID, c.zoneName, prettyPrint(c.instance)))
 	err = p.backoffLongerRetry(c.ctx, func() error {
 		_ = p.apiRateLimit(c.ctx)
 
@@ -1301,6 +1301,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		}
 
 		c.instanceInsertOpName = op.Name
+		logger.Error(fmt.Sprintf("DEBUGDEBUG stepInsertInstance op.Name:%s", op.Name))
 		return nil
 	})
 
@@ -1317,6 +1318,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		Message: "inserted instance",
 		State:   ProgressSuccess,
 	})
+	logger.Error("DEBUGDEBUG stepInsertInstance inserted instance")
 	return multistep.ActionContinue
 }
 
@@ -1348,7 +1350,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		os:              c.startAttributes.OS,
 		windowsPassword: c.windowsPassword,
 	}
-
+	logger.Error(fmt.Sprintf("DEBUGDEBUG gceInst:%s", prettyPrint(gceInst)))
 	if c.instanceWarmedIP != "" {
 		logger.Debug("pre-warmed instance present, skipping boot poll")
 
@@ -1411,7 +1413,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			c.errChan <- err
 			return multistep.ActionHalt
 		}
-
+		logger.Error(fmt.Sprintf("DEBUGDEBUG stepWaitForInstanceIP zoneOp.Status:%s zoneOp:%s", zoneOp.Status, prettyPrint(zoneOp)))
 		if zoneOp.Status == "RUNNING" || zoneOp.Status == "DONE" {
 			if zoneOp.Error != nil {
 				c.progresser.Progress(&ProgressEntry{
@@ -2360,8 +2362,9 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 	err := i.provider.backoffRetry(c.ctx, func() error {
 		ci := &compute.Image{
-			Name:        i.createCustomImageName,
-			SourceDisk:  i.instance.Disks[0].Source,
+			Name: i.createCustomImageName,
+			//SourceDisk:  i.instance.Disks[0].Source,
+			SourceDisk:  fmt.Sprintf("zones/%s/disks/%s", i.instance.Zone, i.instance.Disks[0].InitializeParams.DiskName),
 			Description: i.instance.Description,
 			Labels:      i.instance.Labels,
 		}
