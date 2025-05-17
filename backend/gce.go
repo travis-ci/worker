@@ -2363,7 +2363,7 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 		ci := &compute.Image{
 			Name: i.createCustomImageName,
 			//SourceDisk:  i.instance.Disks[0].Source,
-			SourceDisk:  fmt.Sprintf("zones/%s/disks/%s", i.instance.Zone, i.instance.Disks[0].DeviceName),
+			SourceDisk:  fmt.Sprintf("zones/%s/disks/%s", i.getZoneName(), i.instance.Disks[0].DeviceName),
 			Description: i.instance.Description,
 			Labels:      i.instance.Labels,
 		}
