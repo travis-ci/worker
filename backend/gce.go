@@ -1283,7 +1283,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		}
 	}
 	logger.Error(fmt.Sprintf("DEBUGDEBUG stepInsertInstance before Instances.Insert Instance p.projectID:%s, c.zoneName:%s, c.instance:%s", p.projectID, c.zoneName, prettyPrint(c.instance)))
-	err = p.backoffLongerRetry(c.ctx, func() error {
+	err = p.backoffRetry(c.ctx, func() error {
 		_ = p.apiRateLimit(c.ctx)
 
 		op, insErr := p.client.Instances.Insert(p.projectID, c.zoneName, c.instance).Context(c.ctx).Do()
@@ -1390,7 +1390,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 		zoneOp := &compute.Operation{}
 
-		err := p.backoffLongerRetry(ctx, func() error {
+		err := p.backoffRetry(ctx, func() error {
 			_ = p.apiRateLimit(c.ctx)
 			op, zoErr := p.client.ZoneOperations.
 				Get(p.projectID, c.zoneName, c.instanceInsertOpName).
@@ -2368,7 +2368,7 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 			Description: i.instance.Description,
 			Labels:      i.instance.Labels,
 		}
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %v", ci))
+		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %s", prettyPrint(ci)))
 		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op))
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance i.projectID: %s", i.projectID))
