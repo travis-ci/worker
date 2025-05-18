@@ -2186,10 +2186,11 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	}
 	defer conn.Close()
 
-	bashCommand := "bash ~/build.sh"
+	bashCommand := "rm -f /tmp/build.trace; bash ~/build.sh; rm -f ~/build.sh"
 	if i.os == "windows" {
-		bashCommand = `powershell -Command "& 'c:/program files/git/usr/bin/bash' -c 'export PATH=/bin:/usr/bin:$PATH; bash /c/users/travis/build.sh'"`
+		bashCommand = `powershell -Command "& 'c:/program files/git/usr/bin/bash' -c 'rm -f /tmp/build.trace; export PATH=/bin:/usr/bin:$PATH; bash /c/users/travis/build.sh; rm -f /c/users/travis/build.sh'"`
 	}
+
 	exitStatus, err := conn.RunCommand(bashCommand, output)
 
 	preempted, googleErr := i.isPreempted(ctx)
@@ -2258,6 +2259,10 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	case err := <-c.errChan:
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan1 %v", err))
 		image, err := i.client.Images.Get(i.projectID, createCustomImageName).Do()
+		if err != nil {
+			logger.Error(fmt.Sprintf("get custom image size failed %s", err.Error()))
+			return 0, "", "", err
+		}
 		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan2 %d, %s, %v", image.ArchiveSizeBytes, image.Architecture, err))
 		return image.ArchiveSizeBytes, image.Architecture, i.os, err
 	case <-ctx.Done():
