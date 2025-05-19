@@ -75,6 +75,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob.StartAttributes().UsedCustomImageId = usedCustomImageId
 	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
+	fmt.Fprintf(logWriter, "Using custom build environment image %s %s. See <link to the documentation>.", usedCustomImageName, s.artifactManager.GenerateCustomImageName(ownerId, ownerType, usedCustomImageId))
+
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
 		var progresser backend.Progresser
 		switch buildJob.StartAttributes().ProgressType {
