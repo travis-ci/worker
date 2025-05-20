@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	mathrand "math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -74,6 +75,8 @@ const (
 
 	defaultGCESSHDialTimeout = 5 * time.Second
 	defaultGCEWarmerTimeout  = 5 * time.Second
+
+	sshTestConnectionTimeout = 5 * time.Second
 )
 
 var (
@@ -1088,6 +1091,8 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	case inst := <-c.instChan:
 		return inst, nil
 	case err := <-c.errChan:
+		//DEBUGDEBUG TODO wpadniemy tu
+		logger.Debug(fmt.Sprintf("DEBUGDEBUG !!!!!!!!!!!!!!!!!!!!!!!!!! Problem with instance SSH not working %v", err))
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
@@ -1364,6 +1369,12 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		gceInst.startupDuration = startupDuration
 		gceInst.cachedIPAddr = c.instanceWarmedIP
 		gceInst.warmed = true
+
+		if !checkSSH(gceInst.cachedIPAddr, sshTestConnectionTimeout) {
+			c.errChan <- fmt.Errorf("SSH not available")
+			return multistep.ActionHalt
+		}
+
 		c.instChan <- gceInst
 
 		return multistep.ActionContinue
@@ -2579,4 +2590,14 @@ func (i *gceInstance) StartupDuration() time.Duration {
 func prettyPrint(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
+}
+
+func checkSSH(ip string, timeout time.Duration) bool {
+	address := net.JoinHostPort(ip, "22")
+	conn, err := net.DialTimeout("tcp", address, timeout)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	return true
 }
