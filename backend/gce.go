@@ -1370,7 +1370,9 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		gceInst.cachedIPAddr = c.instanceWarmedIP
 		gceInst.warmed = true
 
-		if !checkSSH(gceInst.cachedIPAddr, sshTestConnectionTimeout) {
+		if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
+			logger.Error("instance created, but SSH not available")
+			gceInst.Stop(ctx)
 			c.errChan <- fmt.Errorf("SSH not available")
 			return multistep.ActionHalt
 		}
@@ -2592,12 +2594,88 @@ func prettyPrint(i interface{}) string {
 	return string(s)
 }
 
-func checkSSH(ip string, timeout time.Duration) bool {
-	address := net.JoinHostPort(ip, "22")
-	conn, err := net.DialTimeout("tcp", address, timeout)
+func (i *gceInstance) checkConnection(ctx gocontext.Context, ip string) error {
+	defer context.TimeSince(ctx, "boot_poll_ssh", time.Now())
+
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+
+	connectedChan := make(chan error)
+	var lastErr error
+
+	port := 22
+	connType := "ssh"
+	if i.os == "windows" {
+		connType = "winrm"
+		port = 5986
+	}
+
+	waitStart := time.Now().UTC()
+	i.progresser.Progress(&ProgressEntry{
+		Message:   fmt.Sprintf("waiting for %s connectivity...", connType),
+		State:     ProgressNeutral,
+		Continues: true,
+	})
+
+	go func() {
+		var errCount uint64
+		for {
+			if ctx.Err() != nil {
+				return
+			}
+
+			err := checkPortConnection(ip, port)
+			if err != nil {
+				logger.Debug("connection test errored")
+			} else {
+				timeToConn := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
+				i.progresser.Progress(&ProgressEntry{
+					Message:    fmt.Sprintf("%s connectivity established (%s)", connType, timeToConn),
+					State:      ProgressSuccess,
+					Interrupts: true,
+				})
+				i.progresser.Progress(&ProgressEntry{
+					Message: "connection test success",
+					State:   ProgressSuccess,
+				})
+				connectedChan <- nil
+				return
+			}
+
+			lastErr = err
+
+			errCount++
+			if errCount > i.provider.uploadRetries {
+				connectedChan <- err
+				return
+			}
+
+			i.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
+			var span *trace.Span
+			_, span = trace.StartSpan(ctx, "GCE.timeSleep.uploadRetry")
+			time.Sleep(i.provider.uploadRetrySleep)
+			span.End()
+
+		}
+	}()
+
+	select {
+	case err := <-connectedChan:
+		return err
+	case <-ctx.Done():
+		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
+			"err":  lastErr,
+			"self": "backend/gce_instance",
+		}).Info("stopping ssh/ connection retries, error from last attempt")
+		return ctx.Err()
+	}
+}
+
+func checkPortConnection(ip string, port int) error {
+	address := net.JoinHostPort(ip, strconv.Itoa(port))
+	conn, err := net.DialTimeout("tcp", address, sshTestConnectionTimeout)
 	if err != nil {
-		return false
+		return fmt.Errorf("cannot connect to %s on port %d", ip, port)
 	}
 	defer conn.Close()
-	return true
+	return nil
 }
