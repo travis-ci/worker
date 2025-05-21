@@ -131,8 +131,8 @@ var (
 	errGCEMissingIPAddressError      = fmt.Errorf("no IP address found")
 	errGCEInstanceDeletionNotDone    = fmt.Errorf("instance deletion not done")
 	errGCEInstanceStopNotDone        = fmt.Errorf("instance stop not done")
+	errGCEInstanceStartNotDone       = fmt.Errorf("instance start not done")
 	errGCEInstanceImageCreateNotDone = fmt.Errorf("instance image create not done")
-	errGCEInstanceImageGetNotDone    = fmt.Errorf("instance image get not done")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
 {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
@@ -303,6 +303,8 @@ type gceInstanceConfig struct {
 	HardTimeoutMinutes int64
 	StopPollSleep      time.Duration
 	StopPrePollSleep   time.Duration
+	StartPollSleep     time.Duration
+	StartPrePollSleep  time.Duration
 	SkipStopPoll       bool
 	Preemptible        bool
 	PublicIP           bool
@@ -371,6 +373,7 @@ type gceInstanceStopContext struct {
 	errChan               chan error
 	instanceDeleteOp      *compute.Operation
 	instanceStopOp        *compute.Operation
+	instanceStartOp       *compute.Operation
 	instanceCreateImageOp *compute.Operation
 	imageName             string
 	imageSize             int64
@@ -1089,10 +1092,13 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	logger.Debug("selecting over instance, error, and done channels")
 	select {
 	case inst := <-c.instChan:
+		gceInst := inst.(*gceInstance)
+		if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
+			logger.Error("instance created, but SSH not available, restarting")
+			gceInst.Restart(ctx)
+		}
 		return inst, nil
 	case err := <-c.errChan:
-		//DEBUGDEBUG TODO wpadniemy tu
-		logger.Debug(fmt.Sprintf("DEBUGDEBUG !!!!!!!!!!!!!!!!!!!!!!!!!! Problem with instance SSH not working %v", err))
 		return nil, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
@@ -1370,13 +1376,6 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		gceInst.cachedIPAddr = c.instanceWarmedIP
 		gceInst.warmed = true
 
-		if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
-			logger.Error("instance created, but SSH not available")
-			gceInst.Stop(ctx)
-			c.errChan <- fmt.Errorf("SSH not available")
-			return multistep.ActionHalt
-		}
-
 		c.instChan <- gceInst
 
 		return multistep.ActionContinue
@@ -1452,13 +1451,6 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 
 			gceInst.startupDuration = startupDuration
 			c.instChan <- gceInst
-
-			if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
-				logger.Error("instance created, but SSH not available")
-				gceInst.Stop(ctx)
-				c.errChan <- fmt.Errorf("SSH not available")
-				return multistep.ActionHalt
-			}
 
 			return multistep.ActionContinue
 		}
@@ -2310,6 +2302,39 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	}
 }
 
+func (i *gceInstance) Restart(ctx gocontext.Context) error {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+	state := &multistep.BasicStateBag{}
+
+	c := &gceInstanceStopContext{
+		ctx:     ctx,
+		errChan: make(chan error),
+	}
+
+	runner := &multistep.BasicRunner{
+		Steps: []multistep.Step{
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepStopInstance},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForInstanceStopped},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepStartInstance},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForInstanceStarted},
+		},
+	}
+
+	logger.WithField("instance", i.instance.Name).Info("stopping instance")
+	go runner.Run(state)
+
+	logger.Debug("selecting over error and done channels")
+	select {
+	case err := <-c.errChan:
+		return err
+	case <-ctx.Done():
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.gce.stop.timeout")
+		}
+		return ctx.Err()
+	}
+}
+
 func (i *gceInstance) StopOnly(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 	state := &multistep.BasicStateBag{}
@@ -2383,6 +2408,28 @@ func (i *gceInstance) stepStopInstance(c *gceInstanceStopContext) multistep.Step
 			return err
 		}
 		c.instanceStopOp = op
+		return nil
+	})
+
+	if err != nil {
+		c.errChan <- err
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepStartInstance(c *gceInstanceStopContext) multistep.StepAction {
+	err := i.provider.backoffRetry(c.ctx, func() error {
+		op, err := i.client.Instances.
+			Start(i.projectID, i.getZoneName(), i.instance.Name).
+			Context(c.ctx).
+			Do()
+
+		if err != nil {
+			return err
+		}
+		c.instanceStartOp = op
 		return nil
 	})
 
@@ -2480,6 +2527,49 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 		}
 
 		return errGCEInstanceImageCreateNotDone
+	})
+
+	c.errChan <- err
+
+	if err != nil {
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepWaitForInstanceStarted(c *gceInstanceStopContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+
+	logger.WithFields(logrus.Fields{
+		"duration": i.provider.ic.StartPrePollSleep,
+	}).Debug("sleeping before first checking instance start operation")
+
+	var span *trace.Span
+	ctx := c.ctx
+	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceStarted")
+	time.Sleep(i.provider.ic.StartPrePollSleep)
+	span.End()
+
+	err := i.provider.backoffRetry(ctx, func() error {
+		_ = i.provider.apiRateLimit(c.ctx)
+		zoneOp, err := i.client.ZoneOperations.
+			Get(i.projectID, i.getZoneName(), c.instanceStartOp.Name).
+			Do()
+
+		if err != nil {
+			return err
+		}
+
+		if zoneOp.Status == "DONE" {
+			if zoneOp.Error != nil {
+				return &gceOpError{Err: zoneOp.Error}
+			}
+
+			return nil
+		}
+
+		return errGCEInstanceStartNotDone
 	})
 
 	c.errChan <- err
