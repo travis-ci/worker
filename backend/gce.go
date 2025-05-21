@@ -50,24 +50,26 @@ import (
 )
 
 const (
-	defaultGCEZone               = "us-central1-a"
-	defaultGCEMachineType        = "n1-standard-2"
-	defaultGCEPremiumMachineType = "n1-standard-4"
-	defaultGCENetwork            = "default"
-	defaultGCEDiskSize           = int64(20)
-	defaultGCELanguage           = "minimal"
-	defaultGCEBootPollSleep      = 3 * time.Second
-	defaultGCEBootPrePollSleep   = 15 * time.Second
-	defaultGCEStopPollSleep      = 3 * time.Second
-	defaultGCEStopPrePollSleep   = 15 * time.Second
-	defaultGCESubnet             = "default"
-	defaultGCERegion             = "us-central1"
-	defaultGCEUploadRetries      = uint64(120)
-	defaultGCEUploadRetrySleep   = 1 * time.Second
-	defaultGCEImageSelectorType  = "env"
-	defaultGCEImage              = "travis-ci.+"
-	defaultGCEGpuCount           = int64(0)
-	defaultGCEGpuType            = "nvidia-tesla-p100"
+	defaultGCEZone                     = "us-central1-a"
+	defaultGCEMachineType              = "n1-standard-2"
+	defaultGCEPremiumMachineType       = "n1-standard-4"
+	defaultGCENetwork                  = "default"
+	defaultGCEDiskSize                 = int64(20)
+	defaultGCELanguage                 = "minimal"
+	defaultGCEBootPollSleep            = 3 * time.Second
+	defaultGCEBootPrePollSleep         = 15 * time.Second
+	defaultGCEStopPollSleep            = 3 * time.Second
+	defaultGCEStopPrePollSleep         = 15 * time.Second
+	defaultGCESubnet                   = "default"
+	defaultGCERegion                   = "us-central1"
+	defaultGCEUploadRetries            = uint64(120)
+	defaultGCEUploadRetrySleep         = 1 * time.Second
+	defaultGCETestConnectionRetries    = uint64(120)
+	defaultGCETestConnectionRetrySleep = 1 * time.Second
+	defaultGCEImageSelectorType        = "env"
+	defaultGCEImage                    = "travis-ci.+"
+	defaultGCEGpuCount                 = int64(0)
+	defaultGCEGpuType                  = "nvidia-tesla-p100"
 
 	defaultGCERateLimitMaxCalls         = uint64(10)
 	defaultGCERateLimitDuration         = time.Second
@@ -263,19 +265,21 @@ type gceProvider struct {
 	alternateZones       []string
 	machineTypeSelfLinks map[string]string
 
-	backoffRetryMax       time.Duration
-	deterministicHostname bool
-	imageSelectorType     string
-	imageSelector         image.Selector
-	imageCache            *sync.Map
-	bootPollSleep         time.Duration
-	bootPrePollSleep      time.Duration
-	defaultLanguage       string
-	defaultImage          string
-	uploadRetries         uint64
-	uploadRetrySleep      time.Duration
-	sshDialer             ssh.Dialer
-	sshDialTimeout        time.Duration
+	backoffRetryMax          time.Duration
+	deterministicHostname    bool
+	imageSelectorType        string
+	imageSelector            image.Selector
+	imageCache               *sync.Map
+	bootPollSleep            time.Duration
+	bootPrePollSleep         time.Duration
+	defaultLanguage          string
+	defaultImage             string
+	uploadRetries            uint64
+	uploadRetrySleep         time.Duration
+	testConnectionRetries    uint64
+	testConnectionRetrySleep time.Duration
+	sshDialer                ssh.Dialer
+	sshDialTimeout           time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -539,6 +543,24 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 		uploadRetrySleep = si
 	}
 
+	testConnectionRetries := defaultGCETestConnectionRetries
+	if cfg.IsSet("TESTCONNECTION_RETRIES") {
+		ur, err := strconv.ParseUint(cfg.Get("TESTCONNECTION_RETRIES"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		uploadRetries = ur
+	}
+
+	testConnectionRetrySleep := defaultGCETestConnectionRetrySleep
+	if cfg.IsSet("TESTCONNECTION_RETRY_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("TESTCONNECTION_RETRY_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		uploadRetrySleep = si
+	}
+
 	defaultLanguage := defaultGCELanguage
 	if cfg.IsSet("DEFAULT_LANGUAGE") {
 		defaultLanguage = cfg.Get("DEFAULT_LANGUAGE")
@@ -727,17 +749,19 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			Zones:              []*compute.Zone{},
 		},
 
-		backoffRetryMax:       backoffRetryMax,
-		deterministicHostname: deterministicHostname,
-		imageSelector:         imageSelector,
-		imageSelectorType:     imageSelectorType,
-		imageCache:            &sync.Map{},
-		bootPollSleep:         bootPollSleep,
-		bootPrePollSleep:      bootPrePollSleep,
-		defaultLanguage:       defaultLanguage,
-		defaultImage:          defaultImage,
-		uploadRetries:         uploadRetries,
-		uploadRetrySleep:      uploadRetrySleep,
+		backoffRetryMax:          backoffRetryMax,
+		deterministicHostname:    deterministicHostname,
+		imageSelector:            imageSelector,
+		imageSelectorType:        imageSelectorType,
+		imageCache:               &sync.Map{},
+		bootPollSleep:            bootPollSleep,
+		bootPrePollSleep:         bootPrePollSleep,
+		defaultLanguage:          defaultLanguage,
+		defaultImage:             defaultImage,
+		uploadRetries:            uploadRetries,
+		uploadRetrySleep:         uploadRetrySleep,
+		testConnectionRetries:    testConnectionRetries,
+		testConnectionRetrySleep: testConnectionRetrySleep,
 
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
@@ -1092,11 +1116,6 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 	logger.Debug("selecting over instance, error, and done channels")
 	select {
 	case inst := <-c.instChan:
-		gceInst := inst.(*gceInstance)
-		if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
-			logger.Error("instance created, but SSH not available, restarting")
-			gceInst.Restart(ctx)
-		}
 		return inst, nil
 	case err := <-c.errChan:
 		return nil, err
@@ -1114,7 +1133,20 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 }
 
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	return p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
+
+	inst, err := p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
+	gceInst := inst.(*gceInstance)
+	if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
+		logger.Error("instance created, but SSH not available, restarting")
+		err = gceInst.Restart(ctx)
+		if err != nil {
+			logger.Error("failed to restart instance")
+			return nil, err
+		}
+	}
+
+	return inst, err
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
@@ -2722,7 +2754,7 @@ func (i *gceInstance) checkConnection(ctx gocontext.Context, ip string) error {
 
 			err := checkPortConnection(ip, port)
 			if err != nil {
-				logger.Debug("connection test errored")
+				logger.Debug(fmt.Sprintf("connection test errored, ip %s port %d", ip, port))
 			} else {
 				timeToConn := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
 				i.progresser.Progress(&ProgressEntry{
@@ -2741,7 +2773,7 @@ func (i *gceInstance) checkConnection(ctx gocontext.Context, ip string) error {
 			lastErr = err
 
 			errCount++
-			if errCount > i.provider.uploadRetries {
+			if errCount > i.provider.testConnectionRetries {
 				connectedChan <- err
 				return
 			}
@@ -2749,7 +2781,7 @@ func (i *gceInstance) checkConnection(ctx gocontext.Context, ip string) error {
 			i.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
 			var span *trace.Span
 			_, span = trace.StartSpan(ctx, "GCE.timeSleep.uploadRetry")
-			time.Sleep(i.provider.uploadRetrySleep)
+			time.Sleep(i.provider.testConnectionRetrySleep)
 			span.End()
 
 		}

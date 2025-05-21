@@ -98,10 +98,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		}
 
 		instance, err = s.provider.StartWithProgress(ctx, buildJob.StartAttributes(), progresser)
-		if err != nil && err.Error() == "SSH not available" {
-			logger.Debug("DEBUGDEBUG SSH not available creating instance once again")
-			instance, err = s.provider.StartWithProgress(ctx, buildJob.StartAttributes(), progresser)
-		}
 	} else {
 		instance, err = s.provider.Start(ctx, buildJob.StartAttributes())
 	}
