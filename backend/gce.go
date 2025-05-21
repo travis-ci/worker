@@ -1453,6 +1453,13 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			gceInst.startupDuration = startupDuration
 			c.instChan <- gceInst
 
+			if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
+				logger.Error("instance created, but SSH not available")
+				gceInst.Stop(ctx)
+				c.errChan <- fmt.Errorf("SSH not available")
+				return multistep.ActionHalt
+			}
+
 			return multistep.ActionContinue
 		}
 
