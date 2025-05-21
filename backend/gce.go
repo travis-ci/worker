@@ -1137,8 +1137,8 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	inst, err := p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
 	gceInst := inst.(*gceInstance)
-	logger.Debug(fmt.Sprintf("DEBUGDEBUG after StartWithProgress name: %s ip: %s, instance: %s", gceInst.imageName, gceInst.getIP(), prettyPrint(gceInst.instance)))
-	if gceInst.checkConnection(ctx, gceInst.getIP()) != nil {
+	logger.Debug(fmt.Sprintf("DEBUGDEBUG after StartWithProgress name: %s ip: %s, instance: %s", gceInst.imageName, gceInst.getIP(), prettyPrint(inst)))
+	if gceInst.checkConnection(ctx) != nil {
 		logger.Error("instance created, but SSH not available, restarting")
 		err = gceInst.Restart(ctx)
 		if err != nil {
@@ -2724,10 +2724,16 @@ func prettyPrint(i interface{}) string {
 	return string(s)
 }
 
-func (i *gceInstance) checkConnection(ctx gocontext.Context, ip string) error {
+func (i *gceInstance) checkConnection(ctx gocontext.Context) error {
 	defer context.TimeSince(ctx, "boot_poll_ssh", time.Now())
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+
+	ip, err := i.getCachedIP(ctx)
+	if err != nil {
+		logger.Debug(fmt.Sprintf("instance getCachedIP error: %v", err))
+		return err
+	}
 
 	connectedChan := make(chan error)
 	var lastErr error
