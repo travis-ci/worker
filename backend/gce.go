@@ -1137,7 +1137,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	inst, err := p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
 	gceInst := inst.(*gceInstance)
-	if gceInst.checkConnection(ctx, gceInst.cachedIPAddr) != nil {
+	if gceInst.checkConnection(ctx, gceInst.getIP()) != nil {
 		logger.Error("instance created, but SSH not available, restarting")
 		err = gceInst.Restart(ctx)
 		if err != nil {
