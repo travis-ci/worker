@@ -1137,6 +1137,7 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 
 	inst, err := p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
 	gceInst := inst.(*gceInstance)
+	logger.Debug(fmt.Sprintf("DEBUGDEBUG after StartWithProgress name: %s ip: %s, instance: %s", gceInst.imageName, gceInst.getIP(), prettyPrint(gceInst.instance)))
 	if gceInst.checkConnection(ctx, gceInst.getIP()) != nil {
 		logger.Error("instance created, but SSH not available, restarting")
 		err = gceInst.Restart(ctx)
