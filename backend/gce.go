@@ -1138,8 +1138,10 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 	inst, err := p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
 	gceInst := inst.(*gceInstance)
 	logger.Debug(fmt.Sprintf("DEBUGDEBUG after StartWithProgress name: %s ip: %s, instance: %s", gceInst.imageName, gceInst.getIP(), prettyPrint(inst)))
-	if gceInst.checkConnection(ctx) != nil {
-		logger.Error("instance created, but SSH not available, restarting")
+	//if gceInst.checkConnection(ctx) != nil { //TODO rethink?
+	if startAttributes.UsedCustomImageId != 0 {
+		//logger.Error("instance created, but SSH not available, restarting") //TODO rethink?
+		logger.Error("instance created, but UsedCustomImageId, so obligatory restart")
 		err = gceInst.Restart(ctx)
 		if err != nil {
 			logger.Error("failed to restart instance")
