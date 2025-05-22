@@ -43,6 +43,7 @@ type JobPayload struct {
 	Queue       string                 `json:"queue"`
 	Trace       bool                   `json:"trace"`
 	Warmer      bool                   `json:"warmer"`
+	AllowFailure bool                  `json:"allow_failure"`
 }
 
 // JobMetaPayload contains meta information about the job.
