@@ -152,6 +152,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	ctx := state.Get("ctx").(gocontext.Context)
 	logWriter := state.Get("logWriter").(LogWriter)
+	buildJob := state.Get("buildJob").(Job)
 
 	defer context.TimeSince(ctx, "step_start_instance_cleanup", time.Now())
 
@@ -171,6 +172,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		return
 	}
 
+	can_create := buildJob.FinishState() == FinishStatePassed || buildJob.Payload().AllowFailure
 	createdCustomImageId, ok1 := state.Get("createdCustomImageId").(int)
 	createdCustomImageName, ok2 := state.Get("createdCustomImageName").(string)
 	ownerId, ok3 := state.Get("ownerId").(int)
@@ -178,7 +180,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createdCustomImageId:%d", createdCustomImageId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerId:%d", ownerId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerType:%s", ownerType))
-	if ok1 && ok2 && ok3 && ok4 && createdCustomImageId != 0 && createdCustomImageName != "" {
+	if can_create && ok1 && ok2 && ok3 && ok4 && createdCustomImageId != 0 && createdCustomImageName != "" {
 		createCustomImageName := s.artifactManager.GenerateCustomImageName(ownerId, ownerType, createdCustomImageId)
 		logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createCustomImageName:%s", createCustomImageName))
 		logger.WithField("instance", instance).Info(fmt.Sprintf("creating custom image id: %d", createdCustomImageId))
@@ -203,7 +205,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
 			} else {
 				logger.Info("DEBUGDEBUG Custom image successfully created AM updated")
-				fmt.Fprintf(logWriter, "Custom image successfully created.\n")
+				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}
 		}
 		if err := instance.Stop(ctx); err != nil { //Stop deletes instance
