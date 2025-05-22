@@ -1146,7 +1146,7 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 }
 
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
+	//logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_provider")
 
 	inst, err := p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
 	//gceInst := inst.(*gceInstance)
