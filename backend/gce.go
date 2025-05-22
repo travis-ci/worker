@@ -151,6 +151,19 @@ $pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
 Set-LocalUser -Name travis -Password $pw
 `))
 
+	gceSimpleStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
+cat > ~travis/.ssh/authorized_keys <<EOF
+{{ .SSHPubKey }}
+EOF
+chown -R travis:travis ~travis/.ssh/
+`))
+
+	gceSimpleWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
+net localgroup administrators travis /add
+$pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
+Set-LocalUser -Name travis -Password $pw
+`))
+
 	// FIXME: get rid of the need for this global goop
 	gceCustomHTTPTransport     http.RoundTripper
 	gceCustomHTTPTransportLock sync.Mutex
@@ -1213,8 +1226,16 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 			err = gceStartupScript.Execute(&scriptBuf, scriptData)
 		}
 	} else {
-		//altervative startup script if needed
-		err = nil
+		if c.startAttributes.OS == "windows" {
+			scriptData.WindowsPassword = c.windowsPassword
+			context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+				"self":             "backend/gce_provider",
+				"windows_password": c.windowsPassword,
+			}).Debug("rendering startup script with password")
+			err = gceSimpleWindowsStartupScript.Execute(&scriptBuf, scriptData)
+		} else {
+			err = gceSimpleStartupScript.Execute(&scriptBuf, scriptData)
+		}
 	}
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
