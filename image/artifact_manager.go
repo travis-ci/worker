@@ -98,10 +98,9 @@ func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (A
 	if err != nil {
 		return ArtifactManagerImage{}, err
 	}
-	fmt.Printf("DEBUGDEBUG am.Use.responseBody: %s", string(responseBody))
 	err = json.Unmarshal(responseBody, &imageResp)
-	if err != nil {
-		return ArtifactManagerImage{}, err
+	if err != nil || imageResp.Data == nil {
+		return ArtifactManagerImage{}, fmt.Errorf("a DEBUGDEBUG Resp: %s", string(responseBody))
 	}
 	return *imageResp.Data, nil
 }
