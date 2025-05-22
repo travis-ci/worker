@@ -1587,12 +1587,6 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	)
 
 	if startAttributes.UsedCustomImageId != 0 {
-		_, err = p.artifactManager.UseImage(ctx, startAttributes.UsedCustomImageId)
-		if err != nil {
-			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
-			logger.Error(fmt.Sprintf("DEBUGDEBUG failed to call UseImage at ArtifactManager %v", err))
-			return nil, err
-		}
 		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
 		logger.Info(fmt.Sprintf("using custom image %s", imageName))
 		logger.Info(fmt.Sprintf("DEBUGDEBUG using custom image %s", imageName))

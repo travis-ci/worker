@@ -32,7 +32,7 @@ type ArtifactManagerImage struct {
 	ToBeDeletedAt string `json:"to_be_deleted_at"`
 }
 
-type artifaxctManagerImageResponse struct {
+type artifactManagerImageResponse struct {
 	Data *ArtifactManagerImage `json:"data"`
 }
 
@@ -64,12 +64,12 @@ func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int,
 	return am.Patch(ctx, customImageId, d)
 }
 
-func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (bool, error) {
+func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (ArtifactManagerImage, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s/image/%d/use", am.baseURL, customImageId)
 	req, err := http.NewRequest("PATCH", url, bytes.NewReader([]byte("")))
 	if err != nil {
-		return false, fmt.Errorf("failed to make http request: %s", err)
+		return ArtifactManagerImage{}, fmt.Errorf("failed to make http request: %s", err)
 	}
 
 	processorID, ok := context.ProcessorFromContext(ctx)
@@ -85,15 +85,24 @@ func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (b
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, fmt.Errorf("failed to call http request: %s", err)
+		return ArtifactManagerImage{}, fmt.Errorf("failed to call http request: %s", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return false, fmt.Errorf("ArtifactManager response code: %d, response body: %s", resp.StatusCode, resp.Body)
+		return ArtifactManagerImage{}, fmt.Errorf("ArtifactManager response code: %d, response body: %s", resp.StatusCode, resp.Body)
 	}
 
-	return resp.StatusCode == 200, nil
+	var imageResp artifactManagerImageResponse
+	responseBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ArtifactManagerImage{}, err
+	}
+	err = json.Unmarshal(responseBody, &imageResp)
+	if err != nil {
+		return ArtifactManagerImage{}, err
+	}
+	return *imageResp.Data, nil
 }
 
 func (am *ArtifactManager) GenerateCustomImageName(ownerId int, ownerType string, customImageId int) string {
@@ -138,7 +147,7 @@ func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, us
 			responseBody)
 	}
 
-	var imageResp artifaxctManagerImageResponse
+	var imageResp artifactManagerImageResponse
 
 	err = json.Unmarshal(responseBody, &imageResp)
 	if err != nil {
