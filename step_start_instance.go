@@ -205,7 +205,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
 			} else {
 				logger.Info("DEBUGDEBUG Custom image successfully created AM updated")
-				fmt.Fprintf(logWriter, "Custom image successfully created.\n")
+				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}
 		}
 		if err := instance.Stop(ctx); err != nil { //Stop deletes instance
