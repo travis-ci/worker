@@ -1201,15 +1201,20 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 	}
 
 	var err error
-	if c.startAttributes.OS == "windows" {
-		scriptData.WindowsPassword = c.windowsPassword
-		context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
-			"self":             "backend/gce_provider",
-			"windows_password": c.windowsPassword,
-		}).Debug("rendering startup script with password")
-		err = gceWindowsStartupScript.Execute(&scriptBuf, scriptData)
+	if c.startAttributes.CreatedCustomImageId == 0 {
+		if c.startAttributes.OS == "windows" {
+			scriptData.WindowsPassword = c.windowsPassword
+			context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+				"self":             "backend/gce_provider",
+				"windows_password": c.windowsPassword,
+			}).Debug("rendering startup script with password")
+			err = gceWindowsStartupScript.Execute(&scriptBuf, scriptData)
+		} else {
+			err = gceStartupScript.Execute(&scriptBuf, scriptData)
+		}
 	} else {
-		err = gceStartupScript.Execute(&scriptBuf, scriptData)
+		//altervative startup script if needed
+		err = nil
 	}
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
