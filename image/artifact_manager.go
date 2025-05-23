@@ -33,7 +33,7 @@ type ArtifactManagerImage struct {
 }
 
 type artifactManagerImageResponse struct {
-	Data *ArtifactManagerImage `json:"data"`
+	Image *ArtifactManagerImage `json:"image"`
 }
 
 type ArtifactManager struct {
@@ -99,10 +99,10 @@ func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (A
 		return ArtifactManagerImage{}, err
 	}
 	err = json.Unmarshal(responseBody, &imageResp)
-	if err != nil || imageResp.Data == nil {
+	if err != nil || imageResp.Image == nil {
 		return ArtifactManagerImage{}, fmt.Errorf("a DEBUGDEBUG Resp: %s", string(responseBody))
 	}
-	return *imageResp.Data, nil
+	return *imageResp.Image, nil
 }
 
 func (am *ArtifactManager) GenerateCustomImageName(ownerId int, ownerType string, customImageId int) string {
