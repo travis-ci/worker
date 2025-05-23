@@ -185,7 +185,9 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createdCustomImageId:%d", createdCustomImageId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerId:%d", ownerId))
 	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerType:%s", ownerType))
-	if can_create && ok1 && ok2 && ok3 && ok4 && createdCustomImageId != 0 && createdCustomImageName != "" {
+	createConditionsOk := ok1 && ok2 && ok3 && ok4 && createdCustomImageId != 0 && createdCustomImageName != ""
+	
+	if can_create && createConditionsOk {
 		createCustomImageName := s.artifactManager.GenerateCustomImageName(ownerId, ownerType, createdCustomImageId)
 		logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createCustomImageName:%s", createCustomImageName))
 		logger.WithField("instance", instance).Info(fmt.Sprintf("creating custom image id: %d", createdCustomImageId))
@@ -201,7 +203,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName, logWriterFunc); err != nil {
 			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup err: %v", err))
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
-			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId)
+			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, "create error")
 			if err != nil {
 				logger.Info(fmt.Sprintf("DEBUGDEBUG couldn't update image status %v", err))
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image fail status")
@@ -226,6 +228,17 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		} else {
 			logger.Info("stopped instance")
 		}
+	} else if createConditionsOk {
+			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance, build failed"))
+			reason := "job failed"
+			if buildJob.FinishState() == FinishStateErrored {
+				reason = "job error"
+			}
+			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, reason)
+			if err != nil {
+				logger.Info(fmt.Sprintf("DEBUGDEBUG couldn't update image status on create fail %v", err))
+				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image status on build fail")
+			}
 	}
 
 	if err := instance.Stop(ctx); err != nil {
