@@ -48,9 +48,10 @@ func NewArtifactManager(u string, t string) *ArtifactManager {
 	}
 }
 
-func (am *ArtifactManager) UpdateFailedImage(ctx gocontext.Context, customImageId int) (bool, error) {
+func (am *ArtifactManager) UpdateFailedImage(ctx gocontext.Context, customImageId int, reason string) (bool, error) {
 	d := map[string]string{
 		"state": "error",
+		"reason": reason,
 	}
 	return am.Patch(ctx, customImageId, d)
 }
