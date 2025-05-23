@@ -153,7 +153,7 @@ func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, us
 	if err != nil {
 		return ArtifactManagerImage{}, err
 	}
-	return *imageResp.Data, nil
+	return *imageResp.Image, nil
 }
 
 func (am *ArtifactManager) Patch(ctx gocontext.Context, customImageId int, data map[string]string) (bool, error) {
