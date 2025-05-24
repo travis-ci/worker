@@ -184,6 +184,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				err := json.Unmarshal(delivery.Body, buildJob.payload)
 				if err != nil {
 					logger.WithField("err", err).Error("payload JSON parse error")
+					logger.Error(fmt.Sprintf("original delivery.Body: %s", delivery.Body))
 					continue
 				}
 
