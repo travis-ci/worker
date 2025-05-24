@@ -16,6 +16,8 @@ type stepWriteWorkerInfo struct {
 func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
 	buildJob := state.Get("buildJob").(Job)
+	usedCustomImageId := state.Get("usedCustomImageId").(int)
+	usedCustomImageName := state.Get("usedCustomImageName").(string)
 	instance := state.Get("instance").(backend.Instance)
 	ctx := state.Get("ctx").(gocontext.Context)
 
@@ -30,6 +32,11 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 			fmt.Sprintf("instance: %s %s (via %s)", instance.ID(), instance.ImageName(), buildJob.Name()),
 			fmt.Sprintf("startup: %v", instance.StartupDuration()),
 		}, "\n")))
+		if usedCustomImageId != 0 {
+			writeSingleLine(logWriter, []byte(strings.Join([]string{
+				fmt.Sprintf("\033[33;1mUsing custom build environment image %s %s. See <link to the documentation>.\033[0m", usedCustomImageName, instance.ImageName()),
+			}, "\n")))
+		}
 	}
 
 	return multistep.ActionContinue

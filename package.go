@@ -23,6 +23,10 @@ func writeFold(w io.Writer, name string, b []byte) (int, error) {
 	return w.Write(folded)
 }
 
+func writeSingleLine(w io.Writer, b []byte) (int, error) {
+	return w.Write(append([]byte(b), ([]byte("\n"))...))
+}
+
 func writeFoldStart(w io.Writer, name string, b []byte) (int, error) {
 	folded := []byte(fmt.Sprintf(travisFoldStart, name))
 	folded = append(folded, b...)
