@@ -20,8 +20,6 @@ type stepStartInstance struct {
 	provider        backend.Provider
 	startTimeout    time.Duration
 	artifactManager *image.ArtifactManager
-	ownerId         int
-	userId          int
 }
 
 func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
@@ -30,7 +28,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	logWriter := state.Get("logWriter").(LogWriter)
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "step_start_instance")
-	logger.Info("DEBUGDEBUG stepStartInstance.Run")
 	defer context.TimeSince(ctx, "step_start_instance_run", time.Now())
 
 	ctx, span := trace.StartSpan(ctx, "StartInstance.Run")
@@ -57,14 +54,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	createdCustomImageName := state.Get("createdCustomImageName").(string)
 	usedCustomImageId := state.Get("usedCustomImageId").(int)
 	usedCustomImageName := state.Get("usedCustomImageName").(string)
-
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run userId: %d", userId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run ownerId: %d", ownerId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run ownerType: %s", ownerType))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run createdCustomImageId: %d", createdCustomImageId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run createdCustomImageName: %s", createdCustomImageName))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run usedCustomImageId: %d", usedCustomImageId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Run usedCustomImageName: %s", usedCustomImageName))
 
 	buildJob.StartAttributes().ArtifactManager = s.artifactManager
 	buildJob.StartAttributes().UserId = userId
@@ -169,7 +158,6 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		logger.Info("no instance to stop")
 		return
 	}
-	logger.Info("DEBUGDEBUG stepStartInstance.Cleanup")
 	skipShutdown, ok := state.Get("skipShutdown").(bool)
 	if ok && skipShutdown {
 		logger.WithField("instance", instance).Error("skipping shutdown, VM will be left running")
@@ -181,44 +169,33 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	createdCustomImageName, ok2 := state.Get("createdCustomImageName").(string)
 	ownerId, ok3 := state.Get("ownerId").(int)
 	ownerType, ok4 := state.Get("ownerType").(string)
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createdCustomImageId:%d", createdCustomImageId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerId:%d", ownerId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup ownerType:%s", ownerType))
 	createConditionsOk := ok1 && ok2 && ok3 && ok4 && createdCustomImageId != 0 && createdCustomImageName != ""
 
 	if can_create && createConditionsOk {
 		createCustomImageName := s.artifactManager.GenerateCustomImageName(ownerId, ownerType, createdCustomImageId)
-		logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup createCustomImageName:%s", createCustomImageName))
-		logger.WithField("instance", instance).Info(fmt.Sprintf("creating custom image id: %d", createdCustomImageId))
+		logger.WithField("instance", instance).Info(fmt.Sprintf("creating custom image id: %d, name: %s", createdCustomImageId, createCustomImageName))
 		if err := instance.StopOnly(ctx); err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't stop instance")
 		} else {
-			logger.Info("DEBUGDEBUG stopped instance")
 			logger.Info("only stopped instance")
 		}
 		logWriterFunc := func(value string) {
 			fmt.Fprintf(logWriter, value)
 		}
 		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName, logWriterFunc); err != nil {
-			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup err: %v", err))
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
 			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, "create error")
 			if err != nil {
-				logger.Info(fmt.Sprintf("DEBUGDEBUG couldn't update image status %v", err))
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image fail status")
 			} else {
-				logger.Info("DEBUGDEBUG Custom image successfully created AM updated")
 				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}
 		} else {
-			logger.Info(fmt.Sprintf("custom image created, size: %d", size))
-			logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance.Cleanup size plus: %s %d %s %s %v", createCustomImageName, size, arch, os, err))
+			logger.Info(fmt.Sprintf("custom image id: %d, name: %s, arch: %s, os: %s created with size: %d", createdCustomImageId, createCustomImageName, arch, os, size))
 			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os)
 			if err != nil {
-				logger.Info(fmt.Sprintf("DEBUGDEBUG couldn't create update image size %v", err))
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
 			} else {
-				logger.Info("DEBUGDEBUG Custom image successfully created AM updated")
 				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}
 		}
@@ -228,14 +205,12 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			logger.Info("stopped instance")
 		}
 	} else if createConditionsOk {
-		logger.Info(fmt.Sprintf("DEBUGDEBUG stepStartInstance, build failed"))
 		reason := "job failed"
 		if buildJob.FinishState() == FinishStateErrored {
 			reason = "job error"
 		}
 		_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, reason)
 		if err != nil {
-			logger.Info(fmt.Sprintf("DEBUGDEBUG couldn't update image status on create fail %v", err))
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image status on build fail")
 		}
 	}

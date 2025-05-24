@@ -50,7 +50,7 @@ func NewArtifactManager(u string, t string) *ArtifactManager {
 
 func (am *ArtifactManager) UpdateFailedImage(ctx gocontext.Context, customImageId int, reason string) (bool, error) {
 	d := map[string]string{
-		"state": "error",
+		"state":  "error",
 		"reason": reason,
 	}
 	return am.Patch(ctx, customImageId, d)
@@ -101,7 +101,7 @@ func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (A
 	}
 	err = json.Unmarshal(responseBody, &imageResp)
 	if err != nil || imageResp.Image == nil {
-		return ArtifactManagerImage{}, fmt.Errorf("a DEBUGDEBUG Resp: %s", string(responseBody))
+		return ArtifactManagerImage{}, fmt.Errorf("error at ArtifactManager response: %s", string(responseBody))
 	}
 	return *imageResp.Image, nil
 }

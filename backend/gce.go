@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	mathrand "math/rand"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -1152,11 +1151,9 @@ func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttribu
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
-	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
-
 	_, span := trace.StartSpan(c.ctx, "GCE.GetImage")
 	defer span.End()
-	logger.Error(fmt.Sprintf("DEBUGDEBUG stepGetImage %v", c.startAttributes))
+
 	image, err := p.imageSelect(c.ctx, c.startAttributes)
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
@@ -1187,9 +1184,6 @@ func makeWindowsPassword() (string, error) {
 func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction {
 	_, span := trace.StartSpan(c.ctx, "GCE.RenderScript")
 	defer span.End()
-
-	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
-	logger.Error(fmt.Sprintf("DEBUGDEBUG stepRenderScript %v", c.startAttributes))
 
 	scriptBuf := bytes.Buffer{}
 	scriptData := gceStartupScriptData{
@@ -1247,7 +1241,6 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 	defer span.End()
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
-	logger.Error(fmt.Sprintf("DEBUGDEBUG stepInsertInstance %v", c.startAttributes))
 
 	if c.startAttributes.VMConfig.Zone != "" {
 		err := p.backoffRetry(ctx, func() error {
@@ -1340,7 +1333,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 			return multistep.ActionContinue
 		}
 	}
-	logger.Error(fmt.Sprintf("DEBUGDEBUG stepInsertInstance before Instances.Insert Instance p.projectID:%s, c.zoneName:%s, c.instance:%s", p.projectID, c.zoneName, prettyPrint(c.instance)))
+
 	err = p.backoffRetry(c.ctx, func() error {
 		_ = p.apiRateLimit(c.ctx)
 
@@ -1359,7 +1352,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		}
 
 		c.instanceInsertOpName = op.Name
-		logger.Error(fmt.Sprintf("DEBUGDEBUG stepInsertInstance op.Name:%s", op.Name))
+
 		return nil
 	})
 
@@ -1376,7 +1369,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		Message: "inserted instance",
 		State:   ProgressSuccess,
 	})
-	logger.Error("DEBUGDEBUG stepInsertInstance inserted instance")
+
 	return multistep.ActionContinue
 }
 
@@ -1389,7 +1382,6 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	defer context.TimeSince(c.ctx, "boot_poll_ip", time.Now())
 
 	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_provider")
-	logger.Error(fmt.Sprintf("DEBUGDEBUG stepWaitForInstanceIP %v", c.startAttributes))
 
 	gceInst := &gceInstance{
 		zoneName: c.zoneName,
@@ -1408,7 +1400,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		os:              c.startAttributes.OS,
 		windowsPassword: c.windowsPassword,
 	}
-	logger.Error(fmt.Sprintf("DEBUGDEBUG gceInst:%s", prettyPrint(gceInst)))
+
 	if c.instanceWarmedIP != "" {
 		logger.Debug("pre-warmed instance present, skipping boot poll")
 
@@ -1472,7 +1464,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 			c.errChan <- err
 			return multistep.ActionHalt
 		}
-		logger.Error(fmt.Sprintf("DEBUGDEBUG stepWaitForInstanceIP zoneOp.Status:%s zoneOp:%s", zoneOp.Status, prettyPrint(zoneOp)))
+
 		if zoneOp.Status == "RUNNING" || zoneOp.Status == "DONE" {
 			if zoneOp.Error != nil {
 				c.progresser.Progress(&ProgressEntry{
@@ -1580,7 +1572,6 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 	defer context.TimeSince(ctx, "image_select", time.Now())
 
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
-	logger.Error(fmt.Sprintf("DEBUGDEBUG imageSelect %d, %s, %d", startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId))
 	var (
 		imageName string
 		err       error
@@ -1588,8 +1579,7 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	if startAttributes.UsedCustomImageId != 0 {
 		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
-		logger.Info(fmt.Sprintf("using custom image %s", imageName))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG using custom image %s", imageName))
+		logger.Info(fmt.Sprintf("using custom image %s, ownerId: %d, ownerType: %s, usedCustomImageId: %d", imageName, startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId))
 	} else {
 		jobID, _ := context.JobIDFromContext(ctx)
 		repo, _ := context.RepositoryFromContext(ctx)
@@ -1626,10 +1616,8 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	var image *compute.Image
 	if startAttributes.UsedCustomImageId != 0 {
-		logger.Error(fmt.Sprintf("DEBUGDEBUG imageByName w projekcie %s", p.projectID))
 		image, err = p.imageByName(ctx, imageName)
 		if err != nil {
-			logger.Error(fmt.Sprintf("DEBUGDEBUG nie dziala getByName %s %v", imageName, err))
 			return nil, err
 		}
 	} else {
@@ -1638,8 +1626,6 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 			return nil, err
 		}
 	}
-
-	logger.Error(fmt.Sprintf("DEBUGDEBUG umage used %s %v", imageName, image))
 
 	p.imageCache.Store(imageName, image)
 
@@ -2308,7 +2294,6 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	i.createCustomImageName = createCustomImageName
 
 	logger.Info(fmt.Sprintf("creating custom image %s", createCustomImageName))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage createCustomImageName:%s", createCustomImageName))
 
 	c.imageName = createCustomImageName
 	runner := &multistep.BasicRunner{
@@ -2324,20 +2309,17 @@ func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName s
 	logger.Debug("selecting over error and done channels")
 	select {
 	case err := <-c.errChan:
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan1 %v", err))
 		image, err := i.client.Images.Get(i.projectID, createCustomImageName).Do()
 		if err != nil {
 			logger.Error(fmt.Sprintf("get custom image size failed %s", err.Error()))
 			return 0, "", "", err
 		}
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage w errChan2 %d, %s, %v", image.ArchiveSizeBytes, image.Architecture, err))
 		close(dotMakerDone)
 		return image.ArchiveSizeBytes, image.Architecture, i.os, err
 	case <-ctx.Done():
 		if ctx.Err() == gocontext.DeadlineExceeded {
 			metrics.Mark("worker.vm.provider.gce.stop.timeout")
 		}
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.CreateImage po getCustomImage:%d, %s", c.imageSize, c.imageArchitecture))
 		close(dotMakerDone)
 		return c.imageSize, c.imageArchitecture, i.os, ctx.Err()
 	}
@@ -2483,7 +2465,6 @@ func (i *gceInstance) stepStartInstance(c *gceInstanceStopContext) multistep.Ste
 }
 
 func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) multistep.StepAction {
-	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
 	err := i.provider.backoffRetry(c.ctx, func() error {
 		ci := &compute.Image{
 			Name:        i.createCustomImageName,
@@ -2491,11 +2472,7 @@ func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) mul
 			Description: i.instance.Description,
 			Labels:      i.instance.Labels,
 		}
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance ci: %s", prettyPrint(ci)))
 		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance op: %v", op))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepCreateImageFromInstance i.projectID: %s", i.projectID))
-
 		if err != nil {
 			return err
 		}
@@ -2552,9 +2529,6 @@ func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multist
 		globalOp, err := i.client.GlobalOperations.
 			Get(i.projectID, c.instanceCreateImageOp.Name).
 			Do()
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp: %v", globalOp))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp err: %v", err))
-		logger.Info(fmt.Sprintf("DEBUGDEBUG gce.stepWaitForImageCreated zoneOp.Status: %s", globalOp.Status))
 		if err != nil {
 			return err
 		}
@@ -2724,102 +2698,4 @@ func (i *gceInstance) ImageName() string {
 
 func (i *gceInstance) StartupDuration() time.Duration {
 	return i.startupDuration
-}
-
-// DEBUGDEBUG TODO remove it!
-func prettyPrint(i interface{}) string {
-	s, _ := json.MarshalIndent(i, "", "\t")
-	return string(s)
-}
-
-func (i *gceInstance) checkConnection(ctx gocontext.Context) error {
-	defer context.TimeSince(ctx, "boot_poll_ssh", time.Now())
-
-	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
-
-	ip, err := i.getCachedIP(ctx)
-	if err != nil {
-		logger.Debug(fmt.Sprintf("instance getCachedIP error: %v", err))
-		return err
-	}
-
-	connectedChan := make(chan error)
-	var lastErr error
-
-	port := 22
-	connType := "ssh"
-	if i.os == "windows" {
-		connType = "winrm"
-		port = 5986
-	}
-
-	waitStart := time.Now().UTC()
-	i.progresser.Progress(&ProgressEntry{
-		Message:   fmt.Sprintf("waiting for %s connectivity...", connType),
-		State:     ProgressNeutral,
-		Continues: true,
-	})
-
-	go func() {
-		var errCount uint64
-		for {
-			if ctx.Err() != nil {
-				return
-			}
-
-			err := checkPortConnection(ip, port)
-			if err != nil {
-				logger.Debug(fmt.Sprintf("connection test errored, ip %s port %d", ip, port))
-			} else {
-				timeToConn := time.Now().UTC().Sub(waitStart).Truncate(time.Millisecond)
-				i.progresser.Progress(&ProgressEntry{
-					Message:    fmt.Sprintf("%s connectivity established (%s)", connType, timeToConn),
-					State:      ProgressSuccess,
-					Interrupts: true,
-				})
-				i.progresser.Progress(&ProgressEntry{
-					Message: "connection test success",
-					State:   ProgressSuccess,
-				})
-				connectedChan <- nil
-				return
-			}
-
-			lastErr = err
-
-			errCount++
-			if errCount > i.provider.testConnectionRetries {
-				connectedChan <- err
-				return
-			}
-
-			i.progresser.Progress(&ProgressEntry{Message: ".", Raw: true})
-			var span *trace.Span
-			_, span = trace.StartSpan(ctx, "GCE.timeSleep.uploadRetry")
-			time.Sleep(i.provider.testConnectionRetrySleep)
-			span.End()
-
-		}
-	}()
-
-	select {
-	case err := <-connectedChan:
-		return err
-	case <-ctx.Done():
-		context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-			"err":  lastErr,
-			"self": "backend/gce_instance",
-		}).Info("stopping ssh/ connection retries, error from last attempt")
-		return ctx.Err()
-	}
-}
-
-func checkPortConnection(ip string, port int) error {
-	address := net.JoinHostPort(ip, strconv.Itoa(port))
-	conn, err := net.DialTimeout("tcp", address, sshTestConnectionTimeout)
-	if err != nil {
-		return fmt.Errorf("cannot connect to %s on port %d", ip, port)
-	}
-	defer conn.Close()
-	return nil
 }

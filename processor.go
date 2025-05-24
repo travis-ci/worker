@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -228,17 +227,16 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("userId", buildJob.Payload().TriggererId)
 
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"job_id": buildJob.Payload().Job.ID,
-		"self":   "processor",
+		"job_id":                      buildJob.Payload().Job.ID,
+		"triggerer_id":                buildJob.Payload().TriggererId,
+		"createdCustomImageOwnerId":   buildJob.Payload().Job.CreatedCustomImage.Owner.Id,
+		"createdCustomImageOwnerType": buildJob.Payload().Job.CreatedCustomImage.Owner.Type,
+		"usedCustomImageOwnerId":      buildJob.Payload().Job.UsedCustomImage.Owner.Id,
+		"usedCustomImageOwnerType":    buildJob.Payload().Job.UsedCustomImage.Owner.Type,
+		"createdCustomImageId":        buildJob.Payload().Job.CreatedCustomImage.Id,
+		"usedCustomImageId":           buildJob.Payload().Job.UsedCustomImage.Id,
+		"self":                        "processor",
 	})
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload(): %v", buildJob.Payload().Job))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().TriggererId: %d", buildJob.Payload().TriggererId))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Id: %d", buildJob.Payload().Job.CreatedCustomImage.Owner.Id))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().CreatedCustomImage.Owner.Type: %s", buildJob.Payload().Job.CreatedCustomImage.Owner.Type))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Id: %d", buildJob.Payload().Job.UsedCustomImage.Owner.Id))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process buildJob.Payload().UsedCustomImage.Owner.Type: %s", buildJob.Payload().Job.UsedCustomImage.Owner.Type))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process createdCustomImageId: %d", buildJob.Payload().Job.CreatedCustomImage.Id))
-	logger.Info(fmt.Sprintf("DEBUGDEBUG process usedCustomImageId: %d", buildJob.Payload().Job.UsedCustomImage.Id))
 
 	logTimeout := p.config.LogTimeout
 	if buildJob.Payload().Timeouts.LogSilence != 0 {
