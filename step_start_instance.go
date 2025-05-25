@@ -2,7 +2,6 @@ package worker
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	gocontext "context"
@@ -79,12 +78,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
 			return multistep.ActionHalt
 		}
-	}
-	if usedCustomImageId == 0 && usedCustomImageName != "" {
-		writeSingleLine(logWriter, []byte(strings.Join([]string{
-			fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName),
-		}, "\n")))
-		return multistep.ActionHalt
 	}
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
 		var progresser backend.Progresser

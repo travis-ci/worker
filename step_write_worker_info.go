@@ -37,6 +37,12 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 				fmt.Sprintf("Using custom build environment image %s %s. See <link to the documentation>.", usedCustomImageName, instance.ImageName()),
 			}, "\n")))
 		}
+		if usedCustomImageId == 0 && usedCustomImageName != "" {
+			writeSingleLine(logWriter, []byte(strings.Join([]string{
+				fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName),
+			}, "\n")))
+			return multistep.ActionHalt
+		}
 	}
 
 	return multistep.ActionContinue
