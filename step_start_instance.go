@@ -65,9 +65,18 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob.StartAttributes().UsedCustomImageId = usedCustomImageId
 	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
+	logger.Error(fmt.Sprintf("DEBUGDEBUG userId %d", userId))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG OwnerId %d", ownerId))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG OwnerType %s", ownerType))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG CreatedCustomImageId %d", createdCustomImageId))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG CreatedCustomImageName %s", createdCustomImageName))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG UsedCustomImageId %d", usedCustomImageId))
+	logger.Error(fmt.Sprintf("DEBUGDEBUG UsedCustomImageName %s", usedCustomImageName))
+
 	if usedCustomImageId != 0 {
 		_, err := s.artifactManager.UseImage(ctx, usedCustomImageId)
 		if err != nil {
+			logger.Error(fmt.Sprintf("DEBUGDEBUG failed to call UseImage at ArtifactManager %v", err))
 			if err.Error() == "image not available" {
 				writeSingleLine(logWriter, []byte(strings.Join([]string{
 					fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName),
