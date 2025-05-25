@@ -64,14 +64,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob.StartAttributes().UsedCustomImageId = usedCustomImageId
 	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
-	logger.Error(fmt.Sprintf("DEBUGDEBUG userId %d", userId))
-	logger.Error(fmt.Sprintf("DEBUGDEBUG OwnerId %d", ownerId))
-	logger.Error(fmt.Sprintf("DEBUGDEBUG OwnerType %s", ownerType))
-	logger.Error(fmt.Sprintf("DEBUGDEBUG CreatedCustomImageId %d", createdCustomImageId))
-	logger.Error(fmt.Sprintf("DEBUGDEBUG CreatedCustomImageName %s", createdCustomImageName))
-	logger.Error(fmt.Sprintf("DEBUGDEBUG UsedCustomImageId %d", usedCustomImageId))
-	logger.Error(fmt.Sprintf("DEBUGDEBUG UsedCustomImageName %s", usedCustomImageName))
-
 	if usedCustomImageId != 0 {
 		_, err := s.artifactManager.UseImage(ctx, usedCustomImageId)
 		if err != nil {

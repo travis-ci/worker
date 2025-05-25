@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/mitchellh/multistep"
-	"github.com/pkg/errors"
 	"github.com/travis-ci/worker/backend"
+	"github.com/travis-ci/worker/context"
 	"go.opencensus.io/trace"
 )
 
@@ -39,10 +39,16 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 			}, "\n")))
 		}
 		if usedCustomImageId == 0 && usedCustomImageName != "" {
+			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName)
 			writeSingleLine(logWriter, []byte(strings.Join([]string{
-				fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName),
+				msg,
 			}, "\n")))
-			state.Put("err", errors.New("job errored"))
+
+			err := buildJob.Error(ctx, msg)
+			if err != nil {
+				logger := context.LoggerFromContext(ctx).WithField("self", "step_write_worker_info")
+				logger.WithField("err", err).Error("couldn't error the job")
+			}
 			return multistep.ActionHalt
 		}
 	}
