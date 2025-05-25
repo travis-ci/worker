@@ -34,7 +34,7 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 		}, "\n")))
 		if usedCustomImageId != 0 {
 			writeSingleLine(logWriter, []byte(strings.Join([]string{
-				fmt.Sprintf("[OK \033[33;1mUsing custom build environment image %s %s. See <link to the documentation>.\033[0m", usedCustomImageName, instance.ImageName()),
+				fmt.Sprintf("Using custom build environment image %s %s. See <link to the documentation>.", usedCustomImageName, instance.ImageName()),
 			}, "\n")))
 		}
 	}
