@@ -76,16 +76,15 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	if usedCustomImageId != 0 {
 		_, err := s.artifactManager.UseImage(ctx, usedCustomImageId)
 		if err != nil {
-			logger.Error(fmt.Sprintf("DEBUGDEBUG failed to call UseImage at ArtifactManager %v", err))
-			if err.Error() == "image not available" {
-				writeSingleLine(logWriter, []byte(strings.Join([]string{
-					fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName),
-				}, "\n")))
-				return multistep.ActionHalt
-			}
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
 			return multistep.ActionHalt
 		}
+	}
+	if usedCustomImageId == 0 && usedCustomImageName != "" {
+		writeSingleLine(logWriter, []byte(strings.Join([]string{
+			fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName),
+		}, "\n")))
+		return multistep.ActionHalt
 	}
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
 		var progresser backend.Progresser
