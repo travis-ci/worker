@@ -65,7 +65,7 @@ func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int,
 	return am.Patch(ctx, customImageId, d)
 }
 
-func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (ArtifactManagerImage, error) {
+func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int, userId int) (ArtifactManagerImage, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s/image/%d/use", am.baseURL, customImageId)
 	req, err := http.NewRequest("PATCH", url, bytes.NewReader([]byte("")))
@@ -81,6 +81,7 @@ func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (A
 	req.Header.Add("Content-Type", "application/json")
 	sEnc := base64.StdEncoding.EncodeToString([]byte("_:" + am.authToken))
 	req.Header.Add("Authorization", "Basic "+sEnc)
+	req.Header.Add("X-Travis-User-Id", strconv.Itoa(userId))
 	req.Header.Add("From", processorID)
 	req = req.WithContext(ctx)
 
