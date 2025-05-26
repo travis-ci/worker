@@ -90,7 +90,7 @@ func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int) (A
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 401 {
+	if resp.StatusCode == 401 {
 		return ArtifactManagerImage{}, fmt.Errorf("image not available")
 	}
 
