@@ -40,11 +40,11 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 		}
 		if usedCustomImageId == 0 && usedCustomImageName != "" {
 			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName)
-			// writeSingleLine(logWriter, []byte(strings.Join([]string{
-			// 	msg,
-			// }, "\n")))
+			writeSingleLine(logWriter, []byte(strings.Join([]string{
+				msg,
+			}, "\n")))
 
-			err := buildJob.Error(ctx, msg)
+			err := buildJob.Error(ctx, "abctest")
 			if err != nil {
 				logger := context.LoggerFromContext(ctx).WithField("self", "step_write_worker_info")
 				logger.WithField("err", err).Error("couldn't error the job")
