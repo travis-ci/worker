@@ -169,7 +169,8 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 	createdCustomImageName, ok2 := state.Get("createdCustomImageName").(string)
 	ownerId, ok3 := state.Get("ownerId").(int)
 	ownerType, ok4 := state.Get("ownerType").(string)
-	createConditionsOk := ok1 && ok2 && ok3 && ok4 && createdCustomImageId != 0 && createdCustomImageName != ""
+	userId, ok5 := state.Get("userId").(int)
+	createConditionsOk := ok1 && ok2 && ok3 && ok4 && ok5 && createdCustomImageId != 0 && createdCustomImageName != ""
 
 	if can_create && createConditionsOk {
 		createCustomImageName := s.artifactManager.GenerateCustomImageName(ownerId, ownerType, createdCustomImageId)
@@ -184,7 +185,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		}
 		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName, logWriterFunc); err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
-			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, "create error")
+			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, "create error", userId)
 			if err != nil {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image fail status")
 			} else {
@@ -192,7 +193,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			}
 		} else {
 			logger.Info(fmt.Sprintf("custom image id: %d, name: %s, arch: %s, os: %s created with size: %d", createdCustomImageId, createCustomImageName, arch, os, size))
-			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os)
+			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os, userId)
 			if err != nil {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
 			} else {
@@ -209,7 +210,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		if buildJob.FinishState() == FinishStateErrored {
 			reason = "job error"
 		}
-		_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, reason)
+		_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, reason, userId)
 		if err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image status on build fail")
 		}

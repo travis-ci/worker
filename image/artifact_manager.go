@@ -48,21 +48,21 @@ func NewArtifactManager(u string, t string) *ArtifactManager {
 	}
 }
 
-func (am *ArtifactManager) UpdateFailedImage(ctx gocontext.Context, customImageId int, reason string) (bool, error) {
+func (am *ArtifactManager) UpdateFailedImage(ctx gocontext.Context, customImageId int, reason string, userId int) (bool, error) {
 	d := map[string]string{
 		"state":  "error",
 		"reason": reason,
 	}
-	return am.Patch(ctx, customImageId, d)
+	return am.Patch(ctx, customImageId, d, userId)
 }
 
-func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int, size int64, architecture string, os_version string) (bool, error) {
+func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int, size int64, architecture string, os_version string, userId int) (bool, error) {
 	d := map[string]string{
 		"size_bytes":   strconv.FormatInt(size, 10),
 		"architecture": architecture,
 		"os_version":   os_version,
 	}
-	return am.Patch(ctx, customImageId, d)
+	return am.Patch(ctx, customImageId, d, userId)
 }
 
 func (am *ArtifactManager) UseImage(ctx gocontext.Context, customImageId int, userId int) (ArtifactManagerImage, error) {
@@ -162,7 +162,7 @@ func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, us
 	return *imageResp.Image, nil
 }
 
-func (am *ArtifactManager) Patch(ctx gocontext.Context, customImageId int, data map[string]string) (bool, error) {
+func (am *ArtifactManager) Patch(ctx gocontext.Context, customImageId int, data map[string]string, userId int) (bool, error) {
 	client := &http.Client{}
 
 	marshalled, err := json.Marshal(data)
@@ -183,6 +183,7 @@ func (am *ArtifactManager) Patch(ctx gocontext.Context, customImageId int, data 
 	req.Header.Add("Content-Type", "application/json")
 	sEnc := base64.StdEncoding.EncodeToString([]byte("_:" + am.authToken))
 	req.Header.Add("Authorization", "Basic "+sEnc)
+	req.Header.Add("X-Travis-User-Id", strconv.Itoa(userId))
 	req.Header.Add("From", processorID)
 	req = req.WithContext(ctx)
 
