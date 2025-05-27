@@ -44,7 +44,7 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 				msg,
 			}, "\n")))
 
-			err := buildJob.Error(ctx, "")
+			err := buildJob.Error(ctx, " ")
 			if err != nil {
 				logger := context.LoggerFromContext(ctx).WithField("self", "step_write_worker_info")
 				logger.WithField("err", err).Error("couldn't error the job")
