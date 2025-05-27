@@ -2,6 +2,7 @@ package worker
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	gocontext "context"
@@ -65,10 +66,16 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
 	if usedCustomImageId != 0 {
-		_, err := s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
+		image, err := s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
 			return multistep.ActionHalt
+		}
+		if image.State == "error" {
+			writeSingleLine(logWriter, []byte(strings.Join([]string{
+				fmt.Sprintf("Custom build image %s %s is in error stage.", usedCustomImageName, instance.ImageName()),
+			}, "\n")))
+			buildJob.Error(ctx, " ")
 		}
 	}
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
