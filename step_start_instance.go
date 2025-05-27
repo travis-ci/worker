@@ -72,10 +72,14 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 		if image.State != "available" {
+			imageName := ""
+			if instance != nil {
+				imageName = instance.ImageName()
+			}
 			writeSingleLine(logWriter, []byte(strings.Join([]string{
-				fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, instance.ImageName(), image.State),
+				fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, imageName, image.State),
 			}, "\n")))
-			buildJob.Error(ctx, " ")
+			buildJob.Error(ctx, " \n")
 		}
 	}
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
