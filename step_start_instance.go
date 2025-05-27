@@ -71,9 +71,9 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
 			return multistep.ActionHalt
 		}
-		if image.State == "error" {
+		if image.State != "available" {
 			writeSingleLine(logWriter, []byte(strings.Join([]string{
-				fmt.Sprintf("Custom build image %s %s is in error state.", usedCustomImageName, instance.ImageName()),
+				fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, instance.ImageName(), image.State),
 			}, "\n")))
 			buildJob.Error(ctx, " ")
 		}
