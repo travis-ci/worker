@@ -73,7 +73,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		}
 		if image.State == "error" {
 			writeSingleLine(logWriter, []byte(strings.Join([]string{
-				fmt.Sprintf("Custom build image %s %s is in error stage.", usedCustomImageName, instance.ImageName()),
+				fmt.Sprintf("Custom build image %s %s is in error state.", usedCustomImageName, instance.ImageName()),
 			}, "\n")))
 			buildJob.Error(ctx, " ")
 		}
