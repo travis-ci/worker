@@ -40,7 +40,6 @@ func (s *stepWriteWorkerInfo) Run(state multistep.StateBag) multistep.StepAction
 		}
 		if usedCustomImageId == 0 && usedCustomImageName != "" {
 			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName)
-			logWriter.WriteAndClose([]byte(msg))
 
 			err := buildJob.Error(ctx, msg)
 			if err != nil {

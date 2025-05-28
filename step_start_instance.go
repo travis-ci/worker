@@ -70,7 +70,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
 
 			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName)
-			//logWriter.WriteAndClose([]byte(msg))
 
 			err := buildJob.Error(ctx, msg)
 			if err != nil {
@@ -84,7 +83,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 				imageName = instance.ImageName()
 			}
 			msg := fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, imageName, image.State)
-			//logWriter.WriteAndClose([]byte(msg))
 			err := buildJob.Error(ctx, msg)
 			if err != nil {
 				logger.WithField("err", err).Error("couldn't error the job")
