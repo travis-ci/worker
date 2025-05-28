@@ -2,7 +2,6 @@ package worker
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	gocontext "context"
@@ -69,6 +68,14 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		image, err := s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
+
+			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.", usedCustomImageName)
+			logWriter.WriteAndClose([]byte(msg))
+
+			err := buildJob.Error(ctx, msg)
+			if err != nil {
+				logger.WithField("err", err).Error("couldn't error the job")
+			}
 			return multistep.ActionHalt
 		}
 		if image.State != "available" {
@@ -76,10 +83,13 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			if instance != nil {
 				imageName = instance.ImageName()
 			}
-			writeSingleLine(logWriter, []byte(strings.Join([]string{
-				fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, imageName, image.State),
-			}, "\n")))
-			buildJob.Error(ctx, " \n")
+			msg := fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, imageName, image.State)
+			logWriter.WriteAndClose([]byte(msg))
+			err := buildJob.Error(ctx, msg)
+			if err != nil {
+				logger.WithField("err", err).Error("couldn't error the job")
+			}
+			return multistep.ActionHalt
 		}
 	}
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
