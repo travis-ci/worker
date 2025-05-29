@@ -77,7 +77,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		image, err := s.artifactManager.GetImage(ctx, usedCustomImageName, userId, ownerId, ownerType)
 		if err != nil {
 			logger.WithField("err", err).Error("failed to call GetImage at ArtifactManager")
-			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis1.\n", usedCustomImageName)
+			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.\n", usedCustomImageName)
 			logWriter.WriteAndClose([]byte(msg))
 			err := buildJob.Finish(ctx, FinishStateErrored)
 			if err != nil {
@@ -85,8 +85,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			}
 			return multistep.ActionHalt
 		}
-
-		logger.Error(fmt.Sprintf("DEBUGDEBUG usedCustomImageId:%d usedCustomImageName:%s state: %s %v", usedCustomImageId, usedCustomImageName, image.State, image))
 
 		if image.State == "creating" {
 			err := buildJob.Requeue(preTimeoutCtx)
@@ -99,8 +97,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		_, err = s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
-			logger.Error(fmt.Sprintf("\nDEBUGDEBUG state: %s", image.State))
-			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis2.\n", usedCustomImageName)
+			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.\n", usedCustomImageName)
 			logWriter.WriteAndClose([]byte(msg))
 			err := buildJob.Finish(ctx, FinishStateErrored)
 			if err != nil {
