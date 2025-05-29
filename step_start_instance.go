@@ -77,7 +77,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
-		if image.State == "pending" || image.State == "creating" {
+		if image.State == "creating" {
 			err := buildJob.Requeue(preTimeoutCtx)
 			if err != nil {
 				logger.WithField("err", err).Error("couldn't requeue the job")
@@ -209,11 +209,17 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		logWriterFunc := func(value string) {
 			fmt.Fprintf(logWriter, value)
 		}
+		_, err := s.artifactManager.UpdateCreatingImage(ctx, createdCustomImageId, userId)
+		if err != nil {
+			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image creating status")
+		} else {
+			fmt.Fprintf(logWriter, "\nCustom image successfully updated for creating.\n")
+		}
 		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName, logWriterFunc); err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
 			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, "create error", userId)
 			if err != nil {
-				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image fail status")
+				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image fail status")
 			} else {
 				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}

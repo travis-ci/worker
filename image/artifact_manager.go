@@ -56,6 +56,13 @@ func (am *ArtifactManager) UpdateFailedImage(ctx gocontext.Context, customImageI
 	return am.Patch(ctx, customImageId, d, userId)
 }
 
+func (am *ArtifactManager) UpdateCreatingImage(ctx gocontext.Context, customImageId int, userId int) (bool, error) {
+	d := map[string]string{
+		"state": "creating",
+	}
+	return am.Patch(ctx, customImageId, d, userId)
+}
+
 func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int, size int64, architecture string, os_version string, userId int) (bool, error) {
 	d := map[string]string{
 		"size_bytes":   strconv.FormatInt(size, 10),
