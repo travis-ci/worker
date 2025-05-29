@@ -76,7 +76,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			}
 			return multistep.ActionHalt
 		}
-		logger.Error(fmt.Sprintf("\nDEBUGDEBUG createdCustomImageId:%d createdCustomImageName:%s usedCustomImageId:%d usedCustomImageName:%s %v", createdCustomImageId, createdCustomImageName, usedCustomImageId, usedCustomImageName, image))
+
 		if image.State == "pending" || image.State == "creating" {
 			err := buildJob.Requeue(preTimeoutCtx)
 			if err != nil {
@@ -84,6 +84,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			}
 			return multistep.ActionHalt
 		}
+
 		_, err = s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
@@ -95,18 +96,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			}
 			return multistep.ActionHalt
 		}
-		// if image.State != "available" {
-		// 	imageName := ""
-		// 	if instance != nil {
-		// 		imageName = instance.ImageName()
-		// 	}
-		// 	msg := fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, imageName, image.State)
-		// 	logWriter.WriteAndClose([]byte(msg))
-		// 	err := buildJob.Finish(ctx, FinishStateErrored)
-		// 	if err != nil {
-		// 		logger.WithField("err", err).Error("couldn't error the job")
-		// 	}
-		// }
 	}
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
 		var progresser backend.Progresser
