@@ -64,6 +64,15 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob.StartAttributes().UsedCustomImageId = usedCustomImageId
 	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
+	if createdCustomImageId != 0 {
+		_, err = s.artifactManager.UpdateCreatingImage(ctx, createdCustomImageId, userId)
+		if err != nil {
+			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image creating status")
+		} else {
+			fmt.Fprintf(logWriter, "\nCustom image successfully updated for creating.\n")
+		}
+	}
+
 	if usedCustomImageId != 0 {
 		image, err := s.artifactManager.GetImage(ctx, usedCustomImageName, userId, ownerId, ownerType)
 		if err != nil {
@@ -76,7 +85,8 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			}
 			return multistep.ActionHalt
 		}
-		logger.Error(fmt.Sprintf("\nDEBUGDEBUG usedCustomImageId:%d usedCustomImageName:%s state: %s %v", usedCustomImageId, usedCustomImageName, image.State, image))
+
+		logger.Error(fmt.Sprintf("DEBUGDEBUG usedCustomImageId:%d usedCustomImageName:%s state: %s %v", usedCustomImageId, usedCustomImageName, image.State, image))
 
 		if image.State == "creating" {
 			err := buildJob.Requeue(preTimeoutCtx)
@@ -89,6 +99,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		_, err = s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
 		if err != nil {
 			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
+			logger.Error(fmt.Sprintf("\nDEBUGDEBUG state: %s", image.State))
 			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis2.\n", usedCustomImageName)
 			logWriter.WriteAndClose([]byte(msg))
 			err := buildJob.Finish(ctx, FinishStateErrored)
@@ -209,12 +220,6 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 		}
 		logWriterFunc := func(value string) {
 			fmt.Fprintf(logWriter, value)
-		}
-		_, err := s.artifactManager.UpdateCreatingImage(ctx, createdCustomImageId, userId)
-		if err != nil {
-			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image creating status")
-		} else {
-			fmt.Fprintf(logWriter, "\nCustom image successfully updated for creating.\n")
 		}
 		if size, arch, os, err := instance.CreateImage(ctx, createCustomImageName, logWriterFunc); err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create custom image")
