@@ -120,7 +120,7 @@ func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, us
 	url := fmt.Sprintf("%s/image/%d", am.baseURL, customImageId)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return ArtifactManagerImage{}, fmt.Errorf("failed to make http request: %s", err)
+		return ArtifactManagerImage{}, fmt.Errorf("failed to make http request GET %s  %s", url, err)
 	}
 
 	processorID, ok := context.ProcessorFromContext(ctx)
