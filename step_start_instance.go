@@ -65,10 +65,10 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
 	if usedCustomImageId != 0 {
-		image, err := s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
+		image, err := s.artifactManager.GetImage(ctx, usedCustomImageId, userId)
 		if err != nil {
-			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
-			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis1.\n", usedCustomImageName)
+			logger.WithField("err", err).Error("failed to call GetImage at ArtifactManager")
+			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.\n", usedCustomImageName)
 			logWriter.WriteAndClose([]byte(msg))
 			err := buildJob.Finish(ctx, FinishStateErrored)
 			if err != nil {
@@ -76,18 +76,36 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			}
 			return multistep.ActionHalt
 		}
-		if image.State != "available" {
-			imageName := ""
-			if instance != nil {
-				imageName = instance.ImageName()
+		if image.State == "pending" || image.State == "creating" {
+			err := buildJob.Requeue(preTimeoutCtx)
+			if err != nil {
+				logger.WithField("err", err).Error("couldn't requeue the job")
 			}
-			msg := fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, imageName, image.State)
+			return multistep.ActionHalt
+		}
+		_, err = s.artifactManager.UseImage(ctx, usedCustomImageId, userId)
+		if err != nil {
+			logger.Error(fmt.Sprintf("failed to call UseImage at ArtifactManager %v", err))
+			msg := fmt.Sprintf("Cannot find custom build environment identifier %s under the account managing this repository in Travis.\n", usedCustomImageName)
 			logWriter.WriteAndClose([]byte(msg))
 			err := buildJob.Finish(ctx, FinishStateErrored)
 			if err != nil {
 				logger.WithField("err", err).Error("couldn't error the job")
 			}
+			return multistep.ActionHalt
 		}
+		// if image.State != "available" {
+		// 	imageName := ""
+		// 	if instance != nil {
+		// 		imageName = instance.ImageName()
+		// 	}
+		// 	msg := fmt.Sprintf("Custom build image %s %s is in %s state.", usedCustomImageName, imageName, image.State)
+		// 	logWriter.WriteAndClose([]byte(msg))
+		// 	err := buildJob.Finish(ctx, FinishStateErrored)
+		// 	if err != nil {
+		// 		logger.WithField("err", err).Error("couldn't error the job")
+		// 	}
+		// }
 	}
 	if s.provider.SupportsProgress() && buildJob.StartAttributes().ProgressType != "" {
 		var progresser backend.Progresser
@@ -213,7 +231,7 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			logger.Info(fmt.Sprintf("custom image id: %d, name: %s, arch: %s, os: %s created with size: %d", createdCustomImageId, createCustomImageName, arch, os, size))
 			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os, userId)
 			if err != nil {
-				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't create update image size")
+				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image size")
 			} else {
 				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}
