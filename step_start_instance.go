@@ -65,7 +65,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 	buildJob.StartAttributes().UsedCustomImageName = usedCustomImageName
 
 	if usedCustomImageId != 0 {
-		image, err := s.artifactManager.GetImage(ctx, usedCustomImageId, userId)
+		image, err := s.artifactManager.GetImage(ctx, usedCustomImageId, userId, ownerId, ownerType)
 		logger.Debug(fmt.Printf("DEBUGDEBUG usedCustomImageId:%d userId:%d image:%v err:%v", usedCustomImageId, userId, image, err))
 		if err != nil {
 			logger.WithField("err", err).Error("failed to call GetImage at ArtifactManager")
