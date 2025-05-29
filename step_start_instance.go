@@ -76,6 +76,7 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 			}
 			return multistep.ActionHalt
 		}
+		logger.Error(fmt.Sprintf("\nDEBUGDEBUG usedCustomImageId:%d usedCustomImageName:%s state: %s %v", usedCustomImageId, usedCustomImageName, image.State, image))
 
 		if image.State == "creating" {
 			err := buildJob.Requeue(preTimeoutCtx)
