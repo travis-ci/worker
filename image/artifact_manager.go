@@ -115,9 +115,9 @@ func (am *ArtifactManager) GenerateCustomImageName(ownerId int, ownerType string
 	return fmt.Sprintf("customimage-%d-%s-%d", ownerId, ownerType, customImageId)
 }
 
-func (am *ArtifactManager) GetImage(ctx gocontext.Context, customImageId int, userId int, ownerId int, ownerType string) (ArtifactManagerImage, error) {
+func (am *ArtifactManager) GetImage(ctx gocontext.Context, usedCustomImageName string, userId int, ownerId int, ownerType string) (ArtifactManagerImage, error) {
 	client := &http.Client{}
-	url := fmt.Sprintf("%s/image/%s/%d/%d", am.baseURL, ownerType, ownerId, customImageId)
+	url := fmt.Sprintf("%s/image/%s/%d/%s", am.baseURL, ownerType, ownerId, usedCustomImageName)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return ArtifactManagerImage{}, fmt.Errorf("failed to make http request GET %s  %s", url, err)
