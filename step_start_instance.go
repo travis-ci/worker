@@ -68,8 +68,6 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		_, err = s.artifactManager.UpdateCreatingImage(ctx, createdCustomImageId, userId)
 		if err != nil {
 			logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image creating status")
-		} else {
-			fmt.Fprintf(logWriter, "\nCustom image successfully updated for creating.\n")
 		}
 	}
 
