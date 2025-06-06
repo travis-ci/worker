@@ -24,6 +24,7 @@ type ArtifactManagerImage struct {
 	GoogleId      string `json:"google_id"`
 	State         string `json:"state"`
 	SizeBytes     int64  `json:"size_bytes"`
+	Os            string `json:"os"`
 	OsVersion     string `json:"os_version"`
 	Labels        string `json:"labels"`
 	Description   string `json:"description"`
@@ -63,10 +64,11 @@ func (am *ArtifactManager) UpdateCreatingImage(ctx gocontext.Context, customImag
 	return am.Patch(ctx, customImageId, d, userId)
 }
 
-func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int, size int64, architecture string, os_version string, userId int) (bool, error) {
+func (am *ArtifactManager) UpdateImage(ctx gocontext.Context, customImageId int, size int64, architecture string,os string, os_version string, userId int) (bool, error) {
 	d := map[string]string{
 		"size_bytes":   strconv.FormatInt(size, 10),
 		"architecture": architecture,
+		"os":           os,
 		"os_version":   os_version,
 	}
 	return am.Patch(ctx, customImageId, d, userId)

@@ -225,8 +225,9 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}
 		} else {
-			logger.Info(fmt.Sprintf("custom image id: %d, name: %s, arch: %s, os: %s created with size: %d", createdCustomImageId, createCustomImageName, arch, os, size))
-			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os, userId)
+			dist := buildJob.StartAttributes().Dist
+			logger.Info(fmt.Sprintf("custom image id: %d, name: %s, arch: %s, os: %s, dist: %s created with size: %d", createdCustomImageId, createCustomImageName, arch, os, dist, size))
+			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os, dist, userId)
 			if err != nil {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image size")
 			} else {
