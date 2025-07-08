@@ -221,9 +221,8 @@ func (s *stepStartInstance) Cleanup(state multistep.StateBag) {
 			_, err := s.artifactManager.UpdateFailedImage(ctx, createdCustomImageId, "create error", userId)
 			if err != nil {
 				logger.WithFields(logrus.Fields{"err": err, "instance": instance}).Warn("couldn't update image fail status")
-			} else {
-				fmt.Fprintf(logWriter, "\nCustom image successfully created.\n")
 			}
+			fmt.Fprintf(logWriter, "\nCouldn't create custom image.\n")
 		} else {
 			logger.Info(fmt.Sprintf("custom image id: %d, name: %s, arch: %s, os: %s created with size: %d", createdCustomImageId, createCustomImageName, arch, os, size))
 			_, err := s.artifactManager.UpdateImage(ctx, createdCustomImageId, size, arch, os, userId)
