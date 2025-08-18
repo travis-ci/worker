@@ -77,6 +77,7 @@ func TestFromCLIContext_SetsStringFlags(t *testing.T) {
 		"--queue-name=name",
 		"--queue-type=type",
 		"--sentry-dsn=dsn",
+		"--artifact-manager-api-uri=http://artifact-manager/api",
 	}, func(c *cli.Context) error {
 		cfg := FromCLIContext(c)
 

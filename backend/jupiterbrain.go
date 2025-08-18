@@ -486,6 +486,14 @@ func (i *jupiterBrainInstance) DownloadTrace(ctx gocontext.Context) ([]byte, err
 	return buf, nil
 }
 
+func (i *jupiterBrainInstance) StopOnly(ctx gocontext.Context) error {
+	return nil
+}
+
+func (i *jupiterBrainInstance) CreateImage(ctx gocontext.Context, createCustomImageName string, logWriterFunc func(string)) (int64, string, string, error) {
+	return 0, "", "", nil
+}
+
 func (i *jupiterBrainInstance) Stop(ctx gocontext.Context) error {
 	err := i.provider.apiClient.Stop(ctx, i.payload.ID)
 	return errors.Wrap(err, "error sending Stop request to Jupiter Brain")
@@ -708,6 +716,10 @@ func (ac *jupiterBrainAPIClient) Get(ctx gocontext.Context, id string) (*jupiter
 	}
 
 	return dataPayload.Data[0], nil
+}
+
+func (ac *jupiterBrainAPIClient) StopOnly(ctx gocontext.Context, id string) error {
+	return nil
 }
 
 func (ac *jupiterBrainAPIClient) Stop(ctx gocontext.Context, id string) error {

@@ -2,6 +2,8 @@ package backend
 
 import (
 	"time"
+
+	"github.com/travis-ci/worker/image"
 )
 
 type VmConfig struct {
@@ -44,6 +46,26 @@ type StartAttributes struct {
 	// ProgressType isn't stored in the config directly, but is injected from
 	// the processor
 	ProgressType string `json:"-"`
+
+	// ArtifactManager
+	ArtifactManager *image.ArtifactManager `json:"-"`
+
+	// Custom image id if needs to be used
+	UsedCustomImageId   int    `json:"-"`
+	UsedCustomImageName string `json:"-"`
+
+	// Custom image id if needs to saved
+	CreatedCustomImageId   int    `json:"-"`
+	CreatedCustomImageName string `json:"-"`
+
+	// Owner Id
+	OwnerId int `json:"-"`
+
+	// Owner Id
+	OwnerType string `json:"-"`
+
+	// User Id (of the build)
+	UserId int `json:"-"`
 }
 
 // SetDefaults sets any missing required attributes to the default values provided

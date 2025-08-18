@@ -130,6 +130,14 @@ func (i *localInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 	return nil, ErrDownloadTraceNotImplemented
 }
 
+func (i *localInstance) StopOnly(ctx gocontext.Context) error {
+	return nil
+}
+
+func (i *localInstance) CreateImage(ctx gocontext.Context, createCustomImageName string, logWriterFunc func(string)) (int64, string, string, error) {
+	return 0, "", "", nil
+}
+
 func (i *localInstance) Stop(ctx gocontext.Context) error {
 	return nil
 }

@@ -673,6 +673,14 @@ func (i *ec2Instance) runScriptSSH(ctx gocontext.Context, output io.Writer) (*Ru
 	return &RunResult{Completed: err != nil, ExitCode: exitStatus}, errors.Wrap(err, "error running script")
 }
 
+func (i *ec2Instance) StopOnly(ctx gocontext.Context) error {
+	return nil
+}
+
+func (i *ec2Instance) CreateImage(ctx gocontext.Context, createCustomImageName string, logWriterFunc func(string)) (int64, string, string, error) {
+	return 0, "", "", nil
+}
+
 func (i *ec2Instance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/ec2_provider")
 	//hostName := hostnameFromContext(ctx)

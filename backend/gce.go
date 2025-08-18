@@ -49,24 +49,26 @@ import (
 )
 
 const (
-	defaultGCEZone               = "us-central1-a"
-	defaultGCEMachineType        = "n1-standard-2"
-	defaultGCEPremiumMachineType = "n1-standard-4"
-	defaultGCENetwork            = "default"
-	defaultGCEDiskSize           = int64(20)
-	defaultGCELanguage           = "minimal"
-	defaultGCEBootPollSleep      = 3 * time.Second
-	defaultGCEBootPrePollSleep   = 15 * time.Second
-	defaultGCEStopPollSleep      = 3 * time.Second
-	defaultGCEStopPrePollSleep   = 15 * time.Second
-	defaultGCESubnet             = "default"
-	defaultGCERegion             = "us-central1"
-	defaultGCEUploadRetries      = uint64(120)
-	defaultGCEUploadRetrySleep   = 1 * time.Second
-	defaultGCEImageSelectorType  = "env"
-	defaultGCEImage              = "travis-ci.+"
-	defaultGCEGpuCount           = int64(0)
-	defaultGCEGpuType            = "nvidia-tesla-p100"
+	defaultGCEZone                     = "us-central1-a"
+	defaultGCEMachineType              = "n1-standard-2"
+	defaultGCEPremiumMachineType       = "n1-standard-4"
+	defaultGCENetwork                  = "default"
+	defaultGCEDiskSize                 = int64(20)
+	defaultGCELanguage                 = "minimal"
+	defaultGCEBootPollSleep            = 3 * time.Second
+	defaultGCEBootPrePollSleep         = 15 * time.Second
+	defaultGCEStopPollSleep            = 3 * time.Second
+	defaultGCEStopPrePollSleep         = 15 * time.Second
+	defaultGCESubnet                   = "default"
+	defaultGCERegion                   = "us-central1"
+	defaultGCEUploadRetries            = uint64(120)
+	defaultGCEUploadRetrySleep         = 1 * time.Second
+	defaultGCETestConnectionRetries    = uint64(120)
+	defaultGCETestConnectionRetrySleep = 1 * time.Second
+	defaultGCEImageSelectorType        = "env"
+	defaultGCEImage                    = "travis-ci.+"
+	defaultGCEGpuCount                 = int64(0)
+	defaultGCEGpuType                  = "nvidia-tesla-p100"
 
 	defaultGCERateLimitMaxCalls         = uint64(10)
 	defaultGCERateLimitDuration         = time.Second
@@ -74,6 +76,8 @@ const (
 
 	defaultGCESSHDialTimeout = 5 * time.Second
 	defaultGCEWarmerTimeout  = 5 * time.Second
+
+	sshTestConnectionTimeout = 5 * time.Second
 )
 
 var (
@@ -125,8 +129,11 @@ var (
 		"ZONES":                 fmt.Sprintf("comma-delimited list of zone names (default %q)", defaultGCEZone),
 	}
 
-	errGCEMissingIPAddressError   = fmt.Errorf("no IP address found")
-	errGCEInstanceDeletionNotDone = fmt.Errorf("instance deletion not done")
+	errGCEMissingIPAddressError      = fmt.Errorf("no IP address found")
+	errGCEInstanceDeletionNotDone    = fmt.Errorf("instance deletion not done")
+	errGCEInstanceStopNotDone        = fmt.Errorf("instance stop not done")
+	errGCEInstanceStartNotDone       = fmt.Errorf("instance start not done")
+	errGCEInstanceImageCreateNotDone = fmt.Errorf("instance image create not done")
 
 	gceStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
 {{ if .AutoImplode }}echo poweroff | at now + {{ .HardTimeoutMinutes }} minutes{{ end }}
@@ -138,6 +145,19 @@ chown -R travis:travis ~travis/.ssh/
 
 	gceWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
 shutdown -s -t {{ .HardTimeoutSeconds }}
+net localgroup administrators travis /add
+$pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
+Set-LocalUser -Name travis -Password $pw
+`))
+
+	gceSimpleStartupScript = template.Must(template.New("gce-startup").Parse(`#!/usr/bin/env bash
+cat > ~travis/.ssh/authorized_keys <<EOF
+{{ .SSHPubKey }}
+EOF
+chown -R travis:travis ~travis/.ssh/
+`))
+
+	gceSimpleWindowsStartupScript = template.Must(template.New("gce-windows-startup").Parse(`
 net localgroup administrators travis /add
 $pw = '{{ .WindowsPassword }}' | ConvertTo-SecureString -AsPlainText -Force
 Set-LocalUser -Name travis -Password $pw
@@ -172,6 +192,11 @@ type gceStartupScriptData struct {
 	SSHPubKey          string
 	HardTimeoutSeconds int64
 	WindowsPassword    string
+}
+
+type ImageSizeResult struct {
+	size int64
+	arch string
 }
 
 func init() {
@@ -252,19 +277,21 @@ type gceProvider struct {
 	alternateZones       []string
 	machineTypeSelfLinks map[string]string
 
-	backoffRetryMax       time.Duration
-	deterministicHostname bool
-	imageSelectorType     string
-	imageSelector         image.Selector
-	imageCache            *sync.Map
-	bootPollSleep         time.Duration
-	bootPrePollSleep      time.Duration
-	defaultLanguage       string
-	defaultImage          string
-	uploadRetries         uint64
-	uploadRetrySleep      time.Duration
-	sshDialer             ssh.Dialer
-	sshDialTimeout        time.Duration
+	backoffRetryMax          time.Duration
+	deterministicHostname    bool
+	imageSelectorType        string
+	imageSelector            image.Selector
+	imageCache               *sync.Map
+	bootPollSleep            time.Duration
+	bootPrePollSleep         time.Duration
+	defaultLanguage          string
+	defaultImage             string
+	uploadRetries            uint64
+	uploadRetrySleep         time.Duration
+	testConnectionRetries    uint64
+	testConnectionRetrySleep time.Duration
+	sshDialer                ssh.Dialer
+	sshDialTimeout           time.Duration
 
 	rateLimiter         ratelimit.RateLimiter
 	rateLimitMaxCalls   uint64
@@ -274,6 +301,8 @@ type gceProvider struct {
 	warmerUrl           *url.URL
 	warmerTimeout       time.Duration
 	warmerSSHPassphrase string
+
+	artifactManager *image.ArtifactManager
 }
 
 type gceInstanceConfig struct {
@@ -290,6 +319,8 @@ type gceInstanceConfig struct {
 	HardTimeoutMinutes int64
 	StopPollSleep      time.Duration
 	StopPrePollSleep   time.Duration
+	StartPollSleep     time.Duration
+	StartPrePollSleep  time.Duration
 	SkipStopPoll       bool
 	Preemptible        bool
 	PublicIP           bool
@@ -349,12 +380,21 @@ type gceInstance struct {
 	windowsPassword string
 
 	warmed bool
+
+	createCustomImageName string
 }
 
 type gceInstanceStopContext struct {
-	ctx              gocontext.Context
-	errChan          chan error
-	instanceDeleteOp *compute.Operation
+	ctx                   gocontext.Context
+	errChan               chan error
+	instanceDeleteOp      *compute.Operation
+	instanceStopOp        *compute.Operation
+	instanceStartOp       *compute.Operation
+	instanceCreateImageOp *compute.Operation
+	imageName             string
+	imageSize             int64
+	imageArchitecture     string
+	logWriterFunc         func(string)
 }
 
 type gceInstanceStopMultistepWrapper struct {
@@ -509,6 +549,24 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 	uploadRetrySleep := defaultGCEUploadRetrySleep
 	if cfg.IsSet("UPLOAD_RETRY_SLEEP") {
 		si, err := time.ParseDuration(cfg.Get("UPLOAD_RETRY_SLEEP"))
+		if err != nil {
+			return nil, err
+		}
+		uploadRetrySleep = si
+	}
+
+	testConnectionRetries := defaultGCETestConnectionRetries
+	if cfg.IsSet("TESTCONNECTION_RETRIES") {
+		ur, err := strconv.ParseUint(cfg.Get("TESTCONNECTION_RETRIES"), 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		uploadRetries = ur
+	}
+
+	testConnectionRetrySleep := defaultGCETestConnectionRetrySleep
+	if cfg.IsSet("TESTCONNECTION_RETRY_SLEEP") {
+		si, err := time.ParseDuration(cfg.Get("TESTCONNECTION_RETRY_SLEEP"))
 		if err != nil {
 			return nil, err
 		}
@@ -703,17 +761,19 @@ func newGCEProvider(cfg *config.ProviderConfig) (Provider, error) {
 			Zones:              []*compute.Zone{},
 		},
 
-		backoffRetryMax:       backoffRetryMax,
-		deterministicHostname: deterministicHostname,
-		imageSelector:         imageSelector,
-		imageSelectorType:     imageSelectorType,
-		imageCache:            &sync.Map{},
-		bootPollSleep:         bootPollSleep,
-		bootPrePollSleep:      bootPrePollSleep,
-		defaultLanguage:       defaultLanguage,
-		defaultImage:          defaultImage,
-		uploadRetries:         uploadRetries,
-		uploadRetrySleep:      uploadRetrySleep,
+		backoffRetryMax:          backoffRetryMax,
+		deterministicHostname:    deterministicHostname,
+		imageSelector:            imageSelector,
+		imageSelectorType:        imageSelectorType,
+		imageCache:               &sync.Map{},
+		bootPollSleep:            bootPollSleep,
+		bootPrePollSleep:         bootPrePollSleep,
+		defaultLanguage:          defaultLanguage,
+		defaultImage:             defaultImage,
+		uploadRetries:            uploadRetries,
+		uploadRetrySleep:         uploadRetrySleep,
+		testConnectionRetries:    testConnectionRetries,
+		testConnectionRetrySleep: testConnectionRetrySleep,
 
 		rateLimiter:       rateLimiter,
 		rateLimitMaxCalls: rateLimitMaxCalls,
@@ -944,6 +1004,14 @@ func (p *gceProvider) backoffRetry(ctx gocontext.Context, fn func() error) error
 	return backoff.Retry(fn, backoff.WithContext(b, ctx))
 }
 
+func (p *gceProvider) backoffLongerRetry(ctx gocontext.Context, fn func() error) error {
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = 1 * time.Second
+	b.MaxElapsedTime = p.backoffRetryMax * 100
+
+	return backoff.Retry(fn, backoff.WithContext(b, ctx))
+}
+
 type MetricsTransport struct {
 	Name      string
 	Transport http.RoundTripper
@@ -1035,6 +1103,8 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 		errChan:            make(chan error),
 	}
 
+	p.artifactManager = startAttributes.ArtifactManager
+
 	state := &multistep.BasicStateBag{}
 
 	wp, err := makeWindowsPassword()
@@ -1075,7 +1145,9 @@ func (p *gceProvider) StartWithProgress(ctx gocontext.Context, startAttributes *
 }
 
 func (p *gceProvider) Start(ctx gocontext.Context, startAttributes *StartAttributes) (Instance, error) {
-	return p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
+	inst, err := p.StartWithProgress(ctx, startAttributes, NewTextProgresser(io.Discard))
+
+	return inst, err
 }
 
 func (p *gceProvider) stepGetImage(c *gceStartContext) multistep.StepAction {
@@ -1122,15 +1194,28 @@ func (p *gceProvider) stepRenderScript(c *gceStartContext) multistep.StepAction 
 	}
 
 	var err error
-	if c.startAttributes.OS == "windows" {
-		scriptData.WindowsPassword = c.windowsPassword
-		context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
-			"self":             "backend/gce_provider",
-			"windows_password": c.windowsPassword,
-		}).Debug("rendering startup script with password")
-		err = gceWindowsStartupScript.Execute(&scriptBuf, scriptData)
+	if c.startAttributes.CreatedCustomImageId == 0 {
+		if c.startAttributes.OS == "windows" {
+			scriptData.WindowsPassword = c.windowsPassword
+			context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+				"self":             "backend/gce_provider",
+				"windows_password": c.windowsPassword,
+			}).Debug("rendering startup script with password")
+			err = gceWindowsStartupScript.Execute(&scriptBuf, scriptData)
+		} else {
+			err = gceStartupScript.Execute(&scriptBuf, scriptData)
+		}
 	} else {
-		err = gceStartupScript.Execute(&scriptBuf, scriptData)
+		if c.startAttributes.OS == "windows" {
+			scriptData.WindowsPassword = c.windowsPassword
+			context.LoggerFromContext(c.ctx).WithFields(logrus.Fields{
+				"self":             "backend/gce_provider",
+				"windows_password": c.windowsPassword,
+			}).Debug("rendering startup script with password")
+			err = gceSimpleWindowsStartupScript.Execute(&scriptBuf, scriptData)
+		} else {
+			err = gceSimpleStartupScript.Execute(&scriptBuf, scriptData)
+		}
 	}
 	if err != nil {
 		c.progresser.Progress(&ProgressEntry{
@@ -1267,6 +1352,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		}
 
 		c.instanceInsertOpName = op.Name
+
 		return nil
 	})
 
@@ -1283,6 +1369,7 @@ func (p *gceProvider) stepInsertInstance(c *gceStartContext) multistep.StepActio
 		Message: "inserted instance",
 		State:   ProgressSuccess,
 	})
+
 	return multistep.ActionContinue
 }
 
@@ -1327,6 +1414,7 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 		gceInst.startupDuration = startupDuration
 		gceInst.cachedIPAddr = c.instanceWarmedIP
 		gceInst.warmed = true
+
 		c.instChan <- gceInst
 
 		return multistep.ActionContinue
@@ -1436,6 +1524,13 @@ func (p *gceProvider) stepWaitForInstanceIP(c *gceStartContext) multistep.StepAc
 	}
 }
 
+func (p *gceProvider) imageByName(ctx gocontext.Context, name string) (*compute.Image, error) {
+	ctx, span := trace.StartSpan(ctx, "GCE.imageByFilter")
+	defer span.End()
+
+	return p.client.Images.Get(p.projectID, name).Context(ctx).Do()
+}
+
 func (p *gceProvider) imageByFilter(ctx gocontext.Context, filter string) (*compute.Image, error) {
 	ctx, span := trace.StartSpan(ctx, "GCE.imageByFilter")
 	defer span.End()
@@ -1476,46 +1571,60 @@ func (p *gceProvider) imageSelect(ctx gocontext.Context, startAttributes *StartA
 
 	defer context.TimeSince(ctx, "image_select", time.Now())
 
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 	var (
 		imageName string
 		err       error
 	)
 
-	jobID, _ := context.JobIDFromContext(ctx)
-	repo, _ := context.RepositoryFromContext(ctx)
-	var gpuVMType = GPUType(startAttributes.VMSize)
-
-	if startAttributes.ImageName != "" {
-		imageName = startAttributes.ImageName
+	if startAttributes.UsedCustomImageId != 0 {
+		imageName = p.artifactManager.GenerateCustomImageName(startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId)
+		logger.Info(fmt.Sprintf("using custom image %s, ownerId: %d, ownerType: %s, usedCustomImageId: %d", imageName, startAttributes.OwnerId, startAttributes.OwnerType, startAttributes.UsedCustomImageId))
 	} else {
-		imageName, err = p.imageSelector.Select(ctx, &image.Params{
-			Infra:     "gce",
-			Language:  startAttributes.Language,
-			OsxImage:  startAttributes.OsxImage,
-			Dist:      startAttributes.Dist,
-			Group:     startAttributes.Group,
-			OS:        startAttributes.OS,
-			JobID:     jobID,
-			Repo:      repo,
-			GpuVMType: gpuVMType,
-		})
+		jobID, _ := context.JobIDFromContext(ctx)
+		repo, _ := context.RepositoryFromContext(ctx)
+		var gpuVMType = GPUType(startAttributes.VMSize)
 
-		if err != nil {
-			return nil, err
+		if startAttributes.ImageName != "" {
+			imageName = startAttributes.ImageName
+		} else {
+			imageName, err = p.imageSelector.Select(ctx, &image.Params{
+				Infra:     "gce",
+				Language:  startAttributes.Language,
+				OsxImage:  startAttributes.OsxImage,
+				Dist:      startAttributes.Dist,
+				Group:     startAttributes.Group,
+				OS:        startAttributes.OS,
+				JobID:     jobID,
+				Repo:      repo,
+				GpuVMType: gpuVMType,
+			})
+
+			if err != nil {
+				return nil, err
+			}
 		}
-	}
 
-	if imageName == "default" {
-		imageName = p.defaultImage
+		if imageName == "default" {
+			imageName = p.defaultImage
+		}
 	}
 
 	if image, ok := p.imageCache.Load(imageName); ok {
 		return image.(*compute.Image), nil
 	}
 
-	image, err := p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
-	if err != nil {
-		return nil, err
+	var image *compute.Image
+	if startAttributes.UsedCustomImageId != 0 {
+		image, err = p.imageByName(ctx, imageName)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		image, err = p.imageByFilter(ctx, fmt.Sprintf("name eq ^%s", imageName))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	p.imageCache.Store(imageName, image)
@@ -2116,10 +2225,11 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	}
 	defer conn.Close()
 
-	bashCommand := "bash ~/build.sh"
+	bashCommand := "rm -f /tmp/build.trace; bash ~/build.sh; rm -f ~/build.sh"
 	if i.os == "windows" {
-		bashCommand = `powershell -Command "& 'c:/program files/git/usr/bin/bash' -c 'export PATH=/bin:/usr/bin:$PATH; bash /c/users/travis/build.sh'"`
+		bashCommand = `powershell -Command "& 'c:/program files/git/usr/bin/bash' -c 'rm -f /tmp/build.trace; export PATH=/bin:/usr/bin:$PATH; bash /c/users/travis/build.sh; rm -f /c/users/travis/build.sh'"`
 	}
+
 	exitStatus, err := conn.RunCommand(bashCommand, output)
 
 	preempted, googleErr := i.isPreempted(ctx)
@@ -2157,6 +2267,128 @@ func (i *gceInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 	return buf, nil
 }
 
+func (i *gceInstance) CreateImage(ctx gocontext.Context, createCustomImageName string, logWriterFunc func(string)) (int64, string, string, error) {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+	state := &multistep.BasicStateBag{}
+
+	c := &gceInstanceStopContext{
+		ctx:           ctx,
+		errChan:       make(chan error),
+		logWriterFunc: logWriterFunc,
+	}
+
+	dotMakerDone := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-dotMakerDone:
+				return
+			case <-ticker.C:
+				logWriterFunc(".")
+			}
+		}
+	}()
+
+	i.createCustomImageName = createCustomImageName
+
+	logger.Info(fmt.Sprintf("creating custom image %s", createCustomImageName))
+
+	c.imageName = createCustomImageName
+	runner := &multistep.BasicRunner{
+		Steps: []multistep.Step{
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepCreateImageFromInstance},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForImageCreated},
+		},
+	}
+
+	logger.WithField("instance", i.instance.Name).Info("stopping instance")
+	go runner.Run(state)
+
+	logger.Debug("selecting over error and done channels")
+	select {
+	case err := <-c.errChan:
+		image, err := i.client.Images.Get(i.projectID, createCustomImageName).Do()
+		if err != nil {
+			logger.Error(fmt.Sprintf("get custom image size failed %s", err.Error()))
+			return 0, "", "", err
+		}
+		close(dotMakerDone)
+		return image.ArchiveSizeBytes, image.Architecture, i.os, err
+	case <-ctx.Done():
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.gce.stop.timeout")
+		}
+		close(dotMakerDone)
+		return c.imageSize, c.imageArchitecture, i.os, ctx.Err()
+	}
+}
+
+func (i *gceInstance) Restart(ctx gocontext.Context) error {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+	state := &multistep.BasicStateBag{}
+
+	c := &gceInstanceStopContext{
+		ctx:     ctx,
+		errChan: make(chan error),
+	}
+
+	runner := &multistep.BasicRunner{
+		Steps: []multistep.Step{
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepStopInstance},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForInstanceStopped},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepStartInstance},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForInstanceStarted},
+		},
+	}
+
+	logger.WithField("instance", i.instance.Name).Info("stopping instance")
+	go runner.Run(state)
+
+	logger.Debug("selecting over error and done channels")
+	select {
+	case err := <-c.errChan:
+		return err
+	case <-ctx.Done():
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.gce.stop.timeout")
+		}
+		return ctx.Err()
+	}
+}
+
+func (i *gceInstance) StopOnly(ctx gocontext.Context) error {
+	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
+	state := &multistep.BasicStateBag{}
+
+	c := &gceInstanceStopContext{
+		ctx:     ctx,
+		errChan: make(chan error),
+	}
+
+	runner := &multistep.BasicRunner{
+		Steps: []multistep.Step{
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepStopInstance},
+			&gceInstanceStopMultistepWrapper{c: c, f: i.stepWaitForInstanceStopped},
+		},
+	}
+
+	logger.WithField("instance", i.instance.Name).Info("stopping instance")
+	go runner.Run(state)
+
+	logger.Debug("selecting over error and done channels")
+	select {
+	case err := <-c.errChan:
+		return err
+	case <-ctx.Done():
+		if ctx.Err() == gocontext.DeadlineExceeded {
+			metrics.Mark("worker.vm.provider.gce.stop.timeout")
+		}
+		return ctx.Err()
+	}
+}
+
 func (i *gceInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/gce_instance")
 	state := &multistep.BasicStateBag{}
@@ -2188,6 +2420,74 @@ func (i *gceInstance) Stop(ctx gocontext.Context) error {
 	}
 }
 
+func (i *gceInstance) stepStopInstance(c *gceInstanceStopContext) multistep.StepAction {
+	err := i.provider.backoffRetry(c.ctx, func() error {
+		op, err := i.client.Instances.
+			Stop(i.projectID, i.getZoneName(), i.instance.Name).
+			Context(c.ctx).
+			Do()
+
+		if err != nil {
+			return err
+		}
+		c.instanceStopOp = op
+		return nil
+	})
+
+	if err != nil {
+		c.errChan <- err
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepStartInstance(c *gceInstanceStopContext) multistep.StepAction {
+	err := i.provider.backoffRetry(c.ctx, func() error {
+		op, err := i.client.Instances.
+			Start(i.projectID, i.getZoneName(), i.instance.Name).
+			Context(c.ctx).
+			Do()
+
+		if err != nil {
+			return err
+		}
+		c.instanceStartOp = op
+		return nil
+	})
+
+	if err != nil {
+		c.errChan <- err
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepCreateImageFromInstance(c *gceInstanceStopContext) multistep.StepAction {
+	err := i.provider.backoffRetry(c.ctx, func() error {
+		ci := &compute.Image{
+			Name:        i.createCustomImageName,
+			SourceDisk:  i.instance.Disks[0].Source,
+			Description: i.instance.Description,
+			Labels:      i.instance.Labels,
+		}
+		op, err := i.client.Images.Insert(i.projectID, ci).Context(c.ctx).Do()
+		if err != nil {
+			return err
+		}
+		c.instanceCreateImageOp = op
+		return nil
+	})
+
+	if err != nil {
+		c.errChan <- err
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
 func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.StepAction {
 	err := i.provider.backoffRetry(c.ctx, func() error {
 		op, err := i.client.Instances.
@@ -2204,6 +2504,135 @@ func (i *gceInstance) stepDeleteInstance(c *gceInstanceStopContext) multistep.St
 
 	if err != nil {
 		c.errChan <- err
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepWaitForImageCreated(c *gceInstanceStopContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+
+	logger.WithFields(logrus.Fields{
+		"duration": i.provider.ic.StopPrePollSleep,
+	}).Debug("sleeping before first checking instance image creation operation")
+
+	var span *trace.Span
+	ctx := c.ctx
+	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceImageCreate")
+
+	time.Sleep(i.provider.ic.StopPrePollSleep)
+	span.End()
+
+	err := i.provider.backoffLongerRetry(ctx, func() error {
+		_ = i.provider.apiRateLimit(c.ctx)
+		globalOp, err := i.client.GlobalOperations.
+			Get(i.projectID, c.instanceCreateImageOp.Name).
+			Do()
+		if err != nil {
+			return err
+		}
+
+		if globalOp.Status == "DONE" {
+			if globalOp.Error != nil {
+				return &gceOpError{Err: globalOp.Error}
+			}
+
+			return nil
+		}
+
+		return errGCEInstanceImageCreateNotDone
+	})
+
+	c.errChan <- err
+
+	if err != nil {
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepWaitForInstanceStarted(c *gceInstanceStopContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+
+	logger.WithFields(logrus.Fields{
+		"duration": i.provider.ic.StartPrePollSleep,
+	}).Debug("sleeping before first checking instance start operation")
+
+	var span *trace.Span
+	ctx := c.ctx
+	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceStarted")
+	time.Sleep(i.provider.ic.StartPrePollSleep)
+	span.End()
+
+	err := i.provider.backoffRetry(ctx, func() error {
+		_ = i.provider.apiRateLimit(c.ctx)
+		zoneOp, err := i.client.ZoneOperations.
+			Get(i.projectID, i.getZoneName(), c.instanceStartOp.Name).
+			Do()
+
+		if err != nil {
+			return err
+		}
+
+		if zoneOp.Status == "DONE" {
+			if zoneOp.Error != nil {
+				return &gceOpError{Err: zoneOp.Error}
+			}
+
+			return nil
+		}
+
+		return errGCEInstanceStartNotDone
+	})
+
+	c.errChan <- err
+
+	if err != nil {
+		return multistep.ActionHalt
+	}
+
+	return multistep.ActionContinue
+}
+
+func (i *gceInstance) stepWaitForInstanceStopped(c *gceInstanceStopContext) multistep.StepAction {
+	logger := context.LoggerFromContext(c.ctx).WithField("self", "backend/gce_instance")
+
+	logger.WithFields(logrus.Fields{
+		"duration": i.provider.ic.StopPrePollSleep,
+	}).Debug("sleeping before first checking instance stop operation")
+
+	var span *trace.Span
+	ctx := c.ctx
+	ctx, span = trace.StartSpan(ctx, "GCE.timeSleep.WaitForInstanceStopped")
+	time.Sleep(i.provider.ic.StopPrePollSleep)
+	span.End()
+
+	err := i.provider.backoffRetry(ctx, func() error {
+		_ = i.provider.apiRateLimit(c.ctx)
+		zoneOp, err := i.client.ZoneOperations.
+			Get(i.projectID, i.getZoneName(), c.instanceStopOp.Name).
+			Do()
+
+		if err != nil {
+			return err
+		}
+
+		if zoneOp.Status == "DONE" {
+			if zoneOp.Error != nil {
+				return &gceOpError{Err: zoneOp.Error}
+			}
+
+			return nil
+		}
+
+		return errGCEInstanceStopNotDone
+	})
+
+	c.errChan <- err
+
+	if err != nil {
 		return multistep.ActionHalt
 	}
 

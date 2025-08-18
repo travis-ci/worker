@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"os"
 	"time"
 
 	gocontext "context"
@@ -11,6 +12,7 @@ import (
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/config"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/image"
 	"go.opencensus.io/trace"
 )
 
@@ -44,6 +46,8 @@ type Processor struct {
 
 	// LastJobID contains the ID of the last job the processor processed.
 	LastJobID uint64
+
+	artifactManager *image.ArtifactManager
 }
 
 type ProcessorConfig struct {
@@ -84,7 +88,8 @@ func NewProcessor(ctx gocontext.Context, hostname string, queue JobQueue,
 		graceful:  make(chan struct{}),
 		terminate: cancel,
 
-		CurrentStatus: "new",
+		CurrentStatus:   "new",
+		artifactManager: image.NewArtifactManager(os.Getenv("TRAVIS_ARTIFACT_MANAGER_URL"), os.Getenv("TRAVIS_ARTIFACT_MANAGER_AUTH_TOKEN")),
 	}, nil
 }
 
@@ -208,9 +213,29 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	state.Put("processedAt", time.Now().UTC())
 	state.Put("infra", p.config.Infra)
 
+	state.Put("createdCustomImageId", buildJob.Payload().Job.CreatedCustomImage.Id)
+	state.Put("createdCustomImageName", buildJob.Payload().Job.CreatedCustomImage.Name)
+	state.Put("usedCustomImageId", buildJob.Payload().Job.UsedCustomImage.Id)
+	state.Put("usedCustomImageName", buildJob.Payload().Job.UsedCustomImage.Name)
+	if buildJob.Payload().Job.CreatedCustomImage.Id != 0 {
+		state.Put("ownerId", buildJob.Payload().Job.CreatedCustomImage.Owner.Id)
+		state.Put("ownerType", buildJob.Payload().Job.CreatedCustomImage.Owner.Type)
+	} else {
+		state.Put("ownerId", buildJob.Payload().Job.UsedCustomImage.Owner.Id)
+		state.Put("ownerType", buildJob.Payload().Job.UsedCustomImage.Owner.Type)
+	}
+	state.Put("userId", buildJob.Payload().TriggererId)
+
 	logger := context.LoggerFromContext(ctx).WithFields(logrus.Fields{
-		"job_id": buildJob.Payload().Job.ID,
-		"self":   "processor",
+		"job_id":                      buildJob.Payload().Job.ID,
+		"triggerer_id":                buildJob.Payload().TriggererId,
+		"createdCustomImageOwnerId":   buildJob.Payload().Job.CreatedCustomImage.Owner.Id,
+		"createdCustomImageOwnerType": buildJob.Payload().Job.CreatedCustomImage.Owner.Type,
+		"usedCustomImageOwnerId":      buildJob.Payload().Job.UsedCustomImage.Owner.Id,
+		"usedCustomImageOwnerType":    buildJob.Payload().Job.UsedCustomImage.Owner.Type,
+		"createdCustomImageId":        buildJob.Payload().Job.CreatedCustomImage.Id,
+		"usedCustomImageId":           buildJob.Payload().Job.UsedCustomImage.Id,
+		"self":                        "processor",
 	})
 
 	logTimeout := p.config.LogTimeout
@@ -237,8 +262,9 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 		},
 		&stepCheckCancellation{},
 		&stepStartInstance{
-			provider:     p.provider,
-			startTimeout: p.config.StartupTimeout,
+			provider:        p.provider,
+			startTimeout:    p.config.StartupTimeout,
+			artifactManager: p.artifactManager,
 		},
 		&stepCheckCancellation{},
 		&stepUploadScript{

@@ -92,8 +92,14 @@ type Instance interface {
 	// DownloadTrace attempts to download a job trace from the instance
 	DownloadTrace(gocontext.Context) ([]byte, error)
 
+	// StopOnly stops the instance without deletion
+	StopOnly(gocontext.Context) error
+
 	// Stop stops (and deletes) the instance
 	Stop(gocontext.Context) error
+
+	// CreateImage creates image from the instance, returns size, arch, os of image and error
+	CreateImage(gocontext.Context, string, func(string)) (int64, string, string, error)
 
 	// ID is used when identifying the instance in logs and such
 	ID() string

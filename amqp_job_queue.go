@@ -184,6 +184,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				err := json.Unmarshal(delivery.Body, buildJob.payload)
 				if err != nil {
 					logger.WithField("err", err).Error("payload JSON parse error")
+					logger.Error(fmt.Sprintf("original delivery.Body: %s", delivery.Body))
 					continue
 				}
 
@@ -216,6 +217,7 @@ func (q *AMQPJobQueue) Jobs(ctx gocontext.Context) (outChan <-chan Job, err erro
 				buildJob.startAttributes.VMSize = buildJob.payload.VMSize
 				buildJob.startAttributes.VMConfig = buildJob.payload.VMConfig
 				buildJob.startAttributes.Warmer = buildJob.payload.Warmer
+				buildJob.startAttributes.UsedCustomImageId = buildJob.payload.Job.UsedCustomImage.Id
 				buildJob.startAttributes.SetDefaults(q.DefaultLanguage, q.DefaultDist, q.DefaultArch, q.DefaultGroup, q.DefaultOS, VMTypeDefault, VMConfigDefault)
 				buildJob.conn = q.conn
 				buildJob.stateCount = buildJob.payload.Meta.StateUpdateCount

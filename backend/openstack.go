@@ -655,6 +655,14 @@ func (i *osInstance) DownloadTrace(ctx gocontext.Context) ([]byte, error) {
 	return nil, ErrDownloadTraceNotImplemented
 }
 
+func (i *osInstance) StopOnly(ctx gocontext.Context) error {
+	return nil
+}
+
+func (i *osInstance) CreateImage(ctx gocontext.Context, createCustomImageName string, logWriterFunc func(string)) (int64, string, string, error) {
+	return 0, "", "", nil
+}
+
 func (i *osInstance) Stop(ctx gocontext.Context) error {
 	logger := context.LoggerFromContext(ctx).WithField("self", "backend/openstack_instance")
 
