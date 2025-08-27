@@ -2116,7 +2116,8 @@ func (i *gceInstance) RunScript(ctx gocontext.Context, output io.Writer) (*RunRe
 	}
 	defer conn.Close()
 
-	bashCommand := "bash ~/build.sh"
+	bashCommand := "rm -f /tmp/build.trace; bash ~/build.sh; res=$?;rm -f ~/build.sh; return $res"
+
 	if i.os == "windows" {
 		bashCommand = `powershell -Command "& 'c:/program files/git/usr/bin/bash' -c 'export PATH=/bin:/usr/bin:$PATH; bash /c/users/travis/build.sh'"`
 	}
