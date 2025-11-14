@@ -154,6 +154,9 @@ func (s *stepStartInstance) Run(state multistep.StateBag) multistep.StepAction {
 		}).Error("couldn't start instance, attempting requeue")
 		context.CaptureError(ctx, err)
 
+		requeueCount, _ := state.Get("requeueCount").(int)
+		state.Put("requeueCount", requeueCount+1)
+
 		err := buildJob.Requeue(preTimeoutCtx)
 		if err != nil {
 			logger.WithField("err", err).Error("couldn't requeue job")

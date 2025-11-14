@@ -280,6 +280,13 @@ var (
 			Usage: "sample rate for trace as an inverse fraction - for sample rate n, every nth event will be sampled",
 			Value: 1,
 		}),
+		NewConfigDef("watchdog", &cli.BoolFlag{
+			Usage: "execute LXD watchdog and exit",
+		}),
+		NewConfigDef("MaxRequeues", &cli.IntFlag{
+			Usage: "Max requeue count after Worker pauses",
+			Value: 0,
+		}),
 	}
 
 	// Flags is the list of all CLI flags accepted by travis-worker
@@ -443,6 +450,7 @@ type Config struct {
 	StackdriverProjectID        string `config:"stackdriver-project-id"`
 	OpencensusTracingEnabled    bool   `config:"opencensus-tracing-enabled"`
 	OpencensusSamplingRate      int    `config:"opencensus-sampling-rate"`
+	MaxRequeues                 int    `config:"max-requeues"`
 
 	ProviderConfig *ProviderConfig
 }

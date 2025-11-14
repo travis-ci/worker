@@ -304,6 +304,13 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 	}
 	if buildJob.Requeued() {
 		fields["requeued"] = 1
+
+		requeueCount, _ := state.Get("requeueCount").(int)
+
+		if p.config.MaxRequeues > 0 && requeueCount > p.config.MaxRequeues {
+			logger.WithFields(fields).Info("too many requeues, shutting down")
+			p.GracefulShutdown()
+		}
 	}
 	logger.WithFields(fields).Info("finished job")
 

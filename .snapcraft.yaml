@@ -31,7 +31,7 @@ parts:
     go-packages:
       - github.com/travis-ci/worker/cmd/travis-worker
     go-importpath: github.com/travis-ci/worker
-    go-channel: 1.21/stable
+    go-channel: 1.23/stable
     prime:
       - bin/travis-worker
     override-build: |-

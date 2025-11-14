@@ -388,7 +388,9 @@ func (p *lxdProvider) allocateAddress(containerName string) (string, error) {
 	var ips []string
 	ip := net.ParseIP(p.networkGateway)
 	for ip := ip.Mask(p.networkSubnet.Mask); p.networkSubnet.Contains(ip); inc(ip) {
-		ips = append(ips, ip.String())
+		if ip[3] < 230 { // reserving some IPs for watchdog
+			ips = append(ips, ip.String())
+		}
 	}
 
 	usedIPs := []string{}
