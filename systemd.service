@@ -1,4 +1,5 @@
 # Service definition to be installed somewhere in the systemd load path
+# vim:filetype=systemd
 [Unit]
 Description=Travis Worker
 
