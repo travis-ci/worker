@@ -635,7 +635,7 @@ func (i *osInstance) UploadScript(ctx gocontext.Context, script []byte) error {
 		logger.Info("couldn't upload build script")
 		return errors.Wrap(err, "couldn't upload build script")
 	}
-	logger.WithField("instace_id", i.instance.ID).Info("Script Uploaded Succesfully")
+	logger.WithField("instace_id", i.instance.ID).Info("Script Uploaded Successfully")
 	return nil
 }
 
