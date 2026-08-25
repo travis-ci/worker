@@ -278,6 +278,8 @@ func (p *Processor) process(ctx gocontext.Context, buildJob Job) {
 			logTimeout:               logTimeout,
 			hardTimeout:              buildJob.StartAttributes().HardTimeout,
 			skipShutdownOnLogTimeout: p.config.SkipShutdownOnLogTimeout,
+			generator:                p.generator,
+			cloneAuthRemintMax:       defaultCloneAuthRemintMax,
 		},
 		&stepDownloadTrace{
 			persister: p.persister,

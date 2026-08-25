@@ -11,11 +11,22 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/travis-ci/worker/backend"
 	"github.com/travis-ci/worker/context"
+	"github.com/travis-ci/worker/metrics"
 	"go.opencensus.io/trace"
 )
 
 var MaxLogLengthExceeded = errors.New("maximum log length exceeded")
 var LogWriterTimeout = errors.New("log writer timeout")
+
+// cloneAuthRemintExitCode is the build-script exit code travis-build uses to signal that the
+// git clone failed with an auth 401. It tells us to regenerate the script (which re-mints a
+// fresh installation token) and retry, rather than failing the job. Keep in sync with
+// travis-build's Travis::Vcs::Git::Clone::CLONE_AUTH_REMINT_EXIT_CODE. GitHub ticket 4655118.
+const cloneAuthRemintExitCode int32 = 89
+
+// defaultCloneAuthRemintMax bounds the number of fresh-token clone retries, so a persistently
+// rejected token (e.g. a genuinely revoked installation) fails fast instead of looping.
+const defaultCloneAuthRemintMax = 2
 
 type runScriptReturn struct {
 	result *backend.RunResult
@@ -26,6 +37,8 @@ type stepRunScript struct {
 	logTimeout               time.Duration
 	hardTimeout              time.Duration
 	skipShutdownOnLogTimeout bool
+	generator                BuildScriptGenerator
+	cloneAuthRemintMax       int
 }
 
 func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
@@ -108,6 +121,23 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 			return multistep.ActionHalt
 		}
 
+		// A git-clone auth 401 comes back as a normally-completed script (err == nil) whose exit
+		// code is the sentinel travis-build emits (gatekeeper-only, via the travis-build allowlist).
+		// Regenerate the script -- which re-mints a fresh installation token -- and re-run, up to
+		// cloneAuthRemintMax times.
+		if r.result != nil && r.result.ExitCode == cloneAuthRemintExitCode {
+			newResult, err := s.remintAndRerun(ctx, buildJob, instance, logWriter, logger, r.result)
+			if err != nil {
+				state.Put("err", err)
+				logger.WithField("err", err).Error("clone-auth remint: script run failed, marking errored")
+				if fErr := buildJob.Finish(preTimeoutCtx, FinishStateErrored); fErr != nil {
+					logger.WithField("err", fErr).Error("couldn't mark job errored")
+				}
+				return multistep.ActionHalt
+			}
+			r.result = newResult
+		}
+
 		state.Put("scriptResult", r.result)
 
 		return multistep.ActionContinue
@@ -161,6 +191,51 @@ func (s *stepRunScript) Run(state multistep.StateBag) multistep.StepAction {
 		// Continue to the download trace step
 		return multistep.ActionContinue
 	}
+}
+
+// remintAndRerun handles a git-clone auth 401 (exit 89). It regenerates the build script
+// (each Generate re-compiles in travis-build, minting a fresh installation token), re-uploads
+// it, and re-runs it on the same instance, up to cloneAuthRemintMax attempts. It stops early as
+// soon as a run returns any exit code other than the 401 sentinel (a real pass/fail, or a
+// different failure). It returns the last RunResult; a non-nil error means a transport fault
+// during a retry, which the caller treats like any other unrunnable script.
+func (s *stepRunScript) remintAndRerun(ctx gocontext.Context, buildJob Job, instance backend.Instance, logWriter LogWriter, logger *logrus.Entry, result *backend.RunResult) (*backend.RunResult, error) {
+	for attempt := 1; attempt <= s.cloneAuthRemintMax; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return result, nil
+		}
+
+		logger.WithFields(logrus.Fields{
+			"attempt": attempt,
+			"max":     s.cloneAuthRemintMax,
+			"job_id":  buildJob.Payload().Job.ID,
+		}).Warn("git clone auth 401 (exit 89); regenerating script with a fresh token and retrying")
+		metrics.Mark("worker.job.clone_auth_remint")
+
+		script, err := s.generator.Generate(ctx, buildJob)
+		if err != nil {
+			logger.WithField("err", err).Error("clone-auth remint: couldn't regenerate build script, giving up")
+			return result, nil
+		}
+
+		if err := instance.UploadScript(ctx, script); err != nil {
+			logger.WithField("err", err).Error("clone-auth remint: couldn't upload regenerated script, giving up")
+			return result, nil
+		}
+
+		newResult, err := instance.RunScript(ctx, logWriter)
+		if err != nil {
+			return newResult, err
+		}
+
+		result = newResult
+		if result == nil || result.ExitCode != cloneAuthRemintExitCode {
+			return result, nil
+		}
+	}
+
+	logger.WithField("job_id", buildJob.Payload().Job.ID).Warn("git clone auth 401 persisted after clone-auth remint retries; giving up")
+	return result, nil
 }
 
 func (s *stepRunScript) writeLogAndFinishWithState(preTimeoutCtx, ctx gocontext.Context, logWriter LogWriter, buildJob Job, state FinishState, logMessage string) {
